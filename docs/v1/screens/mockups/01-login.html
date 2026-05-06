@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>S-A1: Login — Koolman HR Mockup</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script>
+    /* Apply theme early to avoid FOUC. Reads localStorage; falls back to OS preference */
+    (function() {
+      try {
+        const saved = localStorage.getItem('koolman-theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (saved === 'dark' || (saved === null && prefersDark)) {
+          document.documentElement.classList.add('dark');
+        }
+      } catch (e) {}
+    })();
+  </script>
+  <style>
+    /* ===== Design tokens (from design-system.md) ===== */
+    :root {
+      /* Theme 1 — Finnix Blue */
+      --primary-50:  #eff6ff;
+      --primary-100: #dbeafe;
+      --primary-200: #bfdbfe;
+      --primary-300: #93c5fd;
+      --primary-500: #3b82f6;
+      --primary-600: #2563eb;
+      --primary-700: #1d4ed8;
+      --primary-800: #1e40af;
+      --primary-900: #1e3a8a;
+      --accent-500: #f59e0b;
+      --success: #16a34a;
+      --warning: #ea580c;
+      --danger:  #dc2626;
+      --info:    #0891b2;
+
+      /* Neutrals (light) */
+      --bg: #ffffff;
+      --bg-muted: #f8fafc;
+      --bg-elevated: #ffffff;
+      --fg: #0f172a;
+      --fg-muted: #64748b;
+      --border: #e2e8f0;
+
+      /* Soft Modern radius */
+      --radius-sm: 0.375rem;
+      --radius:    0.625rem;
+      --radius-lg: 1rem;
+      --radius-xl: 1.25rem;
+
+      /* Brand-glow shadows */
+      --shadow-sm: 0 2px 4px 0 rgb(0 0 0 / 0.04);
+      --shadow:    0 4px 8px -2px rgb(0 0 0 / 0.05), 0 2px 4px -1px rgb(0 0 0 / 0.03);
+      --shadow-md: 0 8px 16px -4px rgb(37 99 235 / 0.12), 0 4px 8px -2px rgb(0 0 0 / 0.05);
+      --shadow-lg: 0 16px 32px -8px rgb(37 99 235 / 0.15), 0 8px 16px -4px rgb(0 0 0 / 0.06);
+      --shadow-glow: 0 0 0 4px rgb(37 99 235 / 0.15);
+    }
+    .dark {
+      --bg: #0f172a;
+      --bg-muted: #1e293b;
+      --bg-elevated: #1e293b;
+      --fg: #f1f5f9;
+      --fg-muted: #94a3b8;
+      --border: #334155;
+      --shadow-md: 0 8px 16px -4px rgb(37 99 235 / 0.06), 0 4px 8px -2px rgb(0 0 0 / 0.4);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      font-family: 'IBM Plex Sans Thai', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      line-height: 1.65;
+      letter-spacing: -0.005em;
+      transition: background 200ms, color 200ms;
+    }
+
+    /* ===== Page chrome (not part of the actual app) ===== */
+    .topbar {
+      position: sticky; top: 0; z-index: 30;
+      border-bottom: 1px solid var(--border);
+      padding: 12px 24px;
+      display: flex; justify-content: space-between; align-items: center;
+      background: var(--bg);
+    }
+    .topbar a { color: var(--primary-600); text-decoration: none; font-weight: 500; font-size: 0.875rem; }
+    .topbar .meta-mono { font-family: 'IBM Plex Mono', monospace; font-size: 0.8125rem; color: var(--fg-muted); }
+    .toggle-btn {
+      background: var(--bg-muted); border: 1px solid var(--border);
+      padding: 6px 12px; border-radius: var(--radius-sm);
+      cursor: pointer; font: inherit; color: var(--fg);
+      font-size: 0.8125rem;
+    }
+
+    .spec-banner {
+      background: var(--bg-muted); border-bottom: 1px solid var(--border);
+      padding: 12px 24px; font-size: 0.8125rem; color: var(--fg-muted);
+      display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap;
+    }
+    .spec-banner a { color: var(--primary-600); }
+
+    /* State toggle row */
+    .state-bar {
+      background: var(--bg);
+      padding: 24px;
+      display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;
+      border-bottom: 1px solid var(--border);
+    }
+    .state-pill {
+      padding: 8px 16px; font-size: 0.875rem; font-weight: 500;
+      background: var(--bg-muted); color: var(--fg); border: 1px solid var(--border);
+      border-radius: 999px; cursor: pointer; transition: all 150ms;
+      font: inherit; font-weight: 500;
+    }
+    .state-pill:hover { border-color: var(--primary-300); }
+    .state-pill.active {
+      background: var(--primary-600); color: white; border-color: var(--primary-600);
+    }
+
+    /* ===== App canvas (the actual rendered "app") ===== */
+    .app-canvas {
+      min-height: calc(100vh - 200px);
+      background: linear-gradient(135deg, var(--primary-50) 0%, var(--bg) 60%);
+      display: flex; align-items: center; justify-content: center;
+      padding: 48px 24px;
+      transition: background 200ms;
+    }
+    .dark .app-canvas {
+      background: linear-gradient(135deg, var(--primary-900) 0%, var(--bg) 60%);
+    }
+
+    /* ===== Login card (the actual UI) ===== */
+    .login-card {
+      width: 100%; max-width: 400px;
+      background: var(--bg-elevated);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-md);
+      padding: 32px;
+    }
+
+    .logo {
+      width: 56px; height: 56px;
+      background: var(--primary-600);
+      border-radius: var(--radius-lg);
+      margin: 0 auto 20px;
+      display: flex; align-items: center; justify-content: center;
+      color: white; font-weight: 700; font-size: 1.25rem;
+      letter-spacing: -0.02em;
+    }
+
+    .login-title {
+      font-size: 1.5rem; font-weight: 700; text-align: center; margin-bottom: 6px;
+      letter-spacing: -0.02em; color: var(--fg);
+    }
+    .login-subtitle {
+      font-size: 0.875rem; text-align: center; color: var(--fg-muted);
+      margin-bottom: 24px;
+    }
+
+    .form-group { margin-bottom: 14px; }
+    .form-label {
+      display: block; font-size: 0.875rem; font-weight: 500;
+      margin-bottom: 6px; color: var(--fg);
+    }
+    .form-input {
+      width: 100%; padding: 11px 14px;
+      font: inherit; font-size: 0.9375rem;
+      background: var(--bg); color: var(--fg);
+      border: 1px solid var(--border); border-radius: var(--radius);
+      transition: all 150ms;
+    }
+    .form-input:hover { border-color: var(--primary-300); }
+    .form-input:focus {
+      outline: none;
+      border-color: var(--primary-500);
+      box-shadow: var(--shadow-glow);
+    }
+    .form-input.error { border-color: var(--danger); }
+    .form-input.error:focus { box-shadow: 0 0 0 4px rgb(220 38 38 / 0.15); }
+
+    .form-error {
+      font-size: 0.8125rem; color: var(--danger);
+      margin-top: 6px;
+      display: flex; align-items: center; gap: 4px;
+    }
+
+    .input-hint {
+      font-size: 0.75rem; color: var(--fg-muted);
+      margin-top: 6px;
+      display: flex; align-items: center; gap: 4px;
+    }
+
+    .btn {
+      width: 100%; padding: 12px 24px;
+      font: inherit; font-size: 0.9375rem; font-weight: 600;
+      background: var(--primary-600); color: white;
+      border: none; border-radius: var(--radius);
+      cursor: pointer;
+      transition: all 150ms;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      margin-top: 8px;
+    }
+    .btn:hover { background: var(--primary-700); }
+    .btn:active { transform: translateY(1px); }
+    .btn:disabled {
+      opacity: 0.65; cursor: not-allowed; transform: none;
+    }
+    .btn .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: white; border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .forgot-link {
+      display: block; text-align: center; margin-top: 16px;
+      color: var(--primary-600); text-decoration: none;
+      font-size: 0.875rem; font-weight: 500;
+    }
+    .forgot-link:hover { text-decoration: underline; }
+
+    .powered-by {
+      text-align: center; color: var(--fg-muted);
+      font-size: 0.75rem;
+      margin-top: 32px;
+    }
+
+    /* ===== Toast (sample shown at bottom-right) ===== */
+    .toast-area {
+      position: fixed; bottom: 24px; right: 24px;
+      z-index: 50;
+      pointer-events: none;
+    }
+    .toast {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 14px 18px;
+      box-shadow: var(--shadow-md);
+      display: flex; align-items: center; gap: 12px;
+      max-width: 360px;
+      animation: slideUp 250ms cubic-bezier(0.16, 1, 0.3, 1);
+      pointer-events: auto;
+    }
+    @keyframes slideUp {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    .toast.error { border-left: 4px solid var(--danger); }
+    .toast.success { border-left: 4px solid var(--success); }
+    .toast.info { border-left: 4px solid var(--info); }
+    .toast-icon {
+      flex-shrink: 0;
+      width: 20px; height: 20px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem;
+    }
+    .toast-text { font-size: 0.875rem; color: var(--fg); flex: 1; }
+
+    /* ===== Mobile preview (hidden state-aware) ===== */
+    .device-preview {
+      display: none;
+    }
+    @media (min-width: 1100px) {
+      .app-canvas {
+        gap: 48px;
+        padding: 64px 24px;
+      }
+      .device-preview {
+        display: flex; flex-direction: column; align-items: center; gap: 12px;
+      }
+      .device-frame {
+        width: 360px; height: 720px;
+        border: 12px solid #1e293b;
+        border-radius: 32px;
+        background: linear-gradient(135deg, var(--primary-50) 0%, var(--bg) 60%);
+        overflow: hidden; position: relative;
+        box-shadow: var(--shadow-lg);
+        display: flex; align-items: center; justify-content: center;
+        padding: 16px;
+      }
+      .dark .device-frame { background: linear-gradient(135deg, var(--primary-900) 0%, var(--bg) 60%); }
+      .device-frame .login-card {
+        max-width: 100%;
+        padding: 24px;
+        box-shadow: var(--shadow);
+      }
+      .device-label {
+        font-size: 0.75rem; color: var(--fg-muted);
+        font-family: 'IBM Plex Mono', monospace;
+        text-transform: uppercase; letter-spacing: 0.05em;
+      }
+    }
+
+    /* ===== Notes section ===== */
+    .notes {
+      max-width: 800px; margin: 0 auto; padding: 32px 24px;
+    }
+    .notes h2 {
+      font-size: 1.25rem; font-weight: 600;
+      margin: 32px 0 12px; letter-spacing: -0.01em;
+    }
+    .notes h2:first-child { margin-top: 0; }
+    .notes p, .notes li { color: var(--fg); font-size: 0.9375rem; line-height: 1.7; }
+    .notes ul { padding-left: 24px; }
+    .notes code {
+      font-family: 'IBM Plex Mono', monospace;
+      background: var(--bg-muted); padding: 2px 6px;
+      border-radius: var(--radius-sm); font-size: 0.875em;
+      color: var(--primary-700);
+      border: 1px solid var(--border);
+    }
+    .dark .notes code { color: var(--primary-300); }
+
+    .info-box {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--primary-500);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      margin: 16px 0;
+    }
+    .info-box strong { color: var(--fg); }
+
+    /* Caps lock hint */
+    .caps-hint {
+      display: inline-flex; gap: 4px; align-items: center;
+      font-size: 0.75rem; color: var(--accent-500);
+      margin-top: 6px;
+    }
+  
+    /* === Mobile responsive (audit pass) === */
+    @media (max-width: 480px) {
+      .auth-card, .card, .container { max-width: 100% !important; padding: 24px 18px !important; }
+      .otp-cells { gap: 6px !important; }
+      .otp-cell { width: 38px !important; height: 48px !important; font-size: 1.25rem !important; }
+      .preview-grid, .gallery-grid { grid-template-columns: 1fr !important; }
+      h1, .title { font-size: 1.5rem !important; }
+      .state-bar { padding: 12px 8px; }
+      .state-pill { font-size: 0.75rem; padding: 5px 10px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <a href="index.html">← Auth mockups</a>
+    <span class="meta-mono">S-A1 · login</span>
+    <button class="toggle-btn" onclick="toggleTheme()">🌓 Dark mode</button>
+  </div>
+
+  <div class="spec-banner">
+    <span><strong>S-A1: Login</strong> — primary entry point ของ user ทุกคน</span>
+    <a href="../auth.md#s-a1-login">📄 ดู spec auth.md →</a>
+  </div>
+
+  <!-- State toggle row -->
+  <div class="state-bar">
+    <button class="state-pill active" onclick="setState('default', this)">Default</button>
+    <button class="state-pill" onclick="setState('hover', this)">Filled (hover)</button>
+    <button class="state-pill" onclick="setState('focus', this)">Focused</button>
+    <button class="state-pill" onclick="setState('caps', this)">Caps Lock detected</button>
+    <button class="state-pill" onclick="setState('loading', this)">Loading (submitting)</button>
+    <button class="state-pill" onclick="setState('error', this)">Error toast</button>
+    <button class="state-pill" onclick="setState('success', this)">Success → redirect</button>
+  </div>
+
+  <!-- ===== App canvas (login screen) ===== -->
+  <div class="app-canvas" id="canvas">
+
+    <!-- Main desktop view -->
+    <div>
+      <form class="login-card" id="loginCard" onsubmit="event.preventDefault(); demo();">
+        <div class="logo">KM</div>
+        <h1 class="login-title">เข้าสู่ระบบ</h1>
+        <p class="login-subtitle">Koolman HR · Koolman</p>
+
+        <div class="form-group">
+          <label class="form-label" for="phone">เบอร์โทรศัพท์</label>
+          <input class="form-input" id="phone" type="tel" autocomplete="tel" placeholder="081-234-5678" inputmode="numeric" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="pwd">รหัสผ่าน</label>
+          <input class="form-input" id="pwd" type="password" autocomplete="current-password" />
+          <div id="pwdHint"></div>
+        </div>
+
+        <button class="btn" id="submitBtn" type="submit">
+          <span id="btnText">เข้าสู่ระบบ</span>
+        </button>
+
+        <a href="04-reset-password.html" class="forgot-link">ลืมรหัสผ่าน?</a>
+      </form>
+      <p class="powered-by">Powered by Koolman HR</p>
+    </div>
+
+    <!-- Mobile preview (visible on wide screens) -->
+    <div class="device-preview">
+      <div class="device-frame">
+        <form class="login-card">
+          <div class="logo">KM</div>
+          <h1 class="login-title">เข้าสู่ระบบ</h1>
+          <p class="login-subtitle">Koolman HR · Koolman</p>
+          <div class="form-group">
+            <label class="form-label">เบอร์โทรศัพท์</label>
+            <input class="form-input" type="tel" placeholder="081-234-5678" inputmode="numeric" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">รหัสผ่าน</label>
+            <input class="form-input" type="password" />
+          </div>
+          <button class="btn" type="button">เข้าสู่ระบบ</button>
+          <a href="#" class="forgot-link">ลืมรหัสผ่าน?</a>
+        </form>
+      </div>
+      <div class="device-label">↑ mobile 360px preview</div>
+    </div>
+  </div>
+
+  <!-- Toast area (state-controlled) -->
+  <div class="toast-area" id="toastArea"></div>
+
+  <!-- ===== Implementation notes ===== -->
+  <div class="notes">
+    <h2>วิธีลองใช้</h2>
+    <ul>
+      <li>คลิก state pill ด้านบนเพื่อสลับ state ของ login form</li>
+      <li>Hover/focus input เพื่อดู soft border + brand glow ring</li>
+      <li>Toggle dark mode ที่ topbar เพื่อดู dark variants</li>
+      <li>Resize หน้าต่างต่ำกว่า 1100px เพื่อดู mobile-only layout</li>
+    </ul>
+
+    <h2>States covered</h2>
+    <ul>
+      <li><strong>Default</strong> — empty form, submit ปกติ</li>
+      <li><strong>Filled</strong> — user typed values, ปุ่มยังเปิด</li>
+      <li><strong>Focused</strong> — input มี ring แบบ <code>shadow-glow</code></li>
+      <li><strong>Caps Lock detected</strong> — hint chip ใต้ password field</li>
+      <li><strong>Loading</strong> — ปุ่มมี spinner + "กำลังเข้าสู่ระบบ..." + inputs disabled</li>
+      <li><strong>Error toast</strong> — bottom-right · "เบอร์โทรหรือรหัสผ่านไม่ถูกต้อง" (T-A2)</li>
+      <li><strong>Success → redirect</strong> — toast info "ส่ง OTP ไปยัง..." (T-A1) — UX จะ redirect ไป S-A2</li>
+    </ul>
+
+    <div class="info-box">
+      💡 <strong>Pro tip:</strong> ใน real app — ปุ่มใช้ <code>&lt;Button variant="primary" size="md" full-width&gt;</code> จาก shadcn customized ตาม design-system. Form ใช้ React Hook Form + Zod resolver.
+    </div>
+
+    <h2>Spec references</h2>
+    <ul>
+      <li><a href="../auth.md#s-a1-login"><code>auth.md § S-A1</code></a> — full screen spec</li>
+      <li><a href="../auth.md#f-a1-login-form"><code>auth.md § F-A1</code></a> — form fields + validation table</li>
+      <li><a href="../auth.md#auth-toasts"><code>auth.md § Toasts</code></a> — T-A1, T-A2 variants</li>
+      <li><a href="../../design-system.md"><code>design-system.md</code></a> — color tokens · typography · Soft Modern style</li>
+    </ul>
+  </div>
+
+  <script>
+    function setState(state, btn) {
+      // toggle pills
+      document.querySelectorAll('.state-pill').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+
+      const card = document.getElementById('loginCard');
+      const phone = document.getElementById('phone');
+      const pwd = document.getElementById('pwd');
+      const submitBtn = document.getElementById('submitBtn');
+      const btnText = document.getElementById('btnText');
+      const pwdHint = document.getElementById('pwdHint');
+      const toastArea = document.getElementById('toastArea');
+
+      // Reset
+      phone.value = '';
+      pwd.value = '';
+      phone.classList.remove('error');
+      pwd.classList.remove('error');
+      submitBtn.disabled = false;
+      btnText.textContent = 'เข้าสู่ระบบ';
+      submitBtn.querySelectorAll('.spinner').forEach(s => s.remove());
+      pwdHint.innerHTML = '';
+      toastArea.innerHTML = '';
+
+      switch (state) {
+        case 'default':
+          phone.focus(); break;
+
+        case 'hover':
+          phone.value = '081-234-5678';
+          pwd.value = '••••••••';
+          break;
+
+        case 'focus':
+          phone.value = '081-234-5678';
+          pwd.value = '••••••••';
+          pwd.focus();
+          break;
+
+        case 'caps':
+          phone.value = '081-234-5678';
+          pwd.value = 'PASSWORD123';
+          pwdHint.innerHTML = '<span class="caps-hint">⚠ Caps Lock เปิดอยู่</span>';
+          break;
+
+        case 'loading':
+          phone.value = '081-234-5678';
+          pwd.value = '••••••••';
+          phone.disabled = true;
+          pwd.disabled = true;
+          submitBtn.disabled = true;
+          submitBtn.innerHTML = '<span class="spinner"></span><span>กำลังเข้าสู่ระบบ...</span>';
+          setTimeout(() => {
+            phone.disabled = false;
+            pwd.disabled = false;
+          }, 0);
+          break;
+
+        case 'error':
+          phone.value = '081-234-5678';
+          pwd.value = '••••••••';
+          phone.classList.add('error');
+          pwd.classList.add('error');
+          toastArea.innerHTML = `
+            <div class="toast error">
+              <div class="toast-icon">⚠️</div>
+              <div class="toast-text">เบอร์โทรหรือรหัสผ่านไม่ถูกต้อง</div>
+            </div>`;
+          break;
+
+        case 'success':
+          phone.value = '081-234-5678';
+          pwd.value = '••••••••';
+          toastArea.innerHTML = `
+            <div class="toast info">
+              <div class="toast-icon">✉️</div>
+              <div class="toast-text">ส่งรหัส OTP ไปยัง 081-***-5678</div>
+            </div>`;
+          break;
+      }
+    }
+
+    function demo() {
+      setState('loading', document.querySelectorAll('.state-pill')[4]);
+      setTimeout(() => setState('success', document.querySelectorAll('.state-pill')[6]), 1500);
+    }
+
+    // Init
+    setState('default', document.querySelectorAll('.state-pill')[0]);
+
+    // Theme toggle (persists to localStorage)
+    function toggleTheme() {
+      const isDark = document.documentElement.classList.toggle('dark');
+      try { localStorage.setItem('koolman-theme', isDark ? 'dark' : 'light'); } catch (e) {}
+    }
+  </script>
+</body>
+</html>

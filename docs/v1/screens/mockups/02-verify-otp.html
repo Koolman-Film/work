@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>S-A2: Reset Password OTP — Koolman HR Mockup</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script>
+    /* Apply theme early to avoid FOUC. Reads localStorage; falls back to OS preference */
+    (function() {
+      try {
+        const saved = localStorage.getItem('koolman-theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (saved === 'dark' || (saved === null && prefersDark)) {
+          document.documentElement.classList.add('dark');
+        }
+      } catch (e) {}
+    })();
+  </script>
+  <style>
+    :root {
+      --primary-50:  #eff6ff;
+      --primary-100: #dbeafe;
+      --primary-300: #93c5fd;
+      --primary-500: #3b82f6;
+      --primary-600: #2563eb;
+      --primary-700: #1d4ed8;
+      --primary-800: #1e40af;
+      --primary-900: #1e3a8a;
+      --accent-500: #f59e0b;
+      --success: #16a34a;
+      --warning: #ea580c;
+      --danger:  #dc2626;
+      --info:    #0891b2;
+
+      --bg: #ffffff;
+      --bg-muted: #f8fafc;
+      --bg-elevated: #ffffff;
+      --fg: #0f172a;
+      --fg-muted: #64748b;
+      --border: #e2e8f0;
+
+      --radius-sm: 0.375rem;
+      --radius:    0.625rem;
+      --radius-lg: 1rem;
+      --radius-xl: 1.25rem;
+
+      --shadow-sm: 0 2px 4px 0 rgb(0 0 0 / 0.04);
+      --shadow:    0 4px 8px -2px rgb(0 0 0 / 0.05), 0 2px 4px -1px rgb(0 0 0 / 0.03);
+      --shadow-md: 0 8px 16px -4px rgb(37 99 235 / 0.12), 0 4px 8px -2px rgb(0 0 0 / 0.05);
+      --shadow-lg: 0 16px 32px -8px rgb(37 99 235 / 0.15), 0 8px 16px -4px rgb(0 0 0 / 0.06);
+      --shadow-glow: 0 0 0 4px rgb(37 99 235 / 0.15);
+    }
+    .dark {
+      --bg: #0f172a;
+      --bg-muted: #1e293b;
+      --bg-elevated: #1e293b;
+      --fg: #f1f5f9;
+      --fg-muted: #94a3b8;
+      --border: #334155;
+      --shadow-md: 0 8px 16px -4px rgb(37 99 235 / 0.06), 0 4px 8px -2px rgb(0 0 0 / 0.4);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      font-family: 'IBM Plex Sans Thai', system-ui, sans-serif;
+      background: var(--bg); color: var(--fg);
+      line-height: 1.65; letter-spacing: -0.005em;
+      transition: background 200ms, color 200ms;
+    }
+
+    /* Page chrome */
+    .topbar {
+      position: sticky; top: 0; z-index: 30;
+      border-bottom: 1px solid var(--border);
+      padding: 12px 24px; display: flex; justify-content: space-between; align-items: center;
+      background: var(--bg);
+    }
+    .topbar a { color: var(--primary-600); text-decoration: none; font-weight: 500; font-size: 0.875rem; }
+    .meta-mono { font-family: 'IBM Plex Mono', monospace; font-size: 0.8125rem; color: var(--fg-muted); }
+    .toggle-btn {
+      background: var(--bg-muted); border: 1px solid var(--border);
+      padding: 6px 12px; border-radius: var(--radius-sm);
+      cursor: pointer; font: inherit; color: var(--fg);
+      font-size: 0.8125rem;
+    }
+    .spec-banner {
+      background: var(--bg-muted); border-bottom: 1px solid var(--border);
+      padding: 12px 24px; font-size: 0.8125rem; color: var(--fg-muted);
+      display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap;
+    }
+    .spec-banner a { color: var(--primary-600); }
+
+    .state-bar {
+      background: var(--bg);
+      padding: 24px;
+      display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;
+      border-bottom: 1px solid var(--border);
+    }
+    .state-pill {
+      padding: 8px 16px; font-size: 0.875rem; font-weight: 500;
+      background: var(--bg-muted); color: var(--fg); border: 1px solid var(--border);
+      border-radius: 999px; cursor: pointer; transition: all 150ms;
+      font: inherit; font-weight: 500;
+    }
+    .state-pill:hover { border-color: var(--primary-300); }
+    .state-pill.active {
+      background: var(--primary-600); color: white; border-color: var(--primary-600);
+    }
+
+    /* App canvas */
+    .app-canvas {
+      min-height: calc(100vh - 220px);
+      background: linear-gradient(135deg, var(--primary-50) 0%, var(--bg) 60%);
+      display: flex; align-items: center; justify-content: center;
+      padding: 48px 24px;
+      transition: background 200ms;
+    }
+    .dark .app-canvas {
+      background: linear-gradient(135deg, var(--primary-900) 0%, var(--bg) 60%);
+    }
+
+    /* OTP card */
+    .otp-card {
+      width: 100%; max-width: 400px;
+      background: var(--bg-elevated);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-md);
+      padding: 32px;
+    }
+    .back-link {
+      color: var(--fg-muted); text-decoration: none;
+      font-size: 0.875rem; font-weight: 500;
+      display: inline-flex; align-items: center; gap: 6px;
+      margin-bottom: 16px;
+    }
+    .back-link:hover { color: var(--primary-600); }
+    .otp-icon {
+      width: 56px; height: 56px;
+      margin: 0 auto 20px;
+      background: var(--primary-50);
+      border-radius: var(--radius-lg);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.5rem; color: var(--primary-600);
+    }
+    .dark .otp-icon { background: var(--primary-900); color: var(--primary-300); }
+
+    .otp-title {
+      font-size: 1.5rem; font-weight: 700; text-align: center; margin-bottom: 8px;
+      letter-spacing: -0.02em;
+    }
+    .otp-subtitle {
+      font-size: 0.875rem; text-align: center; color: var(--fg-muted);
+      margin-bottom: 24px;
+    }
+    .otp-phone {
+      color: var(--fg); font-weight: 500;
+    }
+
+    /* OTP input cells */
+    .otp-grid {
+      display: grid; grid-template-columns: repeat(6, 1fr);
+      gap: 8px; margin-bottom: 24px;
+    }
+    .otp-cell {
+      width: 100%; aspect-ratio: 1 / 1.1;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 1.5rem; font-weight: 600;
+      text-align: center;
+      background: var(--bg);
+      color: var(--fg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      transition: all 150ms;
+    }
+    .otp-cell:focus {
+      outline: none;
+      border-color: var(--primary-500);
+      box-shadow: var(--shadow-glow);
+    }
+    .otp-cell.filled { border-color: var(--primary-600); background: var(--primary-50); }
+    .dark .otp-cell.filled { background: var(--primary-900); }
+
+    .otp-cell.error {
+      border-color: var(--danger);
+      background: rgba(220, 38, 38, 0.05);
+      animation: shake 0.4s;
+    }
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-4px); }
+      40%, 80% { transform: translateX(4px); }
+    }
+
+    .btn {
+      width: 100%; padding: 12px 24px;
+      font: inherit; font-size: 0.9375rem; font-weight: 600;
+      background: var(--primary-600); color: white;
+      border: none; border-radius: var(--radius);
+      cursor: pointer;
+      transition: all 150ms;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .btn:hover { background: var(--primary-700); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: white; border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .resend-row {
+      text-align: center; margin-top: 18px;
+      font-size: 0.875rem; color: var(--fg-muted);
+    }
+    .resend-btn {
+      background: transparent; border: none;
+      color: var(--primary-600); font-weight: 600;
+      font-size: 0.875rem; cursor: pointer;
+      font: inherit;
+    }
+    .resend-btn:hover { text-decoration: underline; }
+    .resend-btn:disabled { color: var(--fg-muted); cursor: not-allowed; text-decoration: none; }
+
+    .countdown {
+      font-family: 'IBM Plex Mono', monospace;
+      font-weight: 500; color: var(--fg);
+    }
+
+    /* Toast */
+    .toast-area { position: fixed; bottom: 24px; right: 24px; z-index: 50; pointer-events: none; }
+    .toast {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 14px 18px;
+      box-shadow: var(--shadow-md);
+      display: flex; align-items: center; gap: 12px;
+      max-width: 360px;
+      animation: slideUp 250ms cubic-bezier(0.16, 1, 0.3, 1);
+      pointer-events: auto;
+    }
+    @keyframes slideUp {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    .toast.error { border-left: 4px solid var(--danger); }
+    .toast.success { border-left: 4px solid var(--success); }
+    .toast.info { border-left: 4px solid var(--info); }
+    .toast-icon { flex-shrink: 0; font-size: 1rem; }
+    .toast-text { font-size: 0.875rem; color: var(--fg); }
+
+    /* Mobile preview */
+    .device-preview { display: none; }
+    @media (min-width: 1100px) {
+      .app-canvas { gap: 48px; padding: 64px 24px; }
+      .device-preview { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+      .device-frame {
+        width: 360px; height: 720px;
+        border: 12px solid #1e293b;
+        border-radius: 32px;
+        background: linear-gradient(135deg, var(--primary-50) 0%, var(--bg) 60%);
+        overflow: hidden; position: relative;
+        box-shadow: var(--shadow-lg);
+        display: flex; align-items: center; justify-content: center;
+        padding: 16px;
+      }
+      .dark .device-frame { background: linear-gradient(135deg, var(--primary-900) 0%, var(--bg) 60%); }
+      .device-frame .otp-card { max-width: 100%; padding: 24px; box-shadow: var(--shadow); }
+      .device-frame .otp-cell { font-size: 1.125rem; }
+      .device-label {
+        font-size: 0.75rem; color: var(--fg-muted);
+        font-family: 'IBM Plex Mono', monospace;
+        text-transform: uppercase; letter-spacing: 0.05em;
+      }
+    }
+
+    /* Notes */
+    .notes { max-width: 800px; margin: 0 auto; padding: 32px 24px; }
+    .notes h2 { font-size: 1.25rem; font-weight: 600; margin: 32px 0 12px; letter-spacing: -0.01em; }
+    .notes h2:first-child { margin-top: 0; }
+    .notes p, .notes li { color: var(--fg); font-size: 0.9375rem; line-height: 1.7; }
+    .notes ul { padding-left: 24px; }
+    .notes code {
+      font-family: 'IBM Plex Mono', monospace;
+      background: var(--bg-muted); padding: 2px 6px;
+      border-radius: var(--radius-sm); font-size: 0.875em;
+      color: var(--primary-700);
+      border: 1px solid var(--border);
+    }
+    .dark .notes code { color: var(--primary-300); }
+
+    .info-box {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--primary-500);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      margin: 16px 0;
+    }
+  
+    /* === Mobile responsive (audit pass) === */
+    @media (max-width: 480px) {
+      .auth-card, .card, .container { max-width: 100% !important; padding: 24px 18px !important; }
+      .otp-cells { gap: 6px !important; }
+      .otp-cell { width: 38px !important; height: 48px !important; font-size: 1.25rem !important; }
+      .preview-grid, .gallery-grid { grid-template-columns: 1fr !important; }
+      h1, .title { font-size: 1.5rem !important; }
+      .state-bar { padding: 12px 8px; }
+      .state-pill { font-size: 0.75rem; padding: 5px 10px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <a href="index.html">← Auth mockups</a>
+    <span class="meta-mono">S-A2 · reset OTP</span>
+    <button class="toggle-btn" onclick="toggleTheme()">🌓 Dark mode</button>
+  </div>
+
+  <div class="spec-banner">
+    <span><strong>S-A2: Reset Password OTP</strong> — 6-digit SMS code · countdown timer · auto-advance cells</span>
+    <a href="../auth.md#s-a2-verify-otp">📄 ดู spec auth.md →</a>
+  </div>
+
+  <div class="state-bar">
+    <button class="state-pill active" onclick="setState('empty', this)">Empty (just landed)</button>
+    <button class="state-pill" onclick="setState('typing', this)">Typing (3 of 6)</button>
+    <button class="state-pill" onclick="setState('full', this)">Filled (ready to submit)</button>
+    <button class="state-pill" onclick="setState('loading', this)">Loading (submitting)</button>
+    <button class="state-pill" onclick="setState('wrong', this)">Wrong code (X-A2)</button>
+    <button class="state-pill" onclick="setState('expired', this)">Resend ready</button>
+    <button class="state-pill" onclick="setState('success', this)">Success → redirect</button>
+  </div>
+
+  <!-- App canvas -->
+  <div class="app-canvas">
+
+    <!-- Desktop view -->
+    <div>
+      <form class="otp-card" id="otpCard">
+        <a href="01-login.html" class="back-link">← กลับ</a>
+        <div class="otp-icon">✉</div>
+        <h1 class="otp-title">ยืนยันรหัส OTP</h1>
+        <p class="otp-subtitle">เราส่งรหัส 6 หลักไปที่<br><span class="otp-phone">081-***-5678</span></p>
+
+        <div class="otp-grid" id="otpGrid">
+          <input class="otp-cell" maxlength="1" inputmode="numeric" data-idx="0" />
+          <input class="otp-cell" maxlength="1" inputmode="numeric" data-idx="1" />
+          <input class="otp-cell" maxlength="1" inputmode="numeric" data-idx="2" />
+          <input class="otp-cell" maxlength="1" inputmode="numeric" data-idx="3" />
+          <input class="otp-cell" maxlength="1" inputmode="numeric" data-idx="4" />
+          <input class="otp-cell" maxlength="1" inputmode="numeric" data-idx="5" />
+        </div>
+
+        <button class="btn" id="submitBtn" disabled>
+          <span id="btnText">ยืนยัน</span>
+        </button>
+
+        <div class="resend-row" id="resendRow">
+          ส่งใหม่ใน <span class="countdown" id="countdown">0:60</span>
+        </div>
+      </form>
+    </div>
+
+    <!-- Mobile preview -->
+    <div class="device-preview">
+      <div class="device-frame">
+        <form class="otp-card">
+          <a href="#" class="back-link">← กลับ</a>
+          <div class="otp-icon">✉</div>
+          <h1 class="otp-title">ยืนยันรหัส OTP</h1>
+          <p class="otp-subtitle">เราส่งรหัส 6 หลักไปที่<br><span class="otp-phone">081-***-5678</span></p>
+          <div class="otp-grid">
+            <input class="otp-cell" maxlength="1" />
+            <input class="otp-cell" maxlength="1" />
+            <input class="otp-cell" maxlength="1" />
+            <input class="otp-cell" maxlength="1" />
+            <input class="otp-cell" maxlength="1" />
+            <input class="otp-cell" maxlength="1" />
+          </div>
+          <button class="btn" type="button" disabled>ยืนยัน</button>
+          <div class="resend-row">ส่งใหม่ใน <span class="countdown">0:60</span></div>
+        </form>
+      </div>
+      <div class="device-label">↑ mobile 360px preview</div>
+    </div>
+  </div>
+
+  <div class="toast-area" id="toastArea"></div>
+
+  <div class="notes">
+    <h2>วิธีลองใช้</h2>
+    <ul>
+      <li>คลิก state pill เพื่อสลับ state ต่างๆ</li>
+      <li>ลอง <strong>พิมพ์ตัวเลข</strong> ใน cell — auto-advance ไป cell ถัดไป</li>
+      <li>ลอง <strong>backspace</strong> — กลับ cell ก่อนหน้า</li>
+      <li>ลอง <strong>paste 6 digits</strong> ใน cell แรก — auto-fills ทุก cell</li>
+      <li>เมื่อพิมพ์ครบ 6 → submit button enable</li>
+    </ul>
+
+    <h2>States covered</h2>
+    <ul>
+      <li><strong>Empty</strong> — เพิ่งเข้ามา · auto-focus cell แรก · countdown 1:00 เริ่มเดิน</li>
+      <li><strong>Typing (3/6)</strong> — กำลังพิมพ์ · cells filled มีพื้นหลัง primary-50</li>
+      <li><strong>Filled</strong> — ครบ 6 หลัก · submit button enabled</li>
+      <li><strong>Loading</strong> — submitting · cells disabled · spinner ใน button</li>
+      <li><strong>Wrong code (X-A2)</strong> — toast error + cells flash red shake animation + clear · focus cell แรก</li>
+      <li><strong>Resend ready</strong> — countdown หมด · "ส่งรหัสอีกครั้ง" button แทนที่ countdown</li>
+      <li><strong>Success</strong> — toast success "ยืนยันสำเร็จ" + UX redirect ไป dashboard ตาม role</li>
+    </ul>
+
+    <div class="info-box">
+      💡 <strong>Implementation:</strong> ใช้ shadcn <code>&lt;InputOTP&gt;</code> component หรือ custom 6-cell. Auto-focus next cell ด้วย <code>onChange</code> handler. Paste support ผ่าน <code>onPaste</code>.
+    </div>
+
+    <h2>Spec references</h2>
+    <ul>
+      <li><a href="../auth.md#s-a2-verify-otp"><code>auth.md § S-A2</code></a> — full screen spec</li>
+      <li><a href="../auth.md#f-a2-otp-verify-form"><code>auth.md § F-A2</code></a> — form behavior</li>
+      <li><a href="../auth.md#x-a2-otp-wrong-3-times"><code>auth.md § X-A2</code></a> — lockout edge case</li>
+      <li><a href="../auth.md#s-a2-sms-otp"><code>auth.md § E-A2</code></a> — SMS template ที่ user ได้รับ</li>
+    </ul>
+  </div>
+
+  <script>
+    const cells = () => document.querySelectorAll('#otpGrid .otp-cell');
+    const submitBtn = () => document.getElementById('submitBtn');
+    const btnText = () => document.getElementById('btnText');
+    const countdown = () => document.getElementById('countdown');
+    const resendRow = () => document.getElementById('resendRow');
+    const toastArea = () => document.getElementById('toastArea');
+
+    // Cell interaction (real-typing demo)
+    cells().forEach((cell, idx) => {
+      cell.addEventListener('input', e => {
+        const val = e.target.value;
+        if (val) {
+          e.target.classList.add('filled');
+          const next = cells()[idx + 1];
+          if (next) next.focus();
+        } else {
+          e.target.classList.remove('filled');
+        }
+        updateSubmitState();
+      });
+      cell.addEventListener('keydown', e => {
+        if (e.key === 'Backspace' && !e.target.value && idx > 0) {
+          cells()[idx - 1].focus();
+        }
+      });
+      cell.addEventListener('paste', e => {
+        e.preventDefault();
+        const txt = e.clipboardData.getData('text').replace(/\D/g,'').slice(0,6);
+        cells().forEach((c, i) => {
+          c.value = txt[i] || '';
+          if (txt[i]) c.classList.add('filled');
+          else c.classList.remove('filled');
+        });
+        const lastIdx = Math.min(txt.length, 5);
+        cells()[lastIdx].focus();
+        updateSubmitState();
+      });
+    });
+
+    function updateSubmitState() {
+      const filled = Array.from(cells()).every(c => c.value);
+      submitBtn().disabled = !filled;
+    }
+
+    function setCellsValue(values, errorMode = false) {
+      cells().forEach((c, i) => {
+        c.value = values[i] || '';
+        c.classList.toggle('filled', !!values[i] && !errorMode);
+        c.classList.toggle('error', errorMode && !!values[i]);
+      });
+    }
+
+    function setState(state, btn) {
+      document.querySelectorAll('.state-pill').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+
+      // Reset
+      cells().forEach(c => { c.disabled = false; c.classList.remove('filled','error'); c.value = ''; });
+      submitBtn().disabled = true;
+      btnText().textContent = 'ยืนยัน';
+      submitBtn().querySelectorAll('.spinner').forEach(s => s.remove());
+      resendRow().innerHTML = 'ส่งใหม่ใน <span class="countdown" id="countdown">0:45</span>';
+      toastArea().innerHTML = '';
+
+      switch (state) {
+        case 'empty':
+          cells()[0].focus();
+          break;
+
+        case 'typing':
+          setCellsValue(['4','8','2','','','']);
+          cells()[3].focus();
+          break;
+
+        case 'full':
+          setCellsValue(['4','8','2','9','1','7']);
+          submitBtn().disabled = false;
+          break;
+
+        case 'loading':
+          setCellsValue(['4','8','2','9','1','7']);
+          cells().forEach(c => c.disabled = true);
+          submitBtn().disabled = true;
+          submitBtn().innerHTML = '<span class="spinner"></span><span>กำลังยืนยัน...</span>';
+          break;
+
+        case 'wrong':
+          setCellsValue(['4','8','2','9','1','7'], true);
+          toastArea().innerHTML = `
+            <div class="toast error">
+              <div class="toast-icon">⚠️</div>
+              <div class="toast-text">รหัส OTP ไม่ถูกต้อง</div>
+            </div>`;
+          // Auto-clear after shake
+          setTimeout(() => {
+            cells().forEach(c => { c.classList.remove('error'); c.value = ''; });
+            cells()[0].focus();
+          }, 600);
+          break;
+
+        case 'expired':
+          resendRow().innerHTML = 'ไม่ได้รับรหัส? <button class="resend-btn" onclick="onResend()">ส่งรหัสอีกครั้ง</button>';
+          break;
+
+        case 'success':
+          setCellsValue(['4','8','2','9','1','7']);
+          toastArea().innerHTML = `
+            <div class="toast success">
+              <div class="toast-icon">✓</div>
+              <div class="toast-text">เข้าสู่ระบบสำเร็จ</div>
+            </div>`;
+          break;
+      }
+    }
+
+    function onResend() {
+      toastArea().innerHTML = `
+        <div class="toast info">
+          <div class="toast-icon">✉️</div>
+          <div class="toast-text">ส่งรหัสใหม่แล้ว — โปรดตรวจสอบ SMS</div>
+        </div>`;
+      resendRow().innerHTML = 'ส่งใหม่ใน <span class="countdown" id="countdown">1:00</span>';
+    }
+
+    // Init
+    setState('empty', document.querySelectorAll('.state-pill')[0]);
+
+    // Theme toggle (persists to localStorage)
+    function toggleTheme() {
+      const isDark = document.documentElement.classList.toggle('dark');
+      try { localStorage.setItem('koolman-theme', isDark ? 'dark' : 'light'); } catch (e) {}
+    }
+  </script>
+</body>
+</html>

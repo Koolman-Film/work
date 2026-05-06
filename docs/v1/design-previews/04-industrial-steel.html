@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Theme 4: Industrial Steel — Koolman HR</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700&family=Noto+Sans+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary-50:  #f8fafc;
+      --primary-100: #f1f5f9;
+      --primary-200: #e2e8f0;
+      --primary-300: #cbd5e1;
+      --primary-400: #94a3b8;
+      --primary-500: #64748b;
+      --primary-600: #475569;
+      --primary-700: #334155;
+      --primary-800: #1e293b;
+      --primary-900: #0f172a;
+      --accent-300: #67e8f9;
+      --accent-500: #06b6d4;
+      --accent-600: #0891b2;
+      --accent-700: #0e7490;
+      --success: #16a34a;
+      --warning: #f59e0b;
+      --danger:  #dc2626;
+      --info:    #06b6d4;
+      --bg:        #ffffff;
+      --bg-muted:  #f1f5f9;
+      --bg-grid:   #f8fafc;
+      --fg:        #0f172a;
+      --fg-muted:  #64748b;
+      --border:    #cbd5e1;
+      --radius:    0.25rem;
+      --shadow-sm: 0 1px 0 0 rgb(0 0 0 / 0.05);
+      --shadow-md: 0 2px 8px -2px rgb(15 23 42 / 0.1);
+    }
+    .dark {
+      --bg:        #020617;
+      --bg-muted:  #0f172a;
+      --bg-grid:   #0a0f1d;
+      --fg:        #e2e8f0;
+      --fg-muted:  #64748b;
+      --border:    #1e293b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      font-family: 'Noto Sans Thai', system-ui, sans-serif;
+      background:
+        linear-gradient(var(--bg) 1px, transparent 1px) 0 0 / 100% 32px,
+        var(--bg-grid);
+      color: var(--fg);
+      line-height: 1.6;
+      transition: background 200ms, color 200ms;
+    }
+    .topbar {
+      position: sticky; top: 0; z-index: 10;
+      background: var(--bg); border-bottom: 1px solid var(--border);
+      padding: 12px 24px; display: flex; justify-content: space-between; align-items: center;
+    }
+    .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+    .back-link { color: var(--accent-600); text-decoration: none; font-weight: 500; font-size: 0.875rem; font-family: 'Noto Sans Mono', monospace; }
+    .back-link:hover { text-decoration: underline; }
+    .toggle {
+      background: var(--bg-muted); border: 1px solid var(--border);
+      padding: 6px 12px; border-radius: var(--radius); cursor: pointer; font: inherit;
+      color: var(--fg); font-family: 'Noto Sans Mono', monospace; font-size: 0.8125rem;
+    }
+    h1 { font-size: 2.25rem; font-weight: 700; margin-bottom: 4px; letter-spacing: -0.01em; }
+    h1::before { content: '# '; color: var(--accent-500); font-family: 'Noto Sans Mono', monospace; }
+    h2 {
+      font-size: 1.25rem; font-weight: 600; margin: 48px 0 16px;
+      padding-left: 12px; border-left: 3px solid var(--accent-500);
+      font-family: 'Noto Sans Thai', sans-serif;
+    }
+    h3 { font-size: 1rem; font-weight: 600; margin: 20px 0 10px; }
+    .tagline { font-size: 1.0625rem; color: var(--fg-muted); margin-bottom: 24px; }
+
+    .palette { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1px; background: var(--border); border: 1px solid var(--border); }
+    .swatch {
+      padding: 16px;
+      display: flex; flex-direction: column; justify-content: space-between;
+      min-height: 100px;
+      font-size: 0.75rem; font-weight: 500;
+    }
+    .swatch .hex { font-family: 'Noto Sans Mono', monospace; font-size: 0.6875rem; opacity: 0.85; }
+
+    .type-row { padding: 16px; background: var(--bg); border: 1px solid var(--border); margin-bottom: 4px; }
+    .type-row .meta { font-family: 'Noto Sans Mono', monospace; font-size: 0.6875rem; color: var(--accent-600); margin-bottom: 8px; }
+
+    .mock {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      padding: 24px;
+      margin: 16px 0;
+    }
+    .mock-frame {
+      background: var(--bg);
+      padding: 24px;
+      border: 1px solid var(--border);
+    }
+
+    .login-card { max-width: 400px; margin: 24px auto; }
+    .logo {
+      width: 64px; height: 64px;
+      background: var(--primary-900);
+      border: 2px solid var(--accent-500);
+      margin: 0 auto 16px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--accent-300); font-weight: 700; font-size: 1.125rem;
+      font-family: 'Noto Sans Mono', monospace; letter-spacing: 0;
+      position: relative;
+    }
+    .logo::after {
+      content: ''; position: absolute; inset: -4px;
+      border: 1px solid var(--accent-500); opacity: 0.3;
+    }
+    .form-group { margin-bottom: 14px; }
+    .form-label {
+      display: block; font-size: 0.75rem; font-weight: 500; margin-bottom: 6px; color: var(--fg-muted);
+      text-transform: uppercase; letter-spacing: 0.08em;
+      font-family: 'Noto Sans Mono', monospace;
+    }
+    .form-input {
+      width: 100%; padding: 11px 14px; font: inherit; font-size: 0.9375rem;
+      background: var(--bg); color: var(--fg);
+      border: 1px solid var(--border); border-radius: var(--radius);
+      transition: border 150ms, box-shadow 150ms;
+    }
+    .form-input:focus { outline: none; border-color: var(--accent-500); box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.15); }
+    .btn {
+      padding: 10px 20px; font: inherit; font-size: 0.875rem; font-weight: 500;
+      border: 1px solid transparent; border-radius: var(--radius); cursor: pointer;
+      transition: all 150ms;
+      display: inline-flex; align-items: center; gap: 6px;
+      letter-spacing: 0.02em;
+    }
+    .btn-primary { background: var(--primary-900); color: var(--accent-300); border-color: var(--accent-500); }
+    .btn-primary:hover { background: var(--primary-800); }
+    .btn-secondary { background: var(--bg); color: var(--fg); border-color: var(--border); }
+    .btn-ghost { background: transparent; color: var(--accent-600); border-color: transparent; }
+    .btn-success { background: var(--success); color: white; }
+    .btn-danger { background: var(--danger); color: white; }
+    .btn-block { width: 100%; justify-content: center; }
+    .btn-accent { background: var(--accent-500); color: white; }
+    .text-link { color: var(--accent-600); text-decoration: none; font-size: 0.875rem; font-weight: 500; font-family: 'Noto Sans Mono', monospace; }
+    .text-link:hover { text-decoration: underline; }
+
+    .kpi-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      padding: 24px;
+      position: relative;
+    }
+    .kpi-card::before {
+      content: ''; position: absolute; top: 0; left: 0;
+      width: 4px; height: 100%; background: var(--accent-500);
+    }
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1px; background: var(--border); border: 1px solid var(--border); }
+    .kpi-mini { background: var(--bg); padding: 14px 16px; }
+    .kpi-mini-label {
+      font-size: 0.6875rem; color: var(--fg-muted); margin-bottom: 4px;
+      text-transform: uppercase; letter-spacing: 0.08em;
+      font-family: 'Noto Sans Mono', monospace;
+    }
+    .kpi-mini-value { font-size: 1.5rem; font-weight: 600; font-family: 'Noto Sans Mono', monospace; }
+
+    .badge {
+      display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px;
+      border-radius: var(--radius);
+      font-size: 0.6875rem; font-weight: 500;
+      font-family: 'Noto Sans Mono', monospace;
+      text-transform: uppercase; letter-spacing: 0.05em;
+      border: 1px solid;
+    }
+    .badge::before { content: '●'; font-size: 0.625rem; }
+    .badge-pending  { background: rgba(245, 158, 11, 0.1); color: #b45309; border-color: #f59e0b; }
+    .badge-approved { background: rgba(22, 163, 74, 0.1); color: #15803d; border-color: #22c55e; }
+    .badge-rejected { background: rgba(220, 38, 38, 0.1); color: #b91c1c; border-color: #ef4444; }
+    .badge-sick     { background: rgba(59, 130, 246, 0.1); color: #1d4ed8; border-color: #3b82f6; }
+    .badge-personal { background: rgba(139, 92, 246, 0.1); color: #6d28d9; border-color: #a78bfa; }
+    .badge-vacation { background: rgba(6, 182, 212, 0.1); color: var(--accent-700); border-color: var(--accent-500); }
+    .badge-late     { background: rgba(234, 88, 12, 0.1); color: #c2410c; border-color: #f97316; }
+    .badge-absent   { background: rgba(220, 38, 38, 0.1); color: #b91c1c; border-color: #ef4444; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
+    th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+    th {
+      font-weight: 600; color: var(--fg-muted); font-size: 0.6875rem;
+      text-transform: uppercase; letter-spacing: 0.08em;
+      background: var(--bg-muted);
+      font-family: 'Noto Sans Mono', monospace;
+    }
+    .num { font-variant-numeric: tabular-nums; text-align: right; font-family: 'Noto Sans Mono', monospace; }
+    tr:hover { background: var(--bg-muted); }
+
+    .vibe-card {
+      background: var(--primary-900); color: var(--accent-300);
+      padding: 24px; margin-top: 24px;
+      border: 1px solid var(--accent-500);
+      position: relative;
+    }
+    .vibe-card::before {
+      content: ''; position: absolute; top: -1px; left: -1px; width: 32px; height: 32px;
+      border-top: 2px solid var(--accent-500); border-left: 2px solid var(--accent-500);
+    }
+    .vibe-card::after {
+      content: ''; position: absolute; bottom: -1px; right: -1px; width: 32px; height: 32px;
+      border-bottom: 2px solid var(--accent-500); border-right: 2px solid var(--accent-500);
+    }
+    .vibe-card h3 { color: white; }
+    .vibe-card ul { color: rgba(255,255,255,0.85); }
+    code { font-family: 'Noto Sans Mono', monospace; background: var(--bg-muted); padding: 2px 6px; border: 1px solid var(--border); font-size: 0.875em; color: var(--accent-700); }
+    .card-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 768px) { .card-row { grid-template-columns: 1fr; } }
+    .button-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .stack > * + * { margin-top: 12px; }
+    .meta-line {
+      font-family: 'Noto Sans Mono', monospace; font-size: 0.75rem;
+      color: var(--fg-muted); margin: 8px 0;
+      letter-spacing: 0.02em;
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <a href="index.html" class="back-link">[← INDEX]</a>
+    <button class="toggle" onclick="document.documentElement.classList.toggle('dark')">[DARK_MODE]</button>
+  </div>
+
+  <div class="container">
+
+    <h1>Theme 4: Industrial Steel</h1>
+    <p class="tagline">Automotive precision — gridded, technical, dashboard-y</p>
+    <p class="meta-line">// combo: steel-gray primary + cyan accent · Noto Sans Thai · industrial automotive</p>
+
+    <h2>Color palette</h2>
+
+    <h3>Steel (cool neutrals)</h3>
+    <div class="palette">
+      <div class="swatch" style="background: #f1f5f9; color: #0f172a;"><span>steel-100</span><span class="hex">#f1f5f9</span></div>
+      <div class="swatch" style="background: #cbd5e1; color: #0f172a;"><span>steel-300</span><span class="hex">#cbd5e1</span></div>
+      <div class="swatch" style="background: #94a3b8; color: white;"><span>steel-400</span><span class="hex">#94a3b8</span></div>
+      <div class="swatch" style="background: #475569; color: white;"><span>steel-600</span><span class="hex">#475569</span></div>
+      <div class="swatch" style="background: #1e293b; color: white;"><span>steel-800</span><span class="hex">#1e293b</span></div>
+      <div class="swatch" style="background: #0f172a; color: white;"><span>steel-900 ⭐</span><span class="hex">#0f172a</span></div>
+    </div>
+
+    <h3>Accent (Electric Cyan) + Status</h3>
+    <div class="palette">
+      <div class="swatch" style="background: #67e8f9; color: #155e75;"><span>cyan-300</span><span class="hex">#67e8f9</span></div>
+      <div class="swatch" style="background: #22d3ee; color: white;"><span>cyan-400</span><span class="hex">#22d3ee</span></div>
+      <div class="swatch" style="background: #06b6d4; color: white;"><span>cyan-500 ⭐</span><span class="hex">#06b6d4</span></div>
+      <div class="swatch" style="background: #0891b2; color: white;"><span>cyan-600</span><span class="hex">#0891b2</span></div>
+      <div class="swatch" style="background: #16a34a; color: white;"><span>success</span><span class="hex">#16a34a</span></div>
+      <div class="swatch" style="background: #dc2626; color: white;"><span>danger</span><span class="hex">#dc2626</span></div>
+    </div>
+
+    <h2>Typography — Noto Sans Thai</h2>
+    <p class="meta-line">// Google's universal Thai font · super readable · technical clarity</p>
+    <div class="type-row">
+      <div class="meta">[H1] · 30px · weight 700</div>
+      <div style="font-size: 1.875rem; font-weight: 700;">สลิปเงินเดือนของคุณ</div>
+    </div>
+    <div class="type-row">
+      <div class="meta">[H2] · 24px · weight 600</div>
+      <div style="font-size: 1.5rem; font-weight: 600;">รายการขาด ลา และมาสาย</div>
+    </div>
+    <div class="type-row">
+      <div class="meta">[BODY] · 16px · weight 400</div>
+      <div>ระบบ HR Koolman ออกแบบให้คุณส่งคำขอลาได้สะดวก ตรวจสอบสลิปเงินเดือนได้ทุกที่ทุกเวลา</div>
+    </div>
+    <div class="type-row">
+      <div class="meta">[NUM] · Noto Sans Mono · weight 700</div>
+      <div style="font-size: 2.25rem; font-weight: 700; font-family: 'Noto Sans Mono', monospace;">฿ 31,417.50</div>
+    </div>
+
+    <h2>Login screen</h2>
+    <div class="mock">
+      <div class="mock-frame login-card">
+        <div class="logo">FF</div>
+        <p class="meta-line" style="text-align: center; margin-bottom: 4px;">// FINNIX_FILM</p>
+        <h3 style="text-align: center; margin: 0 0 6px; font-size: 1.5rem;">เข้าสู่ระบบ</h3>
+        <p style="text-align: center; color: var(--fg-muted); font-size: 0.875rem; margin-bottom: 24px;">Koolman HR System v1.0</p>
+        <div class="form-group">
+          <label class="form-label">EMAIL</label>
+          <input class="form-input" type="email" value="tong@finnixfilm.com" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">PASSWORD</label>
+          <input class="form-input" type="password" value="••••••••" />
+        </div>
+        <button class="btn btn-primary btn-block" style="margin-top: 8px;">[ AUTHENTICATE ]</button>
+        <div style="text-align: center; margin-top: 16px;">
+          <a href="#" class="text-link">RESET_PASSWORD</a>
+        </div>
+      </div>
+    </div>
+
+    <h2>Employee Dashboard</h2>
+    <div class="mock">
+      <div class="mock-frame">
+        <p class="meta-line">// EMPLOYEE_001</p>
+        <h3 style="margin-bottom: 24px; font-size: 1.5rem;">ตงค์ สมศรี</h3>
+        <div class="kpi-card" style="margin-bottom: 12px;">
+          <div class="meta-line" style="margin: 0 0 4px;">// NET_PAY · APR_2569</div>
+          <div style="font-size: 2.75rem; font-weight: 700; font-family: 'Noto Sans Mono', monospace; letter-spacing: -0.01em; line-height: 1;">฿ 31,417.50</div>
+          <div style="display: flex; align-items: center; gap: 8px; font-size: 0.75rem; color: var(--fg-muted); margin-top: 12px; font-family: 'Noto Sans Mono', monospace;">
+            <span style="color: var(--accent-600);">●</span> PAYDATE: 30/04/2569
+          </div>
+        </div>
+        <div class="kpi-grid">
+          <div class="kpi-mini">
+            <div class="kpi-mini-label">LEAVE_DAYS</div>
+            <div class="kpi-mini-value">2</div>
+          </div>
+          <div class="kpi-mini">
+            <div class="kpi-mini-label">ABSENT_DAYS</div>
+            <div class="kpi-mini-value">0</div>
+          </div>
+          <div class="kpi-mini">
+            <div class="kpi-mini-label">LATE_COUNT</div>
+            <div class="kpi-mini-value">1</div>
+          </div>
+        </div>
+        <div style="margin-top: 24px;">
+          <p class="meta-line">// PENDING_REQUESTS</p>
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: var(--bg-muted); border: 1px solid var(--border); border-left: 3px solid var(--accent-500);">
+            <div>
+              <div style="font-weight: 500;">ลาพักร้อน 12-13 พ.ค.</div>
+              <div style="font-size: 0.75rem; color: var(--fg-muted); font-family: 'Noto Sans Mono', monospace; margin-top: 2px;">SUBMITTED 2H_AGO</div>
+            </div>
+            <span class="badge badge-pending">รออนุมัติ</span>
+          </div>
+        </div>
+        <div class="button-row" style="margin-top: 24px;">
+          <button class="btn btn-primary">[+] ส่งคำขอลา</button>
+          <button class="btn btn-secondary">[+] ขอเบิกเงิน</button>
+        </div>
+      </div>
+    </div>
+
+    <h2>Admin payroll table</h2>
+    <div class="mock">
+      <div class="mock-frame">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <div>
+            <h3 style="margin: 0; font-size: 1.125rem;">PAYROLL_2026-04</h3>
+            <p class="meta-line" style="margin: 4px 0 0;">// 124 employees · status=DRAFT</p>
+          </div>
+          <div class="button-row">
+            <button class="btn btn-secondary">[⚡] CALC</button>
+            <button class="btn btn-primary">[📤] PUBLISH</button>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>EMP_ID</th>
+              <th>NAME</th>
+              <th>DEPT</th>
+              <th class="num">BASE</th>
+              <th class="num">OTHER</th>
+              <th class="num">DEDUCT</th>
+              <th class="num">NET</th>
+              <th>STATUS</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>EMP-001</td>
+              <td>ตงค์ สมศรี</td>
+              <td>TECH</td>
+              <td class="num">30,000</td>
+              <td class="num">5,000</td>
+              <td class="num">3,583</td>
+              <td class="num"><strong>31,417</strong></td>
+              <td><span class="badge badge-pending">DRAFT</span></td>
+            </tr>
+            <tr>
+              <td>EMP-002</td>
+              <td>ส้ม สมศักดิ์</td>
+              <td>SALES</td>
+              <td class="num">25,000</td>
+              <td class="num">3,000</td>
+              <td class="num">1,500</td>
+              <td class="num"><strong>26,500</strong></td>
+              <td><span class="badge badge-approved">CHECKED</span></td>
+            </tr>
+            <tr>
+              <td>EMP-003</td>
+              <td>บอย สุวรรณ</td>
+              <td>INSTALL</td>
+              <td class="num">22,000</td>
+              <td class="num">0</td>
+              <td class="num">2,200</td>
+              <td class="num"><strong>19,800</strong></td>
+              <td><span class="badge badge-rejected">⚠ OVERRIDE</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <h2>Components</h2>
+    <div class="card-row">
+      <div class="mock">
+        <h3 style="margin-top: 0;">Buttons</h3>
+        <div class="button-row stack">
+          <button class="btn btn-primary">[ AUTHENTICATE ]</button>
+          <button class="btn btn-accent">[+] SUBMIT</button>
+          <button class="btn btn-success">[✓] APPROVE</button>
+          <button class="btn btn-danger">[✗] REJECT</button>
+          <button class="btn btn-secondary">[ CANCEL ]</button>
+          <button class="btn btn-ghost">VIEW_MORE →</button>
+        </div>
+      </div>
+      <div class="mock">
+        <h3 style="margin-top: 0;">Status badges</h3>
+        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+          <span class="badge badge-pending">PENDING</span>
+          <span class="badge badge-approved">APPROVED</span>
+          <span class="badge badge-rejected">REJECTED</span>
+          <span class="badge badge-sick">SICK</span>
+          <span class="badge badge-personal">PERSONAL</span>
+          <span class="badge badge-vacation">VACATION</span>
+          <span class="badge badge-late">LATE</span>
+          <span class="badge badge-absent">ABSENT</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="vibe-card">
+      <h3 style="margin-top: 0;">เลือก Theme นี้เมื่อ</h3>
+      <ul style="margin-left: 20px; margin-top: 12px;">
+        <li>อยากให้ HR <strong>สะท้อน Koolman identity</strong> (ฟิล์มรถยนต์ = automotive industry)</li>
+        <li>Vibe ดู technical/precision เหมือน <strong>Tesla service portal / car dashboard</strong></li>
+        <li>กลุ่มผู้ใช้เป็นช่างเทคนิค + คนชอบ tool ที่ดู serious</li>
+        <li>Monospace numerals ทำให้ payroll table ดู enterprise-grade</li>
+        <li>Cyan accent = electric / tech / future-feel</li>
+        <li>Grid background ทำให้ทั้ง app ดูเป็น blueprint ของระบบ</li>
+        <li>Dark mode = ดูเทพมาก เหมาะใช้ตอนคืน</li>
+      </ul>
+      <p style="margin-top: 16px; font-size: 0.8125rem; opacity: 0.75; font-family: 'Noto Sans Mono', monospace;">
+        // CAUTION: ใจกล้า — อาจดูเย็นชาเกินสำหรับ user รุ่น mid-aged<br>
+        // BEST_FOR: tech-forward ownership + pride of automotive identity
+      </p>
+    </div>
+
+  </div>
+
+  <script>
+    if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      document.documentElement.classList.add('dark');
+    }
+  </script>
+</body>
+</html>

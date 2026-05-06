@@ -1,0 +1,44 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Claude
+.claude/settings.local.json
+.claude/.credentials.json
+
+# Node (when impl starts)
+node_modules/
+.next/
+.turbo/
+dist/
+build/
+*.log
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Python (for tooling scripts)
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Generated artifacts (regenerable from source mockups)
+docs/v1/screens/mockups/screenshots/
+
+# Generated docx/pdf — regenerable from build script
+docs/v1/Koolman_HR_Mockup_Walkthrough.docx
+docs/v1/Koolman_HR_Mockup_Walkthrough.pdf
+
+# Temp
+/tmp/
+*.tmp

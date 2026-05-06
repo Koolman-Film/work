@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Koolman HR — Auth Mockups</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary-50:  #eff6ff;
+      --primary-100: #dbeafe;
+      --primary-300: #93c5fd;
+      --primary-500: #3b82f6;
+      --primary-600: #2563eb;
+      --primary-700: #1d4ed8;
+      --primary-800: #1e40af;
+      --primary-900: #1e3a8a;
+      --accent-500: #f59e0b;
+      --bg: #ffffff;
+      --bg-muted: #f8fafc;
+      --fg: #0f172a;
+      --fg-muted: #64748b;
+      --border: #e2e8f0;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      font-family: 'IBM Plex Sans Thai', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      letter-spacing: -0.005em;
+      line-height: 1.65;
+    }
+    .container { max-width: 1100px; margin: 0 auto; padding: 48px 24px; }
+    .topbar {
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .topbar a { color: var(--primary-600); text-decoration: none; font-weight: 500; font-size: 0.875rem; }
+    h1 { font-size: 2.5rem; font-weight: 700; letter-spacing: -0.03em; margin-bottom: 12px; }
+    h2 { font-size: 1.5rem; font-weight: 600; margin: 48px 0 16px; letter-spacing: -0.02em; }
+    .subtitle { font-size: 1.125rem; color: var(--fg-muted); margin-bottom: 32px; }
+    .meta-mono { font-family: 'IBM Plex Mono', monospace; font-size: 0.8125rem; color: var(--fg-muted); }
+
+    .info-card {
+      background: linear-gradient(135deg, var(--primary-50), white);
+      border: 1px solid var(--primary-100);
+      border-radius: 16px; padding: 24px; margin-bottom: 32px;
+    }
+    .info-card h3 { font-size: 1.0625rem; margin-bottom: 8px; }
+    .info-card p { font-size: 0.9375rem; color: var(--fg-muted); }
+    .info-card strong { color: var(--fg); }
+
+    .mockup-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+    }
+    @media (max-width: 768px) { .mockup-grid { grid-template-columns: 1fr; } }
+
+    .mockup-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      text-decoration: none;
+      color: inherit;
+      display: block;
+      transition: all 200ms;
+      position: relative;
+      overflow: hidden;
+    }
+    .mockup-card:hover {
+      border-color: var(--primary-300);
+      transform: translateY(-2px);
+      box-shadow: 0 12px 24px -8px rgb(37 99 235 / 0.15), 0 4px 8px -2px rgb(0 0 0 / 0.05);
+    }
+
+    .mockup-id {
+      display: inline-block; padding: 2px 10px;
+      background: var(--primary-100); color: var(--primary-800);
+      border-radius: 999px; font-size: 0.6875rem; font-weight: 600;
+      letter-spacing: 0.05em; text-transform: uppercase;
+      font-family: 'IBM Plex Mono', monospace;
+    }
+    .mockup-title { font-size: 1.25rem; font-weight: 700; margin: 12px 0 4px; }
+    .mockup-tagline { color: var(--fg-muted); font-size: 0.9375rem; margin-bottom: 16px; }
+    .mockup-meta {
+      display: flex; gap: 8px; flex-wrap: wrap;
+      font-size: 0.75rem; color: var(--fg-muted);
+    }
+    .meta-chip {
+      padding: 2px 8px; background: var(--bg-muted);
+      border: 1px solid var(--border); border-radius: 999px;
+    }
+
+    .legend {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: 16px; padding: 24px;
+      margin-top: 32px;
+    }
+    .legend h3 { font-size: 1rem; margin-bottom: 12px; }
+    .legend ul { list-style: none; padding: 0; }
+    .legend li { padding: 4px 0; font-size: 0.875rem; color: var(--fg-muted); }
+    .legend code {
+      font-family: 'IBM Plex Mono', monospace; background: var(--bg);
+      border: 1px solid var(--border); padding: 2px 6px; border-radius: 4px; font-size: 0.8125rem;
+      color: var(--primary-700);
+    }
+
+    .stack-pill {
+      display: inline-flex; gap: 6px; align-items: center;
+      padding: 6px 12px; background: var(--bg-muted);
+      border: 1px solid var(--border); border-radius: 999px;
+      font-size: 0.8125rem; color: var(--fg-muted);
+      margin-right: 8px; margin-bottom: 8px;
+    }
+    .stack-pill strong { color: var(--fg); }
+
+    footer {
+      margin-top: 64px; padding-top: 32px;
+      border-top: 1px solid var(--border);
+      color: var(--fg-muted); font-size: 0.875rem;
+    }
+
+    .phase-banner {
+      margin: 56px 0 20px;
+      padding: 20px 24px;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      position: relative;
+    }
+    .phase-banner.phase-1 {
+      background: linear-gradient(135deg, #eff6ff, #dbeafe);
+      border-left: 6px solid #2563eb;
+    }
+    .phase-banner.phase-2 {
+      background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+      border-left: 6px solid #0891b2;
+    }
+    .phase-banner.phase-3 {
+      background: linear-gradient(135deg, #fefce8, #fef3c7);
+      border-left: 6px solid #f59e0b;
+    }
+    .phase-banner.phase-4 {
+      background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+      border-left: 6px solid #16a34a;
+    }
+    .phase-num {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.6875rem; font-weight: 700;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--fg-muted); margin-bottom: 4px;
+    }
+    .phase-title {
+      font-size: 1.5rem; font-weight: 700;
+      letter-spacing: -0.02em; margin-bottom: 6px;
+    }
+    .phase-meta {
+      display: flex; gap: 12px; flex-wrap: wrap;
+      font-size: 0.8125rem; color: var(--fg-muted);
+      margin-bottom: 8px;
+    }
+    .phase-meta-pill {
+      padding: 3px 10px; background: rgba(255, 255, 255, 0.6);
+      border: 1px solid var(--border);
+      border-radius: 999px; font-weight: 500;
+    }
+    .phase-meta-pill.quote { color: #1d4ed8; font-weight: 600; }
+    .phase-desc { font-size: 0.875rem; color: var(--fg); line-height: 1.55; }
+    .phase-empty {
+      padding: 32px 24px;
+      text-align: center; color: var(--fg-muted);
+      background: var(--bg-muted); border: 1px dashed var(--border);
+      border-radius: 16px; font-size: 0.875rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <a href="../README.md">← screens/ docs</a>
+    <span class="meta-mono">all mockups · auth · employee · admin · owner</span>
+  </div>
+
+  <div class="container">
+
+    <h1>Koolman HR Mockups</h1>
+    <p class="subtitle">34 visual mockups grouped by delivery phase · matches <a href="../build-plan.md" style="color: var(--primary-600);">build-plan.md</a></p>
+
+    <div class="info-card">
+      <h3>📐 Design system applied</h3>
+      <p>
+        <strong>Color:</strong> Theme 1 — Koolman Blue (primary-600 #2563eb) · Amber accent (#f59e0b)<br>
+        <strong>Font:</strong> IBM Plex Sans Thai · IBM Plex Mono<br>
+        <strong>Style:</strong> C. Soft Modern — radius-xl 20px · brand glow shadows · generous padding<br>
+        <strong>Source:</strong> ดู <a href="../design-system.md" style="color: var(--primary-600);">design-system.md</a>
+      </p>
+    </div>
+
+    <div class="info-card" style="background: linear-gradient(135deg, #fef3c7, white); border-color: #fde68a;">
+      <h3>🚀 Phased delivery</h3>
+      <p>
+        ลูกค้า commit ทีละ phase. <strong>Phase 1 (70K)</strong> = สิ่งที่ลูกค้ายังไม่เคยมี — ขาด/ลา/มาสาย + ขอเบิกเงิน.
+        Phase 2 (Payroll) + Phase 3 (Excel/PEAK/Owner) + Phase 4 (LINE) เพิ่มได้ตามลำดับ. <a href="../build-plan.md" style="color: var(--primary-600);">รายละเอียด →</a>
+      </p>
+    </div>
+
+    <!-- =============== PHASE 1 — Core Workflow =============== -->
+    <div class="phase-banner phase-1">
+      <div class="phase-num">⭐ Phase 1 · Core Workflow</div>
+      <div class="phase-title">Auth + Employee + Leave + Attendance + Cash Advance</div>
+      <div class="phase-meta">
+        <span class="phase-meta-pill quote">70,000 ฿</span>
+        <span class="phase-meta-pill">2–4 สัปดาห์</span>
+        <span class="phase-meta-pill">Free tier stack</span>
+        <span class="phase-meta-pill">19 mockups</span>
+      </div>
+      <div class="phase-desc">สิ่งที่ลูกค้ายังไม่เคยมี — บันทึก ขาด/ลา/มาสาย + ขอเบิกเงินล่วงหน้า. รวม auth, employee management, notifications. <strong>ส่งมอบก่อน</strong>.</div>
+    </div>
+
+    <h3 style="margin-bottom: 12px; color: var(--fg-muted); font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600;">Auth (5)</h3>
+    <div class="mockup-grid">
+
+      <a href="01-login.html" class="mockup-card">
+        <span class="mockup-id">S-A1</span>
+        <div class="mockup-title">Login</div>
+        <div class="mockup-tagline">Phone + password · entry point ของ user ทุกคน · จุดเริ่ม flow</div>
+        <div class="mockup-meta">
+          <span class="meta-chip">F-A1 form</span>
+          <span class="meta-chip">3 states</span>
+        </div>
+      </a>
+
+      <a href="02-verify-otp.html" class="mockup-card">
+        <span class="mockup-id">S-A2</span>
+        <div class="mockup-title">Reset Password OTP</div>
+        <div class="mockup-tagline">SMS 6-digit code · countdown · auto-advance · reset flow only (not login 2FA)</div>
+        <div class="mockup-meta">
+          <span class="meta-chip">SMS OTP</span>
+          <span class="meta-chip">reset only</span>
+        </div>
+      </a>
+
+      <a href="03-welcome.html" class="mockup-card">
+        <span class="mockup-id">S-A3</span>
+        <div class="mockup-title">Welcome (Invite)</div>
+        <div class="mockup-tagline">Set initial password · live strength indicator · from admin invite SMS</div>
+        <div class="mockup-meta">
+          <span class="meta-chip">F-A3 form</span>
+          <span class="meta-chip">password strength</span>
+        </div>
+      </a>
+
+      <a href="04-reset-password.html" class="mockup-card">
+        <span class="mockup-id">S-A4</span>
+        <div class="mockup-title">Reset Password</div>
+        <div class="mockup-tagline">2-step · phone → SMS OTP → set new password</div>
+        <div class="mockup-meta">
+          <span class="meta-chip">F-A4, F-A5</span>
+          <span class="meta-chip">SMS OTP cells</span>
+        </div>
+      </a>
+
+      <a href="05-edge-states.html" class="mockup-card">
+        <span class="mockup-id" style="background: #fee2e2; color: #991b1b;">X-A*</span>
+        <div class="mockup-title">Auth Edge States</div>
+        <div class="mockup-tagline">Rate limited · OTP wrong 3+ · invalid invite · token expired · session expired modal</div>
+        <div class="mockup-meta">
+          <span class="meta-chip">5 edge cases</span>
+        </div>
+      </a>
+
+    </div>
+
+    <h3 style="margin: 32px 0 12px; color: var(--fg-muted); font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600;">Employee (8)</h3>
+    <div class="mockup-grid">
+
+      <a href="emp-dashboard.html" class="mockup-card">
+        <span class="mockup-id" style="background: #d1fae5; color: #065f46;">S-E1</span>
+        <div class="mockup-title">Employee Dashboard</div>
+        <div class="mockup-tagline">Daily home — KPI, pending requests, quick actions (NetPay hero ใน Phase 2)</div>
+        <div class="mockup-meta">
+          <span class="meta-chip">phone-frame</span>
+          <span class="meta-chip">bottom nav</span>
+        </div>
+      </a>
+
+      <a href="emp-leave-list.html" class="mockup-card">
+        <span class="mockup-id" style="background: #d1fae5; color: #065f46;">S-E3</span>
+        <div class="mockup-title">Leave List + Calendar</div>
+        <div class="mockup-tagline">Tabs (list/calendar) · day drawer · empty state</div>
+        <div class="mockup-meta">
+          <span class="meta-chip">4 states</span>
+        </div>
+      </a>
+
+      <a href="emp-leave-new.html" class="mockup-card">
+        <span class="mockup-id" style="background: #d1fae5; color: #065f46;">S-E4</span>
+        <div class="mockup-title">Leave Request Form</div>
+        <div class="mockup-tagline">Date range · file upload · char counter · validation</div>
+        <div class="mockup-meta">
+          <span class="meta-chip">8 states</span>
+          <span class="meta-chip">F-E2 form</span>
+        </div>
+      </a>
+
+      <a href="emp-leave-detail.html" class="mockup-card">
+        <span class="mockup-id" style="background: #d1fae5; color: #065f46;">S-E5</span>
+        <div class="mockup-title">Leave Detail</div>
+        <div class="mockup-tagline">Status timeline · approver info · cancel/edit · attachment preview</div>
+        <div class="mockup-meta">
+          <span class="meta-chip">4 status states</span>
+        </div>
+      </a>
+
+      <a href="emp-advance-list.html" class="mockup-card">
+        <span class="mockup-id" style="background: #d1fae5; color: #065f46;">S-E6</span>
+        <div class="mockup-title">Cash Advance List</div>
+        <div class="mockup-tagline">รายการคำขอ · summary card · filter status · empty state · click → detail</div>
+        <div class="mockup-meta">
+          <span class="meta-chip">3 states</span>
+          <span class="meta-chip">FAB</span>
+        </div>
+      </a>
+
+      <a href="emp-advance-new.html" class="mockup-card">
+        <span class="mockup-id" style="background: #d1fae5; color: #065f46;">S-E7</span>
+        <div class="mockup-title">Cash Advance Request</div>
+        <div class="mockup-tagline">Money input · quick chips · calc preview · over-limit error · receipt upload</div>
+        <div class="mockup-meta">
+          <span class="meta-chip">5 states</span>
+          <span class="meta-chip">F-E3 form</span>
+        </div>
+      </a>
+
+      <a href="emp-advance-detail.html" class="mockup-card">
+        <span class="mockup-id" style="background: #d1fae5; color: #065f46;">S-E8</span>
+        <div class="mockup-title">Cash Advance Detail</div>
+        <div class="mockup-tagline">Status banner · timeline · receipt preview · 4 status states (pending/approved/rejected/cancelled)</div>
+        <div class="mockup-meta">
+          <span class="meta-chip">4 status states</span>
+          <span class="meta-chip">timeline</span>
+        </div>
+      </a>
+
+      <a href="emp-profile.html" class="mockup-card">
+        <span class="mockup-id" style="background: #d1fae5; color: #065f46;">S-E11</span>
+        <div class="mockup-title">Profile</div>
+        <div class="mockup-tagline">Tabs · inline edit · notification prefs (LINE connect = Phase 4)</div>
+        <div class="mockup-meta">
+          <span class="meta-chip">3 tabs</span>
+        </div>
+      </a>
+
+    </div>
+
+    <h3 style="margin: 32px 0 12px; color: var(--fg-muted); font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600;">Admin (6)</h3>
+    <div class="mockup-grid">
+
+      <a href="adm-dashboard.html" class="mockup-card">
+        <span class="mockup-id" style="background: #fef3c7; color: #92400e;">S-N1</span>
+        <div class="mockup-title">Admin Dashboard</div>
+        <div class="mockup-tagline">KPI cards · pending requests · today on leave · alert (payroll trend = Phase 2)</div>
+        <div class="mockup-meta">
+          <span class="meta-chip">sidebar layout</span>
+        </div>
+      </a>
+
+      <a href="adm-employee-list.html" class="mockup-card">
+        <span class="mockup-id" style="background: #fef3c7; color: #92400e;">S-N2</span>
+        <div class="mockup-title">Employee List</div>
+        <div class="mockup-tagline">Data table · filter bar · pagination · sortable · empty + no-results (bulk import = Phase 3)</div>
+        <div class="mockup-meta">
+          <span class="meta-chip">4 states</span>
+        </div>
+      </a>
+
+      <a href="adm-employee-form.html" class="mockup-card">
+        <span class="mockup-id" style="background: #fef3c7; color: #92400e;">S-N3 / N4</span>
+        <div class="mockup-title">Employee Form</div>
+        <div class="mockup-tagline">New / edit employee — sectioned form · invite via SMS</div>
+        <div class="mockup-meta">
+          <span class="meta-chip">F-N1 form</span>
+        </div>
+      </a>
+
+      <a href="adm-leave-inbox.html" class="mockup-card">
+        <span class="mockup-id" style="background: #fef3c7; color: #92400e;">S-N6</span>
+        <div class="mockup-title">Leave Approval Inbox</div>
+        <div class="mockup-tagline">Inbox + drawer · bulk actions · approve/reject flow</div>
+        <div class="mockup-meta">
+          <span class="meta-chip">6 states</span>
+          <span class="meta-chip">D-N1 drawer</span>
+        </div>
+      </a>
+
+      <a href="adm-advance-inbox.html" class="mockup-card">
+        <span class="mockup-id" style="background: #fef3c7; color: #92400e;">S-N7</span>
+        <div class="mockup-title">Advance Approval Inbox</div>
+        <div class="mockup-tagline">Inbox + drawer · approve with receipt upload · reject with reason · bulk approve</div>
+        <div class="mockup-meta">
+          <span class="meta-chip">4 states</span>
+          <span class="meta-chip">ceiling check</span>
+        </div>
+      </a>
+
+      <a href="adm-attendance.html" class="mockup-card">
+        <span class="mockup-id" style="background: #fef3c7; color: #92400e;">S-N9</span>
+        <div class="mockup-title">Attendance Records</div>
+        <div class="mockup-tagline">Manual entry — บันทึก ขาด/ลา/มาสาย · daily/monthly views (Excel upload = Phase 3)</div>
+        <div class="mockup-meta">
+          <span class="meta-chip">filters</span>
+          <span class="meta-chip">F-N5 entry</span>
+        </div>
+      </a>
+
+    </div>
+
+
+    <!-- =============== PHASE 2 — Payroll Engine =============== -->
+    <div class="phase-banner phase-2">
+      <div class="phase-num">Phase 2 · Payroll Engine</div>
+      <div class="phase-title">คำนวณเงินเดือน + Pay Slip PDF + Override</div>
+      <div class="phase-meta">
+        <span class="phase-meta-pill quote">85,000 ฿</span>
+        <span class="phase-meta-pill">3–4 สัปดาห์</span>
+        <span class="phase-meta-pill">Pro tier required (~$45/mo)</span>
+        <span class="phase-meta-pill">6 mockups</span>
+      </div>
+      <div class="phase-desc">คำนวณเงินเดือนรายเดือน · override field-level · publish + lock · ส่งสลิป PDF ทาง email. ต้องเริ่มหลัง Phase 1 stable + 1 เดือน real data.</div>
+    </div>
+
+    <h3 style="margin-bottom: 12px; color: var(--fg-muted); font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600;">Employee (2)</h3>
+    <div class="mockup-grid">
+
+      <a href="emp-payslip-list.html" class="mockup-card">
+        <span class="mockup-id" style="background: #d1fae5; color: #065f46;">S-E9</span>
+        <div class="mockup-title">Pay Slip List</div>
+        <div class="mockup-tagline">เงินเดือนทุกเดือน · year tabs · NetPay hero · year summary · empty state</div>
+        <div class="mockup-meta">
+          <span class="meta-chip">3 states</span>
+          <span class="meta-chip">year filter</span>
+        </div>
+      </a>
+
+      <a href="emp-payslip-detail.html" class="mockup-card">
+        <span class="mockup-id" style="background: #d1fae5; color: #065f46;">S-E10</span>
+        <div class="mockup-title">Pay Slip Detail</div>
+        <div class="mockup-tagline">Income/deduction table · NetPay hero · PDF action sheet (mobile)</div>
+        <div class="mockup-meta">
+          <span class="meta-chip">tabular-nums</span>
+          <span class="meta-chip">M-E3 sheet</span>
+        </div>
+      </a>
+
+    </div>
+
+    <h3 style="margin: 32px 0 12px; color: var(--fg-muted); font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600;">Admin (4)</h3>
+    <div class="mockup-grid">
+
+      <a href="adm-payroll-list.html" class="mockup-card">
+        <span class="mockup-id" style="background: #fef3c7; color: #92400e;">S-N12</span>
+        <div class="mockup-title">Payroll Months List</div>
+        <div class="mockup-tagline">เลือกเดือน · year tabs · KPI strip · status chips per month</div>
+        <div class="mockup-meta">
+          <span class="meta-chip">3 states</span>
+        </div>
+      </a>
+
+      <a href="adm-payroll-run.html" class="mockup-card" style="grid-column: span 2; border: 2px solid #f59e0b;">
+        <span class="mockup-id" style="background: #f59e0b; color: white;">⭐⭐ S-N13</span>
+        <div class="mockup-title">Payroll Monthly Run — most critical</div>
+        <div class="mockup-tagline">Trigger → calculate → review → override → publish → send emails (8 states full flow)</div>
+        <div class="mockup-meta">
+          <span class="meta-chip">8 states</span>
+          <span class="meta-chip">M-N2, M-N3, M-N4 modals</span>
+          <span class="meta-chip">progress bars</span>
+        </div>
+      </a>
+
+      <a href="adm-payroll-detail.html" class="mockup-card">
+        <span class="mockup-id" style="background: #fef3c7; color: #92400e;">S-N14</span>
+        <div class="mockup-title">Per-Employee Payroll</div>
+        <div class="mockup-tagline">Calculation breakdown · OT/deductions table · override modal · publish/unlock</div>
+        <div class="mockup-meta">
+          <span class="meta-chip">M-N3 override</span>
+          <span class="meta-chip">M-N5 unlock</span>
+        </div>
+      </a>
+
+      <a href="adm-payroll-config.html" class="mockup-card">
+        <span class="mockup-id" style="background: #fef3c7; color: #92400e;">S-N23</span>
+        <div class="mockup-title">Payroll Config</div>
+        <div class="mockup-tagline">SSO rate · OT rates · cycle config · accounting groups mapping</div>
+        <div class="mockup-meta">
+          <span class="meta-chip">F-N12 config</span>
+        </div>
+      </a>
+
+    </div>
+
+
+    <!-- =============== PHASE 3 — Polish =============== -->
+    <div class="phase-banner phase-3">
+      <div class="phase-num">Phase 3 · Polish</div>
+      <div class="phase-title">Excel Upload + PEAK Export + Owner Role + Audit + Settings</div>
+      <div class="phase-meta">
+        <span class="phase-meta-pill quote">50,000 ฿</span>
+        <span class="phase-meta-pill">2–3 สัปดาห์</span>
+        <span class="phase-meta-pill">Pro tier</span>
+        <span class="phase-meta-pill">7 mockups</span>
+      </div>
+      <div class="phase-desc">Operational efficiency — bulk import พนักงาน, fingerprint scan upload, PEAK accounting export, audit log UI, Owner role อ่านอย่างเดียว.</div>
+    </div>
+
+    <h3 style="margin-bottom: 12px; color: var(--fg-muted); font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600;">Owner (3)</h3>
+    <div class="mockup-grid">
+
+      <a href="own-dashboard.html" class="mockup-card">
+        <span class="mockup-id" style="background: rgba(245, 158, 11, 0.15); color: #92400e;">⭐ S-O1</span>
+        <div class="mockup-title">Owner Dashboard</div>
+        <div class="mockup-tagline">5 KPIs · trend chart · donut breakdown · override alerts · today on leave</div>
+        <div class="mockup-meta">
+          <span class="meta-chip">SVG charts</span>
+          <span class="meta-chip">read-only</span>
+        </div>
+      </a>
+
+      <a href="own-calendar.html" class="mockup-card">
+        <span class="mockup-id" style="background: rgba(245, 158, 11, 0.15); color: #92400e;">⭐ S-O2</span>
+        <div class="mockup-title">Owner Calendar</div>
+        <div class="mockup-tagline">Company-wide month grid · color-coded events · day drawer with grouped sections</div>
+        <div class="mockup-meta">
+          <span class="meta-chip">3 states</span>
+          <span class="meta-chip">31-day grid</span>
+        </div>
+      </a>
+
+      <a href="own-payroll.html" class="mockup-card">
+        <span class="mockup-id" style="background: rgba(245, 158, 11, 0.15); color: #92400e;">S-O3</span>
+        <div class="mockup-title">Owner Payroll Review</div>
+        <div class="mockup-tagline">Read-only browse · year tabs · override badges visible · drill into month</div>
+        <div class="mockup-meta">
+          <span class="meta-chip">2 states</span>
+          <span class="meta-chip">read-only</span>
+        </div>
+      </a>
+
+    </div>
+
+    <h3 style="margin: 32px 0 12px; color: var(--fg-muted); font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600;">Admin (4)</h3>
+    <div class="mockup-grid">
+
+      <a href="adm-excel-upload.html" class="mockup-card">
+        <span class="mockup-id" style="background: #fef3c7; color: #92400e;">S-N11</span>
+        <div class="mockup-title">Excel Upload</div>
+        <div class="mockup-tagline">Multi-step: upload → async parse → preview + commit · validation summary</div>
+        <div class="mockup-meta">
+          <span class="meta-chip">5 states</span>
+          <span class="meta-chip">stepper</span>
+        </div>
+      </a>
+
+      <a href="adm-accounting.html" class="mockup-card">
+        <span class="mockup-id" style="background: #fef3c7; color: #92400e;">S-N15</span>
+        <div class="mockup-title">Accounting Export (PEAK)</div>
+        <div class="mockup-tagline">Filter by month + group · preview JE rows · export CSV/XLSX · re-export warning</div>
+        <div class="mockup-meta">
+          <span class="meta-chip">PEAK format</span>
+        </div>
+      </a>
+
+      <a href="adm-audit-log.html" class="mockup-card">
+        <span class="mockup-id" style="background: #fef3c7; color: #92400e;">S-N16</span>
+        <div class="mockup-title">Audit Log</div>
+        <div class="mockup-tagline">Filter · table with action tags · D-N3 drawer with before/after JSON diff</div>
+        <div class="mockup-meta">
+          <span class="meta-chip">D-N3 drawer</span>
+        </div>
+      </a>
+
+      <a href="adm-settings-branches.html" class="mockup-card">
+        <span class="mockup-id" style="background: #fef3c7; color: #92400e;">S-N18 → 22</span>
+        <div class="mockup-title">Settings CRUD</div>
+        <div class="mockup-tagline">Generic CRUD pattern — covers branches, departments, groups, leave types, holidays</div>
+        <div class="mockup-meta">
+          <span class="meta-chip">5 sub-pages</span>
+        </div>
+      </a>
+
+    </div>
+
+
+    <!-- =============== PHASE 4 — LINE LIFF =============== -->
+    <div class="phase-banner phase-4">
+      <div class="phase-num">Phase 4 · LINE Integration (optional)</div>
+      <div class="phase-title">LIFF Link + Messaging API Push Notification</div>
+      <div class="phase-meta">
+        <span class="phase-meta-pill quote">25,000 ฿</span>
+        <span class="phase-meta-pill">1–2 สัปดาห์</span>
+        <span class="phase-meta-pill">Pro tier + LINE OA verified</span>
+        <span class="phase-meta-pill">2 mockups</span>
+      </div>
+      <div class="phase-desc">พนักงานเชื่อม LINE 1 click ผ่าน LIFF → รับแจ้งเตือนคำขอลา/อนุมัติ/เงินเดือนเข้า LINE. ต้องรอ LINE OA verified (~1-2 wk).</div>
+    </div>
+
+    <h3 style="margin-bottom: 12px; color: var(--fg-muted); font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600;">Employee (2)</h3>
+    <div class="mockup-grid">
+
+      <a href="emp-line-link.html" class="mockup-card">
+        <span class="mockup-id" style="background: #d1fae5; color: #065f46;">S-E12</span>
+        <div class="mockup-title">LINE LIFF Link Flow</div>
+        <div class="mockup-tagline">5 states · profile prompt → QR fallback → LIFF in LINE → loading → linked confirmation</div>
+        <div class="mockup-meta">
+          <span class="meta-chip">5 states</span>
+          <span class="meta-chip">LIFF UI</span>
+          <span class="meta-chip">QR fallback</span>
+        </div>
+      </a>
+
+      <a href="emp-line-messages.html" class="mockup-card">
+        <span class="mockup-id" style="background: #d1fae5; color: #065f46;">S-E13</span>
+        <div class="mockup-title">LINE Push Notifications</div>
+        <div class="mockup-tagline">6 examples · OA welcome / leave approved / advance approved / payroll / rejected / lock-screen</div>
+        <div class="mockup-meta">
+          <span class="meta-chip">6 examples</span>
+          <span class="meta-chip">flex messages</span>
+        </div>
+      </a>
+
+    </div>
+
+    <div style="margin-top:24px; padding:14px 18px; background:rgba(37,99,235,0.06); border:1px solid var(--primary-100); border-radius:14px; font-size:0.875rem; color:var(--fg);">
+      💡 <strong>Desktop view:</strong> ทุก mockup ใน Phase 1 + 4 มีปุ่ม "🖥 Desktop" บน spec banner — คลิกเพื่อดูแบบ desktop (centered card layout). ลูกค้าใช้ผ่านเบราว์เซอร์ desktop ได้.
+    </div>
+
+    <div class="legend">
+      <h3>Stack used</h3>
+      <span class="stack-pill"><strong>Color:</strong> Theme 1</span>
+      <span class="stack-pill"><strong>Font:</strong> IBM Plex Sans Thai</span>
+      <span class="stack-pill"><strong>Style:</strong> Soft Modern</span>
+      <span class="stack-pill"><strong>Components:</strong> shadcn-equivalent</span>
+      <span class="stack-pill"><strong>Icons:</strong> Lucide</span>
+
+      <h3 style="margin-top: 20px;">วิธีดู</h3>
+      <ul>
+        <li>คลิก mockup card → เปิดหน้านั้นใน tab เดิม (ดูบน desktop)</li>
+        <li>แต่ละหน้ามี <strong>state toggle</strong> หรือ <strong>interaction demo</strong> เพื่อดู UX จริง</li>
+        <li>ทดสอบ <strong>dark mode</strong> ด้วยปุ่ม 🌓 ที่ topbar</li>
+        <li>ลอง resize window ให้ ≤ 480px เพื่อดู mobile layout</li>
+      </ul>
+
+      <h3 style="margin-top: 20px;">Cross-references</h3>
+      <ul>
+        <li><code>auth.md</code> § S-A1, S-A2, ... = spec ของ each screen</li>
+        <li><code>design-system.md</code> = tokens + components</li>
+        <li><code>architecture.md</code> § server actions = backend wiring</li>
+      </ul>
+    </div>
+
+    <footer>
+      Koolman HR · V1 mockups · Generated 2026-05<br>
+      Static HTML, no build · ดับเบิ้ลคลิกเปิดใน browser ได้
+    </footer>
+
+  </div>
+</body>
+</html>

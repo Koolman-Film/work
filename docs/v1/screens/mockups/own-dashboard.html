@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>S-O1: Owner Dashboard — Koolman HR Mockup</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script>
+    (function() {
+      try {
+        const saved = localStorage.getItem('koolman-theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (saved === 'dark' || (saved === null && prefersDark)) {
+          document.documentElement.classList.add('dark');
+        }
+      } catch (e) {}
+    })();
+  </script>
+  <style>
+    :root {
+      --primary-50: #eff6ff; --primary-100: #dbeafe; --primary-300: #93c5fd;
+      --primary-500: #3b82f6; --primary-600: #2563eb; --primary-700: #1d4ed8;
+      --primary-800: #1e40af; --primary-900: #1e3a8a;
+      --accent-500: #f59e0b;
+      --success: #16a34a; --warning: #ea580c; --danger: #dc2626;
+      --bg: #ffffff; --bg-muted: #f8fafc;
+      --fg: #0f172a; --fg-muted: #64748b; --border: #e2e8f0;
+      --radius-sm: 0.375rem; --radius: 0.625rem; --radius-lg: 1rem; --radius-xl: 1.25rem;
+      --shadow-md: 0 8px 16px -4px rgb(37 99 235 / 0.12), 0 4px 8px -2px rgb(0 0 0 / 0.05);
+    }
+    .dark {
+      --bg: #0f172a; --bg-muted: #1e293b;
+      --fg: #f1f5f9; --fg-muted: #94a3b8; --border: #334155;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      font-family: 'IBM Plex Sans Thai', system-ui, sans-serif;
+      background: var(--bg-muted); color: var(--fg);
+      line-height: 1.65; letter-spacing: -0.005em;
+      transition: background 200ms, color 200ms;
+    }
+    .page-topbar {
+      position: sticky; top: 0; z-index: 30;
+      background: var(--bg); border-bottom: 1px solid var(--border);
+      padding: 12px 24px; display: flex; justify-content: space-between; align-items: center;
+    }
+    .page-topbar a { color: var(--primary-600); text-decoration: none; font-weight: 500; font-size: 0.875rem; }
+    .meta-mono { font-family: 'IBM Plex Mono', monospace; font-size: 0.8125rem; color: var(--fg-muted); }
+    .toggle-btn {
+      background: var(--bg-muted); border: 1px solid var(--border);
+      padding: 6px 12px; border-radius: var(--radius-sm);
+      cursor: pointer; font: inherit; color: var(--fg); font-size: 0.8125rem;
+    }
+    .spec-banner {
+      background: var(--bg); border-bottom: 1px solid var(--border);
+      padding: 12px 24px; font-size: 0.8125rem; color: var(--fg-muted);
+      display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap;
+    }
+    .spec-banner a { color: var(--primary-600); }
+
+    .app-canvas { padding: 24px; display: flex; justify-content: center; }
+    .browser-frame {
+      width: 100%; max-width: 1280px;
+      background: var(--bg);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-md);
+      overflow: hidden; border: 1px solid var(--border);
+    }
+    .browser-bar {
+      background: var(--bg-muted); border-bottom: 1px solid var(--border);
+      padding: 8px 12px; display: flex; align-items: center; gap: 8px;
+    }
+    .browser-dots { display: flex; gap: 4px; }
+    .browser-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .browser-dot.r { background: #ef4444; } .browser-dot.y { background: #f59e0b; } .browser-dot.g { background: #22c55e; }
+    .browser-url {
+      flex: 1; padding: 4px 12px;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 999px; font-size: 0.75rem;
+      color: var(--fg-muted); font-family: 'IBM Plex Mono', monospace;
+    }
+    .app-layout { display: grid; grid-template-columns: 220px 1fr; min-height: 800px; }
+
+    /* Owner sidebar (4 items + role badge) */
+    .sidebar { background: var(--bg); border-right: 1px solid var(--border); padding: 16px 12px; }
+    .sidebar-logo { display: flex; align-items: center; gap: 10px; padding: 8px 12px; margin-bottom: 4px; }
+    .sidebar-logo-square {
+      width: 32px; height: 32px;
+      background: var(--accent-500); border-radius: var(--radius-sm);
+      display: flex; align-items: center; justify-content: center;
+      color: white; font-weight: 700; font-size: 0.875rem;
+    }
+    .sidebar-logo-text { font-weight: 700; font-size: 0.9375rem; }
+    .role-label {
+      padding: 4px 12px;
+      background: rgba(245, 158, 11, 0.15); color: var(--accent-500);
+      border-radius: 999px;
+      font-size: 0.6875rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.05em;
+      margin: 0 12px 12px; display: inline-block;
+    }
+    .sidebar-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 12px; border-radius: var(--radius);
+      color: var(--fg); font-size: 0.875rem; font-weight: 500;
+      margin-bottom: 2px; cursor: pointer; position: relative;
+    }
+    .sidebar-item:hover { background: var(--bg-muted); }
+    .sidebar-item.active { background: rgba(245,158,11,0.12); color: #92400e; font-weight: 600; }
+    .dark .sidebar-item.active { background: rgba(245,158,11,0.18); color: #fde68a; }
+    .sidebar-item.active::before {
+      content: ''; position: absolute; left: -12px; top: 8px; bottom: 8px;
+      width: 2px; background: var(--accent-500); border-radius: 0 2px 2px 0;
+    }
+
+    .main { padding: 24px 28px; overflow: auto; }
+    .main-topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .breadcrumb-active { color: var(--fg); font-weight: 600; font-size: 0.875rem; }
+    .icon-btn {
+      width: 36px; height: 36px;
+      background: transparent; border: 1px solid var(--border);
+      border-radius: var(--radius-sm); cursor: pointer;
+      display: flex; align-items: center; justify-content: center; color: var(--fg);
+    }
+    .avatar-mini {
+      width: 36px; height: 36px;
+      background: var(--accent-500); color: white;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 600; font-size: 0.75rem;
+    }
+
+    .page-title { font-size: 1.875rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 4px; }
+    .page-subtitle { color: var(--fg-muted); font-size: 0.9375rem; margin-bottom: 24px; }
+
+    /* KPI row — 5 cards */
+    .kpi-row {
+      display: grid; grid-template-columns: repeat(5, 1fr);
+      gap: 12px; margin-bottom: 24px;
+    }
+    @media (max-width: 1024px) { .kpi-row { grid-template-columns: 1fr 1fr 1fr; } }
+    .kpi-card {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+    }
+    .kpi-card.hero {
+      background: linear-gradient(135deg, var(--primary-600), var(--primary-800));
+      color: white; border: none;
+      grid-column: span 2;
+    }
+    .kpi-label {
+      font-size: 0.75rem; opacity: 0.85; margin-bottom: 6px; font-weight: 500;
+      color: var(--fg-muted);
+    }
+    .kpi-card.hero .kpi-label { color: rgba(255,255,255,0.85); }
+    .kpi-value {
+      font-size: 1.875rem; font-weight: 700;
+      font-variant-numeric: tabular-nums; letter-spacing: -0.02em;
+      line-height: 1.1;
+    }
+    .kpi-card.hero .kpi-value { font-size: 2.25rem; }
+    .kpi-meta {
+      font-size: 0.6875rem; margin-top: 6px;
+      display: flex; align-items: center; gap: 4px;
+    }
+    .kpi-meta.warn { color: var(--warning); }
+    .kpi-meta.success { color: var(--success); }
+    .kpi-meta.up { color: var(--success); }
+    .kpi-meta.down { color: var(--danger); }
+    .kpi-card.hero .kpi-meta { color: rgba(255,255,255,0.85); }
+
+    /* Charts grid */
+    .charts-row {
+      display: grid; grid-template-columns: 2fr 1fr;
+      gap: 16px; margin-bottom: 24px;
+    }
+    @media (max-width: 1024px) { .charts-row { grid-template-columns: 1fr; } }
+
+    .chart-card {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 18px;
+    }
+    .chart-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; }
+    .chart-title { font-size: 1rem; font-weight: 600; }
+    .chart-meta { font-size: 0.75rem; color: var(--fg-muted); }
+    .chart-tabs {
+      display: flex; gap: 4px;
+      background: var(--bg-muted); border-radius: var(--radius-sm); padding: 3px;
+      margin-bottom: 12px;
+    }
+    .chart-tab {
+      padding: 4px 10px; font-size: 0.6875rem; font-weight: 500;
+      background: transparent; color: var(--fg-muted);
+      border: none; border-radius: var(--radius-sm); cursor: pointer;
+    }
+    .chart-tab.active { background: var(--bg); color: var(--fg); font-weight: 600; }
+
+    .chart-svg-wrap {
+      height: 220px; position: relative;
+    }
+    .chart-svg { width: 100%; height: 100%; }
+
+    /* Donut */
+    .donut-wrap {
+      display: flex; align-items: center; gap: 16px;
+    }
+    .donut-info {
+      flex: 1; min-width: 0;
+    }
+    .donut-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 4px 0;
+      font-size: 0.8125rem;
+    }
+    .donut-dot {
+      width: 10px; height: 10px; border-radius: 2px;
+      flex-shrink: 0;
+    }
+    .donut-label { flex: 1; }
+    .donut-num { font-weight: 600; font-variant-numeric: tabular-nums; }
+    .donut-pct { color: var(--fg-muted); font-size: 0.75rem; min-width: 36px; text-align: right; }
+
+    /* Two-col bottom */
+    .two-col {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 1024px) { .two-col { grid-template-columns: 1fr; } }
+
+    .section-card {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 18px;
+    }
+    .section-card-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 12px;
+    }
+    .section-title { font-size: 1rem; font-weight: 600; }
+    .section-link {
+      font-size: 0.8125rem; color: var(--primary-600);
+      text-decoration: none; font-weight: 500;
+    }
+    .section-link:hover { text-decoration: underline; }
+
+    .top-list-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 0; border-top: 1px solid var(--border);
+      font-size: 0.875rem;
+    }
+    .top-list-row:first-child { border-top: none; }
+    .top-rank {
+      width: 22px; height: 22px;
+      background: var(--bg-muted); color: var(--fg-muted);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 0.6875rem;
+      flex-shrink: 0;
+    }
+    .top-rank.first { background: rgba(245, 158, 11, 0.2); color: var(--accent-500); }
+    .top-avatar {
+      width: 28px; height: 28px;
+      background: var(--primary-100); color: var(--primary-700);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 600; font-size: 0.6875rem;
+      flex-shrink: 0;
+    }
+    .dark .top-avatar { background: var(--primary-900); color: var(--primary-300); }
+    .top-info { flex: 1; min-width: 0; }
+    .top-name { font-weight: 500; }
+    .top-detail { font-size: 0.6875rem; color: var(--fg-muted); }
+    .top-count {
+      font-weight: 600; font-variant-numeric: tabular-nums;
+      flex-shrink: 0; color: var(--warning);
+    }
+
+    /* Override alerts */
+    .alert-item {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 10px 12px;
+      background: rgba(245, 158, 11, 0.06);
+      border: 1px solid #fde68a;
+      border-radius: var(--radius);
+      margin-bottom: 6px;
+      font-size: 0.8125rem;
+    }
+    .dark .alert-item { background: rgba(245, 158, 11, 0.04); border-color: #78350f; }
+    .alert-emp-id {
+      font-family: 'IBM Plex Mono', monospace;
+      font-weight: 600; color: var(--primary-700);
+    }
+    .dark .alert-emp-id { color: var(--primary-300); }
+    .alert-content { flex: 1; }
+    .alert-detail { color: var(--fg-muted); font-size: 0.75rem; margin-top: 2px; }
+    .alert-meta {
+      font-size: 0.6875rem; color: var(--fg-muted);
+      flex-shrink: 0;
+    }
+
+    /* Today on leave */
+    .today-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 0; border-top: 1px solid var(--border);
+    }
+    .today-row:first-child { border-top: none; }
+    .badge {
+      display: inline-block; padding: 2px 10px; border-radius: 999px;
+      font-size: 0.6875rem; font-weight: 600;
+    }
+    .badge-sick { background: #dbeafe; color: #1e40af; }
+    .badge-personal { background: #ede9fe; color: #6b21a8; }
+    .badge-late { background: #fed7aa; color: #9a3412; }
+
+    /* Notes */
+    .notes { max-width: 1000px; margin: 0 auto; padding: 32px 24px; background: var(--bg); border-top: 1px solid var(--border); }
+    .notes h2 { font-size: 1.25rem; font-weight: 600; margin: 24px 0 12px; }
+    .notes h2:first-child { margin-top: 0; }
+    .notes p, .notes li { font-size: 0.9375rem; line-height: 1.7; }
+    .notes ul { padding-left: 24px; }
+    .notes code {
+      font-family: 'IBM Plex Mono', monospace; background: var(--bg-muted); padding: 2px 6px;
+      border-radius: var(--radius-sm); font-size: 0.875em; color: var(--primary-700); border: 1px solid var(--border);
+    }
+    .dark .notes code { color: var(--primary-300); }
+  
+    /* === Mobile responsive fixes (added during audit pass) === */
+    @media (max-width: 768px) {
+      .app-layout { grid-template-columns: 1fr !important; }
+      .sidebar { display: none !important; }
+      .main { padding: 16px !important; }
+      .main-topbar { flex-wrap: wrap; gap: 8px; }
+      .page-header { flex-direction: column; align-items: flex-start !important; gap: 12px; }
+      .page-title { font-size: 1.375rem !important; }
+      .table-wrap { overflow-x: auto !important; }
+      .table-wrap table { min-width: 640px; }
+      .filter-bar { flex-direction: column; align-items: stretch !important; }
+      .filter-bar > * { width: 100%; }
+      .filter-bar > .filter-search,
+      .filter-bar > .filter-input { min-width: 0; }
+      .summary-card { padding: 16px !important; gap: 16px !important; grid-template-columns: 1fr 1fr !important; }
+      .kpi-strip { grid-template-columns: 1fr 1fr !important; }
+      .drawer, .drawer-overlay > .drawer { width: 100vw !important; max-width: 100vw !important; }
+      .config-row { grid-template-columns: 1fr !important; gap: 8px !important; }
+      .action-bar { flex-direction: column; align-items: stretch !important; }
+      .action-bar > .btn { width: 100%; }
+      .pagination { flex-direction: column; gap: 8px; align-items: stretch !important; }
+      .browser-bar { padding: 6px 8px; }
+      .browser-url { font-size: 0.625rem; }
+    }
+    @media (max-width: 480px) {
+      .table-wrap table { min-width: 560px; }
+      .main { padding: 12px !important; }
+      .summary-card { grid-template-columns: 1fr !important; }
+      .kpi-strip { grid-template-columns: 1fr !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page-topbar">
+    <a href="index.html">← Mockups index</a>
+    <span class="meta-mono">S-O1 · owner dashboard</span>
+    <button class="toggle-btn" onclick="toggleTheme()">🌓 Dark mode</button>
+  </div>
+
+  <div class="spec-banner">
+    <span><strong>S-O1: Owner Dashboard</strong> — daily overview for company-wide health</span>
+    <a href="../owner.md#s-o1-owner-dashboard">📄 ดู spec owner.md →</a>
+  </div>
+
+  <div class="app-canvas">
+    <div class="browser-frame">
+      <div class="browser-bar">
+        <div class="browser-dots"><div class="browser-dot r"></div><div class="browser-dot y"></div><div class="browser-dot g"></div></div>
+        <div class="browser-url">app.koolman-hr.com/owner/dashboard</div>
+      </div>
+
+      <div class="app-layout">
+        <aside class="sidebar">
+          <div class="sidebar-logo">
+            <div class="sidebar-logo-square">KM</div>
+            <div class="sidebar-logo-text">Koolman HR</div>
+          </div>
+          <div class="role-label">⭐ Owner</div>
+          <a class="sidebar-item active">🏠 หน้าหลัก</a>
+          <a class="sidebar-item">📅 ปฏิทิน</a>
+          <a class="sidebar-item">💸 เงินเดือน</a>
+          <a class="sidebar-item">📜 Audit log</a>
+        </aside>
+
+        <main class="main">
+          <div class="main-topbar">
+            <div class="breadcrumb-active">หน้าหลัก</div>
+            <div style="display: flex; gap: 8px;">
+              <button class="icon-btn">🔔</button>
+              <div class="avatar-mini">O</div>
+            </div>
+          </div>
+
+          <h1 class="page-title">ภาพรวม Koolman</h1>
+          <p class="page-subtitle">ข้อมูล ณ 5 พ.ค. 2569 14:30 · 124 พนักงาน Active</p>
+
+          <!-- KPI row (5 cards, hero spans 2) -->
+          <div class="kpi-row">
+            <div class="kpi-card hero">
+              <div class="kpi-label">เงินเดือนรวม เม.ย. 2569 (Published)</div>
+              <div class="kpi-value">฿ 3,892,450</div>
+              <div class="kpi-meta">↑ 1.6% จากเดือนที่แล้ว · 124 สลิป</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">พนักงานทั้งหมด</div>
+              <div class="kpi-value">124</div>
+              <div class="kpi-meta up">+2 เดือนนี้</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">ขาดวันนี้</div>
+              <div class="kpi-value">3</div>
+              <div class="kpi-meta">บอย · พลอย · ส้ม</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">ลาวันนี้</div>
+              <div class="kpi-value">5</div>
+              <div class="kpi-meta">วันลารวมทั้งเดือน 42</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">ยอดหักเดือนนี้</div>
+              <div class="kpi-value">฿ 4,240</div>
+              <div class="kpi-meta up">↓ 12% (ดีขึ้น vs เดือนก่อน)</div>
+            </div>
+          </div>
+
+          <!-- Charts row -->
+          <div class="charts-row">
+            <!-- Trend chart -->
+            <div class="chart-card">
+              <div class="chart-header">
+                <div>
+                  <div class="chart-title">เงินเดือนรวมรายเดือน</div>
+                  <div class="chart-meta">6 เดือนหลัง · บาท</div>
+                </div>
+              </div>
+              <div class="chart-tabs">
+                <button class="chart-tab">3 เดือน</button>
+                <button class="chart-tab active">6 เดือน</button>
+                <button class="chart-tab">12 เดือน</button>
+              </div>
+              <div class="chart-svg-wrap">
+                <svg class="chart-svg" viewBox="0 0 600 220" preserveAspectRatio="none">
+                  <defs>
+                    <linearGradient id="grad" x1="0" x2="0" y1="0" y2="1">
+                      <stop offset="0%" stop-color="#2563eb" stop-opacity="0.3"/>
+                      <stop offset="100%" stop-color="#2563eb" stop-opacity="0"/>
+                    </linearGradient>
+                  </defs>
+                  <!-- Y-axis labels -->
+                  <text x="6" y="40" font-size="9" fill="#94a3b8">฿4M</text>
+                  <text x="6" y="100" font-size="9" fill="#94a3b8">฿3.5M</text>
+                  <text x="6" y="160" font-size="9" fill="#94a3b8">฿3M</text>
+                  <!-- Grid lines -->
+                  <line x1="40" y1="40" x2="590" y2="40" stroke="#e2e8f0" stroke-dasharray="2 4"/>
+                  <line x1="40" y1="100" x2="590" y2="100" stroke="#e2e8f0" stroke-dasharray="2 4"/>
+                  <line x1="40" y1="160" x2="590" y2="160" stroke="#e2e8f0" stroke-dasharray="2 4"/>
+                  <!-- Line + area -->
+                  <polyline points="80,140 170,120 260,150 350,90 440,110 530,80" fill="none" stroke="#2563eb" stroke-width="2.5"/>
+                  <polygon points="80,140 170,120 260,150 350,90 440,110 530,80 530,180 80,180" fill="url(#grad)"/>
+                  <!-- Points -->
+                  <circle cx="80" cy="140" r="4" fill="#2563eb"/>
+                  <circle cx="170" cy="120" r="4" fill="#2563eb"/>
+                  <circle cx="260" cy="150" r="4" fill="#2563eb"/>
+                  <circle cx="350" cy="90" r="4" fill="#2563eb"/>
+                  <circle cx="440" cy="110" r="4" fill="#2563eb"/>
+                  <circle cx="530" cy="80" r="5" fill="#2563eb" stroke="white" stroke-width="2"/>
+                  <text x="530" y="65" font-size="10" font-weight="600" fill="#0f172a" text-anchor="middle">฿3.89M</text>
+                  <!-- X-axis labels -->
+                  <text x="80" y="200" font-size="11" text-anchor="middle" fill="#64748b">พ.ย.</text>
+                  <text x="170" y="200" font-size="11" text-anchor="middle" fill="#64748b">ธ.ค.</text>
+                  <text x="260" y="200" font-size="11" text-anchor="middle" fill="#64748b">ม.ค.</text>
+                  <text x="350" y="200" font-size="11" text-anchor="middle" fill="#64748b">ก.พ.</text>
+                  <text x="440" y="200" font-size="11" text-anchor="middle" fill="#64748b">มี.ค.</text>
+                  <text x="530" y="200" font-size="11" text-anchor="middle" fill="#64748b">เม.ย.</text>
+                </svg>
+              </div>
+            </div>
+
+            <!-- Breakdown donut -->
+            <div class="chart-card">
+              <div class="chart-header">
+                <div>
+                  <div class="chart-title">รายหักรวม เม.ย. 2569</div>
+                  <div class="chart-meta">฿607,550</div>
+                </div>
+              </div>
+              <div class="donut-wrap">
+                <svg width="120" height="120" viewBox="0 0 120 120">
+                  <circle cx="60" cy="60" r="40" fill="none" stroke="#e2e8f0" stroke-width="20"/>
+                  <!-- Slices: percentages now match donut-num values (sum=฿607,550) -->
+                  <circle cx="60" cy="60" r="40" fill="none" stroke="#2563eb" stroke-width="20"
+                    stroke-dasharray="38 251" stroke-dashoffset="0" transform="rotate(-90 60 60)"/>
+                  <circle cx="60" cy="60" r="40" fill="none" stroke="#f59e0b" stroke-width="20"
+                    stroke-dasharray="90 251" stroke-dashoffset="-38" transform="rotate(-90 60 60)"/>
+                  <circle cx="60" cy="60" r="40" fill="none" stroke="#16a34a" stroke-width="20"
+                    stroke-dasharray="63 251" stroke-dashoffset="-128" transform="rotate(-90 60 60)"/>
+                  <circle cx="60" cy="60" r="40" fill="none" stroke="#dc2626" stroke-width="20"
+                    stroke-dasharray="60 251" stroke-dashoffset="-191" transform="rotate(-90 60 60)"/>
+                  <text x="60" y="58" font-size="12" font-weight="600" text-anchor="middle" fill="#0f172a">รวม</text>
+                  <text x="60" y="72" font-size="11" text-anchor="middle" fill="#64748b">฿607K</text>
+                </svg>
+                <div class="donut-info">
+                  <div class="donut-row">
+                    <div class="donut-dot" style="background: #2563eb;"></div>
+                    <div class="donut-label">ป.ส.</div>
+                    <div class="donut-num">93,000</div>
+                    <div class="donut-pct">15%</div>
+                  </div>
+                  <div class="donut-row">
+                    <div class="donut-dot" style="background: #f59e0b;"></div>
+                    <div class="donut-label">เบิก</div>
+                    <div class="donut-num">218,000</div>
+                    <div class="donut-pct">36%</div>
+                  </div>
+                  <div class="donut-row">
+                    <div class="donut-dot" style="background: #16a34a;"></div>
+                    <div class="donut-label">ลา/สาย</div>
+                    <div class="donut-num">152,500</div>
+                    <div class="donut-pct">25%</div>
+                  </div>
+                  <div class="donut-row">
+                    <div class="donut-dot" style="background: #dc2626;"></div>
+                    <div class="donut-label">หนี้</div>
+                    <div class="donut-num">144,050</div>
+                    <div class="donut-pct">24%</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Two-col: Top 10 + Override alerts -->
+          <div class="two-col">
+            <div class="section-card">
+              <div class="section-card-header">
+                <div class="section-title">Top 10 ขาด/ลา/สาย เดือนนี้</div>
+                <a href="#" class="section-link">ดูปฏิทิน →</a>
+              </div>
+              <div class="top-list-row">
+                <div class="top-rank first">1</div>
+                <div class="top-avatar">บอย</div>
+                <div class="top-info">
+                  <div class="top-name">บอย สุวรรณ</div>
+                  <div class="top-detail">Installation</div>
+                </div>
+                <div class="top-count">5 ครั้ง</div>
+              </div>
+              <div class="top-list-row">
+                <div class="top-rank">2</div>
+                <div class="top-avatar">ตงค์</div>
+                <div class="top-info">
+                  <div class="top-name">ตงค์ สมศรี</div>
+                  <div class="top-detail">Tech</div>
+                </div>
+                <div class="top-count">4 ครั้ง</div>
+              </div>
+              <div class="top-list-row">
+                <div class="top-rank">3</div>
+                <div class="top-avatar">ส้ม</div>
+                <div class="top-info">
+                  <div class="top-name">ส้ม สมศักดิ์</div>
+                  <div class="top-detail">Sales</div>
+                </div>
+                <div class="top-count">4 ครั้ง</div>
+              </div>
+              <div class="top-list-row">
+                <div class="top-rank">4</div>
+                <div class="top-avatar">ตุ่น</div>
+                <div class="top-info">
+                  <div class="top-name">ตุ่น สมหวัง</div>
+                  <div class="top-detail">Installation</div>
+                </div>
+                <div class="top-count">3 ครั้ง</div>
+              </div>
+              <div class="top-list-row">
+                <div class="top-rank">5</div>
+                <div class="top-avatar">ฝน</div>
+                <div class="top-info">
+                  <div class="top-name">ฝน นภา</div>
+                  <div class="top-detail">Tech</div>
+                </div>
+                <div class="top-count">3 ครั้ง</div>
+              </div>
+            </div>
+
+            <div class="section-card">
+              <div class="section-card-header">
+                <div class="section-title">Override Alerts</div>
+                <a href="#" class="section-link">ดู audit log →</a>
+              </div>
+              <div class="alert-item">
+                <div class="alert-content">
+                  <div><span class="alert-emp-id">EMP-001</span> ตงค์ — Income_Other override</div>
+                  <div class="alert-detail">฿0 → ฿5,000 · เพิ่ม commission · Admin1</div>
+                </div>
+                <div class="alert-meta">5 ชม.ที่แล้ว</div>
+              </div>
+              <div class="alert-item">
+                <div class="alert-content">
+                  <div><span class="alert-emp-id">EMP-005</span> เอ๋ — Deduct_Attendance override</div>
+                  <div class="alert-detail">฿11,000 → ฿0 · เห็นใจ ลด · Admin1</div>
+                </div>
+                <div class="alert-meta">เมื่อวาน</div>
+              </div>
+              <div class="alert-item">
+                <div class="alert-content">
+                  <div><span class="alert-emp-id">EMP-002</span> ส้ม — Attendance late deduct</div>
+                  <div class="alert-detail">฿250 → ฿0 · ทำงาน OT คืน · Admin1</div>
+                </div>
+                <div class="alert-meta">2 วันที่แล้ว</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Today on leave -->
+          <div class="section-card" style="margin-top: 16px;">
+            <div class="section-card-header">
+              <div class="section-title">ใครลาวันนี้ (3)</div>
+              <a href="own-calendar.html" class="section-link">ดูปฏิทิน →</a>
+            </div>
+            <div class="today-row">
+              <div class="top-avatar">นภา</div>
+              <div class="top-info">
+                <div class="top-name">นภา จันทรา</div>
+                <div class="top-detail">Sales · ลาทั้งวัน</div>
+              </div>
+              <span class="badge badge-sick">ลาป่วย</span>
+            </div>
+            <div class="today-row">
+              <div class="top-avatar">เอ๋</div>
+              <div class="top-info">
+                <div class="top-name">เอ๋ พรพรรณ</div>
+                <div class="top-detail">Marketing · ลาครึ่งวันบ่าย</div>
+              </div>
+              <span class="badge badge-personal">ลากิจ</span>
+            </div>
+            <div class="today-row">
+              <div class="top-avatar">ตุ่น</div>
+              <div class="top-info">
+                <div class="top-name">ตุ่น สมหวัง</div>
+                <div class="top-detail">Installation · 09:30 เข้า</div>
+              </div>
+              <span class="badge badge-late">สาย 30 นาที</span>
+            </div>
+          </div>
+
+        </main>
+      </div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h2>About this mockup</h2>
+    <p>S-O1 = Owner's daily overview screen. Information-rich, no actions (read-only). Owner sees salary data (q12 confirmed by customer).</p>
+
+    <h2>Layout</h2>
+    <ul>
+      <li><strong>Lighter sidebar</strong> — only 4 items + ⭐ Owner role badge (orange tint)</li>
+      <li><strong>Owner avatar</strong> — accent orange (vs Admin's blue) — visual role distinction</li>
+      <li><strong>5 KPI cards</strong> — hero card spans 2 cols (NetPay total) + 4 smaller cards</li>
+      <li><strong>Charts row</strong> — 6-month trend (left, 2/3 width) + deduction donut breakdown (right, 1/3)</li>
+      <li><strong>2-col section</strong> — Top 10 leave/late + Override alerts (with EmpID + before/after values)</li>
+      <li><strong>Today on leave</strong> — full-width section listing who's currently on leave/late</li>
+    </ul>
+
+    <h2>Key features</h2>
+    <ul>
+      <li><strong>Hero KPI</strong> — gradient blue with NetPay total (most relevant for Owner)</li>
+      <li><strong>SVG charts</strong> — inline SVG (real impl uses recharts) — line + area + donut shown</li>
+      <li><strong>Override alerts</strong> — auto-filtered audit (override-type only) for Owner attention</li>
+      <li><strong>Top 10 ranking</strong> — gold highlight on #1 (visual hierarchy)</li>
+    </ul>
+
+    <h2>Spec references</h2>
+    <ul>
+      <li><a href="../owner.md#s-o1-owner-dashboard"><code>owner.md § S-O1</code></a></li>
+      <li><a href="../flows.md#fl-17-owner-daily-overview"><code>flows.md FL-17</code></a></li>
+    </ul>
+  </div>
+
+  <script>
+    function toggleTheme() {
+      const isDark = document.documentElement.classList.toggle('dark');
+      try { localStorage.setItem('koolman-theme', isDark ? 'dark' : 'light'); } catch (e) {}
+    }
+  </script>
+</body>
+</html>

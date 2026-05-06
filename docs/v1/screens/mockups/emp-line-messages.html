@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>S-E13: LINE Notifications — Koolman HR Mockup</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script>
+    (function() {
+      try {
+        const saved = localStorage.getItem('koolman-theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (saved === 'dark' || (saved === null && prefersDark)) { document.documentElement.classList.add('dark'); }
+      } catch (e) {}
+    })();
+  </script>
+  <style>
+    :root {
+      --primary-50:#eff6ff; --primary-100:#dbeafe; --primary-300:#93c5fd;
+      --primary-500:#3b82f6; --primary-600:#2563eb; --primary-700:#1d4ed8;
+      --primary-800:#1e40af; --primary-900:#1e3a8a;
+      --accent-500:#f59e0b; --success:#16a34a; --danger:#dc2626;
+      --line-green:#06c755; --line-bg:#8cabd8;
+      --bg:#ffffff; --bg-muted:#f8fafc; --bg-elevated:#ffffff;
+      --fg:#0f172a; --fg-muted:#64748b; --border:#e2e8f0;
+      --radius-sm:0.375rem; --radius:0.625rem; --radius-lg:1rem;
+      --shadow-md:0 8px 16px -4px rgb(37 99 235 / 0.12), 0 4px 8px -2px rgb(0 0 0 / 0.05);
+    }
+    .dark { --bg:#0f172a; --bg-muted:#1e293b; --bg-elevated:#1e293b; --fg:#f1f5f9; --fg-muted:#94a3b8; --border:#334155; --line-bg:#3a4a5c; }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    html, body { font-family:'IBM Plex Sans Thai', system-ui, sans-serif; background:var(--bg-muted); color:var(--fg); line-height:1.65; letter-spacing:-0.005em; }
+    .page-topbar { position:sticky; top:0; z-index:30; background:var(--bg); border-bottom:1px solid var(--border); padding:12px 24px; display:flex; justify-content:space-between; align-items:center; }
+    .page-topbar a { color:var(--primary-600); text-decoration:none; font-weight:500; font-size:0.875rem; }
+    .meta-mono { font-family:'IBM Plex Mono', monospace; font-size:0.8125rem; color:var(--fg-muted); }
+    .toggle-btn { background:var(--bg-muted); border:1px solid var(--border); padding:6px 12px; border-radius:var(--radius-sm); cursor:pointer; font:inherit; color:var(--fg); font-size:0.8125rem; }
+    .spec-banner { background:var(--bg); border-bottom:1px solid var(--border); padding:12px 24px; font-size:0.8125rem; color:var(--fg-muted); display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+    .spec-banner a { color:var(--primary-600); }
+    .state-bar { background:var(--bg); padding:16px 24px; display:flex; gap:8px; flex-wrap:wrap; justify-content:center; border-bottom:1px solid var(--border); }
+    .state-pill { padding:6px 14px; font-size:0.8125rem; font-weight:500; background:var(--bg-muted); color:var(--fg); border:1px solid var(--border); border-radius:999px; cursor:pointer; font:inherit; }
+    .state-pill.active { background:var(--primary-600); color:white; border-color:var(--primary-600); }
+
+    .app-canvas { padding:32px 24px; display:flex; gap:32px; justify-content:center; flex-wrap:wrap; }
+    .phone-frame { width:100%; max-width:380px; border:8px solid var(--fg); border-radius:36px; background:var(--bg); overflow:hidden; box-shadow:var(--shadow-md); display:flex; flex-direction:column; height:760px; }
+    .dark .phone-frame { border-color:#1e293b; }
+
+    /* iOS status bar */
+    .ios-status-bar { background:var(--line-green); color:white; padding:6px 14px; display:flex; justify-content:space-between; align-items:center; font-size:0.75rem; font-weight:600; }
+
+    /* LINE chat header */
+    .line-chat-header {
+      background:var(--line-green); color:white;
+      padding:10px 12px; display:flex; align-items:center; gap:10px;
+    }
+    .line-chat-back { background:none; border:none; color:white; font-size:1.25rem; cursor:pointer; padding:4px 6px; }
+    .line-oa-avatar { width:38px; height:38px; border-radius:50%; background:white; color:var(--line-green); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.875rem; flex-shrink:0; }
+    .line-oa-info { flex:1; min-width:0; }
+    .line-oa-name { font-weight:600; font-size:0.9375rem; display:flex; align-items:center; gap:5px; }
+    .line-oa-verified { background:white; color:var(--line-green); font-size:0.5625rem; font-weight:700; padding:1px 5px; border-radius:3px; }
+    .line-oa-status { font-size:0.6875rem; opacity:0.9; }
+    .line-chat-icons { display:flex; gap:8px; }
+    .line-chat-icon { background:none; border:none; color:white; font-size:1.125rem; cursor:pointer; padding:4px; }
+
+    /* Chat body */
+    .line-chat-body {
+      flex:1; overflow:auto; padding:12px;
+      background:var(--line-bg);
+      background-image:
+        radial-gradient(circle at 20% 30%, rgba(255,255,255,0.05) 1px, transparent 1px),
+        radial-gradient(circle at 80% 70%, rgba(255,255,255,0.05) 1px, transparent 1px);
+      background-size: 80px 80px;
+    }
+    .dark .line-chat-body { background:#1a2632; }
+
+    /* Date divider */
+    .date-divider { text-align:center; margin:8px 0 12px; }
+    .date-divider span { background:rgba(0,0,0,0.25); color:white; padding:3px 12px; border-radius:999px; font-size:0.6875rem; }
+
+    /* Bubbles */
+    .msg-row { display:flex; align-items:flex-end; gap:6px; margin-bottom:8px; }
+    .msg-avatar { width:32px; height:32px; border-radius:50%; background:white; color:var(--line-green); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.75rem; flex-shrink:0; }
+    .msg-content { max-width:280px; }
+    .msg-name { font-size:0.6875rem; color:rgba(255,255,255,0.95); margin-bottom:2px; padding-left:2px; }
+    .msg-bubble {
+      background:white; padding:9px 12px; border-radius:14px 14px 14px 3px;
+      font-size:0.8125rem; color:#222; line-height:1.5;
+    }
+    .dark .msg-bubble { background:#2c2c2e; color:#eee; }
+    .msg-time { font-size:0.625rem; color:rgba(255,255,255,0.85); margin:2px 0 0 4px; align-self:flex-end; padding-bottom:4px; }
+
+    /* Flex message card */
+    .flex-card {
+      background:white; border-radius:12px; overflow:hidden;
+      box-shadow:0 2px 6px rgba(0,0,0,0.1);
+      width:280px;
+    }
+    .dark .flex-card { background:#2c2c2e; }
+    .flex-header {
+      padding:14px 14px 10px;
+      color:white;
+    }
+    .flex-header.success { background:linear-gradient(135deg, #06c755, #02b54f); }
+    .flex-header.primary { background:linear-gradient(135deg, var(--primary-600), var(--primary-800)); }
+    .flex-header.warn { background:linear-gradient(135deg, var(--accent-500), #b45309); }
+    .flex-tag {
+      display:inline-block; background:rgba(255,255,255,0.2); padding:2px 8px;
+      border-radius:999px; font-size:0.625rem; font-weight:700; letter-spacing:0.04em;
+      text-transform:uppercase; margin-bottom:6px;
+    }
+    .flex-title { font-size:1rem; font-weight:700; line-height:1.3; }
+    .flex-body { padding:12px 14px; }
+    .flex-row { display:flex; justify-content:space-between; padding:4px 0; font-size:0.8125rem; }
+    .flex-row .label { color:#888; }
+    .flex-row .value { color:#222; font-weight:600; font-variant-numeric:tabular-nums; }
+    .dark .flex-row .label { color:#aaa; }
+    .dark .flex-row .value { color:#eee; }
+    .flex-row .value.amount { color:var(--line-green); font-size:0.9375rem; }
+    .flex-row .value.amount-rej { color:var(--danger); }
+    .flex-divider { height:1px; background:#eee; margin:6px 0; }
+    .dark .flex-divider { background:#444; }
+    .flex-message {
+      font-size:0.75rem; color:#666; line-height:1.5; margin-top:8px;
+    }
+    .dark .flex-message { color:#bbb; }
+    .flex-button {
+      display:block; padding:10px; text-align:center;
+      background:var(--line-green); color:white;
+      font-size:0.8125rem; font-weight:600;
+      border:none; cursor:pointer;
+      border-radius:6px; margin-top:8px;
+    }
+    .flex-button.secondary { background:var(--primary-600); }
+    .flex-footer { padding:8px 14px 12px; font-size:0.6875rem; color:#aaa; text-align:center; border-top:1px solid #f0f0f0; }
+    .dark .flex-footer { color:#666; border-top-color:#444; }
+
+    /* Welcome sticker (greeting) */
+    .welcome-sticker { background:white; padding:14px; border-radius:14px 14px 14px 3px; max-width:240px; }
+    .dark .welcome-sticker { background:#2c2c2e; }
+    .welcome-emoji { font-size:2rem; text-align:center; margin-bottom:8px; }
+    .welcome-text { font-size:0.8125rem; line-height:1.55; color:#222; }
+    .dark .welcome-text { color:#eee; }
+
+    /* Input area */
+    .line-input-bar {
+      display:flex; align-items:center; gap:8px; padding:8px 12px;
+      background:white; border-top:1px solid #e0e0e0;
+    }
+    .dark .line-input-bar { background:#2c2c2e; border-top-color:#444; }
+    .line-input { flex:1; padding:8px 14px; background:#f3f3f3; border:none; border-radius:18px; font:inherit; font-size:0.8125rem; }
+    .dark .line-input { background:#3c3c3e; color:#eee; }
+    .line-icon-btn { background:none; border:none; font-size:1.25rem; cursor:pointer; color:#666; padding:6px; }
+    .dark .line-icon-btn { color:#aaa; }
+
+    /* OA welcome message header */
+    .oa-welcome-banner {
+      background:white; margin:12px auto 16px; padding:16px;
+      border-radius:12px; max-width:300px; text-align:center;
+      box-shadow:0 2px 6px rgba(0,0,0,0.08);
+    }
+    .dark .oa-welcome-banner { background:#2c2c2e; }
+    .oa-banner-logo {
+      width:64px; height:64px; border-radius:50%;
+      background:linear-gradient(135deg, var(--primary-600), var(--primary-800));
+      color:white; display:flex; align-items:center; justify-content:center;
+      font-weight:700; font-size:1.25rem; margin:0 auto 10px;
+    }
+    .oa-banner-name { font-weight:700; font-size:0.9375rem; margin-bottom:2px; color:#222; }
+    .dark .oa-banner-name { color:#eee; }
+    .oa-banner-desc { font-size:0.75rem; color:#888; margin-bottom:10px; }
+    .dark .oa-banner-desc { color:#aaa; }
+    .oa-banner-friend { font-size:0.6875rem; color:#06c755; font-weight:600; }
+
+    /* Notification overlay (lock screen / pull-down) */
+    .notif-banner {
+      background:white; border-radius:14px;
+      padding:10px 14px; margin:8px 12px;
+      box-shadow:0 4px 12px rgba(0,0,0,0.15);
+      display:flex; gap:10px; align-items:flex-start;
+    }
+    .dark .notif-banner { background:#3c3c3e; }
+    .notif-icon { width:36px; height:36px; border-radius:8px; background:var(--line-green); color:white; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.6875rem; flex-shrink:0; }
+    .notif-body { flex:1; min-width:0; }
+    .notif-title { font-size:0.8125rem; font-weight:600; color:#222; }
+    .dark .notif-title { color:#eee; }
+    .notif-text { font-size:0.75rem; color:#666; line-height:1.5; margin-top:1px; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+    .dark .notif-text { color:#bbb; }
+    .notif-time { font-size:0.625rem; color:#999; margin-left:8px; flex-shrink:0; }
+    .lock-screen-bg { background:linear-gradient(180deg, #1a1a2e, #16213e); height:100%; display:flex; flex-direction:column; padding-top:60px; }
+    .lock-time { color:white; text-align:center; font-size:4rem; font-weight:300; letter-spacing:-0.04em; line-height:1; }
+    .lock-date { color:rgba(255,255,255,0.7); text-align:center; font-size:0.8125rem; margin-top:4px; margin-bottom:32px; }
+
+    .hidden { display:none !important; }
+
+    @media (max-width: 480px) {
+      .app-canvas { padding:0; gap:0; }
+      .phone-frame { max-width:100% !important; border-width:0 !important; border-radius:0 !important; height:auto !important; min-height:100vh; }
+      .state-bar { padding:12px 8px; }
+      .state-pill { font-size:0.75rem; padding:5px 10px; }
+    }
+  
+    /* ==== Desktop-mode (added 2026-05) ==== */
+    .desktop-mode .app-canvas {
+      padding: 24px;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+    .desktop-mode .phone-frame {
+      max-width: 720px !important;
+      width: 100%;
+      border: 1px solid var(--border) !important;
+      border-radius: 16px !important;
+      height: auto !important;
+      min-height: 600px;
+      box-shadow: 0 16px 48px -16px rgb(37 99 235 / 0.18);
+    }
+    .desktop-mode .phone-frame > .ios-status-bar { display: none; }
+    .desktop-mode .app-topbar {
+      padding: 12px 20px;
+    }
+    .desktop-mode .app-topbar .topbar-title { font-size: 1.0625rem; }
+    /* Show top nav, hide bottom nav on desktop */
+    .desktop-mode .bottom-nav {
+      order: -1;
+      border-top: none;
+      border-bottom: 1px solid var(--border);
+      padding: 8px 16px;
+      gap: 4px;
+    }
+    .desktop-mode .bottom-nav-item {
+      flex: 0 0 auto;
+      padding: 8px 14px;
+      font-size: 0.8125rem;
+      flex-direction: row;
+      gap: 6px;
+    }
+    .desktop-mode .bottom-nav-item .nav-icon {
+      font-size: 0.9375rem;
+      display: inline;
+      margin-bottom: 0;
+    }
+    .desktop-mode .app-content {
+      padding: 24px 32px !important;
+    }
+    .desktop-mode .line-chat-body { padding: 16px 24px; }
+    /* Wider for list pages */
+    .desktop-mode .advance-list,
+    .desktop-mode .slip-list { padding: 0 0; }
+    /* View-mode toggle buttons */
+    .view-toggle {
+      display: inline-flex; gap: 4px;
+      background: var(--bg-muted); border: 1px solid var(--border);
+      border-radius: 999px; padding: 3px;
+    }
+    .view-toggle button {
+      padding: 5px 12px; border: none; background: transparent;
+      cursor: pointer; font: inherit; font-size: 0.75rem; font-weight: 600;
+      color: var(--fg-muted); border-radius: 999px;
+    }
+    .view-toggle button.active { background: var(--primary-600); color: white; }
+
+  </style>
+</head>
+<body>
+
+<div class="page-topbar">
+  <div style="display:flex; align-items:center; gap:16px;">
+    <a href="index.html">← all mockups</a>
+    <span class="meta-mono">S-E13 · LINE OA push · Phase 4</span>
+  </div>
+  <button class="toggle-btn" onclick="toggleTheme()" title="Toggle theme">🌓</button>
+</div>
+
+<div class="spec-banner">
+  <span><strong>S-E13: LINE Notifications</strong> — flex messages ที่พนักงานได้รับใน LINE app · welcome / leave / advance / payroll / lock-screen push</span>
+  <span class="view-toggle"><button data-view="mobile" class="active" onclick="__setView('mobile')">📱 Mobile</button><button data-view="desktop" onclick="__setView('desktop')">🖥 Desktop</button></span>
+  <a href="../employee.md#s-e13-line-messages">spec ↗</a>
+</div>
+
+<div class="state-bar">
+  <button class="state-pill active" onclick="showState('welcome', this)">1. OA Welcome (add friend)</button>
+  <button class="state-pill" onclick="showState('leave', this)">2. Leave approved</button>
+  <button class="state-pill" onclick="showState('advance', this)">3. Advance approved</button>
+  <button class="state-pill" onclick="showState('payroll', this)">4. Payroll published</button>
+  <button class="state-pill" onclick="showState('reject', this)">5. Leave rejected</button>
+  <button class="state-pill" onclick="showState('lockscreen', this)">6. Lock screen push</button>
+</div>
+
+<div class="app-canvas">
+
+  <!-- 1. OA Welcome -->
+  <div class="phone-frame" id="state-welcome">
+    <div class="ios-status-bar"><span>9:41</span><span>📶 5G 100%</span></div>
+    <div class="line-chat-header">
+      <button class="line-chat-back">←</button>
+      <div class="line-oa-avatar">KM</div>
+      <div class="line-oa-info">
+        <div class="line-oa-name">Koolman HR <span class="line-oa-verified">✓</span></div>
+        <div class="line-oa-status">Verified Account · 124 พนักงาน</div>
+      </div>
+      <div class="line-chat-icons"><button class="line-chat-icon">📞</button><button class="line-chat-icon">≡</button></div>
+    </div>
+    <div class="line-chat-body">
+      <div class="oa-welcome-banner">
+        <div class="oa-banner-logo">KM</div>
+        <div class="oa-banner-name">Koolman HR</div>
+        <div class="oa-banner-desc">ระบบ HR ของบริษัท</div>
+        <div class="oa-banner-friend">+ คุณเป็นเพื่อนกับ Koolman HR แล้ว</div>
+      </div>
+
+      <div class="date-divider"><span>วันนี้</span></div>
+
+      <div class="msg-row">
+        <div class="msg-avatar">KM</div>
+        <div class="msg-content">
+          <div class="msg-name">Koolman HR</div>
+          <div class="welcome-sticker">
+            <div class="welcome-emoji">👋</div>
+            <div class="welcome-text">
+              <strong>สวัสดีคุณตงค์!</strong><br><br>
+              ขอบคุณที่เชื่อมบัญชี LINE กับระบบ HR ตั้งแต่นี้เป็นต้นไป คุณจะได้รับแจ้งเตือนสำคัญผ่าน LINE:<br><br>
+              ✓ คำขอลาที่อนุมัติ<br>
+              ✓ คำขอเบิกที่อนุมัติ<br>
+              ✓ เงินเดือนเข้าทุกเดือน<br><br>
+              ปิดการแจ้งเตือนได้ในแอป HR → โปรไฟล์ → การแจ้งเตือน
+            </div>
+          </div>
+        </div>
+        <div class="msg-time">14:32</div>
+      </div>
+    </div>
+    <div class="line-input-bar">
+      <button class="line-icon-btn">+</button>
+      <input class="line-input" placeholder="Aa" disabled>
+      <button class="line-icon-btn">😊</button>
+      <button class="line-icon-btn">🎤</button>
+    </div>
+  </div>
+
+  <!-- 2. Leave approved -->
+  <div class="phone-frame hidden" id="state-leave">
+    <div class="ios-status-bar"><span>9:41</span><span>📶 5G 100%</span></div>
+    <div class="line-chat-header">
+      <button class="line-chat-back">←</button>
+      <div class="line-oa-avatar">KM</div>
+      <div class="line-oa-info">
+        <div class="line-oa-name">Koolman HR <span class="line-oa-verified">✓</span></div>
+        <div class="line-oa-status">Active</div>
+      </div>
+      <div class="line-chat-icons"><button class="line-chat-icon">📞</button><button class="line-chat-icon">≡</button></div>
+    </div>
+    <div class="line-chat-body">
+      <div class="date-divider"><span>วันนี้</span></div>
+
+      <div class="msg-row">
+        <div class="msg-avatar">KM</div>
+        <div class="msg-content">
+          <div class="msg-name">Koolman HR</div>
+          <div class="flex-card">
+            <div class="flex-header success">
+              <span class="flex-tag">✓ คำขอลาอนุมัติแล้ว</span>
+              <div class="flex-title">ลาพักร้อน 12-13 พ.ค.</div>
+            </div>
+            <div class="flex-body">
+              <div class="flex-row"><span class="label">ประเภท</span><span class="value">ลาพักร้อน</span></div>
+              <div class="flex-row"><span class="label">วันที่</span><span class="value">12-13 พ.ค. 2569 (2 วัน)</span></div>
+              <div class="flex-row"><span class="label">อนุมัติโดย</span><span class="value">นภา (HR)</span></div>
+              <div class="flex-divider"></div>
+              <div class="flex-row"><span class="label">วันลาคงเหลือ</span><span class="value">4 วัน / 6 วัน</span></div>
+              <div class="flex-message">เหตุผล: ไปงานแต่งของพี่ที่เชียงใหม่</div>
+              <button class="flex-button">ดูรายละเอียด</button>
+            </div>
+            <div class="flex-footer">Koolman HR · LV-2569-088</div>
+          </div>
+        </div>
+        <div class="msg-time">15:42</div>
+      </div>
+    </div>
+    <div class="line-input-bar">
+      <button class="line-icon-btn">+</button>
+      <input class="line-input" placeholder="Aa" disabled>
+      <button class="line-icon-btn">😊</button>
+      <button class="line-icon-btn">🎤</button>
+    </div>
+  </div>
+
+  <!-- 3. Advance approved -->
+  <div class="phone-frame hidden" id="state-advance">
+    <div class="ios-status-bar"><span>9:41</span><span>📶 5G 100%</span></div>
+    <div class="line-chat-header">
+      <button class="line-chat-back">←</button>
+      <div class="line-oa-avatar">KM</div>
+      <div class="line-oa-info">
+        <div class="line-oa-name">Koolman HR <span class="line-oa-verified">✓</span></div>
+        <div class="line-oa-status">Active</div>
+      </div>
+      <div class="line-chat-icons"><button class="line-chat-icon">📞</button><button class="line-chat-icon">≡</button></div>
+    </div>
+    <div class="line-chat-body">
+      <div class="date-divider"><span>เมื่อวาน</span></div>
+
+      <div class="msg-row">
+        <div class="msg-avatar">KM</div>
+        <div class="msg-content">
+          <div class="msg-name">Koolman HR</div>
+          <div class="flex-card">
+            <div class="flex-header success">
+              <span class="flex-tag">✓ เบิกเงินอนุมัติ</span>
+              <div class="flex-title">ขอเบิก ฿5,000 อนุมัติแล้ว</div>
+            </div>
+            <div class="flex-body">
+              <div class="flex-row"><span class="label">จำนวน</span><span class="value amount">฿5,000.00</span></div>
+              <div class="flex-row"><span class="label">เลขที่</span><span class="value" style="font-family:'IBM Plex Mono', monospace; font-size:0.75rem;">ADV-2569-042</span></div>
+              <div class="flex-row"><span class="label">อนุมัติโดย</span><span class="value">นภา (HR)</span></div>
+              <div class="flex-row"><span class="label">จะหักจาก</span><span class="value">เงินเดือน มิ.ย. 2569</span></div>
+              <div class="flex-divider"></div>
+              <div class="flex-message">💰 โอนเงินเข้าบัญชีของคุณเรียบร้อย — ตรวจสอบสลิปในแอป</div>
+              <button class="flex-button">ดูใบเสร็จ</button>
+            </div>
+            <div class="flex-footer">Koolman HR · ค่ารักษาพยาบาล</div>
+          </div>
+        </div>
+        <div class="msg-time">10:15</div>
+      </div>
+    </div>
+    <div class="line-input-bar">
+      <button class="line-icon-btn">+</button>
+      <input class="line-input" placeholder="Aa" disabled>
+      <button class="line-icon-btn">😊</button>
+      <button class="line-icon-btn">🎤</button>
+    </div>
+  </div>
+
+  <!-- 4. Payroll published -->
+  <div class="phone-frame hidden" id="state-payroll">
+    <div class="ios-status-bar"><span>9:41</span><span>📶 5G 100%</span></div>
+    <div class="line-chat-header">
+      <button class="line-chat-back">←</button>
+      <div class="line-oa-avatar">KM</div>
+      <div class="line-oa-info">
+        <div class="line-oa-name">Koolman HR <span class="line-oa-verified">✓</span></div>
+        <div class="line-oa-status">Active</div>
+      </div>
+      <div class="line-chat-icons"><button class="line-chat-icon">📞</button><button class="line-chat-icon">≡</button></div>
+    </div>
+    <div class="line-chat-body">
+      <div class="date-divider"><span>30 เม.ย. 2569</span></div>
+
+      <div class="msg-row">
+        <div class="msg-avatar">KM</div>
+        <div class="msg-content">
+          <div class="msg-name">Koolman HR</div>
+          <div class="flex-card">
+            <div class="flex-header primary">
+              <span class="flex-tag">💸 เงินเดือนเข้าแล้ว</span>
+              <div class="flex-title">เงินเดือน เม.ย. 2569</div>
+            </div>
+            <div class="flex-body">
+              <div class="flex-row"><span class="label">เงินเดือนพื้นฐาน</span><span class="value">฿30,000.00</span></div>
+              <div class="flex-row"><span class="label">OT</span><span class="value" style="color:var(--success);">+฿1,200.00</span></div>
+              <div class="flex-row"><span class="label">หัก SSO 5%</span><span class="value" style="color:var(--danger);">-฿750.00</span></div>
+              <div class="flex-row"><span class="label">หัก ลา/สาย</span><span class="value" style="color:var(--danger);">-฿4,070.00</span></div>
+              <div class="flex-divider"></div>
+              <div class="flex-row" style="padding:8px 0;"><span class="label" style="font-weight:600;">NetPay</span><span class="value amount" style="font-size:1.125rem;">฿26,380.00</span></div>
+              <div class="flex-message">📥 ดาวน์โหลด PDF สลิปเงินเดือนได้ในแอป</div>
+              <button class="flex-button secondary">ดูสลิป + ดาวน์โหลด PDF</button>
+            </div>
+            <div class="flex-footer">Koolman HR · เข้าบัญชี 30 เม.ย. 2569</div>
+          </div>
+        </div>
+        <div class="msg-time">17:00</div>
+      </div>
+    </div>
+    <div class="line-input-bar">
+      <button class="line-icon-btn">+</button>
+      <input class="line-input" placeholder="Aa" disabled>
+      <button class="line-icon-btn">😊</button>
+      <button class="line-icon-btn">🎤</button>
+    </div>
+  </div>
+
+  <!-- 5. Leave rejected -->
+  <div class="phone-frame hidden" id="state-reject">
+    <div class="ios-status-bar"><span>9:41</span><span>📶 5G 100%</span></div>
+    <div class="line-chat-header">
+      <button class="line-chat-back">←</button>
+      <div class="line-oa-avatar">KM</div>
+      <div class="line-oa-info">
+        <div class="line-oa-name">Koolman HR <span class="line-oa-verified">✓</span></div>
+        <div class="line-oa-status">Active</div>
+      </div>
+      <div class="line-chat-icons"><button class="line-chat-icon">📞</button><button class="line-chat-icon">≡</button></div>
+    </div>
+    <div class="line-chat-body">
+      <div class="date-divider"><span>วันนี้</span></div>
+
+      <div class="msg-row">
+        <div class="msg-avatar">KM</div>
+        <div class="msg-content">
+          <div class="msg-name">Koolman HR</div>
+          <div class="flex-card">
+            <div class="flex-header warn">
+              <span class="flex-tag">✗ คำขอถูกปฏิเสธ</span>
+              <div class="flex-title">คำขอลา 5-7 พ.ค. ถูกปฏิเสธ</div>
+            </div>
+            <div class="flex-body">
+              <div class="flex-row"><span class="label">ประเภท</span><span class="value">ลากิจ</span></div>
+              <div class="flex-row"><span class="label">วันที่</span><span class="value">5-7 พ.ค. 2569 (3 วัน)</span></div>
+              <div class="flex-row"><span class="label">ปฏิเสธโดย</span><span class="value">นภา (HR)</span></div>
+              <div class="flex-divider"></div>
+              <div class="flex-message" style="background:rgba(220,38,38,0.06); padding:8px 10px; border-left:3px solid var(--danger); border-radius:4px;">
+                <strong style="color:var(--danger);">เหตุผลที่ปฏิเสธ:</strong><br>
+                ช่วงนั้นเป็นช่วงโปรโมชันใหญ่ ทีมเต็มอยู่ — ขอเลื่อนเป็นสัปดาห์ถัดไป (12 พ.ค.+) ได้ไหม?
+              </div>
+              <button class="flex-button" style="background:var(--accent-500);">ขอลาใหม่</button>
+            </div>
+            <div class="flex-footer">Koolman HR · LV-2569-091</div>
+          </div>
+        </div>
+        <div class="msg-time">14:18</div>
+      </div>
+    </div>
+    <div class="line-input-bar">
+      <button class="line-icon-btn">+</button>
+      <input class="line-input" placeholder="Aa" disabled>
+      <button class="line-icon-btn">😊</button>
+      <button class="line-icon-btn">🎤</button>
+    </div>
+  </div>
+
+  <!-- 6. Lock screen push -->
+  <div class="phone-frame hidden" id="state-lockscreen">
+    <div class="ios-status-bar" style="background:transparent; color:white;"><span>9:41</span><span>📶 5G 100%</span></div>
+    <div class="lock-screen-bg" style="background:linear-gradient(180deg, #1a1a2e, #16213e); height:auto; min-height:calc(100% - 32px); display:flex; flex-direction:column;">
+      <div style="padding-top:40px;">
+        <div class="lock-time">9:41</div>
+        <div class="lock-date">วันอังคาร · 5 พฤษภาคม</div>
+      </div>
+
+      <div style="padding:0 4px; flex:1;">
+        <div class="notif-banner" style="margin-bottom:8px;">
+          <div class="notif-icon">L</div>
+          <div class="notif-body">
+            <div class="notif-title" style="display:flex; justify-content:space-between;">
+              <span>LINE · Koolman HR</span>
+              <span class="notif-time">เมื่อกี้</span>
+            </div>
+            <div class="notif-text">✓ คำขอลาของคุณได้รับการอนุมัติแล้ว · ลาพักร้อน 12-13 พ.ค.</div>
+          </div>
+        </div>
+
+        <div class="notif-banner" style="opacity:0.85;">
+          <div class="notif-icon" style="background:var(--primary-600);">📧</div>
+          <div class="notif-body">
+            <div class="notif-title" style="display:flex; justify-content:space-between;">
+              <span>Mail · Koolman HR</span>
+              <span class="notif-time">5 นาที</span>
+            </div>
+            <div class="notif-text">✓ คำขอลาของคุณได้รับการอนุมัติแล้ว — รายละเอียดในอีเมล</div>
+          </div>
+        </div>
+
+        <div class="notif-banner" style="opacity:0.7;">
+          <div class="notif-icon" style="background:linear-gradient(135deg, var(--primary-600), var(--primary-800));">KM</div>
+          <div class="notif-body">
+            <div class="notif-title" style="display:flex; justify-content:space-between;">
+              <span>Koolman HR app</span>
+              <span class="notif-time">5 นาที</span>
+            </div>
+            <div class="notif-text">คำขอลา 12-13 พ.ค. ของคุณได้รับการอนุมัติแล้ว</div>
+          </div>
+        </div>
+
+        <div style="text-align:center; margin-top:16px; color:rgba(255,255,255,0.5); font-size:0.6875rem;">3 channels — LINE / email / in-app</div>
+      </div>
+
+      <div style="padding:32px 16px 16px; text-align:center;">
+        <div style="display:inline-block; padding:8px 16px; background:rgba(255,255,255,0.15); color:white; border-radius:999px; font-size:0.75rem; font-weight:500;">⬆ Slide up to open</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  function toggleTheme() {
+    const isDark = document.documentElement.classList.toggle('dark');
+    try { localStorage.setItem('koolman-theme', isDark ? 'dark' : 'light'); } catch(e) {}
+  }
+  function showState(name, btn) {
+    ['welcome','leave','advance','payroll','reject','lockscreen'].forEach(s => document.getElementById('state-' + s).classList.add('hidden'));
+    document.getElementById('state-' + name).classList.remove('hidden');
+    document.querySelectorAll('.state-pill').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+  }
+</script>
+
+<script>
+  // Desktop-mode toggle
+  (function() {
+    function setView(mode) {
+      document.body.classList.toggle('desktop-mode', mode === 'desktop');
+      document.querySelectorAll('.view-toggle button').forEach(b => {
+        b.classList.toggle('active', b.dataset.view === mode);
+      });
+      try { localStorage.setItem('koolman-view-mode', mode); } catch(e) {}
+    }
+    window.__setView = setView;
+    document.addEventListener('DOMContentLoaded', function() {
+      const saved = (function(){ try { return localStorage.getItem('koolman-view-mode'); } catch(e) { return null; } })();
+      if (saved === 'desktop') setView('desktop');
+    });
+  })();
+</script>
+</body>
+</html>

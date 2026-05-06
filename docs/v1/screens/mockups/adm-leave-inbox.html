@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>S-N6: Admin Leave Inbox — Koolman HR Mockup</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script>
+    (function() {
+      try {
+        const saved = localStorage.getItem('koolman-theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (saved === 'dark' || (saved === null && prefersDark)) {
+          document.documentElement.classList.add('dark');
+        }
+      } catch (e) {}
+    })();
+  </script>
+  <style>
+    :root {
+      --primary-50: #eff6ff; --primary-100: #dbeafe; --primary-300: #93c5fd;
+      --primary-500: #3b82f6; --primary-600: #2563eb; --primary-700: #1d4ed8;
+      --primary-800: #1e40af; --primary-900: #1e3a8a;
+      --accent-500: #f59e0b;
+      --success: #16a34a; --warning: #ea580c; --danger: #dc2626;
+      --bg: #ffffff; --bg-muted: #f8fafc; --bg-elevated: #ffffff;
+      --fg: #0f172a; --fg-muted: #64748b; --border: #e2e8f0;
+      --radius-sm: 0.375rem; --radius: 0.625rem; --radius-lg: 1rem; --radius-xl: 1.25rem;
+      --shadow-sm: 0 2px 4px 0 rgb(0 0 0 / 0.04);
+      --shadow-md: 0 8px 16px -4px rgb(37 99 235 / 0.12), 0 4px 8px -2px rgb(0 0 0 / 0.05);
+    }
+    .dark {
+      --bg: #0f172a; --bg-muted: #1e293b; --bg-elevated: #1e293b;
+      --fg: #f1f5f9; --fg-muted: #94a3b8; --border: #334155;
+      --shadow-md: 0 8px 16px -4px rgb(37 99 235 / 0.06), 0 4px 8px -2px rgb(0 0 0 / 0.4);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      font-family: 'IBM Plex Sans Thai', system-ui, sans-serif;
+      background: var(--bg-muted); color: var(--fg);
+      line-height: 1.65; letter-spacing: -0.005em;
+      transition: background 200ms, color 200ms;
+    }
+    .page-topbar {
+      position: sticky; top: 0; z-index: 30;
+      background: var(--bg); border-bottom: 1px solid var(--border);
+      padding: 12px 24px; display: flex; justify-content: space-between; align-items: center;
+    }
+    .page-topbar a { color: var(--primary-600); text-decoration: none; font-weight: 500; font-size: 0.875rem; }
+    .meta-mono { font-family: 'IBM Plex Mono', monospace; font-size: 0.8125rem; color: var(--fg-muted); }
+    .toggle-btn {
+      background: var(--bg-muted); border: 1px solid var(--border);
+      padding: 6px 12px; border-radius: var(--radius-sm);
+      cursor: pointer; font: inherit; color: var(--fg);
+      font-size: 0.8125rem;
+    }
+    .spec-banner {
+      background: var(--bg); border-bottom: 1px solid var(--border);
+      padding: 12px 24px; font-size: 0.8125rem; color: var(--fg-muted);
+      display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap;
+    }
+    .spec-banner a { color: var(--primary-600); }
+
+    .state-bar {
+      background: var(--bg); padding: 16px 24px;
+      display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;
+      border-bottom: 1px solid var(--border);
+    }
+    .state-pill {
+      padding: 6px 14px; font-size: 0.8125rem; font-weight: 500;
+      background: var(--bg-muted); color: var(--fg); border: 1px solid var(--border);
+      border-radius: 999px; cursor: pointer; font: inherit;
+      transition: all 150ms;
+    }
+    .state-pill:hover { border-color: var(--primary-300); }
+    .state-pill.active { background: var(--primary-600); color: white; border-color: var(--primary-600); }
+
+    .app-canvas {
+      padding: 24px;
+      display: flex; justify-content: center;
+    }
+    .browser-frame {
+      width: 100%; max-width: 1240px;
+      background: var(--bg);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-md);
+      overflow: hidden;
+      border: 1px solid var(--border);
+      position: relative;
+    }
+    .browser-bar {
+      background: var(--bg-muted);
+      border-bottom: 1px solid var(--border);
+      padding: 8px 12px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .browser-dots { display: flex; gap: 4px; }
+    .browser-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .browser-dot.r { background: #ef4444; }
+    .browser-dot.y { background: #f59e0b; }
+    .browser-dot.g { background: #22c55e; }
+    .browser-url {
+      flex: 1; padding: 4px 12px;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 999px; font-size: 0.75rem;
+      color: var(--fg-muted);
+      font-family: 'IBM Plex Mono', monospace;
+    }
+
+    .app-layout {
+      display: grid; grid-template-columns: 220px 1fr;
+      min-height: 720px;
+    }
+
+    /* Sidebar (compact) */
+    .sidebar {
+      background: var(--bg);
+      border-right: 1px solid var(--border);
+      padding: 16px 12px;
+    }
+    .sidebar-logo {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 12px; margin-bottom: 16px;
+    }
+    .sidebar-logo-square {
+      width: 32px; height: 32px;
+      background: var(--primary-600); border-radius: var(--radius-sm);
+      display: flex; align-items: center; justify-content: center;
+      color: white; font-weight: 700; font-size: 0.875rem;
+    }
+    .sidebar-logo-text { font-weight: 700; font-size: 0.9375rem; }
+    .sidebar-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 12px;
+      border-radius: var(--radius);
+      color: var(--fg); text-decoration: none;
+      font-size: 0.875rem; font-weight: 500;
+      margin-bottom: 2px;
+      cursor: pointer; position: relative;
+      transition: all 150ms;
+    }
+    .sidebar-item:hover { background: var(--bg-muted); }
+    .sidebar-item.active {
+      background: var(--primary-50); color: var(--primary-700); font-weight: 600;
+    }
+    .dark .sidebar-item.active { background: var(--primary-900); color: var(--primary-300); }
+    .sidebar-item.active::before {
+      content: ''; position: absolute; left: -12px; top: 8px; bottom: 8px;
+      width: 2px; background: var(--primary-600); border-radius: 0 2px 2px 0;
+    }
+    .sidebar-item .badge {
+      margin-left: auto;
+      background: var(--danger); color: white;
+      padding: 1px 7px; border-radius: 999px;
+      font-size: 0.6875rem; font-weight: 700;
+    }
+
+    .main {
+      padding: 24px 28px;
+      overflow: auto;
+      position: relative;
+    }
+    .main-topbar {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 20px;
+    }
+    .breadcrumb { font-size: 0.875rem; color: var(--fg-muted); }
+    .breadcrumb-active { color: var(--fg); font-weight: 600; }
+    .topbar-actions { display: flex; align-items: center; gap: 8px; }
+    .icon-btn {
+      width: 36px; height: 36px;
+      background: transparent; border: 1px solid var(--border);
+      border-radius: var(--radius-sm); cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--fg);
+    }
+    .avatar-mini {
+      width: 36px; height: 36px;
+      background: var(--primary-100); color: var(--primary-700);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 600; font-size: 0.75rem;
+    }
+    .dark .avatar-mini { background: var(--primary-900); color: var(--primary-300); }
+
+    .page-title { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 16px; }
+
+    /* Filter bar */
+    .filter-bar {
+      display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 12px 16px; margin-bottom: 16px;
+    }
+    .filter-input {
+      padding: 6px 12px; border: 1px solid var(--border);
+      border-radius: var(--radius); font: inherit; font-size: 0.8125rem;
+      background: var(--bg); color: var(--fg);
+      min-width: 200px;
+    }
+    .filter-chip {
+      padding: 6px 12px; font-size: 0.8125rem;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 999px; cursor: pointer; color: var(--fg);
+      display: flex; align-items: center; gap: 4px;
+    }
+    .filter-chip.active { background: var(--primary-100); color: var(--primary-700); border-color: var(--primary-300); }
+    .dark .filter-chip.active { background: var(--primary-900); color: var(--primary-300); }
+
+    /* Bulk action bar */
+    .bulk-bar {
+      background: var(--primary-50);
+      border: 1px solid var(--primary-200);
+      border-radius: var(--radius);
+      padding: 10px 16px;
+      margin-bottom: 12px;
+      display: flex; justify-content: space-between; align-items: center;
+      animation: slideDown 200ms;
+    }
+    @keyframes slideDown { from { transform: translateY(-8px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    .dark .bulk-bar { background: var(--primary-900); border-color: var(--primary-700); }
+    .bulk-info { font-size: 0.875rem; font-weight: 500; }
+    .bulk-actions { display: flex; gap: 8px; }
+    .btn {
+      padding: 7px 14px; font: inherit; font-size: 0.8125rem; font-weight: 600;
+      border: none; border-radius: var(--radius-sm); cursor: pointer;
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+    .btn-success { background: var(--success); color: white; }
+    .btn-danger { background: var(--danger); color: white; }
+    .btn-secondary { background: var(--bg); color: var(--fg); border: 1px solid var(--border); }
+
+    /* Table */
+    .table-wrap {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); overflow: hidden;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+    th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+    th {
+      font-weight: 600; color: var(--fg-muted); font-size: 0.6875rem;
+      text-transform: uppercase; letter-spacing: 0.05em;
+      background: var(--bg-muted);
+    }
+    tbody tr { cursor: pointer; transition: background 150ms; }
+    tbody tr:hover { background: var(--bg-muted); }
+    tbody tr.selected { background: var(--primary-50); }
+    .dark tbody tr.selected { background: var(--primary-900); }
+    tbody tr:last-child td { border-bottom: none; }
+    .checkbox {
+      width: 16px; height: 16px;
+      border: 1.5px solid var(--border);
+      border-radius: 4px;
+      display: inline-flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      background: var(--bg);
+      color: white;
+      font-size: 0.625rem;
+    }
+    .checkbox.checked {
+      background: var(--primary-600); border-color: var(--primary-600);
+    }
+
+    .name-cell {
+      display: flex; align-items: center; gap: 8px;
+    }
+    .avatar {
+      width: 28px; height: 28px;
+      background: var(--primary-100); color: var(--primary-700);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 600; font-size: 0.6875rem;
+      flex-shrink: 0;
+    }
+    .dark .avatar { background: var(--primary-900); color: var(--primary-300); }
+
+    .badge {
+      display: inline-block; padding: 2px 10px; border-radius: 999px;
+      font-size: 0.6875rem; font-weight: 600;
+    }
+    .badge-pending { background: #fef3c7; color: #92400e; }
+    .dark .badge-pending { background: #78350f; color: #fde68a; }
+    .badge-approved { background: #d1fae5; color: #065f46; }
+    .badge-vacation { background: #d1fae5; color: #065f46; }
+    .badge-sick { background: #dbeafe; color: #1e40af; }
+    .badge-personal { background: #ede9fe; color: #6b21a8; }
+
+    /* Drawer */
+    .drawer-overlay {
+      position: absolute; inset: 0; z-index: 40;
+      background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(2px);
+      display: flex; justify-content: flex-end;
+      animation: fadeIn 200ms;
+    }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .drawer {
+      width: 480px; height: 100%;
+      background: var(--bg);
+      box-shadow: -8px 0 24px -4px rgb(0 0 0 / 0.1);
+      animation: slideInRight 250ms cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex; flex-direction: column;
+      overflow: hidden;
+    }
+    @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
+    .drawer-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .drawer-title { font-weight: 700; font-size: 1.0625rem; }
+    .close-btn {
+      background: transparent; border: none;
+      cursor: pointer; padding: 6px;
+      color: var(--fg);
+    }
+    .drawer-body {
+      flex: 1; overflow: auto; padding: 20px;
+    }
+    .drawer-section { margin-bottom: 20px; }
+    .drawer-section-label {
+      font-size: 0.6875rem; font-weight: 600; color: var(--fg-muted);
+      text-transform: uppercase; letter-spacing: 0.08em;
+      margin-bottom: 8px;
+    }
+    .emp-card {
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px;
+      background: var(--bg-muted); border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+    .emp-avatar-lg {
+      width: 48px; height: 48px;
+      background: var(--primary-100); color: var(--primary-700);
+      border-radius: var(--radius-lg);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 1rem;
+      flex-shrink: 0;
+    }
+    .dark .emp-avatar-lg { background: var(--primary-900); color: var(--primary-300); }
+    .emp-info-name { font-weight: 600; font-size: 0.9375rem; }
+    .emp-info-meta { font-size: 0.75rem; color: var(--fg-muted); }
+
+    .info-row {
+      display: flex; justify-content: space-between;
+      padding: 8px 0; border-top: 1px solid var(--border);
+      font-size: 0.875rem;
+    }
+    .info-row:first-child { border-top: none; }
+    .info-row-label { color: var(--fg-muted); }
+    .info-row-value { font-weight: 500; }
+
+    .reason-box {
+      background: var(--bg-muted); border-left: 3px solid var(--primary-500);
+      padding: 12px; border-radius: var(--radius-sm);
+      font-size: 0.875rem; line-height: 1.6;
+    }
+
+    .conflict-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 0;
+      font-size: 0.8125rem;
+    }
+
+    .timeline-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 6px 0;
+      font-size: 0.8125rem; color: var(--fg-muted);
+    }
+    .timeline-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--primary-500);
+      flex-shrink: 0;
+    }
+
+    .drawer-footer {
+      padding: 16px 20px;
+      border-top: 1px solid var(--border);
+      display: flex; gap: 8px;
+      background: var(--bg);
+    }
+    .drawer-btn {
+      flex: 1; padding: 11px 14px;
+      font: inherit; font-size: 0.875rem; font-weight: 600;
+      border: none; border-radius: var(--radius);
+      cursor: pointer;
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    }
+    .drawer-btn.approve { background: var(--success); color: white; }
+    .drawer-btn.reject { background: var(--bg); color: var(--danger); border: 1px solid var(--danger); }
+
+    /* Reject form */
+    .reject-form {
+      padding: 20px;
+      border-top: 1px solid var(--border);
+      background: var(--bg-muted);
+    }
+    .form-label { display: block; font-size: 0.8125rem; font-weight: 500; margin-bottom: 6px; }
+    .form-textarea {
+      width: 100%; padding: 10px;
+      font: inherit; font-size: 0.875rem;
+      background: var(--bg); color: var(--fg);
+      border: 1px solid var(--border); border-radius: var(--radius);
+      min-height: 80px; resize: vertical;
+    }
+    .form-textarea:focus { outline: none; border-color: var(--danger); }
+
+    /* Empty state */
+    .empty {
+      text-align: center; padding: 64px 16px;
+      color: var(--fg-muted);
+    }
+    .empty-icon { font-size: 3rem; margin-bottom: 12px; opacity: 0.5; }
+    .empty-title { font-weight: 600; color: var(--fg); margin-bottom: 4px; font-size: 1rem; }
+
+    /* Toast */
+    .toast-area { position: absolute; bottom: 24px; right: 24px; z-index: 60; }
+    .toast {
+      background: var(--bg-elevated); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 12px 16px;
+      box-shadow: var(--shadow-md);
+      display: flex; align-items: center; gap: 10px;
+      animation: slideUp 250ms; max-width: 360px;
+    }
+    @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    .toast.success { border-left: 4px solid var(--success); }
+    .toast-text { font-size: 0.875rem; }
+
+    /* Notes */
+    .notes { max-width: 1000px; margin: 0 auto; padding: 32px 24px; background: var(--bg); border-top: 1px solid var(--border); }
+    .notes h2 { font-size: 1.25rem; font-weight: 600; margin: 24px 0 12px; }
+    .notes h2:first-child { margin-top: 0; }
+    .notes p, .notes li { font-size: 0.9375rem; line-height: 1.7; }
+    .notes ul { padding-left: 24px; }
+    .notes code {
+      font-family: 'IBM Plex Mono', monospace; background: var(--bg-muted); padding: 2px 6px;
+      border-radius: var(--radius-sm); font-size: 0.875em; color: var(--primary-700); border: 1px solid var(--border);
+    }
+    .dark .notes code { color: var(--primary-300); }
+  
+    /* === Mobile responsive fixes (added during audit pass) === */
+    @media (max-width: 768px) {
+      .app-layout { grid-template-columns: 1fr !important; }
+      .sidebar { display: none !important; }
+      .main { padding: 16px !important; }
+      .main-topbar { flex-wrap: wrap; gap: 8px; }
+      .page-header { flex-direction: column; align-items: flex-start !important; gap: 12px; }
+      .page-title { font-size: 1.375rem !important; }
+      .table-wrap { overflow-x: auto !important; }
+      .table-wrap table { min-width: 640px; }
+      .filter-bar { flex-direction: column; align-items: stretch !important; }
+      .filter-bar > * { width: 100%; }
+      .filter-bar > .filter-search,
+      .filter-bar > .filter-input { min-width: 0; }
+      .summary-card { padding: 16px !important; gap: 16px !important; grid-template-columns: 1fr 1fr !important; }
+      .kpi-strip { grid-template-columns: 1fr 1fr !important; }
+      .drawer, .drawer-overlay > .drawer { width: 100vw !important; max-width: 100vw !important; }
+      .config-row { grid-template-columns: 1fr !important; gap: 8px !important; }
+      .action-bar { flex-direction: column; align-items: stretch !important; }
+      .action-bar > .btn { width: 100%; }
+      .pagination { flex-direction: column; gap: 8px; align-items: stretch !important; }
+      .browser-bar { padding: 6px 8px; }
+      .browser-url { font-size: 0.625rem; }
+    }
+    @media (max-width: 480px) {
+      .table-wrap table { min-width: 560px; }
+      .main { padding: 12px !important; }
+      .summary-card { grid-template-columns: 1fr !important; }
+      .kpi-strip { grid-template-columns: 1fr !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page-topbar">
+    <a href="index.html">← Mockups index</a>
+    <span class="meta-mono">S-N6 · admin leave inbox</span>
+    <button class="toggle-btn" onclick="toggleTheme()">🌓 Dark mode</button>
+  </div>
+
+  <div class="spec-banner">
+    <span><strong>S-N6: Leave Approval Inbox</strong> + D-N1 drawer pattern</span>
+    <a href="../admin.md#s-n6-leave-inbox">📄 ดู spec admin.md →</a>
+  </div>
+
+  <div class="state-bar">
+    <button class="state-pill active" onclick="setState('list')">Inbox list</button>
+    <button class="state-pill" onclick="setState('selected')">Bulk selected (3)</button>
+    <button class="state-pill" onclick="setState('drawer')">Drawer (D-N1)</button>
+    <button class="state-pill" onclick="setState('drawer-rejecting')">Drawer — rejecting</button>
+    <button class="state-pill" onclick="setState('approved-toast')">Approved toast</button>
+    <button class="state-pill" onclick="setState('empty')">Empty state</button>
+  </div>
+
+  <div class="app-canvas">
+    <div class="browser-frame">
+      <div class="browser-bar">
+        <div class="browser-dots"><div class="browser-dot r"></div><div class="browser-dot y"></div><div class="browser-dot g"></div></div>
+        <div class="browser-url">app.koolman-hr.com/admin/leave</div>
+      </div>
+
+      <div class="app-layout">
+        <aside class="sidebar">
+          <div class="sidebar-logo">
+            <div class="sidebar-logo-square">KM</div>
+            <div class="sidebar-logo-text">Koolman HR</div>
+          </div>
+          <a class="sidebar-item">🏠 หน้าหลัก</a>
+          <a class="sidebar-item">👥 พนักงาน</a>
+          <a class="sidebar-item active">📋 คำขอลา <span class="badge">8</span></a>
+          <a class="sidebar-item" href="adm-advance-inbox.html">💰 คำขอเบิก <span class="badge">3</span></a>
+          <a class="sidebar-item">📅 ลงเวลา</a>
+          <a class="sidebar-item">💸 เงินเดือน</a>
+          <a class="sidebar-item">📊 บัญชี</a>
+          <a class="sidebar-item">📜 Audit log</a>
+          <a class="sidebar-item">⚙️ ตั้งค่า</a>
+        </aside>
+
+        <main class="main" id="main">
+          <div class="main-topbar">
+            <div class="breadcrumb">หน้าหลัก / <span class="breadcrumb-active">คำขอลา</span></div>
+            <div class="topbar-actions">
+              <button class="icon-btn">🔔</button>
+              <div class="avatar-mini">A</div>
+            </div>
+          </div>
+
+          <div id="content"></div>
+        </main>
+      </div>
+
+      <div id="overlay"></div>
+      <div id="toastArea" class="toast-area"></div>
+    </div>
+  </div>
+
+  <!-- Notes -->
+  <div class="notes">
+    <h2>About this mockup</h2>
+    <p>Leave approval inbox = primary admin task. Shows <strong>list + drawer pattern</strong> — common across many admin screens.</p>
+
+    <h2>Key UI elements</h2>
+    <ul>
+      <li><strong>Filter bar:</strong> search input + filter chips (status, dept, type, date)</li>
+      <li><strong>Data table:</strong> checkbox first column for bulk · sortable columns · row click → drawer</li>
+      <li><strong>Bulk action bar:</strong> appears when ≥1 row selected · Approve/Reject buttons</li>
+      <li><strong>D-N1 Drawer:</strong> slides from right · employee info → leave details → team conflict context → action buttons</li>
+      <li><strong>Reject sub-form:</strong> appears below drawer footer when reject clicked, requires reason</li>
+    </ul>
+
+    <h2>States covered</h2>
+    <ul>
+      <li><strong>Inbox list (default)</strong> — table with 4 pending requests</li>
+      <li><strong>Bulk selected (3)</strong> — bulk action bar appears, rows highlighted</li>
+      <li><strong>Drawer open</strong> — D-N1 with full leave detail · approve/reject buttons</li>
+      <li><strong>Drawer — rejecting</strong> — reason textarea revealed</li>
+      <li><strong>Approved toast</strong> — T-N3 success after action</li>
+      <li><strong>Empty state</strong> — when filtered to 0 results</li>
+    </ul>
+
+    <h2>Drawer content sections</h2>
+    <ol>
+      <li><strong>Employee card</strong> — avatar + name + department</li>
+      <li><strong>Leave details</strong> — type, dates, duration, reason (highlighted box)</li>
+      <li><strong>Attachment</strong> — preview thumbnail if uploaded</li>
+      <li><strong>Team conflict</strong> — who else on leave same days (helps decision)</li>
+      <li><strong>History</strong> — past leave for this employee (last 6 months)</li>
+      <li><strong>Action footer</strong> — Approve (success) / Reject (outline danger)</li>
+    </ol>
+
+    <h2>Spec references</h2>
+    <ul>
+      <li><a href="../admin.md#s-n6-leave-inbox"><code>admin.md § S-N6</code></a></li>
+      <li><a href="../admin.md#d-n1-leave-approval-drawer"><code>D-N1</code></a> — drawer spec</li>
+      <li><a href="../admin.md#f-n3-leave-approval"><code>F-N3</code></a> — approval form</li>
+      <li><a href="../flows.md#fl-9-approve-leave-request"><code>flows.md FL-9</code></a></li>
+    </ul>
+  </div>
+
+  <script>
+    function inboxView(opts = {}) {
+      const { selected = [] } = opts;
+      const rows = [
+        { id: 1, name: 'ส้ม สมศักดิ์', avatar: 'ส้ม', dept: 'Sales', type: 'พักร้อน', typeClass: 'vacation', dates: '12-13 พ.ค. 2569', days: '2 วัน', sent: '2 ชม.ที่แล้ว' },
+        { id: 2, name: 'บอย สุวรรณ', avatar: 'บอย', dept: 'Installation', type: 'ป่วย', typeClass: 'sick', dates: '8 พ.ค. 2569', days: '1 วัน', sent: '5 ชม.ที่แล้ว' },
+        { id: 3, name: 'ฝน นภา', avatar: 'ฝน', dept: 'Tech', type: 'กิจ', typeClass: 'personal', dates: '15 พ.ค. 2569', days: '1 วัน', sent: 'เมื่อวาน' },
+        { id: 4, name: 'เอ๋ พรพรรณ', avatar: 'เอ๋', dept: 'Marketing', type: 'พักร้อน', typeClass: 'vacation', dates: '18-22 พ.ค. 2569', days: '5 วัน', sent: 'เมื่อวาน' },
+      ];
+
+      return `
+        <h1 class="page-title">อนุมัติคำขอลา</h1>
+
+        <div class="filter-bar">
+          <input class="filter-input" placeholder="🔍 ค้นหาชื่อพนักงาน..." />
+          <button class="filter-chip active">รออนุมัติ ▾</button>
+          <button class="filter-chip">ทุกแผนก ▾</button>
+          <button class="filter-chip">ทุกประเภท ▾</button>
+          <button class="filter-chip">วันที่ ▾</button>
+        </div>
+
+        ${selected.length > 0 ? `
+          <div class="bulk-bar">
+            <div class="bulk-info">เลือก ${selected.length} รายการ</div>
+            <div class="bulk-actions">
+              <button class="btn btn-success">✅ อนุมัติทั้งหมด</button>
+              <button class="btn btn-danger">❌ ปฏิเสธทั้งหมด</button>
+              <button class="btn btn-secondary">ยกเลิก</button>
+            </div>
+          </div>
+        ` : ''}
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 32px;"><div class="checkbox ${selected.length === rows.length ? 'checked' : ''}">${selected.length === rows.length ? '✓' : ''}</div></th>
+                <th>พนักงาน</th>
+                <th>ประเภท</th>
+                <th>วันที่</th>
+                <th>วัน</th>
+                <th>ส่งเมื่อ</th>
+                <th>สถานะ</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows.map(r => `
+                <tr class="${selected.includes(r.id) ? 'selected' : ''}" onclick="setState('drawer')">
+                  <td><div class="checkbox ${selected.includes(r.id) ? 'checked' : ''}">${selected.includes(r.id) ? '✓' : ''}</div></td>
+                  <td><div class="name-cell"><div class="avatar">${r.avatar}</div><div><div style="font-weight: 500;">${r.name}</div><div style="font-size: 0.75rem; color: var(--fg-muted);">${r.dept}</div></div></div></td>
+                  <td><span class="badge badge-${r.typeClass}">${r.type}</span></td>
+                  <td>${r.dates}</td>
+                  <td>${r.days}</td>
+                  <td style="color: var(--fg-muted); font-size: 0.8125rem;">${r.sent}</td>
+                  <td><span class="badge badge-pending">รออนุมัติ</span></td>
+                  <td>▶</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function emptyView() {
+      return `
+        <h1 class="page-title">อนุมัติคำขอลา</h1>
+        <div class="filter-bar">
+          <input class="filter-input" placeholder="🔍 ค้นหา..." />
+          <button class="filter-chip active">รออนุมัติ ▾</button>
+          <button class="filter-chip">ทุกแผนก ▾</button>
+        </div>
+        <div class="table-wrap">
+          <div class="empty">
+            <div class="empty-icon">✓</div>
+            <div class="empty-title">ไม่มีคำขอรออนุมัติ</div>
+            <div>ยอดเยี่ยม — งานหมดแล้ว 🎉</div>
+          </div>
+        </div>
+      `;
+    }
+
+    function drawer(rejecting = false) {
+      return `
+        <div class="drawer-overlay" onclick="if(event.target===this) setState('list')">
+          <div class="drawer">
+            <div class="drawer-header">
+              <div class="drawer-title">รายละเอียดคำขอลา #42</div>
+              <button class="close-btn" onclick="setState('list')">✕</button>
+            </div>
+            <div class="drawer-body">
+
+              <div class="drawer-section">
+                <div class="drawer-section-label">พนักงาน</div>
+                <div class="emp-card">
+                  <div class="emp-avatar-lg">ส้ม</div>
+                  <div>
+                    <div class="emp-info-name">ส้ม สมศักดิ์</div>
+                    <div class="emp-info-meta">EMP-002 · Sales · สำนักงานใหญ่</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="drawer-section">
+                <div class="drawer-section-label">รายละเอียดการลา</div>
+                <div class="info-row"><span class="info-row-label">ประเภท</span><span class="info-row-value"><span class="badge badge-vacation">ลาพักร้อน</span></span></div>
+                <div class="info-row"><span class="info-row-label">วันที่</span><span class="info-row-value">12-13 พ.ค. 2569</span></div>
+                <div class="info-row"><span class="info-row-label">จำนวน</span><span class="info-row-value">2 วัน</span></div>
+                <div class="info-row"><span class="info-row-label">ส่งคำขอ</span><span class="info-row-value">5 พ.ค. 14:32</span></div>
+              </div>
+
+              <div class="drawer-section">
+                <div class="drawer-section-label">เหตุผล</div>
+                <div class="reason-box">ไปงานแต่งของพี่ที่ต่างจังหวัด ต้องเดินทางและกลับมาเหนื่อย</div>
+              </div>
+
+              <div class="drawer-section">
+                <div class="drawer-section-label">แนบไฟล์</div>
+                <div style="font-size: 0.8125rem; color: var(--fg-muted);">(ไม่มี)</div>
+              </div>
+
+              <div class="drawer-section">
+                <div class="drawer-section-label">ทีม Sales — ใครลาวันเดียวกัน</div>
+                <div class="conflict-row">
+                  <div class="avatar">ก้อ</div>
+                  <span>ก้อย วราพร — ลาพักร้อน 12 พ.ค. <strong style="color: var(--warning);">⚠ ทับวัน</strong></span>
+                </div>
+                <div class="conflict-row" style="color: var(--fg-muted);">
+                  <span>13 พ.ค. — ไม่มีคนลา ✓</span>
+                </div>
+              </div>
+
+              <div class="drawer-section">
+                <div class="drawer-section-label">ประวัติ 6 เดือนหลัง</div>
+                <div class="timeline-row"><div class="timeline-dot"></div><span>ลาป่วย 2 เม.ย. — อนุมัติ</span></div>
+                <div class="timeline-row"><div class="timeline-dot"></div><span>ลากิจ 25 ก.พ. — ปฏิเสธ</span></div>
+                <div class="timeline-row"><div class="timeline-dot"></div><span>ลาพักร้อน 13-14 ม.ค. — อนุมัติ</span></div>
+              </div>
+
+            </div>
+
+            ${rejecting ? `
+              <div class="reject-form">
+                <label class="form-label">เหตุผลที่ปฏิเสธ <span style="color: var(--danger);">*</span></label>
+                <textarea class="form-textarea" placeholder="อธิบายเหตุผล (10–500 ตัวอักษร)..." autofocus></textarea>
+                <div style="display: flex; gap: 8px; margin-top: 12px; justify-content: flex-end;">
+                  <button class="btn btn-secondary" onclick="setState('drawer')">ยกเลิก</button>
+                  <button class="btn btn-danger" onclick="setState('approved-toast')">ปฏิเสธคำขอ</button>
+                </div>
+              </div>
+            ` : `
+              <div class="drawer-footer">
+                <button class="drawer-btn approve" onclick="setState('approved-toast')">✅ อนุมัติ</button>
+                <button class="drawer-btn reject" onclick="setState('drawer-rejecting')">❌ ปฏิเสธ</button>
+              </div>
+            `}
+          </div>
+        </div>
+      `;
+    }
+
+    function setState(state) {
+      document.querySelectorAll('.state-pill').forEach(p => p.classList.remove('active'));
+      const pills = Array.from(document.querySelectorAll('.state-pill'));
+      const map = { 'list': 0, 'selected': 1, 'drawer': 2, 'drawer-rejecting': 3, 'approved-toast': 4, 'empty': 5 };
+      if (pills[map[state]]) pills[map[state]].classList.add('active');
+
+      const c = document.getElementById('content');
+      const overlay = document.getElementById('overlay');
+      const toast = document.getElementById('toastArea');
+      overlay.innerHTML = '';
+      toast.innerHTML = '';
+
+      switch (state) {
+        case 'list':
+          c.innerHTML = inboxView();
+          break;
+        case 'selected':
+          c.innerHTML = inboxView({ selected: [1, 3, 4] });
+          break;
+        case 'drawer':
+          c.innerHTML = inboxView();
+          overlay.innerHTML = drawer(false);
+          break;
+        case 'drawer-rejecting':
+          c.innerHTML = inboxView();
+          overlay.innerHTML = drawer(true);
+          break;
+        case 'approved-toast':
+          c.innerHTML = inboxView();
+          toast.innerHTML = `<div class="toast success"><div>✓</div><div class="toast-text">อนุมัติ 1 รายการสำเร็จ — สร้าง Attendance อัตโนมัติ</div></div>`;
+          break;
+        case 'empty':
+          c.innerHTML = emptyView();
+          break;
+      }
+    }
+
+    setState('list');
+
+    function toggleTheme() {
+      const isDark = document.documentElement.classList.toggle('dark');
+      try { localStorage.setItem('koolman-theme', isDark ? 'dark' : 'light'); } catch (e) {}
+    }
+  </script>
+</body>
+</html>

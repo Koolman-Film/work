@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>S-N9: Attendance Records — Koolman HR Mockup</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script>
+    (function() {
+      try {
+        const saved = localStorage.getItem('koolman-theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (saved === 'dark' || (saved === null && prefersDark)) {
+          document.documentElement.classList.add('dark');
+        }
+      } catch (e) {}
+    })();
+  </script>
+  <style>
+    :root {
+      --primary-50: #eff6ff; --primary-100: #dbeafe; --primary-300: #93c5fd;
+      --primary-500: #3b82f6; --primary-600: #2563eb; --primary-700: #1d4ed8;
+      --primary-800: #1e40af; --primary-900: #1e3a8a;
+      --accent-500: #f59e0b;
+      --success: #16a34a; --warning: #ea580c; --danger: #dc2626;
+      --bg: #ffffff; --bg-muted: #f8fafc; --bg-elevated: #ffffff;
+      --fg: #0f172a; --fg-muted: #64748b; --border: #e2e8f0;
+      --radius-sm: 0.375rem; --radius: 0.625rem; --radius-lg: 1rem; --radius-xl: 1.25rem;
+      --shadow-md: 0 8px 16px -4px rgb(37 99 235 / 0.12), 0 4px 8px -2px rgb(0 0 0 / 0.05);
+    }
+    .dark {
+      --bg: #0f172a; --bg-muted: #1e293b; --bg-elevated: #1e293b;
+      --fg: #f1f5f9; --fg-muted: #94a3b8; --border: #334155;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { font-family: 'IBM Plex Sans Thai', system-ui, sans-serif; background: var(--bg-muted); color: var(--fg); line-height: 1.65; letter-spacing: -0.005em; transition: background 200ms, color 200ms; }
+    .page-topbar { position: sticky; top: 0; z-index: 30; background: var(--bg); border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; }
+    .page-topbar a { color: var(--primary-600); text-decoration: none; font-weight: 500; font-size: 0.875rem; }
+    .meta-mono { font-family: 'IBM Plex Mono', monospace; font-size: 0.8125rem; color: var(--fg-muted); }
+    .toggle-btn { background: var(--bg-muted); border: 1px solid var(--border); padding: 6px 12px; border-radius: var(--radius-sm); cursor: pointer; font: inherit; color: var(--fg); font-size: 0.8125rem; }
+    .spec-banner { background: var(--bg); border-bottom: 1px solid var(--border); padding: 12px 24px; font-size: 0.8125rem; color: var(--fg-muted); display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+    .spec-banner a { color: var(--primary-600); }
+
+    .state-bar { background: var(--bg); padding: 16px 24px; display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; border-bottom: 1px solid var(--border); }
+    .state-pill { padding: 6px 14px; font-size: 0.8125rem; font-weight: 500; background: var(--bg-muted); color: var(--fg); border: 1px solid var(--border); border-radius: 999px; cursor: pointer; font: inherit; }
+    .state-pill:hover { border-color: var(--primary-300); }
+    .state-pill.active { background: var(--primary-600); color: white; border-color: var(--primary-600); }
+
+    .app-canvas { padding: 24px; display: flex; justify-content: center; }
+    .browser-frame { width: 100%; max-width: 1320px; background: var(--bg); border-radius: var(--radius-lg); box-shadow: var(--shadow-md); overflow: hidden; border: 1px solid var(--border); position: relative; }
+    .browser-bar { background: var(--bg-muted); border-bottom: 1px solid var(--border); padding: 8px 12px; display: flex; align-items: center; gap: 8px; }
+    .browser-dots { display: flex; gap: 4px; }
+    .browser-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .browser-dot.r { background: #ef4444; } .browser-dot.y { background: #f59e0b; } .browser-dot.g { background: #22c55e; }
+    .browser-url { flex: 1; padding: 4px 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 999px; font-size: 0.75rem; color: var(--fg-muted); font-family: 'IBM Plex Mono', monospace; }
+    .app-layout { display: grid; grid-template-columns: 220px 1fr; min-height: 800px; }
+
+    .sidebar { background: var(--bg); border-right: 1px solid var(--border); padding: 16px 12px; }
+    .sidebar-logo { display: flex; align-items: center; gap: 10px; padding: 8px 12px; margin-bottom: 16px; }
+    .sidebar-logo-square { width: 32px; height: 32px; background: var(--primary-600); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 0.875rem; }
+    .sidebar-logo-text { font-weight: 700; font-size: 0.9375rem; }
+    .sidebar-item { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: var(--radius); color: var(--fg); font-size: 0.875rem; font-weight: 500; margin-bottom: 2px; cursor: pointer; position: relative; }
+    .sidebar-item:hover { background: var(--bg-muted); }
+    .sidebar-item.active { background: var(--primary-50); color: var(--primary-700); font-weight: 600; }
+    .dark .sidebar-item.active { background: var(--primary-900); color: var(--primary-300); }
+    .sidebar-item.active::before { content: ''; position: absolute; left: -12px; top: 8px; bottom: 8px; width: 2px; background: var(--primary-600); border-radius: 0 2px 2px 0; }
+
+    .main { padding: 24px 28px; overflow: auto; position: relative; }
+    .main-topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .breadcrumb { font-size: 0.875rem; color: var(--fg-muted); }
+    .breadcrumb-active { color: var(--fg); font-weight: 600; }
+    .icon-btn { width: 36px; height: 36px; background: transparent; border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--fg); }
+    .avatar-mini { width: 36px; height: 36px; background: var(--primary-100); color: var(--primary-700); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.75rem; }
+    .dark .avatar-mini { background: var(--primary-900); color: var(--primary-300); }
+
+    .page-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 16px; }
+    .page-title { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 4px; }
+    .page-subtitle { color: var(--fg-muted); font-size: 0.875rem; }
+
+    .btn { padding: 8px 14px; font: inherit; font-size: 0.8125rem; font-weight: 600; border: none; border-radius: var(--radius); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+    .btn-primary { background: var(--primary-600); color: white; }
+    .btn-primary:hover { background: var(--primary-700); }
+    .btn-secondary { background: var(--bg); color: var(--fg); border: 1px solid var(--border); }
+
+    /* Summary cards */
+    .summary-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 16px; }
+    @media (max-width: 1024px) { .summary-row { grid-template-columns: repeat(3, 1fr); } }
+    .stat-card { padding: 14px 16px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-lg); }
+    .stat-num { font-size: 1.5rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; }
+    .stat-label { font-size: 0.6875rem; color: var(--fg-muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .stat-card.work { border-left: 3px solid var(--success); }
+    .stat-card.absent { border-left: 3px solid var(--danger); }
+    .stat-card.leave { border-left: 3px solid #1e40af; }
+    .stat-card.late { border-left: 3px solid var(--warning); }
+    .stat-card.deduct { border-left: 3px solid var(--accent-500); }
+
+    /* Filter bar */
+    .filter-bar {
+      display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+      padding: 12px 16px;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); margin-bottom: 12px;
+    }
+    .filter-input {
+      padding: 6px 12px; border: 1px solid var(--border);
+      border-radius: var(--radius); font: inherit; font-size: 0.8125rem;
+      background: var(--bg); color: var(--fg);
+      min-width: 200px;
+    }
+    .filter-chip {
+      padding: 6px 12px; font-size: 0.8125rem;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 999px; cursor: pointer; color: var(--fg);
+    }
+    .filter-chip.active { background: var(--primary-100); color: var(--primary-700); border-color: var(--primary-300); }
+    .dark .filter-chip.active { background: var(--primary-900); color: var(--primary-300); }
+
+    /* Table */
+    .table-wrap { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
+    th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+    th { font-weight: 600; color: var(--fg-muted); font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.05em; background: var(--bg-muted); }
+    th.num, td.num { text-align: right; font-variant-numeric: tabular-nums; font-family: 'IBM Plex Mono', monospace; }
+    tbody tr { transition: background 150ms; }
+    tbody tr:hover { background: var(--bg-muted); }
+    tbody tr:last-child td { border-bottom: none; }
+
+    .name-cell { display: flex; align-items: center; gap: 8px; }
+    .avatar { width: 26px; height: 26px; background: var(--primary-100); color: var(--primary-700); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.6875rem; flex-shrink: 0; }
+    .dark .avatar { background: var(--primary-900); color: var(--primary-300); }
+
+    /* Type badges */
+    .type-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 10px; border-radius: 999px;
+      font-size: 0.6875rem; font-weight: 600;
+    }
+    .type-work { background: rgba(22, 163, 74, 0.1); color: var(--success); }
+    .type-vacation { background: #d1fae5; color: #065f46; }
+    .type-sick { background: #dbeafe; color: #1e40af; }
+    .type-personal { background: #ede9fe; color: #6b21a8; }
+    .type-late { background: #fed7aa; color: #9a3412; }
+    .type-absent { background: #fee2e2; color: #991b1b; }
+    .type-noscan { background: #e2e8f0; color: #475569; }
+    .dark .type-vacation { background: #064e3b; color: #a7f3d0; }
+    .dark .type-sick { background: #1e3a8a; color: #bfdbfe; }
+    .dark .type-personal { background: #581c87; color: #d8b4fe; }
+    .dark .type-late { background: #7c2d12; color: #fdba74; }
+    .dark .type-absent { background: #7f1d1d; color: #fecaca; }
+    .dark .type-noscan { background: #334155; color: #cbd5e1; }
+
+    /* Override indicator */
+    .override-tag {
+      display: inline-flex; align-items: center; gap: 3px;
+      font-size: 0.6875rem; color: var(--accent-500);
+      font-weight: 600;
+    }
+    .source-tag {
+      font-size: 0.6875rem; color: var(--fg-muted);
+      font-family: 'IBM Plex Mono', monospace;
+    }
+    .source-tag.scanner { color: var(--primary-600); }
+    .source-tag.manual { color: var(--warning); }
+    .source-tag.auto { color: var(--success); }
+
+    .row-action {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: transparent; border: 1px solid var(--border);
+      padding: 4px 10px; border-radius: var(--radius-sm);
+      cursor: pointer; font: inherit; font-size: 0.75rem; font-weight: 500;
+      color: var(--fg);
+    }
+    .row-action:hover { background: var(--primary-50); border-color: var(--primary-300); color: var(--primary-700); }
+    .dark .row-action:hover { background: var(--primary-900); color: var(--primary-300); }
+
+    /* Override modal */
+    .modal-overlay {
+      position: absolute; inset: 0; z-index: 50;
+      background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(4px);
+      display: flex; align-items: center; justify-content: center;
+      padding: 16px;
+    }
+    .modal { width: 100%; max-width: 480px; background: var(--bg-elevated); border-radius: var(--radius-lg); box-shadow: var(--shadow-md); padding: 24px; }
+    .modal-title { font-size: 1.0625rem; font-weight: 700; margin-bottom: 4px; }
+    .modal-subtitle { font-size: 0.8125rem; color: var(--fg-muted); margin-bottom: 16px; }
+
+    .override-table { background: var(--bg-muted); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; margin-bottom: 16px; }
+    .override-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 6px 0; font-size: 0.875rem;
+      border-top: 1px solid var(--border);
+    }
+    .override-row:first-child { border: none; padding-top: 0; }
+    .override-row.editing { background: var(--primary-50); padding: 8px 12px; border-radius: var(--radius-sm); margin: 4px -8px; }
+    .dark .override-row.editing { background: var(--primary-900); }
+    .form-input-money {
+      padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+      background: var(--bg); color: var(--fg); font: inherit; font-size: 0.875rem;
+      font-variant-numeric: tabular-nums; font-family: 'IBM Plex Mono', monospace;
+      width: 120px; text-align: right;
+    }
+    .form-input-money:focus { outline: none; border-color: var(--primary-500); box-shadow: 0 0 0 3px var(--primary-100); }
+
+    .form-label { font-size: 0.8125rem; font-weight: 500; margin-bottom: 6px; display: block; }
+    .form-label .req { color: var(--danger); }
+    .form-textarea {
+      width: 100%; padding: 9px 12px; font: inherit; font-size: 0.875rem;
+      background: var(--bg); color: var(--fg);
+      border: 1px solid var(--border); border-radius: var(--radius);
+      min-height: 70px; resize: vertical;
+    }
+    .form-textarea:focus { outline: none; border-color: var(--primary-500); box-shadow: 0 0 0 3px var(--primary-100); }
+    .audit-note {
+      font-size: 0.6875rem; color: var(--fg-muted);
+      margin-top: 8px;
+      padding: 8px 12px; background: var(--bg-muted); border-radius: var(--radius-sm);
+    }
+    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+    .btn-modal { padding: 8px 16px; font: inherit; font-size: 0.875rem; font-weight: 600; border-radius: var(--radius); cursor: pointer; border: none; }
+
+    /* Toast */
+    .toast-area { position: absolute; bottom: 24px; right: 24px; z-index: 60; }
+    .toast { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 12px 16px; box-shadow: var(--shadow-md); display: flex; align-items: center; gap: 10px; animation: slideUp 250ms; max-width: 360px; }
+    @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    .toast.success { border-left: 4px solid var(--success); }
+    .toast-text { font-size: 0.875rem; }
+
+    /* Notes */
+    .notes { max-width: 1000px; margin: 0 auto; padding: 32px 24px; background: var(--bg); border-top: 1px solid var(--border); }
+    .notes h2 { font-size: 1.25rem; font-weight: 600; margin: 24px 0 12px; }
+    .notes h2:first-child { margin-top: 0; }
+    .notes p, .notes li { font-size: 0.9375rem; line-height: 1.7; }
+    .notes ul { padding-left: 24px; }
+    .notes code { font-family: 'IBM Plex Mono', monospace; background: var(--bg-muted); padding: 2px 6px; border-radius: var(--radius-sm); font-size: 0.875em; color: var(--primary-700); border: 1px solid var(--border); }
+    .dark .notes code { color: var(--primary-300); }
+  
+    /* === Mobile responsive fixes (added during audit pass) === */
+    @media (max-width: 768px) {
+      .app-layout { grid-template-columns: 1fr !important; }
+      .sidebar { display: none !important; }
+      .main { padding: 16px !important; }
+      .main-topbar { flex-wrap: wrap; gap: 8px; }
+      .page-header { flex-direction: column; align-items: flex-start !important; gap: 12px; }
+      .page-title { font-size: 1.375rem !important; }
+      .table-wrap { overflow-x: auto !important; }
+      .table-wrap table { min-width: 640px; }
+      .filter-bar { flex-direction: column; align-items: stretch !important; }
+      .filter-bar > * { width: 100%; }
+      .filter-bar > .filter-search,
+      .filter-bar > .filter-input { min-width: 0; }
+      .summary-card { padding: 16px !important; gap: 16px !important; grid-template-columns: 1fr 1fr !important; }
+      .kpi-strip { grid-template-columns: 1fr 1fr !important; }
+      .drawer, .drawer-overlay > .drawer { width: 100vw !important; max-width: 100vw !important; }
+      .config-row { grid-template-columns: 1fr !important; gap: 8px !important; }
+      .action-bar { flex-direction: column; align-items: stretch !important; }
+      .action-bar > .btn { width: 100%; }
+      .pagination { flex-direction: column; gap: 8px; align-items: stretch !important; }
+      .browser-bar { padding: 6px 8px; }
+      .browser-url { font-size: 0.625rem; }
+    }
+    @media (max-width: 480px) {
+      .table-wrap table { min-width: 560px; }
+      .main { padding: 12px !important; }
+      .summary-card { grid-template-columns: 1fr !important; }
+      .kpi-strip { grid-template-columns: 1fr !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page-topbar">
+    <a href="index.html">← Mockups index</a>
+    <span class="meta-mono">S-N9 · attendance records · table + override pattern</span>
+    <button class="toggle-btn" onclick="toggleTheme()">🌓 Dark mode</button>
+  </div>
+
+  <div class="spec-banner">
+    <span><strong>S-N9: Attendance Records</strong> — table with override indicators · key V1 differentiator (manual deduction edit)</span>
+    <a href="../admin.md#s-n9-attendance-records">📄 ดู spec →</a>
+  </div>
+
+  <div class="state-bar">
+    <button class="state-pill active" onclick="setState('list')">List view</button>
+    <button class="state-pill" onclick="setState('override-modal')">Override modal (M-N3)</button>
+    <button class="state-pill" onclick="setState('saved')">Saved → toast</button>
+  </div>
+
+  <div class="app-canvas">
+    <div class="browser-frame">
+      <div class="browser-bar">
+        <div class="browser-dots"><div class="browser-dot r"></div><div class="browser-dot y"></div><div class="browser-dot g"></div></div>
+        <div class="browser-url">app.koolman-hr.com/admin/attendance</div>
+      </div>
+
+      <div class="app-layout">
+        <aside class="sidebar">
+          <div class="sidebar-logo">
+            <div class="sidebar-logo-square">KM</div>
+            <div class="sidebar-logo-text">Koolman HR</div>
+          </div>
+          <a class="sidebar-item">🏠 หน้าหลัก</a>
+          <a class="sidebar-item">👥 พนักงาน</a>
+          <a class="sidebar-item">📋 คำขอลา</a>
+          <a class="sidebar-item">💰 คำขอเบิก</a>
+          <a class="sidebar-item active">📅 ลงเวลา</a>
+          <a class="sidebar-item">💸 เงินเดือน</a>
+          <a class="sidebar-item">📊 บัญชี</a>
+          <a class="sidebar-item">📜 Audit log</a>
+          <a class="sidebar-item">⚙️ ตั้งค่า</a>
+        </aside>
+
+        <main class="main">
+          <div class="main-topbar">
+            <div class="breadcrumb"><span class="breadcrumb-active">ลงเวลา</span></div>
+            <div style="display: flex; gap: 8px;">
+              <button class="icon-btn">🔔</button>
+              <div class="avatar-mini">A</div>
+            </div>
+          </div>
+
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">บันทึกการลงเวลา</h1>
+              <div class="page-subtitle">เม.ย. 2569 · 124 พนักงาน · 2,604 รายการ (อัปเดตล่าสุด 30 เม.ย.)</div>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button class="btn btn-primary">+ คีย์มือ</button>
+              <button class="btn btn-secondary" disabled style="opacity:0.55; cursor:not-allowed; position:relative;" title="Available in Phase 3">
+                📤 อัปโหลด Excel
+                <span style="position:absolute; top:-8px; right:-8px; background:#fef3c7; color:#92400e; font-size:0.5625rem; font-weight:700; padding:2px 6px; border-radius:999px; border:1px solid #fde68a; text-transform:uppercase; letter-spacing:0.04em; white-space:nowrap;">🔒 Phase 3</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Summary -->
+          <div class="summary-row">
+            <div class="stat-card work">
+              <div class="stat-num">2,541</div>
+              <div class="stat-label">วันทำงาน</div>
+            </div>
+            <div class="stat-card leave">
+              <div class="stat-num">42</div>
+              <div class="stat-label">วันลา</div>
+            </div>
+            <div class="stat-card absent">
+              <div class="stat-num">7</div>
+              <div class="stat-label">วันขาด</div>
+            </div>
+            <div class="stat-card late">
+              <div class="stat-num">14</div>
+              <div class="stat-label">มาสาย</div>
+            </div>
+            <div class="stat-card deduct">
+              <div class="stat-num">฿4,240</div>
+              <div class="stat-label">หักรวม</div>
+            </div>
+          </div>
+
+          <!-- Filter -->
+          <div class="filter-bar">
+            <input class="filter-input" placeholder="🔍 ค้นหาพนักงาน..." />
+            <button class="filter-chip active">เม.ย. 2569 ▾</button>
+            <button class="filter-chip">ทุกแผนก ▾</button>
+            <button class="filter-chip">ทุกประเภท ▾</button>
+            <button class="filter-chip">⚠ Override only</button>
+          </div>
+
+          <div id="content"></div>
+
+          <div id="overlay"></div>
+          <div id="toastArea" class="toast-area"></div>
+        </main>
+      </div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h2>About this mockup</h2>
+    <p>Attendance records table = primary data view for Admin. Key V1 differentiator from competitors: <strong>manual override of DeductionAmount</strong> with audit trail.</p>
+
+    <h2>Key UI elements</h2>
+    <ul>
+      <li><strong>Summary cards:</strong> 5 colored cards showing month aggregates (work/leave/absent/late/deduct)</li>
+      <li><strong>Source tags:</strong> column shows where record came from — <code>SCANNER</code> (excel), <code>MANUAL</code> (admin keyed), <code>AUTO</code> (from leave approval)</li>
+      <li><strong>Type badges:</strong> color-coded (green work, blue sick, purple personal, orange late, red absent, gray noscan)</li>
+      <li><strong>Override indicator:</strong> ✏ icon + orange ring on amount cell when manual override</li>
+      <li><strong>Override modal (M-N3):</strong> shows current auto-calc → editable amount + required reason · audit log generated on save</li>
+      <li><strong>Filter chip:</strong> "⚠ Override only" quick filter for Owner review</li>
+    </ul>
+
+    <h2>States covered</h2>
+    <ul>
+      <li><strong>List view</strong> — table with mixed sources (auto/scanner/manual)</li>
+      <li><strong>Override modal</strong> — current amount displayed, editable, required reason</li>
+      <li><strong>Saved toast</strong> — confirms override + audit logged</li>
+    </ul>
+
+    <h2>Spec references</h2>
+    <ul>
+      <li><a href="../admin.md#s-n9-attendance-records"><code>admin.md § S-N9</code></a></li>
+      <li><a href="../admin.md#m-n3-override-deduction-modal"><code>M-N3</code></a> — override modal</li>
+      <li><a href="../admin.md#f-n7-override-deduction"><code>F-N7</code></a> — override form</li>
+      <li><a href="../flows.md#fl-12-manual-attendance--override-deduction"><code>flows.md FL-12</code></a></li>
+    </ul>
+  </div>
+
+  <script>
+    function tableView() {
+      const rows = [
+        { id: '#5689', avatar: 'ตงค์', name: 'ตงค์ สมศรี', dept: 'Tech', date: '1 เม.ย.', clockIn: '09:00', clockOut: '18:05', type: 'work', typeLabel: 'ทำงาน', duration: '8 ชม.', deduct: '0', source: 'scanner', overridden: false },
+        { id: '#5690', avatar: 'ส้ม', name: 'ส้ม สมศักดิ์', dept: 'Sales', date: '2 เม.ย.', clockIn: '09:30', clockOut: '18:00', type: 'late', typeLabel: 'สาย 30 นาที', duration: '30 นาที', deduct: '250', source: 'auto', overridden: false },
+        { id: '#5691', avatar: 'บอย', name: 'บอย สุวรรณ', dept: 'Install', date: '3 เม.ย.', clockIn: '-', clockOut: '-', type: 'sick', typeLabel: 'ลาป่วย', duration: '1 วัน', deduct: '0', source: 'auto', overridden: false, note: 'จากคำขอลา #42' },
+        { id: '#5692', avatar: 'ตงค์', name: 'ตงค์ สมศรี', dept: 'Tech', date: '5 เม.ย.', clockIn: '-', clockOut: '-', type: 'absent', typeLabel: 'ขาด', duration: '1 วัน', deduct: '1,000', source: 'auto', overridden: false },
+        { id: '#5693', avatar: 'ฝน', name: 'ฝน นภา', dept: 'Tech', date: '6 เม.ย.', clockIn: '09:45', clockOut: '18:15', type: 'late', typeLabel: 'สาย 45 นาที', duration: '45 นาที', deduct: '500', source: 'manual', overridden: true, note: 'ลด — ทำ OT คืน' },
+        { id: '#5694', avatar: 'พลอ', name: 'พลอย ดารา', dept: 'Marketing', date: '8 เม.ย.', clockIn: '-', clockOut: '-', type: 'noscan', typeLabel: 'ไม่สแกน', duration: '1 วัน', deduct: '0', source: 'manual', overridden: true, note: 'นาฬิกาสแกนเสีย' },
+        { id: '#5695', avatar: 'เอ๋', name: 'เอ๋ พรพรรณ', dept: 'Marketing', date: '10 เม.ย.', clockIn: '-', clockOut: '-', type: 'vacation', typeLabel: 'ลาพักร้อน', duration: '1 วัน', deduct: '0', source: 'auto', overridden: false, note: 'จากคำขอลา #38' },
+        { id: '#5696', avatar: 'ตุ่น', name: 'ตุ่น สมหวัง', dept: 'Install', date: '12 เม.ย.', clockIn: '09:50', clockOut: '17:50', type: 'late', typeLabel: 'สาย 50 นาที', duration: '50 นาที', deduct: '550', source: 'scanner', overridden: false },
+        { id: '#5697', avatar: 'ก้อ', name: 'ก้อย วราพร', dept: 'Sales', date: '15 เม.ย.', clockIn: '-', clockOut: '-', type: 'personal', typeLabel: 'ลากิจ', duration: '1 วัน', deduct: '0', source: 'auto', overridden: false, note: 'จากคำขอลา #41' },
+        { id: '#5698', avatar: 'บอย', name: 'บอย สุวรรณ', dept: 'Install', date: '20 เม.ย.', clockIn: '09:00', clockOut: '17:30', type: 'work', typeLabel: 'ทำงาน', duration: '8 ชม.', deduct: '0', source: 'scanner', overridden: false },
+      ];
+
+      return `
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>พนักงาน</th>
+                <th>วันที่</th>
+                <th>เข้า / ออก</th>
+                <th>ประเภท</th>
+                <th>Duration</th>
+                <th class="num">ยอดหัก</th>
+                <th>ที่มา</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows.map(r => `
+                <tr>
+                  <td><span class="source-tag">${r.id}</span></td>
+                  <td>
+                    <div class="name-cell">
+                      <div class="avatar">${r.avatar}</div>
+                      <div>
+                        <div style="font-weight: 500;">${r.name}</div>
+                        <div style="font-size: 0.6875rem; color: var(--fg-muted);">${r.dept}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td>${r.date}</td>
+                  <td style="font-family: 'IBM Plex Mono', monospace; font-size: 0.75rem;">${r.clockIn} / ${r.clockOut}</td>
+                  <td><span class="type-badge type-${r.type}">${r.typeLabel}</span></td>
+                  <td>${r.duration}</td>
+                  <td class="num" style="${r.deduct === '0' ? 'color: var(--fg-muted);' : ''}">
+                    ${r.overridden ? '<span class="override-tag">✏</span> ' : ''}${r.deduct}
+                    ${r.note ? `<div style="font-size: 0.6875rem; color: var(--fg-muted); font-family: inherit; margin-top: 2px;">${r.note}</div>` : ''}
+                  </td>
+                  <td><span class="source-tag ${r.source}">${r.source.toUpperCase()}</span></td>
+                  <td><button class="row-action" onclick="${r.deduct !== '0' || r.type === 'work' ? `setState('override-modal')` : ''}">${r.overridden ? '👁 ดู' : '✏ Override'}</button></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); margin-top: 12px; font-size: 0.8125rem;">
+          <div style="color: var(--fg-muted);">Showing 1–10 of 2,604 entries</div>
+          <div style="display: flex; gap: 4px; align-items: center;">
+            <button class="row-action">‹</button>
+            <span style="padding: 0 8px;">1 / 261</span>
+            <button class="row-action">›</button>
+          </div>
+        </div>
+      `;
+    }
+
+    function overrideModal() {
+      return `
+        <div class="modal-overlay" onclick="if(event.target===this) setState('list')">
+          <div class="modal">
+            <div class="modal-title">✏ Override ยอดหัก</div>
+            <div class="modal-subtitle">ส้ม สมศักดิ์ · 2 เม.ย. 2569 · สาย 30 นาที</div>
+
+            <div class="override-table">
+              <div class="override-row">
+                <span style="color: var(--fg-muted);">Auto-calculated (จากสูตร)</span>
+                <span style="font-family: 'IBM Plex Mono', monospace; font-weight: 500;">฿250.00</span>
+              </div>
+              <div class="override-row editing">
+                <strong>ยอดใหม่ <span style="color: var(--danger);">*</span></strong>
+                <div style="display: flex; align-items: center; gap: 4px;">
+                  <span style="color: var(--fg-muted);">฿</span>
+                  <input class="form-input-money" value="0" type="number" />
+                </div>
+              </div>
+            </div>
+
+            <label class="form-label">เหตุผลการ override <span class="req">*</span></label>
+            <textarea class="form-textarea" placeholder="อธิบาย — ใช้สำหรับ audit (10–500 ตัวอักษร)">มาสายเพราะรถติด ได้แจ้งล่วงหน้า + ทำ OT คืนช่วงเย็น</textarea>
+
+            <div class="audit-note">
+              📜 การ override จะถูกบันทึกใน Audit log:<br>
+              <code style="background: white; padding: 2px 4px; border-radius: 3px;">attendance.override · before: ฿250 · after: ฿0</code>
+              <br>
+              Owner ที่มีสิทธิ์ดู audit จะเห็นการเปลี่ยนแปลงนี้
+            </div>
+
+            <div class="modal-actions">
+              <button class="btn-modal btn-secondary" onclick="setState('list')">ยกเลิก</button>
+              <button class="btn-modal btn-primary" onclick="setState('saved')">💾 บันทึก override</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function setState(state) {
+      document.querySelectorAll('.state-pill').forEach(p => p.classList.remove('active'));
+      const pills = Array.from(document.querySelectorAll('.state-pill'));
+      const map = { 'list': 0, 'override-modal': 1, 'saved': 2 };
+      if (pills[map[state]]) pills[map[state]].classList.add('active');
+
+      const c = document.getElementById('content');
+      const overlay = document.getElementById('overlay');
+      const toast = document.getElementById('toastArea');
+
+      c.innerHTML = tableView();
+      overlay.innerHTML = '';
+      toast.innerHTML = '';
+
+      if (state === 'override-modal') {
+        overlay.innerHTML = overrideModal();
+      } else if (state === 'saved') {
+        toast.innerHTML = `<div class="toast success"><div>✓</div><div class="toast-text">Override บันทึกแล้ว · ฿250 → ฿0 · Audit logged</div></div>`;
+      }
+    }
+
+    setState('list');
+
+    function toggleTheme() {
+      const isDark = document.documentElement.classList.toggle('dark');
+      try { localStorage.setItem('koolman-theme', isDark ? 'dark' : 'light'); } catch (e) {}
+    }
+  </script>
+</body>
+</html>

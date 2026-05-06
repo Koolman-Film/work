@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Theme 5: Finnix Red — Koolman HR (refined, brand-aligned)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anuphan:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      /* Finnix scarlet — used SPARINGLY (≤10% of any screen) */
+      --primary-50:  #fef2f2;
+      --primary-100: #fee2e2;
+      --primary-200: #fecaca;
+      --primary-500: #ef4444;
+      --primary-600: #dc2626;  /* main */
+      --primary-700: #b91c1c;
+      --primary-900: #7f1d1d;
+
+      /* Onyx — DOMINANT for text + structure */
+      --onyx-50:   #fafafa;
+      --onyx-100:  #f4f4f5;
+      --onyx-200:  #e4e4e7;
+      --onyx-300:  #d4d4d8;
+      --onyx-400:  #a1a1aa;
+      --onyx-500:  #71717a;
+      --onyx-700:  #3f3f46;
+      --onyx-800:  #27272a;
+      --onyx-900:  #18181b;
+
+      --success: #16a34a;
+      --warning: #f59e0b;
+      --info:    #0891b2;
+
+      --bg:        #ffffff;
+      --bg-muted:  #fafafa;
+      --fg:        #18181b;
+      --fg-muted:  #71717a;
+      --border:    #e4e4e7;
+      --radius:    0.375rem;
+      --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.04);
+      --shadow-md: 0 4px 12px -2px rgb(0 0 0 / 0.08);
+    }
+    .dark {
+      --bg:        #0a0a0a;
+      --bg-muted:  #18181b;
+      --fg:        #fafafa;
+      --fg-muted:  #a1a1aa;
+      --border:    #27272a;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      font-family: 'Anuphan', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      line-height: 1.6;
+      transition: background 200ms, color 200ms;
+      letter-spacing: -0.005em;
+    }
+    .topbar {
+      position: sticky; top: 0; z-index: 10;
+      background: var(--bg); border-bottom: 1px solid var(--border);
+      padding: 12px 24px; display: flex; justify-content: space-between; align-items: center;
+    }
+    .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+    .back-link { color: var(--fg); text-decoration: none; font-weight: 500; font-size: 0.875rem; opacity: 0.75; }
+    .back-link:hover { opacity: 1; }
+    .toggle {
+      background: var(--bg-muted); border: 1px solid var(--border);
+      padding: 6px 12px; border-radius: var(--radius); cursor: pointer; font: inherit;
+      color: var(--fg);
+    }
+
+    /* Subtle red signature — single thin line at top */
+    .brand-stripe {
+      height: 2px;
+      background: var(--primary-600);
+    }
+
+    h1 { font-size: 2.5rem; font-weight: 700; letter-spacing: -0.03em; margin-bottom: 8px; color: var(--onyx-900); }
+    .dark h1 { color: var(--fg); }
+    h2 {
+      font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em;
+      margin: 56px 0 20px; padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: baseline; gap: 10px;
+    }
+    h2 .num {
+      color: var(--primary-600); font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.875rem; font-weight: 500;
+    }
+    h3 { font-size: 1.0625rem; font-weight: 600; margin: 28px 0 12px; }
+    .tagline { font-size: 1.125rem; color: var(--fg-muted); margin-bottom: 24px; }
+    .badge-brand {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--bg-muted); color: var(--fg);
+      font-size: 0.75rem; font-weight: 500; padding: 4px 12px; border-radius: 999px;
+      border: 1px solid var(--border); margin-bottom: 16px;
+    }
+    .badge-brand::before {
+      content: ''; width: 6px; height: 6px; background: var(--primary-600); border-radius: 50%;
+    }
+
+    /* Palette */
+    .palette { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+    .swatch {
+      border-radius: var(--radius); padding: 16px;
+      display: flex; flex-direction: column; justify-content: space-between;
+      min-height: 100px; box-shadow: var(--shadow-sm);
+      font-size: 0.75rem; font-weight: 500;
+    }
+    .swatch .hex { font-family: 'IBM Plex Mono', monospace; font-size: 0.6875rem; opacity: 0.85; }
+
+    /* Typography */
+    .type-row { padding: 16px 20px; background: var(--bg-muted); border-radius: var(--radius); margin-bottom: 8px; border: 1px solid var(--border); }
+    .type-row .meta { font-family: 'IBM Plex Mono', monospace; font-size: 0.75rem; color: var(--fg-muted); margin-bottom: 8px; }
+
+    /* Mockups */
+    .mock {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      margin: 16px 0;
+    }
+    .mock-frame {
+      background: var(--bg);
+      border-radius: 8px;
+      padding: 28px;
+      box-shadow: var(--shadow-md);
+      border: 1px solid var(--border);
+    }
+
+    /* Login mockup */
+    .login-card { max-width: 400px; margin: 24px auto; }
+    .logo {
+      width: 56px; height: 56px;
+      background: var(--primary-600);
+      border-radius: 12px; margin: 0 auto 20px;
+      display: flex; align-items: center; justify-content: center;
+      color: white; font-weight: 700; font-size: 1.25rem; letter-spacing: -0.05em;
+    }
+    .form-group { margin-bottom: 14px; }
+    .form-label { display: block; font-size: 0.875rem; font-weight: 500; margin-bottom: 6px; color: var(--fg); }
+    .form-input {
+      width: 100%; padding: 11px 14px; font: inherit; font-size: 0.9375rem;
+      background: var(--bg); color: var(--fg);
+      border: 1px solid var(--border); border-radius: var(--radius);
+      transition: border 150ms, box-shadow 150ms;
+    }
+    .form-input:focus {
+      outline: none;
+      border-color: var(--onyx-900);
+      box-shadow: 0 0 0 3px var(--onyx-100);
+    }
+    .dark .form-input:focus { border-color: var(--fg); box-shadow: 0 0 0 3px rgba(255,255,255,0.1); }
+
+    .btn {
+      padding: 10px 20px; font: inherit; font-size: 0.9375rem; font-weight: 600;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      transition: all 150ms;
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+    .btn:active { transform: translateY(1px); }
+    /* Primary = onyx (default action) */
+    .btn-primary { background: var(--onyx-900); color: white; }
+    .btn-primary:hover { background: var(--onyx-800); }
+    .dark .btn-primary { background: white; color: var(--onyx-900); }
+    .dark .btn-primary:hover { background: var(--onyx-200); }
+    /* Brand = red (only for SUBMIT/key actions) */
+    .btn-brand { background: var(--primary-600); color: white; }
+    .btn-brand:hover { background: var(--primary-700); }
+    .btn-secondary { background: var(--bg); color: var(--fg); border: 1px solid var(--border); }
+    .btn-secondary:hover { background: var(--bg-muted); }
+    .btn-ghost { background: transparent; color: var(--fg); }
+    .btn-ghost:hover { background: var(--bg-muted); }
+    .btn-success { background: var(--success); color: white; }
+    .btn-danger { background: var(--primary-600); color: white; }
+    .btn-block { width: 100%; justify-content: center; }
+    .text-link { color: var(--fg); text-decoration: none; font-size: 0.875rem; font-weight: 500; border-bottom: 1px solid var(--border); padding-bottom: 1px; }
+    .text-link:hover { border-bottom-color: var(--primary-600); }
+
+    /* Dashboard cards — onyx hero with subtle red accent */
+    .hero-card {
+      background: var(--onyx-900); color: white;
+      padding: 28px; border-radius: 12px;
+      position: relative; overflow: hidden;
+      border-left: 3px solid var(--primary-600);
+    }
+    .hero-card::after {
+      content: ''; position: absolute; top: 0; right: 0;
+      width: 100px; height: 100px;
+      background: radial-gradient(circle, var(--primary-600) 0%, transparent 70%);
+      opacity: 0.2;
+      border-radius: 50%;
+      transform: translate(30px, -30px);
+    }
+
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+    .kpi-mini { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; transition: border 150ms; }
+    .kpi-mini:hover { border-color: var(--onyx-300); }
+    .kpi-mini-label { font-size: 0.75rem; color: var(--fg-muted); }
+    .kpi-mini-value { font-size: 1.375rem; font-weight: 700; }
+
+    /* Status badges — neutral pastels, red ONLY for absent/rejected */
+    .badge {
+      display: inline-block; padding: 3px 10px; border-radius: 999px;
+      font-size: 0.75rem; font-weight: 500;
+    }
+    .badge-pending  { background: #fef3c7; color: #92400e; }
+    .badge-approved { background: #d1fae5; color: #065f46; }
+    .badge-rejected { background: var(--primary-100); color: var(--primary-800); }
+    .badge-sick     { background: #dbeafe; color: #1e40af; }
+    .badge-personal { background: #ede9fe; color: #6b21a8; }
+    .badge-vacation { background: #d1fae5; color: #065f46; }
+    .badge-late     { background: #ffedd5; color: #9a3412; }
+    .badge-absent   { background: var(--primary-100); color: var(--primary-800); }
+
+    /* Table */
+    table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+    th, td { padding: 11px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+    th {
+      font-weight: 600; color: var(--fg-muted); font-size: 0.75rem;
+      text-transform: uppercase; letter-spacing: 0.05em;
+      background: var(--bg-muted);
+    }
+    .num { font-variant-numeric: tabular-nums; text-align: right; }
+    tr:hover { background: var(--bg-muted); }
+
+    /* Vibe card — onyx with red ribbon, NOT red gradient */
+    .vibe-card {
+      background: var(--onyx-900); color: white;
+      border-radius: 12px; padding: 32px; margin-top: 32px;
+      position: relative;
+    }
+    .vibe-card::before {
+      content: ''; position: absolute; top: 0; left: 0;
+      width: 4px; height: 100%; background: var(--primary-600); border-radius: 12px 0 0 12px;
+    }
+    .vibe-card h3 { color: white; }
+    .vibe-card ul { color: rgba(255,255,255,0.85); }
+    code { font-family: 'IBM Plex Mono', monospace; background: var(--bg-muted); padding: 2px 6px; border-radius: 4px; font-size: 0.875em; border: 1px solid var(--border); }
+    .card-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 768px) { .card-row { grid-template-columns: 1fr; } }
+    .button-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .stack > * + * { margin-top: 12px; }
+
+    .red-usage {
+      background: var(--bg-muted); border: 1px solid var(--border);
+      border-radius: 8px; padding: 20px; margin-top: 24px;
+    }
+    .red-usage-list { list-style: none; padding: 0; }
+    .red-usage-list li {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 8px 0;
+      border-bottom: 1px dashed var(--border);
+    }
+    .red-usage-list li:last-child { border: none; }
+    .red-dot {
+      width: 12px; height: 12px; border-radius: 50%; background: var(--primary-600);
+      flex-shrink: 0; margin-top: 5px;
+    }
+    .red-usage-list .item-text strong { display: block; font-size: 0.9375rem; }
+    .red-usage-list .item-text span { color: var(--fg-muted); font-size: 0.8125rem; }
+  </style>
+</head>
+<body>
+  <div class="brand-stripe"></div>
+  <div class="topbar">
+    <a href="index.html" class="back-link">← กลับไปดู option ทั้งหมด</a>
+    <button class="toggle" onclick="document.documentElement.classList.toggle('dark')">🌓 Dark mode</button>
+  </div>
+
+  <div class="container">
+
+    <span class="badge-brand">Refined · Brand-aligned · Red usage ≤10%</span>
+    <h1>Theme 5: Finnix Red <span style="color: var(--fg-muted); font-weight: 400; font-size: 0.6em;">— refined</span></h1>
+    <p class="tagline">Brand red as <strong>accent only</strong> — onyx + white dominate, red highlights key actions</p>
+    <p style="color: var(--fg-muted); font-size: 0.9375rem;">
+      Combo: <code>onyx</code> dominant + <code>red-600</code> accent · Anuphan · premium automotive (restrained)
+    </p>
+
+    <div class="red-usage">
+      <h3 style="margin-top: 0; font-size: 0.9375rem;">📐 Red usage rules (constrained)</h3>
+      <ul class="red-usage-list">
+        <li>
+          <span class="red-dot"></span>
+          <div class="item-text">
+            <strong>Logo & brand mark</strong>
+            <span>Logo square + thin top stripe — signature ที่จดจำได้</span>
+          </div>
+        </li>
+        <li>
+          <span class="red-dot"></span>
+          <div class="item-text">
+            <strong>Brand-action buttons เท่านั้น</strong>
+            <span>เช่น "ส่งคำขอลา" / "ขอเบิกเงิน" — main CTA สำคัญต่อ business — ไม่ใช่ทุกปุ่ม</span>
+          </div>
+        </li>
+        <li>
+          <span class="red-dot"></span>
+          <div class="item-text">
+            <strong>Status: Rejected / Absent</strong>
+            <span>หมายถึง "ปัญหา" — สื่อ semantic อยู่แล้ว</span>
+          </div>
+        </li>
+        <li>
+          <span class="red-dot"></span>
+          <div class="item-text">
+            <strong>Hero accent</strong>
+            <span>Subtle border-left + radial glow — ไม่ใช่ background</span>
+          </div>
+        </li>
+        <li>
+          <span class="red-dot"></span>
+          <div class="item-text">
+            <strong>NOT used</strong>
+            <span>หัวเรื่อง, link ปกติ, pending status, hover state, table rows</span>
+          </div>
+        </li>
+      </ul>
+    </div>
+
+    <h2><span class="num">01</span> Color palette</h2>
+
+    <h3>Onyx (dominant — text, structure, primary buttons)</h3>
+    <div class="palette">
+      <div class="swatch" style="background: #fafafa; color: #18181b;"><span>onyx-50</span><span class="hex">#fafafa</span></div>
+      <div class="swatch" style="background: #e4e4e7; color: #18181b;"><span>onyx-200</span><span class="hex">#e4e4e7</span></div>
+      <div class="swatch" style="background: #71717a; color: white;"><span>onyx-500</span><span class="hex">#71717a</span></div>
+      <div class="swatch" style="background: #3f3f46; color: white;"><span>onyx-700</span><span class="hex">#3f3f46</span></div>
+      <div class="swatch" style="background: #27272a; color: white;"><span>onyx-800</span><span class="hex">#27272a</span></div>
+      <div class="swatch" style="background: #18181b; color: white;"><span>onyx-900 ⭐</span><span class="hex">#18181b</span></div>
+    </div>
+
+    <h3>Finnix Scarlet (accent only — ≤10% of screen)</h3>
+    <div class="palette">
+      <div class="swatch" style="background: #fef2f2; color: #7f1d1d;"><span>red-50</span><span class="hex">#fef2f2</span></div>
+      <div class="swatch" style="background: #fee2e2; color: #7f1d1d;"><span>red-100</span><span class="hex">#fee2e2</span></div>
+      <div class="swatch" style="background: #ef4444; color: white;"><span>red-500</span><span class="hex">#ef4444</span></div>
+      <div class="swatch" style="background: #dc2626; color: white;"><span>red-600 ⭐</span><span class="hex">#dc2626</span></div>
+      <div class="swatch" style="background: #b91c1c; color: white;"><span>red-700</span><span class="hex">#b91c1c</span></div>
+      <div class="swatch" style="background: #7f1d1d; color: white;"><span>red-900</span><span class="hex">#7f1d1d</span></div>
+    </div>
+
+    <h3>Status colors</h3>
+    <div class="palette">
+      <div class="swatch" style="background: #16a34a; color: white;"><span>success</span><span class="hex">#16a34a</span></div>
+      <div class="swatch" style="background: #f59e0b; color: white;"><span>warning</span><span class="hex">#f59e0b</span></div>
+      <div class="swatch" style="background: #dc2626; color: white;"><span>danger=brand</span><span class="hex">#dc2626</span></div>
+      <div class="swatch" style="background: #0891b2; color: white;"><span>info</span><span class="hex">#0891b2</span></div>
+    </div>
+
+    <p style="color: var(--fg-muted); font-size: 0.875rem; margin-top: 16px; font-style: italic;">
+      // Note: ไม่ใช้ gold accent แล้ว — ลด complexity, brand red + onyx + white = clean
+    </p>
+
+    <h2><span class="num">02</span> Typography — Anuphan</h2>
+    <p style="color: var(--fg-muted); font-size: 0.875rem; margin-bottom: 16px;">
+      Modern Thai geometric — ดู premium professional · ไม่ playful เกิน
+    </p>
+    <div class="type-row">
+      <div class="meta">[H1] · 30px · weight 700</div>
+      <div style="font-size: 1.875rem; font-weight: 700; letter-spacing: -0.02em; color: var(--onyx-900);">สลิปเงินเดือนของคุณ</div>
+    </div>
+    <div class="type-row">
+      <div class="meta">[H2] · 24px · weight 600</div>
+      <div style="font-size: 1.5rem; font-weight: 600; letter-spacing: -0.01em;">รายการขาด ลา และมาสาย</div>
+    </div>
+    <div class="type-row">
+      <div class="meta">[BODY] · 16px · weight 400</div>
+      <div>ระบบ HR Koolman ออกแบบให้คุณส่งคำขอลาได้สะดวก ตรวจสอบสลิปเงินเดือนได้ทุกที่ทุกเวลา</div>
+    </div>
+    <div class="type-row">
+      <div class="meta">[NUM] · weight 700 · tabular-nums</div>
+      <div style="font-size: 2.25rem; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.02em;">฿ 31,417.50</div>
+    </div>
+
+    <h2><span class="num">03</span> Login screen</h2>
+    <div class="mock">
+      <div class="mock-frame login-card">
+        <div class="logo">FF</div>
+        <h3 style="text-align: center; margin: 0 0 6px; font-size: 1.5rem; font-weight: 700;">เข้าสู่ระบบ</h3>
+        <p style="text-align: center; color: var(--fg-muted); font-size: 0.875rem; margin-bottom: 24px;">
+          Koolman HR · Koolman
+        </p>
+        <div class="form-group">
+          <label class="form-label">อีเมล</label>
+          <input class="form-input" type="email" value="tong@finnixfilm.com" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">รหัสผ่าน</label>
+          <input class="form-input" type="password" value="••••••••" />
+        </div>
+        <button class="btn btn-primary btn-block" style="margin-top: 8px;">เข้าสู่ระบบ</button>
+        <div style="text-align: center; margin-top: 16px;">
+          <a href="#" class="text-link">ลืมรหัสผ่าน?</a>
+        </div>
+      </div>
+    </div>
+    <p style="color: var(--fg-muted); font-size: 0.8125rem; margin-top: 12px; font-style: italic;">
+      // Login button = onyx (primary action). Red appears only ใน logo + brand stripe top.
+    </p>
+
+    <h2><span class="num">04</span> Employee Dashboard</h2>
+    <div class="mock">
+      <div class="mock-frame">
+        <p style="color: var(--fg-muted); font-size: 0.875rem; margin-bottom: 4px;">สวัสดี</p>
+        <h3 style="margin-bottom: 24px; font-size: 1.5rem;">คุณตงค์ สมศรี</h3>
+
+        <!-- Hero card — onyx with subtle red accent (NOT red gradient) -->
+        <div class="hero-card" style="margin-bottom: 16px;">
+          <div style="font-size: 0.75rem; opacity: 0.7; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.05em; position: relative;">ยอดเงินคงเหลือ • เม.ย. 2569</div>
+          <div style="font-size: 2.75rem; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; line-height: 1; position: relative;">฿ 31,417.50</div>
+          <div style="font-size: 0.875rem; opacity: 0.7; margin-top: 12px; display: flex; align-items: center; gap: 8px; position: relative;">
+            <span style="display: inline-block; width: 6px; height: 6px; background: var(--primary-500); border-radius: 50%;"></span>
+            รับเงินเดือน 30 เม.ย. 2569
+          </div>
+        </div>
+
+        <div class="kpi-grid">
+          <div class="kpi-mini">
+            <div class="kpi-mini-label">วันลาเดือนนี้</div>
+            <div class="kpi-mini-value">2 วัน</div>
+          </div>
+          <div class="kpi-mini">
+            <div class="kpi-mini-label">ขาดเดือนนี้</div>
+            <div class="kpi-mini-value">0 วัน</div>
+          </div>
+          <div class="kpi-mini">
+            <div class="kpi-mini-label">มาสายเดือนนี้</div>
+            <div class="kpi-mini-value">1 ครั้ง</div>
+          </div>
+        </div>
+
+        <div style="margin-top: 24px;">
+          <h3 style="font-size: 0.9375rem; margin-bottom: 12px;">คำขอที่รอดำเนินการ</h3>
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 14px; background: var(--bg-muted); border-radius: var(--radius); border: 1px solid var(--border);">
+            <div>
+              <div style="font-weight: 500;">ลาพักร้อน 12-13 พ.ค. 2569</div>
+              <div style="font-size: 0.8125rem; color: var(--fg-muted); margin-top: 2px;">ส่งเมื่อ 2 ชั่วโมงที่แล้ว</div>
+            </div>
+            <span class="badge badge-pending">รออนุมัติ</span>
+          </div>
+        </div>
+
+        <div class="button-row" style="margin-top: 24px;">
+          <button class="btn btn-brand">+ ส่งคำขอลา</button>
+          <button class="btn btn-secondary">ขอเบิกเงิน</button>
+        </div>
+      </div>
+    </div>
+    <p style="color: var(--fg-muted); font-size: 0.8125rem; margin-top: 12px; font-style: italic;">
+      // Hero card = onyx (dominant). Red appears subtly: border-left, status dot, "ส่งคำขอลา" CTA button.
+    </p>
+
+    <h2><span class="num">05</span> Admin payroll table</h2>
+    <div class="mock">
+      <div class="mock-frame">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <div>
+            <h3 style="margin: 0; font-size: 1.25rem;">เงินเดือน เม.ย. 2569 <span class="badge badge-pending" style="margin-left: 8px;">📝 Draft</span></h3>
+            <p style="font-size: 0.8125rem; color: var(--fg-muted); margin-top: 4px;">124 พนักงาน · รอ publish</p>
+          </div>
+          <div class="button-row">
+            <button class="btn btn-secondary">⚡ Trigger Payroll</button>
+            <button class="btn btn-primary">📤 Publish 124 slips</button>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>ชื่อ</th>
+              <th>แผนก</th>
+              <th class="num">ฐาน</th>
+              <th class="num">รายได้อื่น</th>
+              <th class="num">หักรวม</th>
+              <th class="num">สุทธิ</th>
+              <th>สถานะ</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>EMP-001</td>
+              <td>ตงค์ สมศรี</td>
+              <td>Tech</td>
+              <td class="num">30,000.00</td>
+              <td class="num">5,000.00</td>
+              <td class="num">3,583.00</td>
+              <td class="num"><strong>31,417.00</strong></td>
+              <td><span class="badge badge-pending">Draft</span></td>
+            </tr>
+            <tr>
+              <td>EMP-002</td>
+              <td>ส้ม สมศักดิ์</td>
+              <td>Sales</td>
+              <td class="num">25,000.00</td>
+              <td class="num">3,000.00</td>
+              <td class="num">1,500.00</td>
+              <td class="num"><strong>26,500.00</strong></td>
+              <td><span class="badge badge-approved">Reviewed</span></td>
+            </tr>
+            <tr>
+              <td>EMP-003</td>
+              <td>บอย สุวรรณ</td>
+              <td>Installation</td>
+              <td class="num">22,000.00</td>
+              <td class="num">0.00</td>
+              <td class="num">2,200.00</td>
+              <td class="num"><strong>19,800.00</strong></td>
+              <td><span class="badge badge-rejected">⚠️ Override</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <p style="color: var(--fg-muted); font-size: 0.8125rem; margin-top: 12px; font-style: italic;">
+      // Publish (high-stakes) = onyx primary. Trigger = secondary. Red ใน Override badge เพราะ semantic = warning/issue.
+    </p>
+
+    <h2><span class="num">06</span> Components</h2>
+    <div class="card-row">
+      <div class="mock">
+        <h3 style="margin-top: 0;">Buttons</h3>
+        <div class="button-row stack">
+          <div>
+            <div style="font-size: 0.75rem; color: var(--fg-muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em;">Primary (onyx — default action)</div>
+            <button class="btn btn-primary">เข้าสู่ระบบ</button>
+            <button class="btn btn-primary">📤 Publish</button>
+          </div>
+          <div>
+            <div style="font-size: 0.75rem; color: var(--fg-muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em;">Brand (red — sparingly, key CTA)</div>
+            <button class="btn btn-brand">+ ส่งคำขอลา</button>
+            <button class="btn btn-brand">+ ขอเบิกเงิน</button>
+          </div>
+          <div>
+            <div style="font-size: 0.75rem; color: var(--fg-muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em;">Secondary / Ghost</div>
+            <button class="btn btn-secondary">ยกเลิก</button>
+            <button class="btn btn-ghost">ดูเพิ่มเติม</button>
+          </div>
+          <div>
+            <div style="font-size: 0.75rem; color: var(--fg-muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em;">Semantic</div>
+            <button class="btn btn-success">✅ อนุมัติ</button>
+            <button class="btn btn-danger">❌ ปฏิเสธ</button>
+          </div>
+        </div>
+      </div>
+      <div class="mock">
+        <h3 style="margin-top: 0;">Status badges</h3>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <span class="badge badge-pending">รออนุมัติ</span>
+          <span class="badge badge-approved">อนุมัติแล้ว</span>
+          <span class="badge badge-rejected">ปฏิเสธ</span>
+          <span class="badge badge-sick">ลาป่วย</span>
+          <span class="badge badge-personal">ลากิจ</span>
+          <span class="badge badge-vacation">ลาพักร้อน</span>
+          <span class="badge badge-late">สาย</span>
+          <span class="badge badge-absent">ขาด</span>
+        </div>
+        <p style="color: var(--fg-muted); font-size: 0.75rem; margin-top: 16px; font-style: italic;">
+          // แดงปรากฏแค่ใน "ปฏิเสธ" และ "ขาด" — semantic, ไม่ random
+        </p>
+      </div>
+    </div>
+
+    <div class="vibe-card">
+      <h3 style="margin-top: 0;">⭐ ทำไมเลือก Theme นี้ (refined)</h3>
+      <ul style="margin-left: 20px; margin-top: 12px;">
+        <li><strong>Brand-aligned แต่ไม่ overwhelming</strong> — Finnix red ปรากฏแค่ที่จำเป็น</li>
+        <li><strong>Onyx + white = 90% ของ screen</strong> → eye comfort ใช้นานๆ ได้</li>
+        <li><strong>Red ใช้ semantic</strong> — ปุ่มแดง = "ส่ง" / status แดง = "ปัญหา" — meaning ชัดเจน</li>
+        <li><strong>High contrast</strong> — ตัวเลข/ตารางอ่านง่าย (black on white)</li>
+        <li><strong>Premium feel</strong> — minimalist + restraint = high-end automotive (think Apple Pro)</li>
+        <li><strong>Marketing alignment</strong> — ยังคง Finnix DNA โดยไม่ตะโกน</li>
+        <li><strong>No red fatigue</strong> — แก้ปัญหาของ version แรก</li>
+      </ul>
+      <p style="margin-top: 16px; font-size: 0.875rem; opacity: 0.8;">
+        Rule of thumb: <strong>red ≤ 10%</strong> ของ pixel ใน screen ใดๆ — ที่เหลือ onyx + white
+      </p>
+    </div>
+
+  </div>
+
+  <script>
+    if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      document.documentElement.classList.add('dark');
+    }
+  </script>
+</body>
+</html>

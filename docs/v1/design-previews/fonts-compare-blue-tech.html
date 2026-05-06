@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Font Comparison — Koolman HR (Theme 1: Blue Tech)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=Sarabun:wght@400;500;600;700&family=Prompt:wght@400;500;600;700&family=Anuphan:wght@400;500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      /* Theme 1 colors locked */
+      --primary-50:  #eff6ff;
+      --primary-100: #dbeafe;
+      --primary-300: #93c5fd;
+      --primary-500: #3b82f6;
+      --primary-600: #2563eb;
+      --primary-700: #1d4ed8;
+      --primary-800: #1e40af;
+      --primary-900: #1e3a8a;
+      --accent-500: #f59e0b;
+      --accent-600: #d97706;
+      --success: #16a34a;
+      --warning: #ea580c;
+      --danger:  #dc2626;
+      --bg:        #ffffff;
+      --bg-muted:  #f8fafc;
+      --fg:        #0f172a;
+      --fg-muted:  #64748b;
+      --border:    #e2e8f0;
+      --radius:    0.5rem;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      background: var(--bg);
+      color: var(--fg);
+      line-height: 1.6;
+      letter-spacing: -0.005em;
+      font-family: 'IBM Plex Sans Thai', system-ui, sans-serif;
+    }
+    .topbar {
+      position: sticky; top: 0; z-index: 30;
+      background: var(--bg); border-bottom: 1px solid var(--border);
+      padding: 12px 24px; display: flex; justify-content: space-between; align-items: center;
+      backdrop-filter: blur(8px); background: rgba(255,255,255,0.95);
+    }
+    .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+    .back-link { color: var(--primary-600); text-decoration: none; font-weight: 500; font-size: 0.875rem; }
+
+    /* Sticky font nav */
+    .font-nav {
+      position: sticky; top: 53px; z-index: 20;
+      background: var(--bg-muted); border-bottom: 1px solid var(--border);
+      padding: 12px 24px;
+      display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;
+      backdrop-filter: blur(8px); background: rgba(248,250,252,0.95);
+    }
+    .font-nav a {
+      padding: 6px 14px; border-radius: 999px; font-size: 0.8125rem; font-weight: 500;
+      color: var(--fg); text-decoration: none; background: var(--bg);
+      border: 1px solid var(--border);
+      transition: all 150ms;
+    }
+    .font-nav a:hover { border-color: var(--primary-500); color: var(--primary-700); }
+
+    h1 { font-size: 2.5rem; font-weight: 700; letter-spacing: -0.03em; margin-bottom: 8px; }
+    .intro {
+      background: linear-gradient(135deg, var(--primary-50), white);
+      border: 1px solid var(--primary-100);
+      border-radius: 12px; padding: 24px; margin: 24px 0;
+    }
+    .meta-mono { font-family: 'IBM Plex Mono', monospace; font-size: 0.8125rem; color: var(--fg-muted); }
+
+    /* Font sections */
+    .font-section {
+      border-top: 4px solid var(--primary-600);
+      padding: 32px 24px;
+      margin: 0 -24px;
+      scroll-margin-top: 110px;
+    }
+    .font-section:nth-child(even) { background: var(--bg-muted); }
+    .font-section .container-inner { max-width: 1052px; margin: 0 auto; }
+
+    .font-header { display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 16px; margin-bottom: 16px; }
+    .font-name { font-size: 2.25rem; font-weight: 700; letter-spacing: -0.02em; }
+    .font-tag {
+      padding: 4px 12px; background: var(--primary-100); color: var(--primary-800);
+      border-radius: 999px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .font-desc { color: var(--fg-muted); font-size: 1rem; margin-bottom: 24px; max-width: 600px; }
+
+    /* Font-specific classes */
+    .font-ibm     { font-family: 'IBM Plex Sans Thai', system-ui, sans-serif; }
+    .font-sarabun { font-family: 'Sarabun', system-ui, sans-serif; }
+    .font-prompt  { font-family: 'Prompt', system-ui, sans-serif; }
+    .font-anuphan { font-family: 'Anuphan', system-ui, sans-serif; }
+    .font-noto    { font-family: 'Noto Sans Thai', system-ui, sans-serif; }
+
+    /* Type samples */
+    .type-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 768px) { .type-grid { grid-template-columns: 1fr; } }
+    .type-sample {
+      padding: 20px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+    }
+    .type-sample.muted { background: var(--bg-muted); }
+    .type-meta {
+      font-family: 'IBM Plex Mono', monospace; font-size: 0.75rem;
+      color: var(--fg-muted); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .h1-sample { font-size: 2rem; font-weight: 700; letter-spacing: -0.02em; }
+    .h2-sample { font-size: 1.5rem; font-weight: 600; letter-spacing: -0.01em; }
+    .body-sample { font-size: 1rem; }
+    .num-sample { font-size: 2.5rem; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; color: var(--primary-700); }
+    .label-sample { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--fg-muted); }
+
+    /* Mini mockup (login + dashboard side-by-side compact) */
+    .mini-mockup {
+      display: grid; grid-template-columns: 1fr 1.4fr; gap: 16px;
+      margin-top: 20px;
+    }
+    @media (max-width: 768px) { .mini-mockup { grid-template-columns: 1fr; } }
+
+    .mini-login {
+      background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px;
+    }
+    .mini-logo {
+      width: 40px; height: 40px;
+      background: linear-gradient(135deg, var(--primary-600), var(--primary-800));
+      border-radius: 8px; margin-bottom: 12px;
+      display: flex; align-items: center; justify-content: center;
+      color: white; font-weight: 700; font-size: 0.9375rem;
+    }
+    .mini-login h3 { font-size: 1.125rem; font-weight: 700; margin-bottom: 12px; }
+    .mini-input {
+      width: 100%; padding: 8px 12px; font-size: 0.875rem; font: inherit;
+      border: 1px solid var(--border); border-radius: 6px; margin-bottom: 8px;
+    }
+    .mini-btn {
+      width: 100%; padding: 10px; font-size: 0.875rem; font-weight: 500;
+      background: var(--primary-600); color: white; border: none; border-radius: 6px;
+      font: inherit; font-weight: 600;
+    }
+
+    .mini-dash {
+      background: linear-gradient(135deg, var(--primary-600), var(--primary-800)); color: white;
+      padding: 20px; border-radius: 12px;
+      display: flex; flex-direction: column; justify-content: space-between;
+    }
+    .mini-dash .dash-label { font-size: 0.75rem; opacity: 0.85; }
+    .mini-dash .dash-num { font-size: 2.25rem; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+    .mini-dash .dash-sub { font-size: 0.75rem; opacity: 0.85; margin-top: 4px; }
+
+    /* Comparison table */
+    .compare-summary {
+      margin-top: 64px; padding: 32px 24px; background: var(--bg-muted);
+      border-radius: 12px; margin-bottom: 32px;
+    }
+    table.compare { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+    table.compare th, table.compare td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border); }
+    table.compare th { font-weight: 600; color: var(--fg-muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .star { color: var(--accent-500); }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <a href="index.html" class="back-link">← กลับ</a>
+    <strong style="color: var(--primary-700);">Theme 1: Blue Tech</strong>
+    <span class="meta-mono">font compare</span>
+  </div>
+
+  <div class="font-nav">
+    <a href="#ibm-plex" class="font-ibm">IBM Plex Sans Thai</a>
+    <a href="#sarabun" class="font-sarabun">Sarabun</a>
+    <a href="#prompt" class="font-prompt">Prompt</a>
+    <a href="#anuphan" class="font-anuphan">Anuphan</a>
+    <a href="#noto" class="font-noto">Noto Sans Thai</a>
+    <a href="#summary">⚖️ Summary</a>
+  </div>
+
+  <div class="container">
+
+    <h1>Font Comparison</h1>
+    <p class="meta-mono">// Theme 1 colors locked · 5 Thai fonts compared with same content</p>
+
+    <div class="intro">
+      <h3 style="font-size: 1.0625rem; margin-bottom: 8px;">วิธีใช้</h3>
+      <p style="font-size: 0.9375rem; color: var(--fg-muted);">
+        แต่ละ section ใช้ font ต่างกัน — เนื้อหาเหมือนกันหมดเพื่อ compare typography ได้ตรง<br>
+        คลิก nav ด้านบนเพื่อ jump ระหว่าง fonts · scroll ดูเทียบกันได้เลย
+      </p>
+    </div>
+  </div>
+
+  <!-- ========== IBM Plex Sans Thai ========== -->
+  <section id="ibm-plex" class="font-section font-ibm">
+    <div class="container-inner">
+      <div class="font-header">
+        <div>
+          <div class="font-name">IBM Plex Sans Thai</div>
+          <div class="font-desc">Geometric sans-serif designed by IBM. Latin + Thai consistent design — ดู technical professional, neutral. Free Google Font.</div>
+        </div>
+        <div class="font-tag">⭐ Current pick</div>
+      </div>
+
+      <div class="type-grid">
+        <div class="type-sample">
+          <div class="type-meta">[H1] · 32px · weight 700</div>
+          <div class="h1-sample">สลิปเงินเดือนของคุณ</div>
+        </div>
+        <div class="type-sample">
+          <div class="type-meta">[H2] · 24px · weight 600</div>
+          <div class="h2-sample">รายการขาด ลา และมาสาย</div>
+        </div>
+        <div class="type-sample muted">
+          <div class="type-meta">[BODY] · 16px · weight 400</div>
+          <div class="body-sample">ระบบ HR Koolman ออกแบบให้คุณส่งคำขอลาได้สะดวก ตรวจสอบสลิปเงินเดือนได้ทุกที่ทุกเวลา</div>
+        </div>
+        <div class="type-sample muted">
+          <div class="type-meta">[NUM] · tabular-nums · weight 700</div>
+          <div class="num-sample">฿ 31,417.50</div>
+        </div>
+      </div>
+
+      <div class="mini-mockup">
+        <div class="mini-login">
+          <div class="mini-logo">FF</div>
+          <h3>เข้าสู่ระบบ</h3>
+          <input class="mini-input" placeholder="อีเมล" />
+          <input class="mini-input" type="password" placeholder="รหัสผ่าน" />
+          <button class="mini-btn">เข้าสู่ระบบ</button>
+        </div>
+        <div class="mini-dash">
+          <div>
+            <div class="dash-label">ยอดเงินคงเหลือ • เม.ย. 2569</div>
+            <div class="dash-num">฿ 31,417.50</div>
+            <div class="dash-sub">รับเงินเดือน 30 เม.ย.</div>
+          </div>
+          <div style="display: flex; gap: 12px; font-size: 0.75rem; opacity: 0.85;">
+            <span>ลา 2 วัน</span>
+            <span>·</span>
+            <span>ขาด 0 วัน</span>
+            <span>·</span>
+            <span>สาย 1 ครั้ง</span>
+          </div>
+        </div>
+      </div>
+
+      <p style="margin-top: 16px; color: var(--fg-muted); font-size: 0.875rem;"><strong>Vibe:</strong> เป็นกลาง, ทำงานได้ทุกบริบท · เทียบเหมือนเห็นใน docs ของ Stripe, Atlassian, IBM Cloud · เหมาะ enterprise + tech startup</p>
+    </div>
+  </section>
+
+  <!-- ========== Sarabun ========== -->
+  <section id="sarabun" class="font-section font-sarabun">
+    <div class="container-inner">
+      <div class="font-header">
+        <div>
+          <div class="font-name">Sarabun</div>
+          <div class="font-desc">Classic Thai font ใช้ในระบบราชการไทยเยอะ — readable มาก, professional traditional. Free Google Font.</div>
+        </div>
+        <div class="font-tag" style="background: var(--accent-500); color: white;">Familiar</div>
+      </div>
+
+      <div class="type-grid">
+        <div class="type-sample">
+          <div class="type-meta">[H1] · 32px · weight 700</div>
+          <div class="h1-sample">สลิปเงินเดือนของคุณ</div>
+        </div>
+        <div class="type-sample">
+          <div class="type-meta">[H2] · 24px · weight 600</div>
+          <div class="h2-sample">รายการขาด ลา และมาสาย</div>
+        </div>
+        <div class="type-sample muted">
+          <div class="type-meta">[BODY] · 16px · weight 400</div>
+          <div class="body-sample">ระบบ HR Koolman ออกแบบให้คุณส่งคำขอลาได้สะดวก ตรวจสอบสลิปเงินเดือนได้ทุกที่ทุกเวลา</div>
+        </div>
+        <div class="type-sample muted">
+          <div class="type-meta">[NUM] · tabular-nums · weight 700</div>
+          <div class="num-sample">฿ 31,417.50</div>
+        </div>
+      </div>
+
+      <div class="mini-mockup">
+        <div class="mini-login">
+          <div class="mini-logo">FF</div>
+          <h3>เข้าสู่ระบบ</h3>
+          <input class="mini-input" placeholder="อีเมล" />
+          <input class="mini-input" type="password" placeholder="รหัสผ่าน" />
+          <button class="mini-btn">เข้าสู่ระบบ</button>
+        </div>
+        <div class="mini-dash">
+          <div>
+            <div class="dash-label">ยอดเงินคงเหลือ • เม.ย. 2569</div>
+            <div class="dash-num">฿ 31,417.50</div>
+            <div class="dash-sub">รับเงินเดือน 30 เม.ย.</div>
+          </div>
+          <div style="display: flex; gap: 12px; font-size: 0.75rem; opacity: 0.85;">
+            <span>ลา 2 วัน</span>
+            <span>·</span>
+            <span>ขาด 0 วัน</span>
+            <span>·</span>
+            <span>สาย 1 ครั้ง</span>
+          </div>
+        </div>
+      </div>
+
+      <p style="margin-top: 16px; color: var(--fg-muted); font-size: 0.875rem;"><strong>Vibe:</strong> ดูเป็นเอกสารราชการ — แต่อ่านง่ายที่สุดสำหรับ Thai user · พบบ่อยในระบบจัดทำเอกสาร, e-government, payroll สำเร็จรูป · feel "trusted, official"</p>
+    </div>
+  </section>
+
+  <!-- ========== Prompt ========== -->
+  <section id="prompt" class="font-section font-prompt">
+    <div class="container-inner">
+      <div class="font-header">
+        <div>
+          <div class="font-name">Prompt</div>
+          <div class="font-desc">Modern geometric Thai — popular in startups + design portfolios. ดู contemporary, friendly. Free Google Font.</div>
+        </div>
+        <div class="font-tag" style="background: #ede9fe; color: #6b21a8;">Trendy</div>
+      </div>
+
+      <div class="type-grid">
+        <div class="type-sample">
+          <div class="type-meta">[H1] · 32px · weight 700</div>
+          <div class="h1-sample">สลิปเงินเดือนของคุณ</div>
+        </div>
+        <div class="type-sample">
+          <div class="type-meta">[H2] · 24px · weight 600</div>
+          <div class="h2-sample">รายการขาด ลา และมาสาย</div>
+        </div>
+        <div class="type-sample muted">
+          <div class="type-meta">[BODY] · 16px · weight 400</div>
+          <div class="body-sample">ระบบ HR Koolman ออกแบบให้คุณส่งคำขอลาได้สะดวก ตรวจสอบสลิปเงินเดือนได้ทุกที่ทุกเวลา</div>
+        </div>
+        <div class="type-sample muted">
+          <div class="type-meta">[NUM] · tabular-nums · weight 700</div>
+          <div class="num-sample">฿ 31,417.50</div>
+        </div>
+      </div>
+
+      <div class="mini-mockup">
+        <div class="mini-login">
+          <div class="mini-logo">FF</div>
+          <h3>เข้าสู่ระบบ</h3>
+          <input class="mini-input" placeholder="อีเมล" />
+          <input class="mini-input" type="password" placeholder="รหัสผ่าน" />
+          <button class="mini-btn">เข้าสู่ระบบ</button>
+        </div>
+        <div class="mini-dash">
+          <div>
+            <div class="dash-label">ยอดเงินคงเหลือ • เม.ย. 2569</div>
+            <div class="dash-num">฿ 31,417.50</div>
+            <div class="dash-sub">รับเงินเดือน 30 เม.ย.</div>
+          </div>
+          <div style="display: flex; gap: 12px; font-size: 0.75rem; opacity: 0.85;">
+            <span>ลา 2 วัน</span>
+            <span>·</span>
+            <span>ขาด 0 วัน</span>
+            <span>·</span>
+            <span>สาย 1 ครั้ง</span>
+          </div>
+        </div>
+      </div>
+
+      <p style="margin-top: 16px; color: var(--fg-muted); font-size: 0.875rem;"><strong>Vibe:</strong> Thai startup vibe · พบบ่อยใน LINE Man, Robinhood, FoodPanda landing pages · ดู modern แต่อาจ playful ไปสำหรับ HR utility · ชอบใช้กับ display heading มากกว่า body</p>
+    </div>
+  </section>
+
+  <!-- ========== Anuphan ========== -->
+  <section id="anuphan" class="font-section font-anuphan">
+    <div class="container-inner">
+      <div class="font-header">
+        <div>
+          <div class="font-name">Anuphan</div>
+          <div class="font-desc">Newer (2023+) Thai geometric — designed for both display + body, premium feel. Designed by Cadson Demak. Free Google Font.</div>
+        </div>
+        <div class="font-tag" style="background: var(--accent-500); color: white;">Premium</div>
+      </div>
+
+      <div class="type-grid">
+        <div class="type-sample">
+          <div class="type-meta">[H1] · 32px · weight 700</div>
+          <div class="h1-sample">สลิปเงินเดือนของคุณ</div>
+        </div>
+        <div class="type-sample">
+          <div class="type-meta">[H2] · 24px · weight 600</div>
+          <div class="h2-sample">รายการขาด ลา และมาสาย</div>
+        </div>
+        <div class="type-sample muted">
+          <div class="type-meta">[BODY] · 16px · weight 400</div>
+          <div class="body-sample">ระบบ HR Koolman ออกแบบให้คุณส่งคำขอลาได้สะดวก ตรวจสอบสลิปเงินเดือนได้ทุกที่ทุกเวลา</div>
+        </div>
+        <div class="type-sample muted">
+          <div class="type-meta">[NUM] · tabular-nums · weight 700</div>
+          <div class="num-sample">฿ 31,417.50</div>
+        </div>
+      </div>
+
+      <div class="mini-mockup">
+        <div class="mini-login">
+          <div class="mini-logo">FF</div>
+          <h3>เข้าสู่ระบบ</h3>
+          <input class="mini-input" placeholder="อีเมล" />
+          <input class="mini-input" type="password" placeholder="รหัสผ่าน" />
+          <button class="mini-btn">เข้าสู่ระบบ</button>
+        </div>
+        <div class="mini-dash">
+          <div>
+            <div class="dash-label">ยอดเงินคงเหลือ • เม.ย. 2569</div>
+            <div class="dash-num">฿ 31,417.50</div>
+            <div class="dash-sub">รับเงินเดือน 30 เม.ย.</div>
+          </div>
+          <div style="display: flex; gap: 12px; font-size: 0.75rem; opacity: 0.85;">
+            <span>ลา 2 วัน</span>
+            <span>·</span>
+            <span>ขาด 0 วัน</span>
+            <span>·</span>
+            <span>สาย 1 ครั้ง</span>
+          </div>
+        </div>
+      </div>
+
+      <p style="margin-top: 16px; color: var(--fg-muted); font-size: 0.875rem;"><strong>Vibe:</strong> ใหม่กว่า Prompt — ดูจริงจังกว่า, geometric แต่ไม่ playful · เหมาะ premium product · Thai font น้องใหม่ที่ designer ชอบใช้ใน 2024-2026</p>
+    </div>
+  </section>
+
+  <!-- ========== Noto Sans Thai ========== -->
+  <section id="noto" class="font-section font-noto">
+    <div class="container-inner">
+      <div class="font-header">
+        <div>
+          <div class="font-name">Noto Sans Thai</div>
+          <div class="font-desc">Google's universal Thai font — designed for maximum readability across all devices. Open-source via Google.</div>
+        </div>
+        <div class="font-tag" style="background: var(--success); color: white;">Most readable</div>
+      </div>
+
+      <div class="type-grid">
+        <div class="type-sample">
+          <div class="type-meta">[H1] · 32px · weight 700</div>
+          <div class="h1-sample">สลิปเงินเดือนของคุณ</div>
+        </div>
+        <div class="type-sample">
+          <div class="type-meta">[H2] · 24px · weight 600</div>
+          <div class="h2-sample">รายการขาด ลา และมาสาย</div>
+        </div>
+        <div class="type-sample muted">
+          <div class="type-meta">[BODY] · 16px · weight 400</div>
+          <div class="body-sample">ระบบ HR Koolman ออกแบบให้คุณส่งคำขอลาได้สะดวก ตรวจสอบสลิปเงินเดือนได้ทุกที่ทุกเวลา</div>
+        </div>
+        <div class="type-sample muted">
+          <div class="type-meta">[NUM] · tabular-nums · weight 700</div>
+          <div class="num-sample">฿ 31,417.50</div>
+        </div>
+      </div>
+
+      <div class="mini-mockup">
+        <div class="mini-login">
+          <div class="mini-logo">FF</div>
+          <h3>เข้าสู่ระบบ</h3>
+          <input class="mini-input" placeholder="อีเมล" />
+          <input class="mini-input" type="password" placeholder="รหัสผ่าน" />
+          <button class="mini-btn">เข้าสู่ระบบ</button>
+        </div>
+        <div class="mini-dash">
+          <div>
+            <div class="dash-label">ยอดเงินคงเหลือ • เม.ย. 2569</div>
+            <div class="dash-num">฿ 31,417.50</div>
+            <div class="dash-sub">รับเงินเดือน 30 เม.ย.</div>
+          </div>
+          <div style="display: flex; gap: 12px; font-size: 0.75rem; opacity: 0.85;">
+            <span>ลา 2 วัน</span>
+            <span>·</span>
+            <span>ขาด 0 วัน</span>
+            <span>·</span>
+            <span>สาย 1 ครั้ง</span>
+          </div>
+        </div>
+      </div>
+
+      <p style="margin-top: 16px; color: var(--fg-muted); font-size: 0.875rem;"><strong>Vibe:</strong> Most neutral, most readable · Google Maps, Google Docs ใช้ · วาง icon-friendly · ตัวเลือก safe เสมอแต่อาจ feel "default" / generic</p>
+    </div>
+  </section>
+
+  <!-- ========== Summary ========== -->
+  <section id="summary" class="container">
+    <div class="compare-summary">
+      <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 16px;">⚖️ Comparison Summary</h2>
+      <table class="compare">
+        <thead>
+          <tr>
+            <th>Criterion</th>
+            <th>IBM Plex</th>
+            <th>Sarabun</th>
+            <th>Prompt</th>
+            <th>Anuphan</th>
+            <th>Noto Sans Thai</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Readability (body)</td>
+            <td><span class="star">★★★★</span></td>
+            <td><span class="star">★★★★★</span></td>
+            <td><span class="star">★★★</span></td>
+            <td><span class="star">★★★★</span></td>
+            <td><span class="star">★★★★★</span></td>
+          </tr>
+          <tr>
+            <td>Modern feel</td>
+            <td><span class="star">★★★★</span></td>
+            <td><span class="star">★★</span></td>
+            <td><span class="star">★★★★★</span></td>
+            <td><span class="star">★★★★★</span></td>
+            <td><span class="star">★★★</span></td>
+          </tr>
+          <tr>
+            <td>Professional / enterprise</td>
+            <td><span class="star">★★★★★</span></td>
+            <td><span class="star">★★★★★</span></td>
+            <td><span class="star">★★★</span></td>
+            <td><span class="star">★★★★</span></td>
+            <td><span class="star">★★★★</span></td>
+          </tr>
+          <tr>
+            <td>Mid-aged friendly</td>
+            <td><span class="star">★★★★</span></td>
+            <td><span class="star">★★★★★</span></td>
+            <td><span class="star">★★★</span></td>
+            <td><span class="star">★★★★</span></td>
+            <td><span class="star">★★★★★</span></td>
+          </tr>
+          <tr>
+            <td>Tabular numerals</td>
+            <td><span class="star">★★★★★</span></td>
+            <td><span class="star">★★★★</span></td>
+            <td><span class="star">★★★★</span></td>
+            <td><span class="star">★★★★</span></td>
+            <td><span class="star">★★★★</span></td>
+          </tr>
+          <tr>
+            <td>Differentiation</td>
+            <td><span class="star">★★★★</span></td>
+            <td><span class="star">★★</span></td>
+            <td><span class="star">★★★★</span></td>
+            <td><span class="star">★★★★★</span></td>
+            <td><span class="star">★★</span></td>
+          </tr>
+          <tr>
+            <td>Latin (English) match</td>
+            <td><span class="star">★★★★★</span></td>
+            <td><span class="star">★★★</span></td>
+            <td><span class="star">★★★★</span></td>
+            <td><span class="star">★★★★</span></td>
+            <td><span class="star">★★★</span></td>
+          </tr>
+          <tr style="background: var(--primary-50);">
+            <td><strong>Recommend rank</strong></td>
+            <td><strong>1 ⭐</strong></td>
+            <td>4</td>
+            <td>5</td>
+            <td>2</td>
+            <td>3</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3 style="margin-top: 24px; font-size: 1rem;">Recommendation:</h3>
+      <ol style="margin-left: 20px; margin-top: 8px; line-height: 1.8;">
+        <li><strong>IBM Plex Sans Thai</strong> ⭐ — current pick, balanced ทุกมิติ, neutral professional, fits Theme 1 Tech vibe</li>
+        <li><strong>Anuphan</strong> — ถ้าอยาก premium feel มากกว่า — ใหม่ + geometric</li>
+        <li><strong>Noto Sans Thai</strong> — ถ้า accessibility สำคัญสุด — most readable</li>
+        <li><strong>Sarabun</strong> — ถ้าลูกค้าเป็น mid-aged + อยากให้ดู familiar</li>
+        <li><strong>Prompt</strong> — เด่นแต่ playful ไปสำหรับ HR utility · เหมาะ display only, ไม่ใช่ body</li>
+      </ol>
+
+      <p style="margin-top: 24px; padding: 16px; background: var(--accent-500); color: white; border-radius: 8px; font-size: 0.875rem;">
+        💡 <strong>Pro tip:</strong> ระบบเก็บ font ใน CSS variable — เปลี่ยน 1 จุดเปลี่ยนทั้ง app · ลองใช้ตัวที่เลือกอยู่ ถ้าใช้แล้วไม่ชอบ → switch ทีหลังได้ใน 5 นาที
+      </p>
+    </div>
+  </section>
+
+</body>
+</html>

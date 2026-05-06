@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>S-E5: Leave Detail — Koolman HR Mockup</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script>
+    (function() {
+      try {
+        const saved = localStorage.getItem('koolman-theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (saved === 'dark' || (saved === null && prefersDark)) {
+          document.documentElement.classList.add('dark');
+        }
+      } catch (e) {}
+    })();
+  </script>
+  <style>
+    :root {
+      --primary-50: #eff6ff; --primary-100: #dbeafe; --primary-300: #93c5fd;
+      --primary-500: #3b82f6; --primary-600: #2563eb; --primary-700: #1d4ed8;
+      --primary-800: #1e40af; --primary-900: #1e3a8a;
+      --accent-500: #f59e0b;
+      --success: #16a34a; --warning: #ea580c; --danger: #dc2626;
+      --bg: #ffffff; --bg-muted: #f8fafc; --bg-elevated: #ffffff;
+      --fg: #0f172a; --fg-muted: #64748b; --border: #e2e8f0;
+      --radius-sm: 0.375rem; --radius: 0.625rem; --radius-lg: 1rem; --radius-xl: 1.25rem;
+      --shadow-md: 0 8px 16px -4px rgb(37 99 235 / 0.12), 0 4px 8px -2px rgb(0 0 0 / 0.05);
+    }
+    .dark {
+      --bg: #0f172a; --bg-muted: #1e293b; --bg-elevated: #1e293b;
+      --fg: #f1f5f9; --fg-muted: #94a3b8; --border: #334155;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      font-family: 'IBM Plex Sans Thai', system-ui, sans-serif;
+      background: var(--bg-muted); color: var(--fg);
+      line-height: 1.65; letter-spacing: -0.005em;
+      transition: background 200ms, color 200ms;
+    }
+    .page-topbar {
+      position: sticky; top: 0; z-index: 30;
+      background: var(--bg); border-bottom: 1px solid var(--border);
+      padding: 12px 24px; display: flex; justify-content: space-between; align-items: center;
+    }
+    .page-topbar a { color: var(--primary-600); text-decoration: none; font-weight: 500; font-size: 0.875rem; }
+    .meta-mono { font-family: 'IBM Plex Mono', monospace; font-size: 0.8125rem; color: var(--fg-muted); }
+    .toggle-btn { background: var(--bg-muted); border: 1px solid var(--border); padding: 6px 12px; border-radius: var(--radius-sm); cursor: pointer; font: inherit; color: var(--fg); font-size: 0.8125rem; }
+    .spec-banner {
+      background: var(--bg); border-bottom: 1px solid var(--border);
+      padding: 12px 24px; font-size: 0.8125rem; color: var(--fg-muted);
+      display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap;
+    }
+    .spec-banner a { color: var(--primary-600); }
+
+    .state-bar {
+      background: var(--bg); padding: 16px 24px;
+      display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;
+      border-bottom: 1px solid var(--border);
+    }
+    .state-pill {
+      padding: 6px 14px; font-size: 0.8125rem; font-weight: 500;
+      background: var(--bg-muted); color: var(--fg); border: 1px solid var(--border);
+      border-radius: 999px; cursor: pointer; font: inherit;
+    }
+    .state-pill:hover { border-color: var(--primary-300); }
+    .state-pill.active { background: var(--primary-600); color: white; border-color: var(--primary-600); }
+
+    .app-canvas { padding: 32px 24px; display: flex; gap: 32px; justify-content: center; flex-wrap: wrap; }
+
+    .phone-frame {
+      width: 100%; max-width: 380px;
+      border: 8px solid var(--fg);
+      border-radius: 36px;
+      background: var(--bg);
+      overflow: hidden;
+      box-shadow: var(--shadow-md);
+      display: flex; flex-direction: column;
+      height: 760px;
+      position: relative;
+    }
+    .dark .phone-frame { border-color: #1e293b; }
+
+    .app-topbar {
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px 16px; border-bottom: 1px solid var(--border);
+      background: var(--bg);
+    }
+    .back-link { font-size: 0.875rem; font-weight: 500; color: var(--fg); text-decoration: none; }
+    .topbar-title { font-weight: 700; font-size: 0.9375rem; flex: 1; }
+
+    .app-content { flex: 1; overflow: auto; padding: 16px; background: var(--bg); }
+
+    /* Hero status card */
+    .status-hero {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 20px;
+      margin-bottom: 16px;
+      position: relative; overflow: hidden;
+    }
+    .status-hero::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0;
+      height: 4px;
+    }
+    .status-hero.pending::before { background: var(--accent-500); }
+    .status-hero.approved::before { background: var(--success); }
+    .status-hero.rejected::before { background: var(--danger); }
+
+    .status-icon-wrap {
+      width: 48px; height: 48px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.5rem;
+      margin-bottom: 12px;
+    }
+    .status-hero.pending .status-icon-wrap { background: rgba(245, 158, 11, 0.15); color: var(--accent-500); }
+    .status-hero.approved .status-icon-wrap { background: rgba(22, 163, 74, 0.15); color: var(--success); }
+    .status-hero.rejected .status-icon-wrap { background: rgba(220, 38, 38, 0.15); color: var(--danger); }
+
+    .status-title { font-size: 1.0625rem; font-weight: 700; }
+    .status-subtitle { font-size: 0.8125rem; color: var(--fg-muted); margin-top: 4px; }
+
+    /* Detail card */
+    .detail-card {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 16px 18px;
+      margin-bottom: 16px;
+    }
+    .detail-section-label {
+      font-size: 0.6875rem; font-weight: 600; color: var(--fg-muted);
+      text-transform: uppercase; letter-spacing: 0.08em;
+      margin-bottom: 10px;
+    }
+    .info-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 8px 0;
+      border-top: 1px solid var(--border);
+      font-size: 0.875rem;
+    }
+    .info-row:first-child { border-top: none; padding-top: 0; }
+    .info-label { color: var(--fg-muted); }
+    .info-value { font-weight: 500; }
+
+    .reason-box {
+      background: var(--bg-muted);
+      border-left: 3px solid var(--primary-500);
+      padding: 10px 14px;
+      border-radius: var(--radius-sm);
+      font-size: 0.875rem;
+      line-height: 1.6;
+    }
+
+    .badge {
+      display: inline-block; padding: 2px 10px; border-radius: 999px;
+      font-size: 0.6875rem; font-weight: 600;
+    }
+    .badge-vacation { background: #d1fae5; color: #065f46; }
+    .badge-sick { background: #dbeafe; color: #1e40af; }
+
+    /* Timeline */
+    .timeline { position: relative; padding-left: 24px; }
+    .timeline::before {
+      content: ''; position: absolute; left: 7px; top: 4px; bottom: 4px;
+      width: 2px; background: var(--border);
+    }
+    .timeline-item {
+      position: relative;
+      padding-bottom: 16px;
+    }
+    .timeline-item:last-child { padding-bottom: 0; }
+    .timeline-dot {
+      position: absolute; left: -24px; top: 4px;
+      width: 16px; height: 16px;
+      background: var(--bg);
+      border: 2px solid var(--primary-600);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.5rem;
+      color: var(--primary-600);
+    }
+    .timeline-item.success .timeline-dot { border-color: var(--success); color: var(--success); background: white; }
+    .dark .timeline-item.success .timeline-dot { background: var(--bg); }
+    .timeline-item.danger .timeline-dot { border-color: var(--danger); color: var(--danger); }
+    .timeline-item.muted .timeline-dot { border-color: var(--border); background: var(--bg-muted); }
+    .timeline-item.future .timeline-dot { border-style: dashed; opacity: 0.5; }
+
+    .timeline-time { font-size: 0.75rem; color: var(--fg-muted); margin-bottom: 2px; }
+    .timeline-title { font-weight: 500; font-size: 0.875rem; margin-bottom: 2px; }
+    .timeline-detail { font-size: 0.75rem; color: var(--fg-muted); line-height: 1.5; }
+    .timeline-actor {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 0.75rem; color: var(--fg-muted);
+      margin-top: 4px;
+    }
+    .timeline-avatar-mini {
+      width: 16px; height: 16px;
+      background: var(--primary-100); color: var(--primary-700);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 600; font-size: 0.5625rem;
+    }
+    .dark .timeline-avatar-mini { background: var(--primary-900); color: var(--primary-300); }
+
+    /* Action button */
+    .action-row {
+      padding-top: 12px; border-top: 1px solid var(--border);
+      margin-top: 16px;
+    }
+    .btn-cancel {
+      width: 100%; padding: 11px 16px;
+      font: inherit; font-size: 0.875rem; font-weight: 600;
+      background: var(--bg); color: var(--danger);
+      border: 1px solid var(--danger); border-radius: var(--radius);
+      cursor: pointer;
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    }
+    .btn-cancel:hover { background: rgba(220, 38, 38, 0.05); }
+
+    /* Modal */
+    .modal-overlay {
+      position: absolute; inset: 0; z-index: 50;
+      background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(4px);
+      display: flex; align-items: center; justify-content: center;
+      padding: 16px;
+    }
+    .modal {
+      width: 100%; max-width: 320px;
+      background: var(--bg-elevated);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+    }
+    .modal-title { font-weight: 700; font-size: 1rem; margin-bottom: 8px; }
+    .modal-desc { font-size: 0.8125rem; color: var(--fg-muted); margin-bottom: 16px; line-height: 1.55; }
+    .modal-actions { display: flex; gap: 8px; }
+    .modal-btn {
+      flex: 1; padding: 9px 14px;
+      font: inherit; font-size: 0.8125rem; font-weight: 600;
+      border: none; border-radius: var(--radius); cursor: pointer;
+    }
+    .modal-btn.secondary { background: var(--bg-muted); color: var(--fg); border: 1px solid var(--border); }
+    .modal-btn.danger { background: var(--danger); color: white; }
+
+    /* Notes */
+    .notes { max-width: 800px; margin: 0 auto; padding: 32px 24px; background: var(--bg); border-top: 1px solid var(--border); }
+    .notes h2 { font-size: 1.25rem; font-weight: 600; margin: 24px 0 12px; }
+    .notes h2:first-child { margin-top: 0; }
+    .notes p, .notes li { font-size: 0.9375rem; line-height: 1.7; }
+    .notes ul { padding-left: 24px; }
+    .notes code {
+      font-family: 'IBM Plex Mono', monospace; background: var(--bg-muted); padding: 2px 6px;
+      border-radius: var(--radius-sm); font-size: 0.875em; color: var(--primary-700); border: 1px solid var(--border);
+    }
+    .dark .notes code { color: var(--primary-300); }
+  
+    /* === Mobile responsive for phone-frame mockups (audit pass) === */
+    @media (max-width: 480px) {
+      .app-canvas { padding: 16px 0; gap: 16px; }
+      .phone-frame {
+        max-width: 100% !important;
+        border-width: 4px !important;
+        border-radius: 20px !important;
+        height: auto !important;
+        min-height: 100vh;
+      }
+      .page-topbar { padding: 8px 12px; flex-wrap: wrap; gap: 8px; }
+      .spec-banner { padding: 8px 12px; }
+      .state-bar { padding: 12px 8px; }
+      .state-pill { font-size: 0.75rem; padding: 5px 10px; }
+    }
+    @media (max-width: 380px) {
+      .app-canvas { padding: 8px 0; }
+      .phone-frame { border-width: 0 !important; border-radius: 0 !important; }
+    }
+  
+    /* ==== Desktop-mode (added 2026-05) ==== */
+    .desktop-mode .app-canvas {
+      padding: 24px;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+    .desktop-mode .phone-frame {
+      max-width: 720px !important;
+      width: 100%;
+      border: 1px solid var(--border) !important;
+      border-radius: 16px !important;
+      height: auto !important;
+      min-height: 600px;
+      box-shadow: 0 16px 48px -16px rgb(37 99 235 / 0.18);
+    }
+    .desktop-mode .phone-frame > .ios-status-bar { display: none; }
+    .desktop-mode .app-topbar {
+      padding: 12px 20px;
+    }
+    .desktop-mode .app-topbar .topbar-title { font-size: 1.0625rem; }
+    /* Show top nav, hide bottom nav on desktop */
+    .desktop-mode .bottom-nav {
+      order: -1;
+      border-top: none;
+      border-bottom: 1px solid var(--border);
+      padding: 8px 16px;
+      gap: 4px;
+    }
+    .desktop-mode .bottom-nav-item {
+      flex: 0 0 auto;
+      padding: 8px 14px;
+      font-size: 0.8125rem;
+      flex-direction: row;
+      gap: 6px;
+    }
+    .desktop-mode .bottom-nav-item .nav-icon {
+      font-size: 0.9375rem;
+      display: inline;
+      margin-bottom: 0;
+    }
+    .desktop-mode .app-content {
+      padding: 24px 32px !important;
+    }
+    .desktop-mode .line-chat-body { padding: 16px 24px; }
+    /* Wider for list pages */
+    .desktop-mode .advance-list,
+    .desktop-mode .slip-list { padding: 0 0; }
+    /* View-mode toggle buttons */
+    .view-toggle {
+      display: inline-flex; gap: 4px;
+      background: var(--bg-muted); border: 1px solid var(--border);
+      border-radius: 999px; padding: 3px;
+    }
+    .view-toggle button {
+      padding: 5px 12px; border: none; background: transparent;
+      cursor: pointer; font: inherit; font-size: 0.75rem; font-weight: 600;
+      color: var(--fg-muted); border-radius: 999px;
+    }
+    .view-toggle button.active { background: var(--primary-600); color: white; }
+
+  </style>
+</head>
+<body>
+  <div class="page-topbar">
+    <a href="index.html">← Mockups index</a>
+    <span class="meta-mono">S-E5 · leave detail · pattern showcase</span>
+    <button class="toggle-btn" onclick="toggleTheme()">🌓 Dark mode</button>
+  </div>
+
+  <div class="spec-banner">
+    <span><strong>S-E5: Leave Detail</strong> — detail page pattern with timeline (also covers S-E8 advance, S-N4 employee detail patterns)</span>
+    <span class="view-toggle"><button data-view="mobile" class="active" onclick="__setView('mobile')">📱 Mobile</button><button data-view="desktop" onclick="__setView('desktop')">🖥 Desktop</button></span>
+  <a href="../employee.md#s-e5-leave-detail">📄 ดู spec →</a>
+  </div>
+
+  <div class="state-bar">
+    <button class="state-pill active" onclick="setState('pending')">Pending (รออนุมัติ)</button>
+    <button class="state-pill" onclick="setState('approved')">Approved</button>
+    <button class="state-pill" onclick="setState('rejected')">Rejected</button>
+    <button class="state-pill" onclick="setState('cancel-modal')">Cancel modal</button>
+  </div>
+
+  <div class="app-canvas">
+    <div class="phone-frame">
+      <div class="app-topbar">
+        <a href="emp-leave-list.html" class="back-link">←</a>
+        <div class="topbar-title">รายละเอียดคำขอลา</div>
+      </div>
+
+      <div class="app-content" id="content"></div>
+
+      <div id="overlay"></div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h2>Detail page pattern</h2>
+    <p>This screen demonstrates the <strong>detail page pattern</strong> reusable across:</p>
+    <ul>
+      <li><strong>S-E5</strong> Employee leave detail</li>
+      <li><strong>S-E8</strong> Employee cash advance detail (similar with receipt image)</li>
+      <li><strong>S-N4</strong> Admin employee detail (with edit + archive actions)</li>
+    </ul>
+
+    <h2>Pattern structure</h2>
+    <ol>
+      <li><strong>Status hero</strong> — colored top stripe (orange/green/red) + status icon + summary</li>
+      <li><strong>Detail card(s)</strong> — info rows (label/value) grouped by section</li>
+      <li><strong>Reason box</strong> — left-bordered quote-style highlight</li>
+      <li><strong>Timeline</strong> — chronological history of events with vertical line + dots</li>
+      <li><strong>Action button</strong> — context-specific (Cancel for pending, none for approved)</li>
+    </ol>
+
+    <h2>States covered</h2>
+    <ul>
+      <li><strong>Pending</strong> — orange stripe · cancel action available</li>
+      <li><strong>Approved</strong> — green stripe · approval timeline · admin note · linked attendance records</li>
+      <li><strong>Rejected</strong> — red stripe · rejection reason from admin</li>
+      <li><strong>Cancel modal</strong> — confirm before cancellation</li>
+    </ul>
+
+    <h2>Timeline component</h2>
+    <p>Vertical timeline with colored dots:</p>
+    <ul>
+      <li><strong>Primary (default)</strong> — ongoing/current</li>
+      <li><strong>Success</strong> — completed action (green check)</li>
+      <li><strong>Danger</strong> — rejected/error (red X)</li>
+      <li><strong>Muted</strong> — neutral past event</li>
+      <li><strong>Future (dashed)</strong> — anticipated next step</li>
+    </ul>
+
+    <h2>Spec references</h2>
+    <ul>
+      <li><a href="../employee.md#s-e5-leave-detail"><code>employee.md § S-E5</code></a></li>
+      <li><a href="../employee.md#m-e1-cancel-leave"><code>M-E1</code></a> — cancel modal</li>
+    </ul>
+  </div>
+
+  <script>
+    function pendingView() {
+      return `
+        <div class="status-hero pending">
+          <div class="status-icon-wrap">⏳</div>
+          <div class="status-title">รออนุมัติ</div>
+          <div class="status-subtitle">ส่งคำขอเมื่อ 2 ชั่วโมงที่แล้ว · รอ Admin ตรวจสอบ</div>
+        </div>
+
+        <div class="detail-card">
+          <div class="detail-section-label">รายละเอียดการลา</div>
+          <div class="info-row"><span class="info-label">ประเภท</span><span class="info-value"><span class="badge badge-vacation">ลาพักร้อน</span></span></div>
+          <div class="info-row"><span class="info-label">วันที่</span><span class="info-value">12-13 พ.ค. 2569</span></div>
+          <div class="info-row"><span class="info-label">จำนวน</span><span class="info-value">2 วัน</span></div>
+          <div class="info-row"><span class="info-label">ส่งคำขอเมื่อ</span><span class="info-value">5 พ.ค. 14:32</span></div>
+        </div>
+
+        <div class="detail-card">
+          <div class="detail-section-label">เหตุผล</div>
+          <div class="reason-box">ไปงานแต่งของพี่ที่ต่างจังหวัด ต้องเดินทางและกลับมาเหนื่อย</div>
+        </div>
+
+        <div class="detail-card">
+          <div class="detail-section-label">แนบไฟล์</div>
+          <div style="font-size: 0.8125rem; color: var(--fg-muted);">(ไม่มี)</div>
+        </div>
+
+        <div class="detail-card">
+          <div class="detail-section-label">ประวัติ</div>
+          <div class="timeline">
+            <div class="timeline-item">
+              <div class="timeline-dot">●</div>
+              <div class="timeline-time">เพิ่งกี้ · 14:32</div>
+              <div class="timeline-title">ส่งคำขอลา</div>
+              <div class="timeline-actor">
+                <div class="timeline-avatar-mini">ตงค์</div>
+                คุณ
+              </div>
+            </div>
+            <div class="timeline-item future">
+              <div class="timeline-dot">●</div>
+              <div class="timeline-time">รอดำเนินการ</div>
+              <div class="timeline-title">Admin ตรวจสอบและอนุมัติ</div>
+              <div class="timeline-detail">ปกติใช้เวลา 1-2 วันทำการ</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="action-row">
+          <button class="btn-cancel" onclick="setState('cancel-modal')">❌ ยกเลิกคำขอ</button>
+        </div>
+
+        <div style="height: 16px;"></div>
+      `;
+    }
+
+    function approvedView() {
+      return `
+        <div class="status-hero approved">
+          <div class="status-icon-wrap">✓</div>
+          <div class="status-title">อนุมัติแล้ว</div>
+          <div class="status-subtitle">เมื่อ 3 ชั่วโมงที่แล้ว โดย Admin1 (สมพร)</div>
+        </div>
+
+        <div class="detail-card">
+          <div class="detail-section-label">รายละเอียดการลา</div>
+          <div class="info-row"><span class="info-label">ประเภท</span><span class="info-value"><span class="badge badge-vacation">ลาพักร้อน</span></span></div>
+          <div class="info-row"><span class="info-label">วันที่</span><span class="info-value">12-13 พ.ค. 2569</span></div>
+          <div class="info-row"><span class="info-label">จำนวน</span><span class="info-value">2 วัน</span></div>
+        </div>
+
+        <div class="detail-card">
+          <div class="detail-section-label">เหตุผล</div>
+          <div class="reason-box">ไปงานแต่งของพี่ที่ต่างจังหวัด ต้องเดินทางและกลับมาเหนื่อย</div>
+        </div>
+
+        <div class="detail-card">
+          <div class="detail-section-label">หมายเหตุจาก Admin</div>
+          <div class="reason-box" style="border-left-color: var(--success);">อนุมัติได้ — แต่ฝากฝันส่งงานล่วงหน้าก่อนลาด้วย</div>
+        </div>
+
+        <div class="detail-card">
+          <div class="detail-section-label">บันทึกการลาสร้างอัตโนมัติ</div>
+          <div class="info-row" style="border: none; padding: 6px 0;"><span class="info-label">12 พ.ค.</span><span class="info-value" style="font-size: 0.75rem; color: var(--success);">✓ บันทึกแล้ว</span></div>
+          <div class="info-row" style="padding: 6px 0;"><span class="info-label">13 พ.ค.</span><span class="info-value" style="font-size: 0.75rem; color: var(--success);">✓ บันทึกแล้ว</span></div>
+        </div>
+
+        <div class="detail-card">
+          <div class="detail-section-label">ประวัติ</div>
+          <div class="timeline">
+            <div class="timeline-item success">
+              <div class="timeline-dot">✓</div>
+              <div class="timeline-time">3 ชม.ที่แล้ว · 11:30</div>
+              <div class="timeline-title">อนุมัติคำขอลา</div>
+              <div class="timeline-actor">
+                <div class="timeline-avatar-mini">A1</div>
+                Admin1 (สมพร)
+              </div>
+            </div>
+            <div class="timeline-item success">
+              <div class="timeline-dot">✓</div>
+              <div class="timeline-time">3 ชม.ที่แล้ว · 11:30</div>
+              <div class="timeline-title">สร้างบันทึกการลาอัตโนมัติ 2 รายการ</div>
+              <div class="timeline-detail">12-13 พ.ค. 2569 (Type: ลาพักร้อน, Deduct: ฿0)</div>
+            </div>
+            <div class="timeline-item muted">
+              <div class="timeline-dot">●</div>
+              <div class="timeline-time">เมื่อวาน · 14:32</div>
+              <div class="timeline-title">ส่งคำขอลา</div>
+              <div class="timeline-actor">
+                <div class="timeline-avatar-mini">ตงค์</div>
+                คุณ
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="height: 16px;"></div>
+      `;
+    }
+
+    function rejectedView() {
+      return `
+        <div class="status-hero rejected">
+          <div class="status-icon-wrap">✕</div>
+          <div class="status-title">ปฏิเสธ</div>
+          <div class="status-subtitle">เมื่อเมื่อวาน โดย Admin1 (สมพร)</div>
+        </div>
+
+        <div class="detail-card">
+          <div class="detail-section-label">รายละเอียดการลา</div>
+          <div class="info-row"><span class="info-label">ประเภท</span><span class="info-value"><span class="badge badge-vacation">ลากิจ</span></span></div>
+          <div class="info-row"><span class="info-label">วันที่</span><span class="info-value">25 ก.พ. 2569</span></div>
+          <div class="info-row"><span class="info-label">จำนวน</span><span class="info-value">1 วัน</span></div>
+        </div>
+
+        <div class="detail-card">
+          <div class="detail-section-label">เหตุผลของคุณ</div>
+          <div class="reason-box">ไปทำธุระส่วนตัว</div>
+        </div>
+
+        <div class="detail-card">
+          <div class="detail-section-label">เหตุผลที่ปฏิเสธ</div>
+          <div class="reason-box" style="border-left-color: var(--danger); background: rgba(220, 38, 38, 0.05);">
+            มี deadline ส่งงานวันที่ 25 ก.พ. — ขอให้เลื่อนการลาไปสัปดาห์ถัดไปครับ
+          </div>
+        </div>
+
+        <div class="detail-card">
+          <div class="detail-section-label">ประวัติ</div>
+          <div class="timeline">
+            <div class="timeline-item danger">
+              <div class="timeline-dot">✕</div>
+              <div class="timeline-time">เมื่อวาน · 16:45</div>
+              <div class="timeline-title">ปฏิเสธคำขอ</div>
+              <div class="timeline-actor">
+                <div class="timeline-avatar-mini">A1</div>
+                Admin1 (สมพร)
+              </div>
+            </div>
+            <div class="timeline-item muted">
+              <div class="timeline-dot">●</div>
+              <div class="timeline-time">2 วันที่แล้ว · 09:15</div>
+              <div class="timeline-title">ส่งคำขอลา</div>
+              <div class="timeline-actor">
+                <div class="timeline-avatar-mini">ตงค์</div>
+                คุณ
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="font-size: 0.8125rem; color: var(--fg-muted); padding: 12px; background: var(--bg-muted); border-radius: var(--radius); margin-top: 4px;">
+          💡 อยากลาวันอื่น? <a href="emp-leave-new.html" style="color: var(--primary-600); font-weight: 500;">ส่งคำขอใหม่</a>
+        </div>
+
+        <div style="height: 16px;"></div>
+      `;
+    }
+
+    function setState(state) {
+      document.querySelectorAll('.state-pill').forEach(p => p.classList.remove('active'));
+      const pills = Array.from(document.querySelectorAll('.state-pill'));
+      const map = { 'pending': 0, 'approved': 1, 'rejected': 2, 'cancel-modal': 3 };
+      if (pills[map[state]]) pills[map[state]].classList.add('active');
+
+      const c = document.getElementById('content');
+      const overlay = document.getElementById('overlay');
+      overlay.innerHTML = '';
+
+      switch (state) {
+        case 'pending': c.innerHTML = pendingView(); break;
+        case 'approved': c.innerHTML = approvedView(); break;
+        case 'rejected': c.innerHTML = rejectedView(); break;
+        case 'cancel-modal':
+          c.innerHTML = pendingView();
+          overlay.innerHTML = `
+            <div class="modal-overlay" onclick="if(event.target===this) setState('pending')">
+              <div class="modal">
+                <div class="modal-title">ยกเลิกคำขอลา?</div>
+                <div class="modal-desc">คำขอนี้จะถูกยกเลิก — ไม่สามารถกู้คืนได้ · ส่งคำขอใหม่ได้ภายหลัง</div>
+                <div class="modal-actions">
+                  <button class="modal-btn secondary" onclick="setState('pending')">ไม่ใช่ตอนนี้</button>
+                  <button class="modal-btn danger" onclick="setState('pending')">ยืนยันยกเลิก</button>
+                </div>
+              </div>
+            </div>`;
+          break;
+      }
+    }
+
+    setState('pending');
+
+    function toggleTheme() {
+      const isDark = document.documentElement.classList.toggle('dark');
+      try { localStorage.setItem('koolman-theme', isDark ? 'dark' : 'light'); } catch (e) {}
+    }
+  </script>
+<script>
+  // Desktop-mode toggle
+  (function() {
+    function setView(mode) {
+      document.body.classList.toggle('desktop-mode', mode === 'desktop');
+      document.querySelectorAll('.view-toggle button').forEach(b => {
+        b.classList.toggle('active', b.dataset.view === mode);
+      });
+      try { localStorage.setItem('koolman-view-mode', mode); } catch(e) {}
+    }
+    window.__setView = setView;
+    document.addEventListener('DOMContentLoaded', function() {
+      const saved = (function(){ try { return localStorage.getItem('koolman-view-mode'); } catch(e) { return null; } })();
+      if (saved === 'desktop') setView('desktop');
+    });
+  })();
+</script>
+</body>
+</html>

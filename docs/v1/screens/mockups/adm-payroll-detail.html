@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>S-N14: Per-Employee Payroll Detail — Koolman HR Mockup</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script>
+    (function() {
+      try {
+        const saved = localStorage.getItem('koolman-theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (saved === 'dark' || (saved === null && prefersDark)) document.documentElement.classList.add('dark');
+      } catch (e) {}
+    })();
+  </script>
+  <style>
+    :root { --primary-50: #eff6ff; --primary-100: #dbeafe; --primary-300: #93c5fd; --primary-500: #3b82f6; --primary-600: #2563eb; --primary-700: #1d4ed8; --primary-800: #1e40af; --primary-900: #1e3a8a; --accent-500: #f59e0b; --success: #16a34a; --warning: #ea580c; --danger: #dc2626; --bg: #ffffff; --bg-muted: #f8fafc; --bg-elevated: #ffffff; --fg: #0f172a; --fg-muted: #64748b; --border: #e2e8f0; --radius-sm: 0.375rem; --radius: 0.625rem; --radius-lg: 1rem; --radius-xl: 1.25rem; --shadow-md: 0 8px 16px -4px rgb(37 99 235 / 0.12), 0 4px 8px -2px rgb(0 0 0 / 0.05); }
+    .dark { --bg: #0f172a; --bg-muted: #1e293b; --bg-elevated: #1e293b; --fg: #f1f5f9; --fg-muted: #94a3b8; --border: #334155; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { font-family: 'IBM Plex Sans Thai', system-ui, sans-serif; background: var(--bg-muted); color: var(--fg); line-height: 1.65; letter-spacing: -0.005em; transition: background 200ms, color 200ms; }
+    .page-topbar { position: sticky; top: 0; z-index: 30; background: var(--bg); border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; }
+    .page-topbar a { color: var(--primary-600); text-decoration: none; font-weight: 500; font-size: 0.875rem; }
+    .meta-mono { font-family: 'IBM Plex Mono', monospace; font-size: 0.8125rem; color: var(--fg-muted); }
+    .toggle-btn { background: var(--bg-muted); border: 1px solid var(--border); padding: 6px 12px; border-radius: var(--radius-sm); cursor: pointer; font: inherit; color: var(--fg); font-size: 0.8125rem; }
+    .spec-banner { background: var(--bg); border-bottom: 1px solid var(--border); padding: 12px 24px; font-size: 0.8125rem; color: var(--fg-muted); display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+    .spec-banner a { color: var(--primary-600); }
+    .state-bar { background: var(--bg); padding: 16px 24px; display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; border-bottom: 1px solid var(--border); }
+    .state-pill { padding: 6px 14px; font-size: 0.8125rem; font-weight: 500; background: var(--bg-muted); color: var(--fg); border: 1px solid var(--border); border-radius: 999px; cursor: pointer; font: inherit; }
+    .state-pill:hover { border-color: var(--primary-300); }
+    .state-pill.active { background: var(--primary-600); color: white; border-color: var(--primary-600); }
+
+    .app-canvas { padding: 24px; display: flex; justify-content: center; }
+    .browser-frame { width: 100%; max-width: 1240px; background: var(--bg); border-radius: var(--radius-lg); box-shadow: var(--shadow-md); overflow: hidden; border: 1px solid var(--border); }
+    .browser-bar { background: var(--bg-muted); border-bottom: 1px solid var(--border); padding: 8px 12px; display: flex; align-items: center; gap: 8px; }
+    .browser-dots { display: flex; gap: 4px; }
+    .browser-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .browser-dot.r { background: #ef4444; } .browser-dot.y { background: #f59e0b; } .browser-dot.g { background: #22c55e; }
+    .browser-url { flex: 1; padding: 4px 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 999px; font-size: 0.75rem; color: var(--fg-muted); font-family: 'IBM Plex Mono', monospace; }
+    .app-layout { display: grid; grid-template-columns: 220px 1fr; min-height: 800px; }
+    .sidebar { background: var(--bg); border-right: 1px solid var(--border); padding: 16px 12px; }
+    .sidebar-logo { display: flex; align-items: center; gap: 10px; padding: 8px 12px; margin-bottom: 16px; }
+    .sidebar-logo-square { width: 32px; height: 32px; background: var(--primary-600); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 0.875rem; }
+    .sidebar-logo-text { font-weight: 700; font-size: 0.9375rem; }
+    .sidebar-item { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: var(--radius); color: var(--fg); font-size: 0.875rem; font-weight: 500; margin-bottom: 2px; cursor: pointer; position: relative; }
+    .sidebar-item:hover { background: var(--bg-muted); }
+    .sidebar-item.active { background: var(--primary-50); color: var(--primary-700); font-weight: 600; }
+    .dark .sidebar-item.active { background: var(--primary-900); color: var(--primary-300); }
+    .sidebar-item.active::before { content: ''; position: absolute; left: -12px; top: 8px; bottom: 8px; width: 2px; background: var(--primary-600); border-radius: 0 2px 2px 0; }
+
+    .main { padding: 24px 28px; overflow: auto; }
+    .main-topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .breadcrumb { font-size: 0.875rem; color: var(--fg-muted); }
+    .breadcrumb a { color: var(--primary-600); text-decoration: none; }
+    .breadcrumb-active { color: var(--fg); font-weight: 600; }
+    .icon-btn { width: 36px; height: 36px; background: transparent; border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--fg); }
+    .avatar-mini { width: 36px; height: 36px; background: var(--primary-100); color: var(--primary-700); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.75rem; }
+    .dark .avatar-mini { background: var(--primary-900); color: var(--primary-300); }
+
+    /* Page header */
+    .page-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 20px; }
+    .page-title { font-size: 1.375rem; font-weight: 700; letter-spacing: -0.02em; display: flex; align-items: center; gap: 12px; }
+    .page-meta { color: var(--fg-muted); font-size: 0.875rem; margin-top: 4px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .header-actions { display: flex; gap: 8px; align-items: center; }
+    .btn { padding: 8px 14px; font: inherit; font-size: 0.8125rem; font-weight: 600; border: none; border-radius: var(--radius); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+    .btn-primary { background: var(--primary-600); color: white; }
+    .btn-secondary { background: var(--bg); color: var(--fg); border: 1px solid var(--border); }
+    .btn-warning { background: var(--bg); color: var(--accent-500); border: 1px solid var(--accent-500); }
+    .btn-warning:hover { background: rgba(245, 158, 11, 0.05); }
+
+    .status-chip { padding: 3px 10px; border-radius: 999px; font-size: 0.6875rem; font-weight: 600; }
+    .status-published { background: #d1fae5; color: #065f46; }
+    .status-draft { background: #fef3c7; color: #92400e; }
+
+    /* Content layout */
+    .detail-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    @media (max-width: 1024px) { .detail-layout { grid-template-columns: 1fr; } }
+
+    /* Employee card */
+    .emp-card {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 20px;
+    }
+    .emp-card-row {
+      display: flex; align-items: center; gap: 14px;
+      padding-bottom: 16px; border-bottom: 1px solid var(--border);
+    }
+    .emp-avatar-lg {
+      width: 56px; height: 56px;
+      background: var(--primary-100); color: var(--primary-700);
+      border-radius: var(--radius-lg);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 1rem;
+      flex-shrink: 0;
+    }
+    .dark .emp-avatar-lg { background: var(--primary-900); color: var(--primary-300); }
+    .emp-name { font-weight: 700; font-size: 1.125rem; }
+    .emp-meta { font-size: 0.8125rem; color: var(--fg-muted); margin-top: 2px; }
+    .emp-info-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 12px 16px; padding-top: 14px;
+      font-size: 0.875rem;
+    }
+    .emp-info-label { color: var(--fg-muted); font-size: 0.75rem; }
+    .emp-info-value { font-weight: 500; margin-top: 2px; }
+
+    /* NetPay hero */
+    .netpay-hero {
+      background: linear-gradient(135deg, var(--primary-600), var(--primary-800));
+      color: white;
+      border-radius: var(--radius-lg); padding: 24px;
+      position: relative; overflow: hidden;
+    }
+    .netpay-hero::after {
+      content: ''; position: absolute; top: -40px; right: -40px;
+      width: 160px; height: 160px;
+      background: radial-gradient(circle, white 0%, transparent 70%);
+      opacity: 0.12; border-radius: 50%;
+    }
+    .netpay-label { font-size: 0.75rem; opacity: 0.85; text-transform: uppercase; letter-spacing: 0.08em; position: relative; }
+    .netpay-amount { font-size: 2.5rem; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; line-height: 1; margin-top: 4px; position: relative; }
+    .netpay-meta { font-size: 0.8125rem; opacity: 0.9; margin-top: 12px; position: relative; }
+    .netpay-actions { display: flex; gap: 6px; margin-top: 16px; position: relative; }
+    .netpay-btn { padding: 7px 14px; background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.3); border-radius: var(--radius); cursor: pointer; font: inherit; font-size: 0.8125rem; font-weight: 600; }
+    .netpay-btn:hover { background: rgba(255,255,255,0.25); }
+
+    /* Income/Deduction sections */
+    .breakdown-card {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); margin-bottom: 16px;
+      overflow: hidden;
+    }
+    .breakdown-header {
+      padding: 14px 18px; background: var(--bg-muted);
+      border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .breakdown-title { font-weight: 600; font-size: 0.9375rem; }
+    .breakdown-total { font-weight: 700; font-variant-numeric: tabular-nums; font-family: 'IBM Plex Mono', monospace; }
+    .breakdown-rows { padding: 8px 0; }
+    .breakdown-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 18px;
+      border-bottom: 1px solid var(--border);
+    }
+    .breakdown-row:last-child { border-bottom: none; }
+    .breakdown-label-wrap { flex: 1; min-width: 0; }
+    .breakdown-label { font-size: 0.875rem; }
+    .breakdown-detail { font-size: 0.6875rem; color: var(--fg-muted); margin-top: 2px; }
+    .breakdown-amount { font-family: 'IBM Plex Mono', monospace; font-variant-numeric: tabular-nums; font-size: 0.9375rem; font-weight: 500; }
+    .breakdown-amount.minus { color: var(--danger); }
+    .breakdown-amount.minus::before { content: '−'; }
+    .breakdown-amount.muted { color: var(--fg-muted); }
+
+    .edit-icon-btn { background: transparent; border: 1px solid var(--border); width: 28px; height: 28px; border-radius: var(--radius-sm); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; color: var(--primary-600); flex-shrink: 0; }
+    .edit-icon-btn:hover { background: var(--primary-50); border-color: var(--primary-300); }
+    .dark .edit-icon-btn:hover { background: var(--primary-900); }
+
+    .override-marker {
+      display: inline-flex; align-items: center; gap: 3px;
+      font-size: 0.6875rem; color: var(--accent-500);
+      font-weight: 600; margin-left: 6px;
+    }
+
+    /* History timeline */
+    .history-card {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 20px;
+    }
+    .history-title { font-weight: 600; font-size: 1rem; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; }
+    .history-link { font-size: 0.8125rem; color: var(--primary-600); text-decoration: none; font-weight: 500; }
+    .timeline { position: relative; padding-left: 24px; }
+    .timeline::before { content: ''; position: absolute; left: 7px; top: 4px; bottom: 4px; width: 2px; background: var(--border); }
+    .timeline-item { position: relative; padding-bottom: 16px; }
+    .timeline-item:last-child { padding-bottom: 0; }
+    .timeline-dot { position: absolute; left: -24px; top: 4px; width: 16px; height: 16px; background: var(--bg); border: 2px solid var(--primary-600); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.5rem; color: var(--primary-600); }
+    .timeline-item.success .timeline-dot { border-color: var(--success); color: var(--success); }
+    .timeline-item.warning .timeline-dot { border-color: var(--accent-500); color: var(--accent-500); }
+    .timeline-item.muted .timeline-dot { border-color: var(--border); }
+    .timeline-time { font-size: 0.75rem; color: var(--fg-muted); margin-bottom: 2px; }
+    .timeline-title { font-weight: 500; font-size: 0.875rem; }
+    .timeline-detail { font-size: 0.75rem; color: var(--fg-muted); margin-top: 2px; line-height: 1.5; }
+    .timeline-actor { display: inline-flex; align-items: center; gap: 4px; font-size: 0.75rem; color: var(--fg-muted); margin-top: 4px; }
+    .timeline-avatar-mini { width: 16px; height: 16px; background: var(--primary-100); color: var(--primary-700); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.5625rem; }
+    .dark .timeline-avatar-mini { background: var(--primary-900); color: var(--primary-300); }
+
+    .change-pill {
+      display: inline-block; padding: 2px 8px;
+      background: var(--bg-muted); border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-family: 'IBM Plex Mono', monospace; font-size: 0.6875rem;
+      margin-top: 4px;
+    }
+    .change-pill .arrow { color: var(--accent-500); margin: 0 4px; }
+
+    /* Notes */
+    .notes { max-width: 1000px; margin: 0 auto; padding: 32px 24px; background: var(--bg); border-top: 1px solid var(--border); }
+    .notes h2 { font-size: 1.25rem; font-weight: 600; margin: 24px 0 12px; }
+    .notes h2:first-child { margin-top: 0; }
+    .notes p, .notes li { font-size: 0.9375rem; line-height: 1.7; }
+    .notes ul { padding-left: 24px; }
+    .notes code { font-family: 'IBM Plex Mono', monospace; background: var(--bg-muted); padding: 2px 6px; border-radius: var(--radius-sm); font-size: 0.875em; color: var(--primary-700); border: 1px solid var(--border); }
+    .dark .notes code { color: var(--primary-300); }
+  
+    /* === Mobile responsive fixes (added during audit pass) === */
+    @media (max-width: 768px) {
+      .app-layout { grid-template-columns: 1fr !important; }
+      .sidebar { display: none !important; }
+      .main { padding: 16px !important; }
+      .main-topbar { flex-wrap: wrap; gap: 8px; }
+      .page-header { flex-direction: column; align-items: flex-start !important; gap: 12px; }
+      .page-title { font-size: 1.375rem !important; }
+      .table-wrap { overflow-x: auto !important; }
+      .table-wrap table { min-width: 640px; }
+      .filter-bar { flex-direction: column; align-items: stretch !important; }
+      .filter-bar > * { width: 100%; }
+      .filter-bar > .filter-search,
+      .filter-bar > .filter-input { min-width: 0; }
+      .summary-card { padding: 16px !important; gap: 16px !important; grid-template-columns: 1fr 1fr !important; }
+      .kpi-strip { grid-template-columns: 1fr 1fr !important; }
+      .drawer, .drawer-overlay > .drawer { width: 100vw !important; max-width: 100vw !important; }
+      .config-row { grid-template-columns: 1fr !important; gap: 8px !important; }
+      .action-bar { flex-direction: column; align-items: stretch !important; }
+      .action-bar > .btn { width: 100%; }
+      .pagination { flex-direction: column; gap: 8px; align-items: stretch !important; }
+      .browser-bar { padding: 6px 8px; }
+      .browser-url { font-size: 0.625rem; }
+    }
+    @media (max-width: 480px) {
+      .table-wrap table { min-width: 560px; }
+      .main { padding: 12px !important; }
+      .summary-card { grid-template-columns: 1fr !important; }
+      .kpi-strip { grid-template-columns: 1fr !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page-topbar">
+    <a href="index.html">← Mockups index</a>
+    <span class="meta-mono">S-N14 · per-emp payroll detail</span>
+    <button class="toggle-btn" onclick="toggleTheme()">🌓 Dark mode</button>
+  </div>
+
+  <div class="spec-banner">
+    <span><strong>S-N14: Per-Employee Payroll Detail</strong> — drill-down with full audit history (edit + unlock revisions)</span>
+    <a href="../admin.md#s-n14-payroll-per-employee">📄 ดู spec →</a>
+  </div>
+
+  <div class="state-bar">
+    <button class="state-pill active" onclick="setState('published')">Published view</button>
+    <button class="state-pill" onclick="setState('draft')">Draft view (editable)</button>
+  </div>
+
+  <div class="app-canvas">
+    <div class="browser-frame">
+      <div class="browser-bar">
+        <div class="browser-dots"><div class="browser-dot r"></div><div class="browser-dot y"></div><div class="browser-dot g"></div></div>
+        <div class="browser-url">app.koolman-hr.com/admin/payroll/2026-04/EMP-001</div>
+      </div>
+      <div class="app-layout">
+        <aside class="sidebar">
+          <div class="sidebar-logo"><div class="sidebar-logo-square">KM</div><div class="sidebar-logo-text">Koolman HR</div></div>
+          <a class="sidebar-item">🏠 หน้าหลัก</a>
+          <a class="sidebar-item">👥 พนักงาน</a>
+          <a class="sidebar-item">📋 คำขอลา</a>
+          <a class="sidebar-item">💰 คำขอเบิก</a>
+          <a class="sidebar-item">📅 ลงเวลา</a>
+          <a class="sidebar-item active">💸 เงินเดือน</a>
+          <a class="sidebar-item">📊 บัญชี</a>
+          <a class="sidebar-item">📜 Audit log</a>
+          <a class="sidebar-item">⚙️ ตั้งค่า</a>
+        </aside>
+        <main class="main">
+          <div class="main-topbar">
+            <div class="breadcrumb"><a>เงินเดือน</a> / <a>เม.ย. 2569</a> / <span class="breadcrumb-active">EMP-001 ตงค์ สมศรี</span></div>
+            <div style="display: flex; gap: 8px;"><button class="icon-btn">🔔</button><div class="avatar-mini">A</div></div>
+          </div>
+          <div id="content"></div>
+        </main>
+      </div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h2>About this mockup</h2>
+    <p>S-N14 = drill-down per-employee payroll slip for Admin. Used for detailed review, manual override of fields, unlock + revision (after publish), and Owner read-only viewing.</p>
+
+    <h2>Key UI elements</h2>
+    <ul>
+      <li><strong>Employee card:</strong> avatar + meta + key info grid (base salary, dept, branch, etc.)</li>
+      <li><strong>NetPay hero:</strong> gradient blue card with big tabular number + actions (Download PDF, Unlock revision)</li>
+      <li><strong>Income breakdown card:</strong> all income sources with edit ✏ icons + override markers</li>
+      <li><strong>Deduction breakdown card:</strong> all deductions with red minus + linked source detail</li>
+      <li><strong>Audit timeline:</strong> chronological history including override events with before/after change pill</li>
+    </ul>
+
+    <h2>States</h2>
+    <ul>
+      <li><strong>Published view:</strong> 🔒 locked · ✏ icons hidden · "Unlock for revision" button shown</li>
+      <li><strong>Draft view:</strong> editable · ✏ icons visible · "Save & approve" button</li>
+    </ul>
+
+    <h2>Spec references</h2>
+    <ul>
+      <li><a href="../admin.md#s-n14-payroll-per-employee"><code>admin.md § S-N14</code></a></li>
+      <li><a href="../admin.md#m-n5-unlock-published-slip"><code>M-N5</code></a> — unlock modal</li>
+      <li><a href="../flows.md#fl-13-run-monthly-payroll"><code>flows.md FL-13</code></a></li>
+    </ul>
+  </div>
+
+  <script>
+    function view(published) {
+      const editIcon = published ? '' : '<button class="edit-icon-btn">✏</button>';
+      const lockedAction = published
+        ? '<button class="netpay-btn">📥 ดาวน์โหลด PDF</button><button class="netpay-btn" style="background: rgba(245, 158, 11, 0.25); border-color: rgba(245, 158, 11, 0.5);">🔓 Unlock for revision</button>'
+        : '<button class="netpay-btn">📥 Preview PDF</button><button class="netpay-btn">✓ Mark reviewed</button>';
+
+      return `
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">
+              สลิปเงินเดือน เม.ย. 2569
+              <span class="status-chip ${published ? 'status-published' : 'status-draft'}">${published ? '🔒 Published' : '📝 Draft'}</span>
+            </h1>
+            <div class="page-meta">
+              ${published ? '<span>Published 30 เม.ย. 16:00 by Admin1</span> · <span>Email sent ✓</span>' : '<span>Calculated 30 เม.ย. 14:00 (auto)</span> · <span>not yet reviewed</span>'}
+            </div>
+          </div>
+          <div class="header-actions">
+            <button class="btn btn-secondary">📜 Full audit</button>
+          </div>
+        </div>
+
+        <div class="detail-layout">
+          <!-- Employee card -->
+          <div class="emp-card">
+            <div class="emp-card-row">
+              <div class="emp-avatar-lg">ตงค์</div>
+              <div>
+                <div class="emp-name">ตงค์ สมศรี</div>
+                <div class="emp-meta">EMP-001 · Software Engineer</div>
+              </div>
+            </div>
+            <div class="emp-info-grid">
+              <div>
+                <div class="emp-info-label">สาขา</div>
+                <div class="emp-info-value">สำนักงานใหญ่</div>
+              </div>
+              <div>
+                <div class="emp-info-label">แผนก</div>
+                <div class="emp-info-value">Tech</div>
+              </div>
+              <div>
+                <div class="emp-info-label">ฐานเงินเดือน</div>
+                <div class="emp-info-value" style="font-family: 'IBM Plex Mono', monospace;">฿30,000.00</div>
+              </div>
+              <div>
+                <div class="emp-info-label">สถานะ</div>
+                <div class="emp-info-value">Regular</div>
+              </div>
+              <div>
+                <div class="emp-info-label">วันเริ่มงาน</div>
+                <div class="emp-info-value">1 ม.ค. 2566</div>
+              </div>
+              <div>
+                <div class="emp-info-label">กลุ่มลงบัญชี</div>
+                <div class="emp-info-value">ค่าใช้จ่ายบริษัท</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- NetPay hero -->
+          <div class="netpay-hero">
+            <div class="netpay-label">ยอดสุทธิ (NetPay)</div>
+            <div class="netpay-amount">฿ 31,417.00</div>
+            <div class="netpay-meta">
+              ${published ? 'โอนเข้าบัญชี ธ.กสิกรไทย XXX-X-X1234-X · 30 เม.ย. 2569' : 'โอนเข้า ธ.กสิกรไทย — รอ publish'}
+            </div>
+            <div class="netpay-actions">
+              ${lockedAction}
+            </div>
+          </div>
+        </div>
+
+        <!-- Income -->
+        <div class="breakdown-card">
+          <div class="breakdown-header">
+            <div class="breakdown-title">รายรับ</div>
+            <div class="breakdown-total">฿ 35,000.00</div>
+          </div>
+          <div class="breakdown-rows">
+            <div class="breakdown-row">
+              <div class="breakdown-label-wrap">
+                <div class="breakdown-label">เงินเดือนพื้นฐาน</div>
+                <div class="breakdown-detail">จาก BaseSalary ใน Employee record</div>
+              </div>
+              <div class="breakdown-amount">30,000.00</div>
+              <div style="visibility: hidden; width: 28px;"></div>
+            </div>
+            <div class="breakdown-row">
+              <div class="breakdown-label-wrap">
+                <div class="breakdown-label">รายได้อื่น (commission) <span class="override-marker">✏ override</span></div>
+                <div class="breakdown-detail">Override 30 เม.ย. 14:30 — เพิ่ม commission เม.ย. ที่ฝ่ายขายส่งมา</div>
+              </div>
+              <div class="breakdown-amount">5,000.00</div>
+              ${editIcon}
+            </div>
+          </div>
+        </div>
+
+        <!-- Deductions -->
+        <div class="breakdown-card">
+          <div class="breakdown-header">
+            <div class="breakdown-title">รายหัก</div>
+            <div class="breakdown-total" style="color: var(--danger);">−฿ 3,583.00</div>
+          </div>
+          <div class="breakdown-rows">
+            <div class="breakdown-row">
+              <div class="breakdown-label-wrap">
+                <div class="breakdown-label">ประกันสังคม</div>
+                <div class="breakdown-detail">Auto: min(BaseSalary × 5%, ฿750)</div>
+              </div>
+              <div class="breakdown-amount minus">750.00</div>
+              <div style="visibility: hidden; width: 28px;"></div>
+            </div>
+            <div class="breakdown-row">
+              <div class="breakdown-label-wrap">
+                <div class="breakdown-label">เบิกเงินล่วงหน้า</div>
+                <div class="breakdown-detail">จาก CashAdvance #123 อนุมัติ 28 เม.ย.</div>
+              </div>
+              <div class="breakdown-amount minus">2,000.00</div>
+              <div style="visibility: hidden; width: 28px;"></div>
+            </div>
+            <div class="breakdown-row">
+              <div class="breakdown-label-wrap">
+                <div class="breakdown-label">ขาด/ลา/มาสาย <span style="font-size: 0.6875rem; color: var(--fg-muted);">(3 รายการ)</span></div>
+                <div class="breakdown-detail">5 เม.ย. ขาด ฿1,000 + 6 เม.ย. สาย 30 นาที ฿250 — auto-calc</div>
+              </div>
+              <div class="breakdown-amount minus">833.00</div>
+              ${editIcon}
+            </div>
+            <div class="breakdown-row">
+              <div class="breakdown-label-wrap">
+                <div class="breakdown-label">หักหนี้</div>
+                <div class="breakdown-detail">Manual entry (ไม่มีในเดือนนี้)</div>
+              </div>
+              <div class="breakdown-amount minus muted">0.00</div>
+              ${editIcon}
+            </div>
+          </div>
+        </div>
+
+        <!-- Audit history -->
+        <div class="history-card">
+          <div class="history-title">
+            <span>ประวัติการเปลี่ยนแปลง</span>
+            <a class="history-link">ดู audit log เต็ม →</a>
+          </div>
+          <div class="timeline">
+            ${published ? `
+              <div class="timeline-item success">
+                <div class="timeline-dot">✓</div>
+                <div class="timeline-time">30 เม.ย. 16:00</div>
+                <div class="timeline-title">Published สลิป</div>
+                <div class="timeline-actor"><div class="timeline-avatar-mini">A1</div>Admin1 (สมพร) · ส่ง email ตงค์@finnixfilm.com</div>
+              </div>
+              <div class="timeline-item warning">
+                <div class="timeline-dot">✏</div>
+                <div class="timeline-time">30 เม.ย. 14:30</div>
+                <div class="timeline-title">Override Income_Other</div>
+                <div class="change-pill">฿0 <span class="arrow">→</span> ฿5,000</div>
+                <div class="timeline-detail">เหตุผล: "เพิ่ม commission เม.ย. ที่ฝ่ายขายส่งมา"</div>
+                <div class="timeline-actor"><div class="timeline-avatar-mini">A1</div>Admin1 (สมพร)</div>
+              </div>
+              <div class="timeline-item muted">
+                <div class="timeline-dot">●</div>
+                <div class="timeline-time">30 เม.ย. 14:00</div>
+                <div class="timeline-title">Auto-calculated สลิปครั้งแรก</div>
+                <div class="timeline-detail">Income_Base 30K · SS 750 · Adv 2K · Att 833 · NetPay 26,417</div>
+                <div class="timeline-actor"><div class="timeline-avatar-mini">⚙</div>System (Inngest job)</div>
+              </div>
+            ` : `
+              <div class="timeline-item warning">
+                <div class="timeline-dot">✏</div>
+                <div class="timeline-time">30 เม.ย. 14:30</div>
+                <div class="timeline-title">Override Income_Other</div>
+                <div class="change-pill">฿0 <span class="arrow">→</span> ฿5,000</div>
+                <div class="timeline-detail">เหตุผล: "เพิ่ม commission เม.ย. ที่ฝ่ายขายส่งมา"</div>
+                <div class="timeline-actor"><div class="timeline-avatar-mini">A1</div>Admin1 (สมพร)</div>
+              </div>
+              <div class="timeline-item muted">
+                <div class="timeline-dot">●</div>
+                <div class="timeline-time">30 เม.ย. 14:00</div>
+                <div class="timeline-title">Auto-calculated สลิปครั้งแรก</div>
+                <div class="timeline-detail">Income_Base 30K · SS 750 · Adv 2K · Att 833 · NetPay 26,417</div>
+                <div class="timeline-actor"><div class="timeline-avatar-mini">⚙</div>System (Inngest job)</div>
+              </div>
+            `}
+          </div>
+        </div>
+      `;
+    }
+
+    function setState(state) {
+      document.querySelectorAll('.state-pill').forEach(p => p.classList.remove('active'));
+      const pills = Array.from(document.querySelectorAll('.state-pill'));
+      const map = { 'published': 0, 'draft': 1 };
+      if (pills[map[state]]) pills[map[state]].classList.add('active');
+      document.getElementById('content').innerHTML = view(state === 'published');
+    }
+    setState('published');
+    function toggleTheme() {
+      const isDark = document.documentElement.classList.toggle('dark');
+      try { localStorage.setItem('koolman-theme', isDark ? 'dark' : 'light'); } catch (e) {}
+    }
+  </script>
+</body>
+</html>

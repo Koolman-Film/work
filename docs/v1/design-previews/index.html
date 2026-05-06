@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Koolman HR — Design Direction Previews</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      font-family: 'IBM Plex Sans Thai', system-ui, sans-serif;
+      background: #fafafa;
+      color: #0f172a;
+      line-height: 1.6;
+    }
+    .container { max-width: 1100px; margin: 0 auto; padding: 48px 24px; }
+    h1 { font-size: 2.5rem; font-weight: 700; margin-bottom: 12px; letter-spacing: -0.02em; }
+    h2 { font-size: 1.5rem; font-weight: 600; margin-bottom: 12px; letter-spacing: -0.01em; }
+    .subtitle { font-size: 1.125rem; color: #64748b; margin-bottom: 48px; }
+    .options { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    @media (max-width: 768px) { .options { grid-template-columns: 1fr; } }
+    .option {
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 32px;
+      text-decoration: none;
+      color: inherit;
+      transition: transform 150ms ease, box-shadow 150ms ease;
+      display: block;
+      position: relative;
+      overflow: hidden;
+    }
+    .option:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 24px -8px rgba(0,0,0,0.1);
+    }
+    .option-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+    .swatch-strip { display: flex; height: 40px; border-radius: 8px; overflow: hidden; margin: 16px 0; }
+    .swatch-strip > div { flex: 1; }
+    .option-title { font-size: 1.5rem; font-weight: 600; }
+    .option-tagline { font-size: 0.875rem; color: #64748b; }
+    .option-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 16px 0;
+      font-size: 0.75rem;
+    }
+    .meta-chip {
+      padding: 4px 12px;
+      background: #f1f5f9;
+      border-radius: 999px;
+      color: #475569;
+      font-weight: 500;
+    }
+    .option-desc { margin-top: 12px; color: #475569; font-size: 0.9375rem; }
+    .option-vibe {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid #f1f5f9;
+      font-size: 0.8125rem;
+      color: #64748b;
+    }
+    .footer {
+      margin-top: 64px;
+      padding-top: 32px;
+      border-top: 1px solid #e2e8f0;
+      color: #64748b;
+      font-size: 0.875rem;
+    }
+    code { font-family: 'Courier New', monospace; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 0.875em; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Koolman HR — Design Direction Previews</h1>
+    <p class="subtitle">เปรียบเทียบ 5 ทิศทาง design ก่อนเริ่ม build — แต่ละไฟล์เปิด standalone ใน browser tab เดียวกันได้</p>
+
+    <div style="background: #fef3c7; border: 1px solid #fde68a; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
+      <strong style="color: #92400e;">✅ Decision: Theme 1 — Finnix Blue Tech</strong>
+      <p style="font-size: 0.875rem; color: #78350f; margin-top: 4px;">
+        Color scheme locked. Now drilling into <a href="fonts-compare-blue-tech.html" style="color: #b45309; text-decoration: underline; font-weight: 600;">font choice</a> + <a href="style-tweaks-blue-tech.html" style="color: #b45309; text-decoration: underline; font-weight: 600;">style tweaks</a>
+      </p>
+    </div>
+
+    <h2>Theme 1 deep-dive (color locked)</h2>
+    <p style="color: #64748b; margin-bottom: 24px;">เลือก Theme 1 แล้ว → drill ลงรายละเอียด</p>
+
+    <div class="options" style="margin-bottom: 48px;">
+      <a href="fonts-compare-blue-tech.html" class="option" style="border: 2px solid #2563eb;">
+        <div class="option-header">
+          <div class="option-title">🔤 Font comparison</div>
+        </div>
+        <div class="option-tagline">5 Thai fonts in Theme 1 colors — same content side-by-side</div>
+        <div class="swatch-strip">
+          <div style="background: #eff6ff;"></div>
+          <div style="background: #2563eb;"></div>
+          <div style="background: #1e3a8a;"></div>
+          <div style="background: #f59e0b;"></div>
+        </div>
+        <div class="option-meta">
+          <span class="meta-chip">IBM Plex</span>
+          <span class="meta-chip">Sarabun</span>
+          <span class="meta-chip">Prompt</span>
+          <span class="meta-chip">Anuphan</span>
+          <span class="meta-chip">Noto</span>
+        </div>
+        <div class="option-desc">เปรียบเทียบ 5 Thai fonts โดย render content เดียวกันใน Theme 1 colors — login + dashboard mini mockup ทุก font + summary table</div>
+      </a>
+
+      <a href="style-tweaks-blue-tech.html" class="option" style="border: 2px solid #2563eb;">
+        <div class="option-header">
+          <div class="option-title">🎨 Style tweaks</div>
+        </div>
+        <div class="option-tagline">4 style variants — Theme 1 colors + IBM Plex locked</div>
+        <div class="swatch-strip">
+          <div style="background: #eff6ff;"></div>
+          <div style="background: #2563eb;"></div>
+          <div style="background: #1e3a8a;"></div>
+          <div style="background: #f59e0b;"></div>
+        </div>
+        <div class="option-meta">
+          <span class="meta-chip">A. Comfortable ⭐</span>
+          <span class="meta-chip">B. Dense Pro</span>
+          <span class="meta-chip">C. Soft Modern</span>
+          <span class="meta-chip">D. Flat Minimal</span>
+        </div>
+        <div class="option-desc">เปรียบเทียบ radius / shadow / padding / density — Login + Dashboard + Admin table mockup ทุก variant</div>
+      </a>
+    </div>
+
+    <h2>Original 5 color direction options (archived)</h2>
+    <p style="color: #64748b; margin-bottom: 24px;">แต่ละ direction = combo ของ <strong>color palette + typography + vibe</strong> ไปด้วยกัน</p>
+
+    <div class="options">
+
+      <a href="05-finnix-red.html" class="option" style="border: 2px solid #dc2626; position: relative;">
+        <span style="position: absolute; top: 12px; right: 12px; background: #dc2626; color: white; font-size: 0.6875rem; font-weight: 600; padding: 4px 10px; border-radius: 999px; letter-spacing: 0.05em; text-transform: uppercase;">⭐ Brand-aligned</span>
+        <div class="option-header">
+          <div class="option-title">Finnix Red</div>
+        </div>
+        <div class="option-tagline">Aligned with finnixcenterth.com brand — premium automotive scarlet</div>
+        <div class="swatch-strip">
+          <div style="background: #7f1d1d;"></div>
+          <div style="background: #b91c1c;"></div>
+          <div style="background: #dc2626;"></div>
+          <div style="background: #ef4444;"></div>
+          <div style="background: #18181b;"></div>
+          <div style="background: #d4a017;"></div>
+        </div>
+        <div class="option-meta">
+          <span class="meta-chip">Scarlet + Onyx + Gold</span>
+          <span class="meta-chip">Anuphan</span>
+          <span class="meta-chip">Premium automotive</span>
+        </div>
+        <div class="option-desc">ใช้สีแดงตามแบรนด์ Koolman จริง · onyx charcoal เป็น text/structure · gold เป็น subtle premium touch · Anuphan = Thai font geometric ใหม่.</div>
+        <div class="option-vibe">เลือกเมื่อ: อยากให้ HR app สอดคล้อง brand identity Finnix ของจริง · marketing/visual continuity · ลูกค้าจำได้ทันที</div>
+      </a>
+
+      <a href="01-finnix-blue-tech.html" class="option">
+        <div class="option-header">
+          <div class="option-title">Finnix Blue Tech</div>
+        </div>
+        <div class="option-tagline">Modern automotive-tech professional (current proposal)</div>
+        <div class="swatch-strip">
+          <div style="background: #1e3a8a;"></div>
+          <div style="background: #2563eb;"></div>
+          <div style="background: #3b82f6;"></div>
+          <div style="background: #93c5fd;"></div>
+          <div style="background: #f59e0b;"></div>
+          <div style="background: #fcd34d;"></div>
+        </div>
+        <div class="option-meta">
+          <span class="meta-chip">Blue + Amber</span>
+          <span class="meta-chip">IBM Plex Sans Thai</span>
+          <span class="meta-chip">Tesla service portal vibe</span>
+        </div>
+        <div class="option-desc">Clean, professional, slightly tech. ใช้สี blue-600 หลัก amber-500 accent. Font geometric เข้าใจ Latin+Thai consistent.</div>
+        <div class="option-vibe">เลือกเมื่อ: อยากให้ดู modern + tech อยากแยกจาก HR ทั่วไปที่ดูเป็นทางการเกิน</div>
+      </a>
+
+      <a href="02-corporate-navy.html" class="option">
+        <div class="option-header">
+          <div class="option-title">Corporate Navy</div>
+        </div>
+        <div class="option-tagline">Traditional Thai corporate — warm + trustworthy</div>
+        <div class="swatch-strip">
+          <div style="background: #0c2461;"></div>
+          <div style="background: #1e40af;"></div>
+          <div style="background: #3b5998;"></div>
+          <div style="background: #c5cae9;"></div>
+          <div style="background: #ea580c;"></div>
+          <div style="background: #fb923c;"></div>
+        </div>
+        <div class="option-meta">
+          <span class="meta-chip">Navy + Warm Orange</span>
+          <span class="meta-chip">Sarabun</span>
+          <span class="meta-chip">Thai corporate HR</span>
+        </div>
+        <div class="option-desc">เข้ากับธุรกิจไทยทั่วไป — navy หนัก, accent orange อบอุ่น. Sarabun = Thai corporate font ดู professional.</div>
+        <div class="option-vibe">เลือกเมื่อ: ลูกค้าเป็น mid-aged owner, อยากให้ดูจริงจังน่าเชื่อถือแบบไทย</div>
+      </a>
+
+      <a href="03-modern-slate.html" class="option">
+        <div class="option-header">
+          <div class="option-title">Modern Slate</div>
+        </div>
+        <div class="option-tagline">Linear/Notion minimal — premium tool feel</div>
+        <div class="swatch-strip">
+          <div style="background: #020617;"></div>
+          <div style="background: #1e293b;"></div>
+          <div style="background: #475569;"></div>
+          <div style="background: #cbd5e1;"></div>
+          <div style="background: #10b981;"></div>
+          <div style="background: #6ee7b7;"></div>
+        </div>
+        <div class="option-meta">
+          <span class="meta-chip">Slate + Emerald</span>
+          <span class="meta-chip">Prompt</span>
+          <span class="meta-chip">Linear/Notion vibe</span>
+        </div>
+        <div class="option-desc">High-contrast neutrals + emerald accent. Prompt = modern Thai font ดูขี้เล่นกว่านิดหน่อยแต่ professional. Lots of white space.</div>
+        <div class="option-vibe">เลือกเมื่อ: ทีม Finnix รุ่นใหม่ใช้, อยากให้ดู "premium tool" เหมือน SaaS modern</div>
+      </a>
+
+      <a href="04-industrial-steel.html" class="option">
+        <div class="option-header">
+          <div class="option-title">Industrial Steel</div>
+        </div>
+        <div class="option-tagline">Automotive precision — gridded, technical</div>
+        <div class="swatch-strip">
+          <div style="background: #1e293b;"></div>
+          <div style="background: #475569;"></div>
+          <div style="background: #94a3b8;"></div>
+          <div style="background: #e2e8f0;"></div>
+          <div style="background: #06b6d4;"></div>
+          <div style="background: #67e8f9;"></div>
+        </div>
+        <div class="option-meta">
+          <span class="meta-chip">Steel Gray + Cyan</span>
+          <span class="meta-chip">Noto Sans Thai</span>
+          <span class="meta-chip">Industrial precision</span>
+        </div>
+        <div class="option-desc">Cool gray base + electric cyan accent. ดูเหมือน dashboard ของรถไฟฟ้าหรือ shop tech. Noto Sans Thai = clean readable.</div>
+        <div class="option-vibe">เลือกเมื่อ: อยากให้ HR สะท้อนธุรกิจ Koolman (ฟิล์มรถ) — industrial automotive look</div>
+      </a>
+
+    </div>
+
+    <h2 style="margin-top: 64px;">วิธีใช้</h2>
+    <p style="color: #475569; margin-bottom: 16px;">
+      1. คลิก option ด้านบน → เปิดใน tab ใหม่ <br>
+      2. ดู mockup จริง (login, dashboard, table, components) — ทั้ง light + dark mode<br>
+      3. เปรียบเทียบ tabs side-by-side<br>
+      4. เลือก direction → tell me ว่าจะใช้ option ไหน → ผมเขียน <code>design-system.md</code> ตามที่เลือก<br>
+    </p>
+
+    <h2 style="margin-top: 32px;">เลือกได้ไหม?</h2>
+    <p style="color: #475569;">
+      ✅ <strong>เลือก 1 option ตรงๆ</strong> — ผมเอาไป build full design system<br>
+      ✅ <strong>Mix-match</strong> — เช่น "color จาก option 1 + font จาก option 4" — บอกได้<br>
+      ✅ <strong>Tweak</strong> — เช่น "option 1 แต่ accent เปลี่ยนจาก amber → red" — บอก hex code ได้<br>
+      ✅ <strong>None of these</strong> — บอก reference (เว็บที่ชอบ) → ผมหาทางเลือกใหม่
+    </p>
+
+    <div class="footer">
+      Generated for Koolman HR project • Koolman HR V1<br>
+      ไฟล์เหล่านี้ standalone — ไม่ต้องมี server, ดับเบิ้ลคลิกเปิดใน browser ได้เลย
+    </div>
+  </div>
+</body>
+</html>

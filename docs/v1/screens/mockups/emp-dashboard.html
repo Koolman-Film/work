@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>S-E1: Employee Dashboard — Koolman HR Mockup</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script>
+    (function() {
+      try {
+        const saved = localStorage.getItem('koolman-theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (saved === 'dark' || (saved === null && prefersDark)) {
+          document.documentElement.classList.add('dark');
+        }
+      } catch (e) {}
+    })();
+  </script>
+  <style>
+    :root {
+      --primary-50: #eff6ff; --primary-100: #dbeafe; --primary-300: #93c5fd;
+      --primary-500: #3b82f6; --primary-600: #2563eb; --primary-700: #1d4ed8;
+      --primary-800: #1e40af; --primary-900: #1e3a8a;
+      --accent-500: #f59e0b;
+      --success: #16a34a; --warning: #ea580c; --danger: #dc2626;
+      --bg: #ffffff; --bg-muted: #f8fafc; --bg-elevated: #ffffff;
+      --fg: #0f172a; --fg-muted: #64748b; --border: #e2e8f0;
+      --radius-sm: 0.375rem; --radius: 0.625rem; --radius-lg: 1rem; --radius-xl: 1.25rem;
+      --shadow-sm: 0 2px 4px 0 rgb(0 0 0 / 0.04);
+      --shadow: 0 4px 8px -2px rgb(0 0 0 / 0.05), 0 2px 4px -1px rgb(0 0 0 / 0.03);
+      --shadow-md: 0 8px 16px -4px rgb(37 99 235 / 0.12), 0 4px 8px -2px rgb(0 0 0 / 0.05);
+    }
+    .dark {
+      --bg: #0f172a; --bg-muted: #1e293b; --bg-elevated: #1e293b;
+      --fg: #f1f5f9; --fg-muted: #94a3b8; --border: #334155;
+      --shadow-md: 0 8px 16px -4px rgb(37 99 235 / 0.06), 0 4px 8px -2px rgb(0 0 0 / 0.4);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      font-family: 'IBM Plex Sans Thai', system-ui, sans-serif;
+      background: var(--bg-muted); color: var(--fg);
+      line-height: 1.65; letter-spacing: -0.005em;
+      transition: background 200ms, color 200ms;
+    }
+
+    /* Page chrome */
+    .page-topbar {
+      position: sticky; top: 0; z-index: 30;
+      background: var(--bg); border-bottom: 1px solid var(--border);
+      padding: 12px 24px; display: flex; justify-content: space-between; align-items: center;
+    }
+    .page-topbar a { color: var(--primary-600); text-decoration: none; font-weight: 500; font-size: 0.875rem; }
+    .meta-mono { font-family: 'IBM Plex Mono', monospace; font-size: 0.8125rem; color: var(--fg-muted); }
+    .toggle-btn {
+      background: var(--bg-muted); border: 1px solid var(--border);
+      padding: 6px 12px; border-radius: var(--radius-sm);
+      cursor: pointer; font: inherit; color: var(--fg);
+      font-size: 0.8125rem;
+    }
+    .spec-banner {
+      background: var(--bg); border-bottom: 1px solid var(--border);
+      padding: 12px 24px; font-size: 0.8125rem; color: var(--fg-muted);
+      display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap;
+    }
+    .spec-banner a { color: var(--primary-600); }
+
+    /* App canvas — mimics actual employee app */
+    .app-canvas {
+      padding: 32px 24px;
+      display: flex; gap: 32px; justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    /* Phone-like mockup container */
+    .phone-frame {
+      width: 100%; max-width: 380px;
+      border: 8px solid var(--fg);
+      border-radius: 36px;
+      background: var(--bg);
+      overflow: hidden;
+      box-shadow: var(--shadow-md);
+      display: flex; flex-direction: column;
+      height: 760px;
+    }
+    .dark .phone-frame { border-color: #1e293b; }
+
+    /* Employee app layout */
+    .app-topbar {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 14px 16px; border-bottom: 1px solid var(--border);
+      background: var(--bg);
+    }
+    .app-topbar .logo-mini {
+      display: flex; align-items: center; gap: 8px;
+      font-weight: 700; font-size: 0.9375rem;
+    }
+    .app-topbar .logo-square {
+      width: 28px; height: 28px;
+      background: var(--primary-600); border-radius: var(--radius-sm);
+      display: flex; align-items: center; justify-content: center;
+      color: white; font-size: 0.75rem; font-weight: 700;
+    }
+    .app-topbar .topbar-actions {
+      display: flex; gap: 8px; align-items: center;
+    }
+    .icon-btn {
+      width: 36px; height: 36px; border-radius: var(--radius-sm);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; position: relative;
+      color: var(--fg);
+      background: transparent; border: none;
+      transition: background 150ms;
+    }
+    .icon-btn:hover { background: var(--bg-muted); }
+    .icon-btn .badge-dot {
+      position: absolute; top: 6px; right: 6px;
+      min-width: 18px; height: 18px;
+      background: var(--danger); color: white;
+      border-radius: 999px; font-size: 0.6875rem; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      padding: 0 5px;
+    }
+
+    .app-content {
+      flex: 1; overflow: auto;
+      padding: 20px 16px;
+      background: var(--bg);
+    }
+
+    /* Greeting */
+    .greeting {
+      font-size: 0.875rem; color: var(--fg-muted); margin-bottom: 2px;
+    }
+    .name-display { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 20px; }
+
+    /* Hero card */
+    .hero-card {
+      background: linear-gradient(135deg, var(--primary-600), var(--primary-800));
+      color: white; padding: 24px;
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-md);
+      margin-bottom: 16px;
+      position: relative; overflow: hidden;
+    }
+    .hero-card::after {
+      content: ''; position: absolute; top: -30px; right: -30px;
+      width: 120px; height: 120px;
+      background: radial-gradient(circle, white 0%, transparent 70%);
+      opacity: 0.15;
+      border-radius: 50%;
+    }
+    .hero-label { font-size: 0.8125rem; opacity: 0.9; position: relative; }
+    .hero-num {
+      font-size: 2.25rem; font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.02em;
+      margin-top: 4px; line-height: 1;
+      position: relative;
+    }
+    .hero-sub {
+      font-size: 0.8125rem; opacity: 0.85;
+      margin-top: 12px; position: relative;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .hero-sub-dot {
+      width: 6px; height: 6px; background: white; border-radius: 50%;
+    }
+
+    /* Mini KPI cards */
+    .kpi-grid {
+      display: grid; grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px; margin-bottom: 20px;
+    }
+    .kpi-mini {
+      background: var(--bg-muted); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 12px;
+    }
+    .kpi-label { font-size: 0.6875rem; color: var(--fg-muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .kpi-value { font-size: 1.125rem; font-weight: 700; }
+
+    /* Pending section */
+    .section-title {
+      font-size: 0.9375rem; font-weight: 600; margin: 20px 0 10px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .section-title-link { color: var(--primary-600); font-size: 0.8125rem; font-weight: 500; text-decoration: none; }
+
+    .pending-card {
+      background: var(--bg-muted); border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      display: flex; justify-content: space-between; align-items: center; gap: 12px;
+      cursor: pointer; transition: all 150ms;
+    }
+    .pending-card:hover { border-color: var(--primary-300); background: var(--primary-50); }
+    .dark .pending-card:hover { background: var(--primary-900); }
+    .pending-info { flex: 1; min-width: 0; }
+    .pending-title { font-weight: 500; font-size: 0.9375rem; margin-bottom: 2px; }
+    .pending-meta { font-size: 0.75rem; color: var(--fg-muted); }
+    .badge {
+      display: inline-block; padding: 2px 10px; border-radius: 999px;
+      font-size: 0.6875rem; font-weight: 600;
+      flex-shrink: 0;
+    }
+    .badge-pending { background: #fef3c7; color: #92400e; }
+    .dark .badge-pending { background: #78350f; color: #fde68a; }
+    .badge-approved { background: #d1fae5; color: #065f46; }
+
+    /* Quick actions */
+    .quick-actions {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+      margin-top: 24px;
+    }
+    .qa-btn {
+      padding: 14px 16px; border-radius: var(--radius);
+      font: inherit; font-size: 0.875rem; font-weight: 600;
+      cursor: pointer; border: none;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      transition: all 150ms;
+    }
+    .qa-btn-primary { background: var(--primary-600); color: white; }
+    .qa-btn-primary:hover { background: var(--primary-700); }
+    .qa-btn-secondary { background: var(--bg-muted); color: var(--fg); border: 1px solid var(--border); }
+
+    /* Bottom nav */
+    .bottom-nav {
+      display: flex; justify-content: space-around;
+      padding: 8px 0; border-top: 1px solid var(--border);
+      background: var(--bg);
+    }
+    .nav-item {
+      display: flex; flex-direction: column; align-items: center; gap: 2px;
+      padding: 6px 12px; cursor: pointer;
+      color: var(--fg-muted); text-decoration: none;
+      font-size: 0.6875rem; font-weight: 500;
+      transition: color 150ms;
+      flex: 1;
+    }
+    .nav-item .nav-icon {
+      font-size: 1.125rem;
+    }
+    .nav-item.active { color: var(--primary-600); }
+    .nav-item.active .nav-icon { transform: scale(1.05); }
+
+    /* Tablet preview */
+    .tablet-preview { display: none; flex-direction: column; align-items: center; gap: 12px; }
+    @media (min-width: 1100px) {
+      .tablet-preview { display: flex; }
+    }
+    .device-label {
+      font-size: 0.75rem; color: var(--fg-muted);
+      font-family: 'IBM Plex Mono', monospace;
+      text-transform: uppercase; letter-spacing: 0.05em;
+    }
+
+    /* Notes */
+    .notes { max-width: 800px; margin: 0 auto; padding: 32px 24px; background: var(--bg); border-top: 1px solid var(--border); }
+    .notes h2 { font-size: 1.25rem; font-weight: 600; margin: 24px 0 12px; }
+    .notes h2:first-child { margin-top: 0; }
+    .notes p, .notes li { color: var(--fg); font-size: 0.9375rem; line-height: 1.7; }
+    .notes ul { padding-left: 24px; }
+    .notes code {
+      font-family: 'IBM Plex Mono', monospace; background: var(--bg-muted); padding: 2px 6px;
+      border-radius: var(--radius-sm); font-size: 0.875em; color: var(--primary-700); border: 1px solid var(--border);
+    }
+    .dark .notes code { color: var(--primary-300); }
+    .info-box {
+      background: var(--bg-muted); border: 1px solid var(--border);
+      border-left: 4px solid var(--primary-500);
+      border-radius: var(--radius); padding: 16px 20px; margin: 16px 0;
+    }
+  
+    /* === Mobile responsive for phone-frame mockups (audit pass) === */
+    @media (max-width: 480px) {
+      .app-canvas { padding: 16px 0; gap: 16px; }
+      .phone-frame {
+        max-width: 100% !important;
+        border-width: 4px !important;
+        border-radius: 20px !important;
+        height: auto !important;
+        min-height: 100vh;
+      }
+      .page-topbar { padding: 8px 12px; flex-wrap: wrap; gap: 8px; }
+      .spec-banner { padding: 8px 12px; }
+      .state-bar { padding: 12px 8px; }
+      .state-pill { font-size: 0.75rem; padding: 5px 10px; }
+    }
+    @media (max-width: 380px) {
+      .app-canvas { padding: 8px 0; }
+      .phone-frame { border-width: 0 !important; border-radius: 0 !important; }
+    }
+  
+    /* ==== Desktop-mode (added 2026-05) ==== */
+    .desktop-mode .app-canvas {
+      padding: 24px;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+    .desktop-mode .phone-frame {
+      max-width: 720px !important;
+      width: 100%;
+      border: 1px solid var(--border) !important;
+      border-radius: 16px !important;
+      height: auto !important;
+      min-height: 600px;
+      box-shadow: 0 16px 48px -16px rgb(37 99 235 / 0.18);
+    }
+    .desktop-mode .phone-frame > .ios-status-bar { display: none; }
+    .desktop-mode .app-topbar {
+      padding: 12px 20px;
+    }
+    .desktop-mode .app-topbar .topbar-title { font-size: 1.0625rem; }
+    /* Show top nav, hide bottom nav on desktop */
+    .desktop-mode .bottom-nav {
+      order: -1;
+      border-top: none;
+      border-bottom: 1px solid var(--border);
+      padding: 8px 16px;
+      gap: 4px;
+    }
+    .desktop-mode .bottom-nav-item {
+      flex: 0 0 auto;
+      padding: 8px 14px;
+      font-size: 0.8125rem;
+      flex-direction: row;
+      gap: 6px;
+    }
+    .desktop-mode .bottom-nav-item .nav-icon {
+      font-size: 0.9375rem;
+      display: inline;
+      margin-bottom: 0;
+    }
+    .desktop-mode .app-content {
+      padding: 24px 32px !important;
+    }
+    .desktop-mode .line-chat-body { padding: 16px 24px; }
+    /* Wider for list pages */
+    .desktop-mode .advance-list,
+    .desktop-mode .slip-list { padding: 0 0; }
+    /* View-mode toggle buttons */
+    .view-toggle {
+      display: inline-flex; gap: 4px;
+      background: var(--bg-muted); border: 1px solid var(--border);
+      border-radius: 999px; padding: 3px;
+    }
+    .view-toggle button {
+      padding: 5px 12px; border: none; background: transparent;
+      cursor: pointer; font: inherit; font-size: 0.75rem; font-weight: 600;
+      color: var(--fg-muted); border-radius: 999px;
+    }
+    .view-toggle button.active { background: var(--primary-600); color: white; }
+
+  </style>
+</head>
+<body>
+  <div class="page-topbar">
+    <a href="index.html">← Mockups index</a>
+    <span class="meta-mono">S-E1 · employee dashboard</span>
+    <button class="toggle-btn" onclick="toggleTheme()">🌓 Dark mode</button>
+  </div>
+
+  <div class="spec-banner">
+    <span><strong>S-E1: Employee Dashboard</strong> — daily home screen</span>
+    <span class="view-toggle"><button data-view="mobile" class="active" onclick="__setView('mobile')">📱 Mobile</button><button data-view="desktop" onclick="__setView('desktop')">🖥 Desktop</button></span>
+  <a href="../employee.md#s-e1-dashboard">📄 ดู spec employee.md →</a>
+  </div>
+
+  <!-- App canvas -->
+  <div class="app-canvas">
+
+    <!-- Phone frame -->
+    <div class="phone-frame">
+      <!-- App topbar -->
+      <div class="app-topbar">
+        <div class="logo-mini">
+          <div class="logo-square">KM</div>
+          <span>Koolman HR</span>
+        </div>
+        <div class="topbar-actions">
+          <button class="icon-btn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+            <span class="badge-dot">3</span>
+          </button>
+          <button class="icon-btn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Content -->
+      <div class="app-content">
+        <div class="greeting">สวัสดี</div>
+        <div class="name-display">คุณตงค์ สมศรี</div>
+
+        <!-- Hero card · Phase 1 = empty placeholder, Phase 2 = real data -->
+        <div class="hero-card" style="position:relative;">
+          <div style="position:absolute; top:10px; right:12px; background:rgba(255,255,255,0.2); color:white; font-size:0.5625rem; font-weight:700; padding:2px 7px; border-radius:999px; letter-spacing:0.04em;">PHASE 2 PREVIEW</div>
+          <div class="hero-label">ยอดเงินคงเหลือ • เม.ย. 2569</div>
+          <div class="hero-num" style="font-size:1.125rem; opacity:0.9;">ยังไม่มีสลิป</div>
+          <div class="hero-sub" style="opacity:0.85;">
+            สลิปจะแสดงหลัง Admin publish (Phase 2)
+          </div>
+        </div>
+
+        <!-- KPI mini -->
+        <div class="kpi-grid">
+          <div class="kpi-mini">
+            <div class="kpi-label">ลา</div>
+            <div class="kpi-value">2 วัน</div>
+          </div>
+          <div class="kpi-mini">
+            <div class="kpi-label">ขาด</div>
+            <div class="kpi-value">0 วัน</div>
+          </div>
+          <div class="kpi-mini">
+            <div class="kpi-label">สาย</div>
+            <div class="kpi-value">1 ครั้ง</div>
+          </div>
+        </div>
+
+        <!-- Pending section -->
+        <div class="section-title">
+          <span>คำขอที่รอดำเนินการ</span>
+          <a href="#" class="section-title-link">ดูทั้งหมด →</a>
+        </div>
+
+        <div class="pending-card">
+          <div class="pending-info">
+            <div class="pending-title">ลาพักร้อน 12-13 พ.ค. 2569</div>
+            <div class="pending-meta">2 วัน · ส่งเมื่อ 2 ชม.ที่แล้ว</div>
+          </div>
+          <span class="badge badge-pending">รออนุมัติ</span>
+        </div>
+
+        <!-- Quick actions -->
+        <div class="quick-actions">
+          <button class="qa-btn qa-btn-primary">+ ส่งคำขอลา</button>
+          <button class="qa-btn qa-btn-secondary">+ ขอเบิกเงิน</button>
+        </div>
+
+        <div style="height: 32px;"></div>
+      </div>
+
+      <!-- Bottom nav -->
+      <div class="bottom-nav">
+        <a href="#" class="nav-item active">
+          <span class="nav-icon">🏠</span>
+          <span>หน้าแรก</span>
+        </a>
+        <a href="#" class="nav-item">
+          <span class="nav-icon">📅</span>
+          <span>ลา</span>
+        </a>
+        <a href="#" class="nav-item">
+          <span class="nav-icon">💰</span>
+          <span>เบิกเงิน</span>
+        </a>
+        <a href="#" class="nav-item" style="opacity:0.45; pointer-events:none; position:relative;" title="Phase 2">
+          <span class="nav-icon">📄</span>
+          <span>สลิป</span>
+          <span style="position:absolute; top:2px; right:8px; background:#fef3c7; color:#92400e; font-size:0.5rem; font-weight:700; padding:1px 4px; border-radius:999px; letter-spacing:0.04em;">P2</span>
+        </a>
+        <a href="#" class="nav-item">
+          <span class="nav-icon">👤</span>
+          <span>โปรไฟล์</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- Tablet preview -->
+    <div class="tablet-preview">
+      <div class="device-label">↑ mobile 380px (recommended)</div>
+      <div style="font-size: 0.75rem; color: var(--fg-muted); max-width: 200px; text-align: center; margin-top: 12px;">
+        Employee app is mobile-first.<br>
+        Desktop = same layout, max-width 480px centered.
+      </div>
+    </div>
+  </div>
+
+  <!-- Notes -->
+  <div class="notes">
+    <h2>About this mockup</h2>
+    <p>Employee app uses <strong>mobile-first layout</strong> with bottom navigation (5 tabs). Desktop view keeps same layout but centers within max-width 480px (employee rarely uses desktop).</p>
+
+    <h2>Key UI elements</h2>
+    <ul>
+      <li><strong>Hero card</strong> — gradient blue-to-blue-800, big tabular numerals, NetPay shows latest published month</li>
+      <li><strong>3 KPI minis</strong> — leave/absent/late count this month, neutral muted bg</li>
+      <li><strong>Pending list</strong> — shows pending leave/advance, click → detail page</li>
+      <li><strong>Quick actions</strong> — primary CTA "ส่งคำขอลา" + secondary "ขอเบิกเงิน"</li>
+      <li><strong>Bottom nav</strong> — 5 tabs, active state has primary-600 color</li>
+      <li><strong>Bell badge</strong> — unread notification count (red, fixed top-right of bell)</li>
+    </ul>
+
+    <h2>Behavior notes</h2>
+    <ul>
+      <li>Hero card click → navigate to <code>/payslip/[latestMonth]</code></li>
+      <li>KPI mini click → <code>/attendance</code> with relevant filter</li>
+      <li>Pending row click → relevant detail page (<code>/leave/[id]</code> or <code>/advance/[id]</code>)</li>
+      <li>"ดูทั้งหมด →" → <code>/leave</code> or <code>/advance</code></li>
+      <li>Quick actions → form pages</li>
+      <li>Empty pending list → hide section entirely</li>
+      <li>No published slip → hero shows "ยังไม่มีสลิปประจำเดือน" (smaller text)</li>
+    </ul>
+
+    <div class="info-box">
+      💡 <strong>Implementation:</strong> Single Server Action <code>getDashboardData()</code> returns all 5 sections in one fetch — avoid multiple roundtrips.
+    </div>
+
+    <h2>Spec references</h2>
+    <ul>
+      <li><a href="../employee.md#s-e1-dashboard"><code>employee.md § S-E1</code></a> — full screen spec</li>
+      <li><a href="../navigation.md#employee--bottom-navigation-mobile-first"><code>navigation.md</code></a> — bottom nav details</li>
+      <li><a href="../flows.md#fl-7-view-monthly-pay-slip"><code>flows.md FL-7</code></a> — payslip view flow (entered via hero card)</li>
+    </ul>
+  </div>
+
+  <script>
+    function toggleTheme() {
+      const isDark = document.documentElement.classList.toggle('dark');
+      try { localStorage.setItem('koolman-theme', isDark ? 'dark' : 'light'); } catch (e) {}
+    }
+  </script>
+<script>
+  // Desktop-mode toggle
+  (function() {
+    function setView(mode) {
+      document.body.classList.toggle('desktop-mode', mode === 'desktop');
+      document.querySelectorAll('.view-toggle button').forEach(b => {
+        b.classList.toggle('active', b.dataset.view === mode);
+      });
+      try { localStorage.setItem('koolman-view-mode', mode); } catch(e) {}
+    }
+    window.__setView = setView;
+    document.addEventListener('DOMContentLoaded', function() {
+      const saved = (function(){ try { return localStorage.getItem('koolman-view-mode'); } catch(e) { return null; } })();
+      if (saved === 'desktop') setView('desktop');
+    });
+  })();
+</script>
+</body>
+</html>

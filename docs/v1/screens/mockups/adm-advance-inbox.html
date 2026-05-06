@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>S-N7: Cash Advance Approval Inbox — Koolman HR Mockup</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script>
+    (function() {
+      try {
+        const saved = localStorage.getItem('koolman-theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (saved === 'dark' || (saved === null && prefersDark)) { document.documentElement.classList.add('dark'); }
+      } catch (e) {}
+    })();
+  </script>
+  <style>
+    :root {
+      --primary-50:#eff6ff; --primary-100:#dbeafe; --primary-200:#bfdbfe; --primary-300:#93c5fd;
+      --primary-500:#3b82f6; --primary-600:#2563eb; --primary-700:#1d4ed8;
+      --primary-800:#1e40af; --primary-900:#1e3a8a;
+      --accent-500:#f59e0b; --success:#16a34a; --warning:#ea580c; --danger:#dc2626;
+      --bg:#ffffff; --bg-muted:#f8fafc; --bg-elevated:#ffffff;
+      --fg:#0f172a; --fg-muted:#64748b; --border:#e2e8f0;
+      --radius-sm:0.375rem; --radius:0.625rem; --radius-lg:1rem;
+      --shadow-md:0 8px 16px -4px rgb(37 99 235 / 0.12), 0 4px 8px -2px rgb(0 0 0 / 0.05);
+    }
+    .dark { --bg:#0f172a; --bg-muted:#1e293b; --bg-elevated:#1e293b; --fg:#f1f5f9; --fg-muted:#94a3b8; --border:#334155; }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    html, body { font-family:'IBM Plex Sans Thai', system-ui, sans-serif; background:var(--bg-muted); color:var(--fg); line-height:1.65; letter-spacing:-0.005em; }
+    .page-topbar { position:sticky; top:0; z-index:30; background:var(--bg); border-bottom:1px solid var(--border); padding:12px 24px; display:flex; justify-content:space-between; align-items:center; }
+    .page-topbar a { color:var(--primary-600); text-decoration:none; font-weight:500; font-size:0.875rem; }
+    .meta-mono { font-family:'IBM Plex Mono', monospace; font-size:0.8125rem; color:var(--fg-muted); }
+    .toggle-btn { background:var(--bg-muted); border:1px solid var(--border); padding:6px 12px; border-radius:var(--radius-sm); cursor:pointer; font:inherit; color:var(--fg); font-size:0.8125rem; }
+    .spec-banner { background:var(--bg); border-bottom:1px solid var(--border); padding:12px 24px; font-size:0.8125rem; color:var(--fg-muted); display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+    .spec-banner a { color:var(--primary-600); }
+    .state-bar { background:var(--bg); padding:16px 24px; display:flex; gap:8px; flex-wrap:wrap; justify-content:center; border-bottom:1px solid var(--border); }
+    .state-pill { padding:6px 14px; font-size:0.8125rem; font-weight:500; background:var(--bg-muted); color:var(--fg); border:1px solid var(--border); border-radius:999px; cursor:pointer; font:inherit; }
+    .state-pill.active { background:var(--primary-600); color:white; border-color:var(--primary-600); }
+
+    .app-canvas { padding:24px; display:flex; justify-content:center; }
+    .browser-frame { width:100%; max-width:1320px; background:var(--bg); border-radius:var(--radius-lg); box-shadow:var(--shadow-md); overflow:hidden; border:1px solid var(--border); position:relative; }
+    .browser-bar { background:var(--bg-muted); border-bottom:1px solid var(--border); padding:8px 12px; display:flex; align-items:center; gap:8px; }
+    .browser-dots { display:flex; gap:4px; }
+    .browser-dot { width:10px; height:10px; border-radius:50%; }
+    .browser-dot.r { background:#ef4444; } .browser-dot.y { background:#f59e0b; } .browser-dot.g { background:#22c55e; }
+    .browser-url { flex:1; padding:4px 12px; background:var(--bg); border:1px solid var(--border); border-radius:999px; font-size:0.75rem; color:var(--fg-muted); font-family:'IBM Plex Mono', monospace; }
+    .app-layout { display:grid; grid-template-columns:220px 1fr; min-height:800px; }
+
+    .sidebar { background:var(--bg); border-right:1px solid var(--border); padding:16px 12px; }
+    .sidebar-logo { display:flex; align-items:center; gap:10px; padding:8px 12px; margin-bottom:16px; }
+    .sidebar-logo-square { width:32px; height:32px; background:var(--primary-600); border-radius:var(--radius-sm); display:flex; align-items:center; justify-content:center; color:white; font-weight:700; font-size:0.875rem; }
+    .sidebar-logo-text { font-weight:700; font-size:0.9375rem; }
+    .sidebar-item { display:flex; align-items:center; gap:10px; padding:8px 12px; border-radius:var(--radius); color:var(--fg); text-decoration:none; font-size:0.875rem; font-weight:500; margin-bottom:2px; cursor:pointer; position:relative; }
+    .sidebar-item:hover { background:var(--bg-muted); }
+    .sidebar-item.active { background:var(--primary-50); color:var(--primary-700); font-weight:600; }
+    .dark .sidebar-item.active { background:var(--primary-900); color:var(--primary-300); }
+    .sidebar-item.active::before { content:''; position:absolute; left:-12px; top:8px; bottom:8px; width:2px; background:var(--primary-600); border-radius:0 2px 2px 0; }
+    .sidebar-badge { margin-left:auto; background:var(--accent-500); color:white; font-size:0.625rem; font-weight:700; padding:1px 6px; border-radius:999px; }
+
+    .main { padding:24px 28px; overflow:auto; position:relative; }
+    .main-topbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+    .breadcrumb { font-size:0.875rem; color:var(--fg-muted); }
+    .breadcrumb a { color:var(--primary-600); text-decoration:none; }
+    .breadcrumb-active { color:var(--fg); font-weight:600; }
+    .topbar-actions { display:flex; align-items:center; gap:8px; }
+    .icon-btn { width:36px; height:36px; background:transparent; border:1px solid var(--border); border-radius:var(--radius-sm); cursor:pointer; display:flex; align-items:center; justify-content:center; color:var(--fg); }
+    .avatar-mini { width:36px; height:36px; background:var(--primary-100); color:var(--primary-700); border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:600; font-size:0.75rem; }
+    .dark .avatar-mini { background:var(--primary-900); color:var(--primary-300); }
+
+    .page-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px; gap:16px; flex-wrap:wrap; }
+    .page-title { font-size:1.75rem; font-weight:700; letter-spacing:-0.02em; }
+    .page-meta { color:var(--fg-muted); font-size:0.875rem; }
+
+    .btn { padding:9px 16px; font:inherit; font-size:0.875rem; font-weight:600; border:none; border-radius:var(--radius); cursor:pointer; display:inline-flex; align-items:center; gap:6px; }
+    .btn-primary { background:var(--primary-600); color:white; }
+    .btn-success { background:var(--success); color:white; }
+    .btn-danger { background:var(--danger); color:white; }
+    .btn-secondary { background:var(--bg); color:var(--fg); border:1px solid var(--border); }
+
+    .filter-bar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; padding:12px 16px; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-lg); margin-bottom:12px; }
+    .filter-input { padding:7px 12px; border:1px solid var(--border); border-radius:var(--radius); font:inherit; font-size:0.875rem; background:var(--bg); color:var(--fg); }
+    .filter-search { flex:1; min-width:200px; padding-left:36px; background:var(--bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.3-4.3'/%3E%3C/svg%3E") 12px center no-repeat; }
+    .filter-chip { padding:5px 12px; font-size:0.8125rem; background:var(--bg-muted); color:var(--fg); border:1px solid var(--border); border-radius:999px; cursor:pointer; font:inherit; }
+    .filter-chip.active { background:var(--accent-500); color:white; border-color:var(--accent-500); }
+
+    /* Bulk bar */
+    .bulk-bar { background:linear-gradient(90deg, var(--primary-600), var(--primary-800)); color:white; border-radius:var(--radius-lg); padding:12px 16px; margin-bottom:12px; display:flex; align-items:center; gap:12px; }
+    .bulk-bar .btn-secondary { background:rgba(255,255,255,0.15); color:white; border-color:rgba(255,255,255,0.2); }
+
+    /* Inbox layout */
+    .inbox-layout { display:grid; grid-template-columns:1fr 480px; gap:0; min-height:600px; }
+    .inbox-list-wrap { background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-lg) 0 0 var(--radius-lg); overflow:hidden; }
+    .inbox-row {
+      display:grid; grid-template-columns:32px 32px 1fr 130px 120px 120px;
+      gap:12px; align-items:center;
+      padding:12px 16px;
+      border-bottom:1px solid var(--border);
+      cursor:pointer;
+      font-size:0.875rem;
+    }
+    .inbox-row:hover { background:var(--bg-muted); }
+    .inbox-row.selected { background:var(--primary-50); border-left:3px solid var(--primary-600); padding-left:13px; }
+    .dark .inbox-row.selected { background:rgba(37,99,235,0.12); }
+    .inbox-row.warn { background:rgba(245,158,11,0.06); }
+
+    input[type=checkbox] { width:16px; height:16px; accent-color:var(--primary-600); cursor:pointer; }
+    .avatar { width:32px; height:32px; background:var(--primary-100); color:var(--primary-700); border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:600; font-size:0.6875rem; }
+    .dark .avatar { background:var(--primary-900); color:var(--primary-300); }
+    .row-name { font-weight:600; }
+    .row-reason { font-size:0.75rem; color:var(--fg-muted); margin-top:1px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .row-amount { font-weight:700; font-variant-numeric:tabular-nums; text-align:right; font-family:'IBM Plex Mono', monospace; }
+    .row-amount.warn { color:var(--accent-500); }
+    .row-time { color:var(--fg-muted); font-size:0.75rem; text-align:right; }
+    .row-status { text-align:right; }
+    .status-chip { padding:3px 9px; border-radius:999px; font-size:0.6875rem; font-weight:600; display:inline-block; }
+    .status-chip.pending { background:#fef3c7; color:#92400e; }
+    .status-chip.urgent { background:#fed7aa; color:#9a3412; }
+    .dark .status-chip.pending { background:#78350f; color:#fde68a; }
+
+    /* Drawer */
+    .drawer { background:var(--bg); border:1px solid var(--border); border-left:none; border-radius:0 var(--radius-lg) var(--radius-lg) 0; padding:20px; overflow-y:auto; }
+    .drawer-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px; }
+    .drawer-title { font-size:1.125rem; font-weight:700; }
+    .drawer-meta { font-size:0.75rem; color:var(--fg-muted); margin-top:2px; }
+    .drawer-section { margin-bottom:20px; }
+    .drawer-label { font-size:0.6875rem; color:var(--fg-muted); text-transform:uppercase; letter-spacing:0.04em; font-weight:600; margin-bottom:6px; }
+    .drawer-value { font-size:0.9375rem; }
+    .amount-hero { font-size:2rem; font-weight:700; color:var(--primary-700); font-variant-numeric:tabular-nums; letter-spacing:-0.02em; margin:6px 0; }
+    .dark .amount-hero { color:var(--primary-300); }
+    .reason-block { background:var(--bg-muted); border:1px solid var(--border); border-radius:var(--radius); padding:12px 14px; font-size:0.875rem; line-height:1.55; }
+
+    .ceiling-card { background:var(--bg-muted); border:1px solid var(--border); border-radius:var(--radius); padding:12px; margin-bottom:16px; }
+    .ceiling-row { display:flex; justify-content:space-between; padding:3px 0; font-size:0.8125rem; }
+    .ceiling-row.total { font-weight:700; border-top:1px dashed var(--border); padding-top:6px; margin-top:4px; }
+    .ceiling-row .v { font-variant-numeric:tabular-nums; font-family:'IBM Plex Mono', monospace; }
+
+    .warn-callout { background:rgba(245,158,11,0.08); border:1px solid #fde68a; border-left:4px solid var(--accent-500); border-radius:var(--radius); padding:10px 14px; margin-bottom:16px; font-size:0.8125rem; }
+    .dark .warn-callout { background:rgba(245,158,11,0.06); border-color:#78350f; }
+
+    .reject-textarea { width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:var(--radius); font:inherit; font-size:0.875rem; background:var(--bg); color:var(--fg); min-height:80px; resize:vertical; margin-top:6px; }
+    .reject-textarea:focus { outline:none; border-color:var(--danger); box-shadow:0 0 0 4px rgb(220 38 38 / 0.15); }
+
+    .file-upload { border:2px dashed var(--border); border-radius:var(--radius); padding:16px; text-align:center; cursor:pointer; }
+    .file-upload:hover { border-color:var(--primary-500); background:var(--primary-50); }
+    .dark .file-upload:hover { background:var(--primary-900); }
+
+    .actions-row { display:flex; gap:8px; margin-top:16px; padding-top:16px; border-top:1px solid var(--border); }
+
+    /* Empty state */
+    .empty-state { background:var(--bg); border:2px dashed var(--border); border-radius:var(--radius-lg); padding:64px 24px; text-align:center; }
+    .empty-icon { font-size:3rem; margin-bottom:12px; opacity:0.5; }
+    .empty-title { font-size:1.125rem; font-weight:600; margin-bottom:4px; }
+    .empty-sub { color:var(--fg-muted); font-size:0.875rem; }
+
+    .hidden { display:none !important; }
+
+    @media (max-width: 1024px) {
+      .inbox-layout { grid-template-columns:1fr; }
+      .drawer { border-left:1px solid var(--border); border-top:none; border-radius:0 0 var(--radius-lg) var(--radius-lg); }
+      .inbox-list-wrap { border-radius:var(--radius-lg) var(--radius-lg) 0 0; }
+    }
+
+    /* Mobile responsive fixes */
+    @media (max-width: 768px) {
+      .app-layout { grid-template-columns:1fr !important; }
+      .sidebar { display:none !important; }
+      .main { padding:16px !important; }
+      .inbox-row { grid-template-columns:32px 32px 1fr 100px; gap:8px; font-size:0.8125rem; }
+      .inbox-row > :nth-child(5), .inbox-row > :nth-child(6) { display:none; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="page-topbar">
+  <div style="display:flex; align-items:center; gap:16px;">
+    <a href="index.html">← all mockups</a>
+    <span class="meta-mono">S-N7 · /admin/advance-approvals</span>
+  </div>
+  <button class="toggle-btn" onclick="toggleTheme()" title="Toggle theme">🌓</button>
+</div>
+
+<div class="spec-banner">
+  <span><strong>S-N7: Cash Advance Approval Inbox</strong> — list + drawer · approve with receipt upload · reject with reason · bulk approve</span>
+  <a href="../admin.md#s-n7-advance-inbox">spec ↗</a>
+</div>
+
+<div class="state-bar">
+  <button class="state-pill active" onclick="showState('default', this)">Default · 3 รออนุมัติ</button>
+  <button class="state-pill" onclick="showState('drawer', this)">Drawer open (approve)</button>
+  <button class="state-pill" onclick="showState('reject', this)">Reject form</button>
+  <button class="state-pill" onclick="showState('empty', this)">Empty (zero pending)</button>
+</div>
+
+<div class="app-canvas">
+<div class="browser-frame">
+
+<div class="browser-bar">
+  <div class="browser-dots"><div class="browser-dot r"></div><div class="browser-dot y"></div><div class="browser-dot g"></div></div>
+  <div class="browser-url">https://app.koolman-hr.com/admin/advance-approvals</div>
+</div>
+
+<div class="app-layout">
+
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-square">KM</div>
+      <div class="sidebar-logo-text">Koolman HR</div>
+    </div>
+    <a class="sidebar-item">🏠 หน้าหลัก</a>
+    <a class="sidebar-item">👥 พนักงาน</a>
+    <a class="sidebar-item">📋 อนุมัติลา <span class="sidebar-badge">8</span></a>
+    <a class="sidebar-item active">💰 อนุมัติเบิก <span class="sidebar-badge">3</span></a>
+    <a class="sidebar-item">📅 ลงเวลา</a>
+    <a class="sidebar-item">⚙️ ตั้งค่า</a>
+  </aside>
+
+  <main class="main">
+    <div class="main-topbar">
+      <div class="breadcrumb"><a>Koolman HR</a> · <span class="breadcrumb-active">อนุมัติเบิก</span></div>
+      <div class="topbar-actions">
+        <button class="icon-btn" title="Notifications">🔔</button>
+        <div class="avatar-mini">TS</div>
+      </div>
+    </div>
+
+    <!-- DEFAULT -->
+    <div id="state-default">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">อนุมัติคำขอเบิกเงิน</h1>
+          <p class="page-meta">3 คำขอรออนุมัติ · 2 เร่งด่วน (ค่ารักษาพยาบาล) · ค่าเฉลี่ยเวลาตอบ 4 ชม.</p>
+        </div>
+      </div>
+
+      <div class="filter-bar">
+        <input class="filter-input filter-search" placeholder="ค้นหาพนักงาน...">
+        <button class="filter-chip active">รออนุมัติ (3)</button>
+        <button class="filter-chip">อนุมัติแล้ว</button>
+        <button class="filter-chip">ปฏิเสธ</button>
+        <button class="filter-chip">ทั้งหมด</button>
+      </div>
+
+      <div style="background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-lg); overflow:hidden;">
+        <div class="inbox-row warn" onclick="showState('drawer', document.querySelectorAll('.state-pill')[1])">
+          <input type="checkbox" onclick="event.stopPropagation();">
+          <div class="avatar">TS</div>
+          <div>
+            <div class="row-name">ตงค์ สมศรี <span style="font-size:0.6875rem; color:var(--fg-muted); font-family:'IBM Plex Mono', monospace; font-weight:400;">EMP-001</span></div>
+            <div class="row-reason">ค่ารักษาพยาบาลฉุกเฉิน — แม่เข้า รพ.</div>
+          </div>
+          <div class="row-amount warn">฿5,000</div>
+          <div class="row-time">2 ชม.ที่แล้ว</div>
+          <div class="row-status"><span class="status-chip urgent">🔥 เร่งด่วน</span></div>
+        </div>
+        <div class="inbox-row">
+          <input type="checkbox" onclick="event.stopPropagation();">
+          <div class="avatar" style="background:#fce7f3; color:#9d174d;">SS</div>
+          <div>
+            <div class="row-name">ส้ม สมศักดิ์ <span style="font-size:0.6875rem; color:var(--fg-muted); font-family:'IBM Plex Mono', monospace; font-weight:400;">EMP-002</span></div>
+            <div class="row-reason">ค่าเทอมลูก</div>
+          </div>
+          <div class="row-amount">฿3,500</div>
+          <div class="row-time">5 ชม.ที่แล้ว</div>
+          <div class="row-status"><span class="status-chip pending">⏳ รออนุมัติ</span></div>
+        </div>
+        <div class="inbox-row warn">
+          <input type="checkbox" onclick="event.stopPropagation();">
+          <div class="avatar" style="background:#dbeafe; color:#1e40af;">BS</div>
+          <div>
+            <div class="row-name">บอย สุวรรณ <span style="font-size:0.6875rem; color:var(--fg-muted); font-family:'IBM Plex Mono', monospace; font-weight:400;">EMP-003</span></div>
+            <div class="row-reason">ค่ารักษา (อุบัติเหตุที่ทำงาน)</div>
+          </div>
+          <div class="row-amount warn">฿8,000</div>
+          <div class="row-time">1 วันที่แล้ว</div>
+          <div class="row-status"><span class="status-chip urgent">🔥 เกิน 24 ชม.</span></div>
+        </div>
+      </div>
+
+      <p style="margin-top:12px; font-size:0.75rem; color:var(--fg-muted);">💡 คลิกแถวเพื่อเปิด drawer · เลือกหลายแถวเพื่อ bulk approve</p>
+    </div>
+
+    <!-- DRAWER (approve flow) -->
+    <div id="state-drawer" class="hidden">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">อนุมัติคำขอเบิกเงิน</h1>
+          <p class="page-meta">3 คำขอรออนุมัติ</p>
+        </div>
+      </div>
+
+      <div class="inbox-layout">
+        <div class="inbox-list-wrap">
+          <div class="inbox-row warn selected">
+            <input type="checkbox">
+            <div class="avatar">TS</div>
+            <div>
+              <div class="row-name">ตงค์ สมศรี</div>
+              <div class="row-reason">ค่ารักษาพยาบาลฉุกเฉิน — แม่เข้า รพ.</div>
+            </div>
+            <div class="row-amount warn">฿5,000</div>
+            <div class="row-time">2 ชม.</div>
+            <div class="row-status"><span class="status-chip urgent">🔥</span></div>
+          </div>
+          <div class="inbox-row">
+            <input type="checkbox">
+            <div class="avatar" style="background:#fce7f3; color:#9d174d;">SS</div>
+            <div>
+              <div class="row-name">ส้ม สมศักดิ์</div>
+              <div class="row-reason">ค่าเทอมลูก</div>
+            </div>
+            <div class="row-amount">฿3,500</div>
+            <div class="row-time">5 ชม.</div>
+            <div class="row-status"><span class="status-chip pending">⏳</span></div>
+          </div>
+          <div class="inbox-row warn">
+            <input type="checkbox">
+            <div class="avatar" style="background:#dbeafe; color:#1e40af;">BS</div>
+            <div>
+              <div class="row-name">บอย สุวรรณ</div>
+              <div class="row-reason">ค่ารักษา (อุบัติเหตุที่ทำงาน)</div>
+            </div>
+            <div class="row-amount warn">฿8,000</div>
+            <div class="row-time">1 วัน</div>
+            <div class="row-status"><span class="status-chip urgent">🔥</span></div>
+          </div>
+        </div>
+
+        <div class="drawer">
+          <div class="drawer-header">
+            <div>
+              <div class="drawer-title">ตงค์ สมศรี</div>
+              <div class="drawer-meta">EMP-001 · Tech · ส่ง 5 พ.ค. 2569 14:32</div>
+            </div>
+            <button class="icon-btn" onclick="showState('default', document.querySelectorAll('.state-pill')[0])">✕</button>
+          </div>
+
+          <div class="drawer-section">
+            <div class="drawer-label">จำนวนเงิน</div>
+            <div class="amount-hero">฿5,000.00</div>
+            <div style="font-size:0.75rem; color:var(--fg-muted);">จะหักจากเงินเดือน มิ.ย. 2569</div>
+          </div>
+
+          <div class="drawer-section">
+            <div class="drawer-label">เหตุผล</div>
+            <div class="reason-block">ค่ารักษาพยาบาลฉุกเฉิน — แม่เข้า รพ. กะทันหัน ต้องจ่ายค่าหมอ + ค่ายาก่อน</div>
+          </div>
+
+          <div class="drawer-section">
+            <div class="drawer-label">เพดานเบิกเดือนนี้</div>
+            <div class="ceiling-card">
+              <div class="ceiling-row"><span>เพดาน 50% ของเงินเดือน</span><span class="v">฿15,000</span></div>
+              <div class="ceiling-row"><span>เบิกแล้วในเดือน</span><span class="v" style="color:var(--fg-muted);">฿0</span></div>
+              <div class="ceiling-row total"><span>เบิกได้อีก</span><span class="v" style="color:var(--success);">฿15,000</span></div>
+            </div>
+          </div>
+
+          <div class="warn-callout">
+            <strong>ข้อมูลพนักงาน:</strong> 6 เดือนหลัง ขอเบิก 3 ครั้ง · จ่ายตรงทุกครั้ง
+          </div>
+
+          <div class="drawer-section">
+            <div class="drawer-label">แนบใบเสร็จ/หลักฐานการโอน <span style="color:var(--fg-muted); font-weight:400; text-transform:none;">(จะแนบทีหลังก็ได้)</span></div>
+            <div class="file-upload">
+              <div style="font-size:1.25rem; opacity:0.6;">📎</div>
+              <div style="font-size:0.875rem; font-weight:500; margin-top:4px;">คลิกเพื่อแนบรูป slip โอน</div>
+              <div style="font-size:0.6875rem; color:var(--fg-muted);">JPG/PNG/PDF · ≤5MB</div>
+            </div>
+          </div>
+
+          <div class="actions-row">
+            <button class="btn btn-secondary" onclick="showState('reject', document.querySelectorAll('.state-pill')[2])">✗ ปฏิเสธ</button>
+            <button class="btn btn-success" style="flex:1;">✓ อนุมัติ + โอนเงิน</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- REJECT form -->
+    <div id="state-reject" class="hidden">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">อนุมัติคำขอเบิกเงิน</h1>
+          <p class="page-meta">3 คำขอรออนุมัติ</p>
+        </div>
+      </div>
+      <div class="inbox-layout">
+        <div class="inbox-list-wrap">
+          <div class="inbox-row warn selected">
+            <input type="checkbox">
+            <div class="avatar">TS</div>
+            <div><div class="row-name">ตงค์ สมศรี</div><div class="row-reason">ค่ารักษาพยาบาลฉุกเฉิน</div></div>
+            <div class="row-amount warn">฿5,000</div>
+            <div class="row-time">2 ชม.</div>
+            <div class="row-status"><span class="status-chip urgent">🔥</span></div>
+          </div>
+          <div class="inbox-row">
+            <input type="checkbox">
+            <div class="avatar" style="background:#fce7f3; color:#9d174d;">SS</div>
+            <div><div class="row-name">ส้ม สมศักดิ์</div><div class="row-reason">ค่าเทอมลูก</div></div>
+            <div class="row-amount">฿3,500</div>
+            <div class="row-time">5 ชม.</div>
+            <div class="row-status"><span class="status-chip pending">⏳</span></div>
+          </div>
+        </div>
+        <div class="drawer">
+          <div class="drawer-header">
+            <div><div class="drawer-title">ปฏิเสธคำขอ</div><div class="drawer-meta">ตงค์ สมศรี · ฿5,000</div></div>
+            <button class="icon-btn" onclick="showState('drawer', document.querySelectorAll('.state-pill')[1])">✕</button>
+          </div>
+          <div class="drawer-section">
+            <div class="drawer-label">เหตุผลที่ปฏิเสธ <span style="color:var(--danger);">*</span></div>
+            <textarea class="reject-textarea" placeholder="ระบุเหตุผล — พนักงานจะเห็นข้อความนี้">เกินเพดาน 50% ของเงินเดือน. ขอเบิกได้สูงสุด ฿7,500/เดือน. ถ้าจำเป็นจริงๆ แจ้ง Owner เพื่อพิจารณา</textarea>
+            <div style="font-size:0.6875rem; color:var(--fg-muted); margin-top:4px;">ตัวอักษร: 105 / 500</div>
+          </div>
+          <div class="actions-row">
+            <button class="btn btn-secondary" onclick="showState('drawer', document.querySelectorAll('.state-pill')[1])">ยกเลิก</button>
+            <button class="btn btn-danger" style="flex:1;">✗ ยืนยันปฏิเสธ</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- EMPTY -->
+    <div id="state-empty" class="hidden">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">อนุมัติคำขอเบิกเงิน</h1>
+          <p class="page-meta">ไม่มีคำขอรออนุมัติ</p>
+        </div>
+      </div>
+      <div class="empty-state">
+        <div class="empty-icon">✅</div>
+        <div class="empty-title">ไม่มีคำขอรออนุมัติ</div>
+        <div class="empty-sub">ดีงาม! ทุกคำขอได้รับการตอบกลับเรียบร้อย<br><span style="font-family:'IBM Plex Mono', monospace; font-size:0.75rem;">เฉลี่ย: 4 ชม. response time</span></div>
+      </div>
+    </div>
+
+  </main>
+</div>
+</div>
+</div>
+
+<script>
+  function toggleTheme() {
+    const isDark = document.documentElement.classList.toggle('dark');
+    try { localStorage.setItem('koolman-theme', isDark ? 'dark' : 'light'); } catch(e) {}
+  }
+  function showState(name, btn) {
+    ['default','drawer','reject','empty'].forEach(s => document.getElementById('state-' + s).classList.add('hidden'));
+    document.getElementById('state-' + name).classList.remove('hidden');
+    document.querySelectorAll('.state-pill').forEach(p => p.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+  }
+</script>
+
+</body>
+</html>

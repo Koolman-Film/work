@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Theme 3: Modern Slate — Koolman HR</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary-50:  #f8fafc;
+      --primary-100: #f1f5f9;
+      --primary-200: #e2e8f0;
+      --primary-300: #cbd5e1;
+      --primary-400: #94a3b8;
+      --primary-500: #64748b;
+      --primary-600: #475569;
+      --primary-700: #334155;
+      --primary-800: #1e293b;
+      --primary-900: #0f172a;
+      --accent-500: #10b981;
+      --accent-600: #059669;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger:  #ef4444;
+      --info:    #3b82f6;
+      --bg:        #ffffff;
+      --bg-muted:  #fafafa;
+      --fg:        #0a0a0a;
+      --fg-muted:  #71717a;
+      --border:    #e4e4e7;
+      --radius:    0.5rem;
+      --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.04);
+      --shadow-md: 0 8px 16px -4px rgb(0 0 0 / 0.08);
+    }
+    .dark {
+      --bg:        #0a0a0a;
+      --bg-muted:  #18181b;
+      --fg:        #fafafa;
+      --fg-muted:  #a1a1aa;
+      --border:    #27272a;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      font-family: 'Prompt', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      line-height: 1.6;
+      transition: background 200ms, color 200ms;
+      letter-spacing: -0.005em;
+    }
+    .topbar {
+      position: sticky; top: 0; z-index: 10;
+      background: var(--bg); border-bottom: 1px solid var(--border);
+      padding: 14px 24px; display: flex; justify-content: space-between; align-items: center;
+      backdrop-filter: blur(8px);
+    }
+    .container { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
+    .back-link { color: var(--fg); text-decoration: none; font-weight: 500; font-size: 0.875rem; opacity: 0.7; }
+    .back-link:hover { opacity: 1; }
+    .toggle {
+      background: transparent; border: 1px solid var(--border);
+      padding: 6px 14px; border-radius: var(--radius); cursor: pointer; font: inherit;
+      color: var(--fg);
+    }
+    h1 { font-size: 2.5rem; font-weight: 700; letter-spacing: -0.03em; margin-bottom: 8px; }
+    h2 { font-size: 1.375rem; font-weight: 600; margin: 56px 0 20px; letter-spacing: -0.02em; }
+    h3 { font-size: 1rem; font-weight: 600; margin: 28px 0 12px; letter-spacing: -0.01em; }
+    .tagline { font-size: 1.125rem; color: var(--fg-muted); margin-bottom: 32px; }
+
+    .palette { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+    .swatch {
+      border-radius: var(--radius); padding: 14px;
+      display: flex; flex-direction: column; justify-content: space-between;
+      min-height: 96px;
+      font-size: 0.75rem; font-weight: 500;
+      border: 1px solid var(--border);
+    }
+    .swatch .hex { font-family: 'JetBrains Mono', monospace; font-size: 0.6875rem; opacity: 0.85; }
+
+    .type-row { padding: 20px; background: var(--bg-muted); border-radius: var(--radius); margin-bottom: 8px; border: 1px solid var(--border); }
+    .type-row .meta { font-family: 'JetBrains Mono', monospace; font-size: 0.6875rem; color: var(--fg-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
+
+    .mock {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 32px;
+      margin: 16px 0;
+    }
+    .mock-frame {
+      background: var(--bg);
+      border-radius: 10px;
+      padding: 32px;
+      border: 1px solid var(--border);
+    }
+
+    .login-card { max-width: 400px; margin: 24px auto; }
+    .logo {
+      width: 48px; height: 48px;
+      background: var(--primary-900);
+      border-radius: 10px; margin: 0 auto 24px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--accent-500); font-weight: 700; font-size: 1.125rem; letter-spacing: -0.05em;
+    }
+    .dark .logo { background: var(--accent-500); color: var(--primary-900); }
+    .form-group { margin-bottom: 16px; }
+    .form-label { display: block; font-size: 0.8125rem; font-weight: 500; margin-bottom: 6px; color: var(--fg); }
+    .form-input {
+      width: 100%; padding: 11px 14px; font: inherit; font-size: 0.9375rem;
+      background: var(--bg); color: var(--fg);
+      border: 1px solid var(--border); border-radius: var(--radius);
+      transition: border 150ms;
+    }
+    .form-input:focus { outline: none; border-color: var(--primary-900); box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.1); }
+    .dark .form-input:focus { border-color: var(--accent-500); box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15); }
+    .btn {
+      padding: 10px 20px; font: inherit; font-size: 0.9375rem; font-weight: 500;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      transition: all 150ms;
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+    .btn-primary { background: var(--primary-900); color: white; }
+    .dark .btn-primary { background: var(--accent-500); color: var(--primary-900); }
+    .btn-primary:hover { opacity: 0.9; }
+    .btn-secondary { background: var(--bg); color: var(--fg); border: 1px solid var(--border); }
+    .btn-ghost { background: transparent; color: var(--fg-muted); }
+    .btn-success { background: var(--success); color: white; }
+    .btn-danger { background: var(--danger); color: white; }
+    .btn-block { width: 100%; justify-content: center; }
+    .btn-accent { background: var(--accent-500); color: white; }
+    .text-link { color: var(--fg); text-decoration: underline; text-decoration-color: var(--border); text-underline-offset: 4px; font-size: 0.875rem; }
+    .text-link:hover { text-decoration-color: currentColor; }
+
+    .kpi-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+    }
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; }
+    .kpi-mini { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+    .kpi-mini-label { font-size: 0.6875rem; color: var(--fg-muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .kpi-mini-value { font-size: 1.5rem; font-weight: 600; letter-spacing: -0.02em; }
+
+    .badge {
+      display: inline-block; padding: 3px 10px; border-radius: 999px;
+      font-size: 0.75rem; font-weight: 500;
+      border: 1px solid;
+    }
+    .badge-pending  { background: transparent; color: #d97706; border-color: #fbbf24; }
+    .badge-approved { background: transparent; color: var(--accent-600); border-color: var(--accent-500); }
+    .badge-rejected { background: transparent; color: #dc2626; border-color: #f87171; }
+    .badge-sick     { background: transparent; color: #2563eb; border-color: #60a5fa; }
+    .badge-personal { background: transparent; color: #7c3aed; border-color: #a78bfa; }
+    .badge-vacation { background: transparent; color: var(--accent-600); border-color: var(--accent-500); }
+    .badge-late     { background: transparent; color: #ea580c; border-color: #fb923c; }
+    .badge-absent   { background: transparent; color: #dc2626; border-color: #f87171; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+    th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--border); }
+    th { font-weight: 500; color: var(--fg-muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .num { font-variant-numeric: tabular-nums; text-align: right; font-family: 'JetBrains Mono', monospace; }
+    tr:hover { background: var(--bg-muted); }
+
+    .vibe-card {
+      background: var(--primary-900); color: white;
+      border-radius: 12px; padding: 32px; margin-top: 32px;
+      position: relative; overflow: hidden;
+    }
+    .vibe-card::before {
+      content: ''; position: absolute; top: 0; right: 0;
+      width: 200px; height: 200px;
+      background: var(--accent-500); opacity: 0.15;
+      border-radius: 50%; transform: translate(60px, -60px);
+    }
+    .vibe-card h3 { color: white; }
+    .vibe-card ul { color: rgba(255,255,255,0.85); }
+    code { font-family: 'JetBrains Mono', monospace; background: var(--bg-muted); padding: 2px 6px; border-radius: 4px; font-size: 0.875em; border: 1px solid var(--border); }
+    .card-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 768px) { .card-row { grid-template-columns: 1fr; } }
+    .button-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .stack > * + * { margin-top: 12px; }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <a href="index.html" class="back-link">← กลับ</a>
+    <button class="toggle" onclick="document.documentElement.classList.toggle('dark')">🌓 Dark mode</button>
+  </div>
+
+  <div class="container">
+
+    <h1>Theme 3: Modern Slate</h1>
+    <p class="tagline">Linear / Notion / Vercel-inspired minimal — premium tool feel</p>
+    <p style="color: var(--fg-muted); font-size: 0.9375rem;">
+      Combo: <code>slate-900</code> primary + <code>emerald-500</code> accent · Prompt · minimal SaaS aesthetic
+    </p>
+
+    <h2>Color palette</h2>
+
+    <h3>Slate (high-contrast neutrals)</h3>
+    <div class="palette">
+      <div class="swatch" style="background: #f8fafc; color: #0f172a;"><span>slate-50</span><span class="hex">#f8fafc</span></div>
+      <div class="swatch" style="background: #e2e8f0; color: #0f172a;"><span>slate-200</span><span class="hex">#e2e8f0</span></div>
+      <div class="swatch" style="background: #94a3b8; color: white;"><span>slate-400</span><span class="hex">#94a3b8</span></div>
+      <div class="swatch" style="background: #475569; color: white;"><span>slate-600</span><span class="hex">#475569</span></div>
+      <div class="swatch" style="background: #1e293b; color: white;"><span>slate-800</span><span class="hex">#1e293b</span></div>
+      <div class="swatch" style="background: #0f172a; color: white;"><span>slate-900 ⭐</span><span class="hex">#0f172a</span></div>
+    </div>
+
+    <h3>Accent (Emerald) + Status</h3>
+    <div class="palette">
+      <div class="swatch" style="background: #10b981; color: white;"><span>emerald-500 ⭐</span><span class="hex">#10b981</span></div>
+      <div class="swatch" style="background: #059669; color: white;"><span>emerald-600</span><span class="hex">#059669</span></div>
+      <div class="swatch" style="background: #6ee7b7; color: #064e3b;"><span>emerald-300</span><span class="hex">#6ee7b7</span></div>
+      <div class="swatch" style="background: #f59e0b; color: white;"><span>warning</span><span class="hex">#f59e0b</span></div>
+      <div class="swatch" style="background: #ef4444; color: white;"><span>danger</span><span class="hex">#ef4444</span></div>
+      <div class="swatch" style="background: #3b82f6; color: white;"><span>info</span><span class="hex">#3b82f6</span></div>
+    </div>
+
+    <h2>Typography — Prompt</h2>
+    <p style="color: var(--fg-muted); font-size: 0.875rem; margin-bottom: 16px;">Modern Thai font — geometric, contemporary, ดูทันสมัย</p>
+    <div class="type-row">
+      <div class="meta">text-3xl · 30px · weight 700</div>
+      <div style="font-size: 1.875rem; font-weight: 700; letter-spacing: -0.03em;">สลิปเงินเดือนของคุณ</div>
+    </div>
+    <div class="type-row">
+      <div class="meta">text-2xl · 24px · weight 600</div>
+      <div style="font-size: 1.5rem; font-weight: 600; letter-spacing: -0.02em;">รายการขาด ลา และมาสาย</div>
+    </div>
+    <div class="type-row">
+      <div class="meta">text-base · 16px · weight 400</div>
+      <div>ระบบ HR Koolman ออกแบบให้คุณส่งคำขอลาได้สะดวก ตรวจสอบสลิปเงินเดือนได้ทุกที่ทุกเวลา</div>
+    </div>
+    <div class="type-row">
+      <div class="meta">tabular-nums · weight 700 · JetBrains Mono</div>
+      <div style="font-size: 2.25rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; letter-spacing: -0.02em;">฿ 31,417.50</div>
+    </div>
+
+    <h2>Login screen</h2>
+    <div class="mock">
+      <div class="mock-frame login-card">
+        <div class="logo">●</div>
+        <h3 style="text-align: center; margin: 0 0 8px; font-size: 1.5rem; letter-spacing: -0.02em;">เข้าสู่ระบบ</h3>
+        <p style="text-align: center; color: var(--fg-muted); font-size: 0.875rem; margin-bottom: 32px;">ใช้บัญชี Koolman HR</p>
+        <div class="form-group">
+          <label class="form-label">อีเมล</label>
+          <input class="form-input" type="email" value="tong@finnixfilm.com" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">รหัสผ่าน</label>
+          <input class="form-input" type="password" value="••••••••" />
+        </div>
+        <button class="btn btn-primary btn-block" style="margin-top: 16px;">เข้าสู่ระบบ</button>
+        <div style="text-align: center; margin-top: 20px;">
+          <a href="#" class="text-link">ลืมรหัสผ่าน?</a>
+        </div>
+      </div>
+    </div>
+
+    <h2>Employee Dashboard</h2>
+    <div class="mock">
+      <div class="mock-frame">
+        <p style="color: var(--fg-muted); font-size: 0.8125rem; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.05em;">สวัสดี</p>
+        <h3 style="margin-bottom: 32px; font-size: 1.5rem; letter-spacing: -0.02em;">ตงค์ สมศรี</h3>
+        <div class="kpi-card" style="margin-bottom: 12px; padding: 32px;">
+          <div style="font-size: 0.75rem; color: var(--fg-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em;">ยอดเงินคงเหลือ</div>
+          <div style="font-size: 3rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; letter-spacing: -0.04em; line-height: 1;">฿ 31,417.50</div>
+          <div style="display: flex; align-items: center; gap: 6px; font-size: 0.875rem; color: var(--fg-muted); margin-top: 12px;">
+            <div style="width: 6px; height: 6px; border-radius: 50%; background: var(--accent-500);"></div>
+            รับเงินเดือน 30 เม.ย. 2569
+          </div>
+        </div>
+        <div class="kpi-grid">
+          <div class="kpi-mini">
+            <div class="kpi-mini-label">วันลา</div>
+            <div class="kpi-mini-value">2 วัน</div>
+          </div>
+          <div class="kpi-mini">
+            <div class="kpi-mini-label">ขาด</div>
+            <div class="kpi-mini-value">0 วัน</div>
+          </div>
+          <div class="kpi-mini">
+            <div class="kpi-mini-label">มาสาย</div>
+            <div class="kpi-mini-value">1 ครั้ง</div>
+          </div>
+        </div>
+        <div style="margin-top: 32px;">
+          <h3 style="font-size: 0.6875rem; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--fg-muted);">คำขอที่รอ</h3>
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius);">
+            <div>
+              <div style="font-weight: 500;">ลาพักร้อน 12-13 พ.ค.</div>
+              <div style="font-size: 0.8125rem; color: var(--fg-muted);">2 ชั่วโมงที่แล้ว</div>
+            </div>
+            <span class="badge badge-pending">รออนุมัติ</span>
+          </div>
+        </div>
+        <div class="button-row" style="margin-top: 32px;">
+          <button class="btn btn-primary">+ ส่งคำขอลา</button>
+          <button class="btn btn-secondary">ขอเบิกเงิน</button>
+        </div>
+      </div>
+    </div>
+
+    <h2>Admin payroll table</h2>
+    <div class="mock">
+      <div class="mock-frame">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+          <div>
+            <h3 style="margin: 0; font-size: 1.25rem; letter-spacing: -0.02em;">เงินเดือน เม.ย. 2569</h3>
+            <p style="font-size: 0.875rem; color: var(--fg-muted); margin-top: 4px;">124 พนักงาน · <span class="badge badge-pending">Draft</span></p>
+          </div>
+          <div class="button-row">
+            <button class="btn btn-ghost">⚡ Recalculate</button>
+            <button class="btn btn-primary">📤 Publish</button>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>ชื่อ</th>
+              <th>แผนก</th>
+              <th class="num">ฐาน</th>
+              <th class="num">อื่น</th>
+              <th class="num">หัก</th>
+              <th class="num">สุทธิ</th>
+              <th>สถานะ</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>EMP-001</td>
+              <td>ตงค์ สมศรี</td>
+              <td>Tech</td>
+              <td class="num">30,000</td>
+              <td class="num">5,000</td>
+              <td class="num">3,583</td>
+              <td class="num"><strong>31,417</strong></td>
+              <td><span class="badge badge-pending">Draft</span></td>
+            </tr>
+            <tr>
+              <td>EMP-002</td>
+              <td>ส้ม สมศักดิ์</td>
+              <td>Sales</td>
+              <td class="num">25,000</td>
+              <td class="num">3,000</td>
+              <td class="num">1,500</td>
+              <td class="num"><strong>26,500</strong></td>
+              <td><span class="badge badge-approved">Reviewed</span></td>
+            </tr>
+            <tr>
+              <td>EMP-003</td>
+              <td>บอย สุวรรณ</td>
+              <td>Installation</td>
+              <td class="num">22,000</td>
+              <td class="num">0</td>
+              <td class="num">2,200</td>
+              <td class="num"><strong>19,800</strong></td>
+              <td><span class="badge badge-rejected">Override</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <h2>Components</h2>
+    <div class="card-row">
+      <div class="mock">
+        <h3 style="margin-top: 0;">Buttons</h3>
+        <div class="button-row stack">
+          <button class="btn btn-primary">เข้าสู่ระบบ</button>
+          <button class="btn btn-accent">ส่งคำขอ</button>
+          <button class="btn btn-success">✓ Approve</button>
+          <button class="btn btn-danger">✗ Reject</button>
+          <button class="btn btn-secondary">ยกเลิก</button>
+          <button class="btn btn-ghost">View more</button>
+        </div>
+      </div>
+      <div class="mock">
+        <h3 style="margin-top: 0;">Status badges</h3>
+        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+          <span class="badge badge-pending">รออนุมัติ</span>
+          <span class="badge badge-approved">อนุมัติแล้ว</span>
+          <span class="badge badge-rejected">ปฏิเสธ</span>
+          <span class="badge badge-sick">ลาป่วย</span>
+          <span class="badge badge-personal">ลากิจ</span>
+          <span class="badge badge-vacation">ลาพักร้อน</span>
+          <span class="badge badge-late">สาย</span>
+          <span class="badge badge-absent">ขาด</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="vibe-card">
+      <h3 style="margin-top: 0;">เลือก Theme นี้เมื่อ</h3>
+      <ul style="margin-left: 20px; margin-top: 12px;">
+        <li>อยากให้ดูเหมือน <strong>premium SaaS tool</strong> (Linear / Notion / Vercel)</li>
+        <li>ทีมรุ่นใหม่ที่คุ้น product modern</li>
+        <li>Dark mode ดูเทพมาก — เหมาะคนทำงานหลังเวลา</li>
+        <li>Accent emerald = "go", success-leaning — ดูเป็นบวก</li>
+        <li>Tabular numbers (JetBrains Mono) ในตาราง = look enterprise-grade</li>
+        <li>Prompt font = ดู modern Thai ไม่หนัก</li>
+        <li>Lots of white space + ไม่มี shadow หนัก = clean เปิดมุม</li>
+      </ul>
+    </div>
+
+  </div>
+
+  <script>
+    if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      document.documentElement.classList.add('dark');
+    }
+  </script>
+</body>
+</html>

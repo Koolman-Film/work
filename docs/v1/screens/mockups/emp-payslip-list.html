@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>S-E9: Pay Slip List — Koolman HR Mockup</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script>
+    (function() {
+      try {
+        const saved = localStorage.getItem('koolman-theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (saved === 'dark' || (saved === null && prefersDark)) { document.documentElement.classList.add('dark'); }
+      } catch (e) {}
+    })();
+  </script>
+  <style>
+    :root {
+      --primary-50:#eff6ff; --primary-100:#dbeafe; --primary-300:#93c5fd;
+      --primary-500:#3b82f6; --primary-600:#2563eb; --primary-700:#1d4ed8;
+      --primary-800:#1e40af; --primary-900:#1e3a8a;
+      --accent-500:#f59e0b; --success:#16a34a; --warning:#ea580c; --danger:#dc2626;
+      --bg:#ffffff; --bg-muted:#f8fafc; --bg-elevated:#ffffff;
+      --fg:#0f172a; --fg-muted:#64748b; --border:#e2e8f0;
+      --radius-sm:0.375rem; --radius:0.625rem; --radius-lg:1rem;
+      --shadow-md:0 8px 16px -4px rgb(37 99 235 / 0.12), 0 4px 8px -2px rgb(0 0 0 / 0.05);
+    }
+    .dark { --bg:#0f172a; --bg-muted:#1e293b; --bg-elevated:#1e293b; --fg:#f1f5f9; --fg-muted:#94a3b8; --border:#334155; }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    html, body { font-family:'IBM Plex Sans Thai', system-ui, sans-serif; background:var(--bg-muted); color:var(--fg); line-height:1.65; letter-spacing:-0.005em; }
+    .page-topbar { position:sticky; top:0; z-index:30; background:var(--bg); border-bottom:1px solid var(--border); padding:12px 24px; display:flex; justify-content:space-between; align-items:center; }
+    .page-topbar a { color:var(--primary-600); text-decoration:none; font-weight:500; font-size:0.875rem; }
+    .meta-mono { font-family:'IBM Plex Mono', monospace; font-size:0.8125rem; color:var(--fg-muted); }
+    .toggle-btn { background:var(--bg-muted); border:1px solid var(--border); padding:6px 12px; border-radius:var(--radius-sm); cursor:pointer; font:inherit; color:var(--fg); font-size:0.8125rem; }
+    .spec-banner { background:var(--bg); border-bottom:1px solid var(--border); padding:12px 24px; font-size:0.8125rem; color:var(--fg-muted); display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+    .spec-banner a { color:var(--primary-600); }
+    .state-bar { background:var(--bg); padding:16px 24px; display:flex; gap:8px; flex-wrap:wrap; justify-content:center; border-bottom:1px solid var(--border); }
+    .state-pill { padding:6px 14px; font-size:0.8125rem; font-weight:500; background:var(--bg-muted); color:var(--fg); border:1px solid var(--border); border-radius:999px; cursor:pointer; font:inherit; }
+    .state-pill.active { background:var(--primary-600); color:white; border-color:var(--primary-600); }
+
+    .app-canvas { padding:32px 24px; display:flex; gap:32px; justify-content:center; flex-wrap:wrap; }
+    .phone-frame { width:100%; max-width:380px; border:8px solid var(--fg); border-radius:36px; background:var(--bg); overflow:hidden; box-shadow:var(--shadow-md); display:flex; flex-direction:column; height:760px; }
+    .dark .phone-frame { border-color:#1e293b; }
+
+    .app-topbar { display:flex; justify-content:space-between; align-items:center; padding:14px 16px; border-bottom:1px solid var(--border); background:var(--bg); }
+    .topbar-title { font-weight:700; font-size:1.0625rem; }
+    .icon-btn { width:36px; height:36px; background:transparent; border:1px solid var(--border); border-radius:var(--radius-sm); cursor:pointer; display:flex; align-items:center; justify-content:center; }
+
+    .app-content { flex:1; overflow:auto; padding:0; background:var(--bg-muted); }
+
+    /* Hero card — current month NetPay */
+    .hero-card {
+      background:linear-gradient(135deg, var(--primary-600), var(--primary-800));
+      color:white; padding:20px 18px;
+      margin:16px;
+      border-radius:var(--radius-lg);
+      position:relative; overflow:hidden;
+    }
+    .hero-card::after { content:''; position:absolute; top:-30px; right:-30px; width:140px; height:140px; background:radial-gradient(circle, white 0%, transparent 70%); opacity:0.1; border-radius:50%; }
+    .hero-label { font-size:0.6875rem; opacity:0.85; text-transform:uppercase; letter-spacing:0.04em; }
+    .hero-month { font-size:0.875rem; font-weight:500; opacity:0.9; margin-top:4px; }
+    .hero-amount { font-size:2.25rem; font-weight:700; font-variant-numeric:tabular-nums; letter-spacing:-0.03em; margin:6px 0 4px; }
+    .hero-status { display:inline-block; padding:3px 10px; background:rgba(255,255,255,0.2); border-radius:999px; font-size:0.6875rem; font-weight:600; margin-top:4px; }
+    .hero-actions { display:flex; gap:8px; margin-top:14px; }
+    .hero-btn { flex:1; padding:8px 12px; background:rgba(255,255,255,0.15); color:white; border:1px solid rgba(255,255,255,0.2); border-radius:var(--radius-sm); cursor:pointer; font:inherit; font-size:0.8125rem; font-weight:500; }
+    .hero-btn:hover { background:rgba(255,255,255,0.25); }
+
+    /* Year selector */
+    .year-bar { display:flex; gap:6px; padding:0 16px 12px; background:var(--bg-muted); overflow-x:auto; }
+    .year-tab { padding:6px 14px; font-size:0.8125rem; font-weight:500; background:var(--bg); color:var(--fg-muted); border:1px solid var(--border); border-radius:999px; cursor:pointer; font:inherit; white-space:nowrap; }
+    .year-tab.active { background:var(--primary-600); color:white; border-color:var(--primary-600); }
+
+    /* Slip list */
+    .slip-list { padding:0; }
+    .slip-item {
+      display:flex; align-items:center; gap:12px;
+      padding:14px 16px; background:var(--bg);
+      border-bottom:1px solid var(--border);
+      cursor:pointer;
+    }
+    .slip-item:hover { background:var(--bg-muted); }
+    .month-icon {
+      width:48px; height:48px; flex-shrink:0;
+      background:var(--bg-muted); border:1px solid var(--border);
+      border-radius:var(--radius);
+      display:flex; flex-direction:column;
+      align-items:center; justify-content:center;
+      font-size:0.625rem; color:var(--fg-muted);
+      text-transform:uppercase; letter-spacing:0.04em;
+      line-height:1;
+    }
+    .month-icon strong { font-size:0.9375rem; color:var(--fg); font-weight:700; margin-top:1px; }
+    .month-icon.current { background:var(--primary-50); border-color:var(--primary-300); color:var(--primary-700); }
+    .month-icon.current strong { color:var(--primary-700); }
+    .dark .month-icon.current { background:var(--primary-900); }
+
+    .slip-body { flex:1; min-width:0; }
+    .slip-month { font-weight:600; font-size:0.9375rem; }
+    .slip-net { font-size:0.875rem; font-variant-numeric:tabular-nums; font-family:'IBM Plex Mono', monospace; color:var(--primary-700); margin-top:2px; }
+    .dark .slip-net { color:var(--primary-300); }
+    .slip-meta { font-size:0.6875rem; color:var(--fg-muted); margin-top:3px; }
+    .slip-status { padding:2px 7px; border-radius:999px; font-size:0.625rem; font-weight:600; display:inline-block; margin-left:6px; }
+    .slip-status.published { background:#d1fae5; color:#065f46; }
+    .slip-status.pending { background:#fef3c7; color:#92400e; }
+    .slip-status.draft { background:var(--bg-muted); color:var(--fg-muted); border:1px solid var(--border); }
+    .dark .slip-status.published { background:#064e3b; color:#6ee7b7; }
+    .dark .slip-status.pending { background:#78350f; color:#fde68a; }
+
+    .slip-arrow { color:var(--fg-muted); font-size:0.875rem; }
+
+    /* Year summary */
+    .year-summary {
+      background:var(--bg); border-top:1px solid var(--border);
+      padding:14px 16px;
+    }
+    .summary-title { font-size:0.6875rem; font-weight:600; color:var(--fg-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:8px; }
+    .summary-row { display:flex; justify-content:space-between; padding:3px 0; font-size:0.8125rem; }
+    .summary-row .v { font-variant-numeric:tabular-nums; font-family:'IBM Plex Mono', monospace; font-weight:600; }
+
+    /* Empty state */
+    .empty-state { padding:48px 24px; text-align:center; }
+    .empty-icon { font-size:2.5rem; margin-bottom:12px; opacity:0.5; }
+    .empty-title { font-size:1rem; font-weight:600; margin-bottom:4px; }
+    .empty-sub { color:var(--fg-muted); font-size:0.8125rem; }
+
+    /* Bottom nav */
+    .bottom-nav { display:flex; background:var(--bg); border-top:1px solid var(--border); padding:6px 0; }
+    .bottom-nav-item { flex:1; padding:8px 4px; text-align:center; font-size:0.6875rem; color:var(--fg-muted); cursor:pointer; background:none; border:none; font:inherit; }
+    .bottom-nav-item .nav-icon { font-size:1.125rem; display:block; margin-bottom:2px; }
+    .bottom-nav-item.active { color:var(--primary-600); font-weight:600; }
+
+    .hidden { display:none !important; }
+
+    @media (max-width: 480px) {
+      .app-canvas { padding:0; gap:0; }
+      .phone-frame { max-width:100% !important; border-width:0 !important; border-radius:0 !important; height:auto !important; min-height:100vh; }
+      .state-bar { padding:12px 8px; }
+      .state-pill { font-size:0.75rem; padding:5px 10px; }
+    }
+  
+    /* ==== Desktop-mode (added 2026-05) ==== */
+    .desktop-mode .app-canvas {
+      padding: 24px;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+    .desktop-mode .phone-frame {
+      max-width: 720px !important;
+      width: 100%;
+      border: 1px solid var(--border) !important;
+      border-radius: 16px !important;
+      height: auto !important;
+      min-height: 600px;
+      box-shadow: 0 16px 48px -16px rgb(37 99 235 / 0.18);
+    }
+    .desktop-mode .phone-frame > .ios-status-bar { display: none; }
+    .desktop-mode .app-topbar {
+      padding: 12px 20px;
+    }
+    .desktop-mode .app-topbar .topbar-title { font-size: 1.0625rem; }
+    /* Show top nav, hide bottom nav on desktop */
+    .desktop-mode .bottom-nav {
+      order: -1;
+      border-top: none;
+      border-bottom: 1px solid var(--border);
+      padding: 8px 16px;
+      gap: 4px;
+    }
+    .desktop-mode .bottom-nav-item {
+      flex: 0 0 auto;
+      padding: 8px 14px;
+      font-size: 0.8125rem;
+      flex-direction: row;
+      gap: 6px;
+    }
+    .desktop-mode .bottom-nav-item .nav-icon {
+      font-size: 0.9375rem;
+      display: inline;
+      margin-bottom: 0;
+    }
+    .desktop-mode .app-content {
+      padding: 24px 32px !important;
+    }
+    .desktop-mode .line-chat-body { padding: 16px 24px; }
+    /* Wider for list pages */
+    .desktop-mode .advance-list,
+    .desktop-mode .slip-list { padding: 0 0; }
+    /* View-mode toggle buttons */
+    .view-toggle {
+      display: inline-flex; gap: 4px;
+      background: var(--bg-muted); border: 1px solid var(--border);
+      border-radius: 999px; padding: 3px;
+    }
+    .view-toggle button {
+      padding: 5px 12px; border: none; background: transparent;
+      cursor: pointer; font: inherit; font-size: 0.75rem; font-weight: 600;
+      color: var(--fg-muted); border-radius: 999px;
+    }
+    .view-toggle button.active { background: var(--primary-600); color: white; }
+
+  </style>
+</head>
+<body>
+
+<div class="page-topbar">
+  <div style="display:flex; align-items:center; gap:16px;">
+    <a href="index.html">← all mockups</a>
+    <span class="meta-mono">S-E9 · /payslip</span>
+  </div>
+  <button class="toggle-btn" onclick="toggleTheme()" title="Toggle theme">🌓</button>
+</div>
+
+<div class="spec-banner">
+  <span><strong>S-E9: Pay Slip List</strong> — เงินเดือนทุกเดือน · year filter · NetPay hero · year summary · empty state</span>
+  <span class="view-toggle"><button data-view="mobile" class="active" onclick="__setView('mobile')">📱 Mobile</button><button data-view="desktop" onclick="__setView('desktop')">🖥 Desktop</button></span>
+  <a href="../employee.md#s-e9-payslip-list">spec ↗</a>
+</div>
+
+<div class="state-bar">
+  <button class="state-pill active" onclick="showState('default', this)">Default · 2569 (5 published)</button>
+  <button class="state-pill" onclick="showState('past-year', this)">Past year · 2568 (12 locked)</button>
+  <button class="state-pill" onclick="showState('empty', this)">Empty · ยังไม่มีสลิป</button>
+</div>
+
+<div class="app-canvas">
+
+  <!-- DEFAULT -->
+  <div class="phone-frame" id="state-default">
+    <div class="app-topbar">
+      <button class="icon-btn" onclick="window.location='emp-dashboard.html'">←</button>
+      <div class="topbar-title">สลิปเงินเดือน</div>
+      <button class="icon-btn">🔔</button>
+    </div>
+    <div class="app-content">
+
+      <div class="hero-card">
+        <div class="hero-label">NetPay เดือนล่าสุด</div>
+        <div class="hero-month">เมษายน 2569</div>
+        <div class="hero-amount">฿26,380.00</div>
+        <span class="hero-status">✓ Published</span>
+        <div class="hero-actions">
+          <button class="hero-btn" onclick="window.location='emp-payslip-detail.html'">👁 ดูรายละเอียด</button>
+          <button class="hero-btn">📥 PDF</button>
+        </div>
+      </div>
+
+      <div class="year-bar">
+        <button class="year-tab">2567</button>
+        <button class="year-tab">2568</button>
+        <button class="year-tab active">2569</button>
+      </div>
+
+      <div class="slip-list">
+        <div class="slip-item" onclick="window.location='emp-payslip-detail.html'">
+          <div class="month-icon current">2569<strong>เม.ย.</strong></div>
+          <div class="slip-body">
+            <div class="slip-month">เมษายน 2569 ⭐ <span class="slip-status published">Published</span></div>
+            <div class="slip-net">฿26,380.00</div>
+            <div class="slip-meta">ฐาน ฿30,000 · OT ฿1,200 · หัก ฿4,820</div>
+          </div>
+          <div class="slip-arrow">›</div>
+        </div>
+
+        <div class="slip-item" onclick="window.location='emp-payslip-detail.html'">
+          <div class="month-icon">2569<strong>มี.ค.</strong></div>
+          <div class="slip-body">
+            <div class="slip-month">มีนาคม 2569 <span class="slip-status published">Published</span></div>
+            <div class="slip-net">฿28,150.00</div>
+            <div class="slip-meta">ฐาน ฿30,000 · OT ฿2,400 · หัก ฿4,250</div>
+          </div>
+          <div class="slip-arrow">›</div>
+        </div>
+
+        <div class="slip-item" onclick="window.location='emp-payslip-detail.html'">
+          <div class="month-icon">2569<strong>ก.พ.</strong></div>
+          <div class="slip-body">
+            <div class="slip-month">กุมภาพันธ์ 2569 <span class="slip-status published">Published</span></div>
+            <div class="slip-net">฿25,980.00</div>
+            <div class="slip-meta">ฐาน ฿30,000 · หัก ฿4,020</div>
+          </div>
+          <div class="slip-arrow">›</div>
+        </div>
+
+        <div class="slip-item" onclick="window.location='emp-payslip-detail.html'">
+          <div class="month-icon">2569<strong>ม.ค.</strong></div>
+          <div class="slip-body">
+            <div class="slip-month">มกราคม 2569 <span class="slip-status published">Published</span></div>
+            <div class="slip-net">฿27,200.00</div>
+            <div class="slip-meta">ฐาน ฿30,000 · OT ฿1,800 · หัก ฿4,600</div>
+          </div>
+          <div class="slip-arrow">›</div>
+        </div>
+      </div>
+
+      <div class="year-summary">
+        <div class="summary-title">สรุปปี 2569 (YTD)</div>
+        <div class="summary-row"><span>รวม NetPay 4 เดือน</span><span class="v">฿107,710</span></div>
+        <div class="summary-row"><span>เฉลี่ย/เดือน</span><span class="v">฿26,927</span></div>
+        <div class="summary-row"><span>OT รวม</span><span class="v" style="color:var(--success);">฿5,400</span></div>
+        <div class="summary-row"><span>หัก SSO + ลา/สาย</span><span class="v" style="color:var(--danger);">฿17,690</span></div>
+      </div>
+    </div>
+
+    <nav class="bottom-nav">
+      <button class="bottom-nav-item"><span class="nav-icon">🏠</span>หน้าหลัก</button>
+      <button class="bottom-nav-item"><span class="nav-icon">📅</span>ลา</button>
+      <button class="bottom-nav-item"><span class="nav-icon">💰</span>เบิก</button>
+      <button class="bottom-nav-item active"><span class="nav-icon">📄</span>สลิป</button>
+      <button class="bottom-nav-item"><span class="nav-icon">👤</span>โปรไฟล์</button>
+    </nav>
+  </div>
+
+  <!-- PAST YEAR -->
+  <div class="phone-frame hidden" id="state-past-year">
+    <div class="app-topbar">
+      <button class="icon-btn" onclick="window.location='emp-dashboard.html'">←</button>
+      <div class="topbar-title">สลิปเงินเดือน</div>
+      <button class="icon-btn">🔔</button>
+    </div>
+    <div class="app-content">
+      <div class="year-bar" style="padding-top:12px;">
+        <button class="year-tab">2567</button>
+        <button class="year-tab active">2568</button>
+        <button class="year-tab">2569</button>
+      </div>
+
+      <div class="slip-list">
+        <div class="slip-item" onclick="window.location='emp-payslip-detail.html'">
+          <div class="month-icon">2568<strong>ธ.ค.</strong></div>
+          <div class="slip-body">
+            <div class="slip-month">ธันวาคม 2568 <span class="slip-status published">🔒 Locked</span></div>
+            <div class="slip-net">฿28,500.00</div>
+            <div class="slip-meta">ฐาน ฿28,000 · โบนัสปลายปี ฿2,000 · หัก ฿1,500</div>
+          </div>
+          <div class="slip-arrow">›</div>
+        </div>
+        <div class="slip-item" onclick="window.location='emp-payslip-detail.html'">
+          <div class="month-icon">2568<strong>พ.ย.</strong></div>
+          <div class="slip-body">
+            <div class="slip-month">พฤศจิกายน 2568 <span class="slip-status published">🔒 Locked</span></div>
+            <div class="slip-net">฿24,800.00</div>
+            <div class="slip-meta">ฐาน ฿28,000 · หัก ฿3,200</div>
+          </div>
+          <div class="slip-arrow">›</div>
+        </div>
+        <div class="slip-item" onclick="window.location='emp-payslip-detail.html'">
+          <div class="month-icon">2568<strong>ต.ค.</strong></div>
+          <div class="slip-body">
+            <div class="slip-month">ตุลาคม 2568 <span class="slip-status published">🔒 Locked</span></div>
+            <div class="slip-net">฿25,400.00</div>
+            <div class="slip-meta">ฐาน ฿28,000 · OT ฿800 · หัก ฿3,400</div>
+          </div>
+          <div class="slip-arrow">›</div>
+        </div>
+        <div class="slip-item" style="opacity:0.6; cursor:default;">
+          <div style="flex:1; text-align:center; font-size:0.8125rem; color:var(--fg-muted); padding:8px;">… อีก 9 เดือน — เลื่อนเพื่อดู …</div>
+        </div>
+      </div>
+
+      <div class="year-summary">
+        <div class="summary-title">สรุปปี 2568</div>
+        <div class="summary-row"><span>รวม NetPay 12 เดือน</span><span class="v">฿305,400</span></div>
+        <div class="summary-row"><span>เฉลี่ย/เดือน</span><span class="v">฿25,450</span></div>
+        <div style="margin-top:10px;">
+          <button class="hero-btn" style="background:var(--primary-600); border:none; width:100%;">📥 Export ทั้งปี (PDF)</button>
+        </div>
+      </div>
+    </div>
+    <nav class="bottom-nav">
+      <button class="bottom-nav-item"><span class="nav-icon">🏠</span>หน้าหลัก</button>
+      <button class="bottom-nav-item"><span class="nav-icon">📅</span>ลา</button>
+      <button class="bottom-nav-item"><span class="nav-icon">💰</span>เบิก</button>
+      <button class="bottom-nav-item active"><span class="nav-icon">📄</span>สลิป</button>
+      <button class="bottom-nav-item"><span class="nav-icon">👤</span>โปรไฟล์</button>
+    </nav>
+  </div>
+
+  <!-- EMPTY -->
+  <div class="phone-frame hidden" id="state-empty">
+    <div class="app-topbar">
+      <button class="icon-btn" onclick="window.location='emp-dashboard.html'">←</button>
+      <div class="topbar-title">สลิปเงินเดือน</div>
+      <button class="icon-btn">🔔</button>
+    </div>
+    <div class="app-content">
+      <div class="empty-state">
+        <div class="empty-icon">📄</div>
+        <div class="empty-title">ยังไม่มีสลิปเงินเดือน</div>
+        <div class="empty-sub">สลิปแรกจะถูกสร้างหลังสิ้นเดือน — admin คำนวณและ publish<br>คุณจะได้รับ email + push เมื่อสลิปพร้อม</div>
+      </div>
+      <div style="margin:16px; padding:14px; background:rgba(37,99,235,0.06); border:1px solid var(--primary-100); border-radius:var(--radius); font-size:0.8125rem;">
+        <div style="font-weight:600; margin-bottom:4px;">💡 เรื่องที่ควรรู้</div>
+        <div style="color:var(--fg-muted); line-height:1.55;">
+          • รอบจ่าย: รายเดือน · จ่ายสิ้นเดือน<br>
+          • หัก SSO 5% (สูงสุด ฿750/เดือน)<br>
+          • OT คิด 1.5x ชั่วโมงปกติ<br>
+          • ลาป่วย/พักร้อน — ไม่หัก · ลากิจ — หักตาม config
+        </div>
+      </div>
+    </div>
+    <nav class="bottom-nav">
+      <button class="bottom-nav-item"><span class="nav-icon">🏠</span>หน้าหลัก</button>
+      <button class="bottom-nav-item"><span class="nav-icon">📅</span>ลา</button>
+      <button class="bottom-nav-item"><span class="nav-icon">💰</span>เบิก</button>
+      <button class="bottom-nav-item active"><span class="nav-icon">📄</span>สลิป</button>
+      <button class="bottom-nav-item"><span class="nav-icon">👤</span>โปรไฟล์</button>
+    </nav>
+  </div>
+
+</div>
+
+<script>
+  function toggleTheme() {
+    const isDark = document.documentElement.classList.toggle('dark');
+    try { localStorage.setItem('koolman-theme', isDark ? 'dark' : 'light'); } catch(e) {}
+  }
+  function showState(name, btn) {
+    ['default','past-year','empty'].forEach(s => document.getElementById('state-' + s).classList.add('hidden'));
+    document.getElementById('state-' + name).classList.remove('hidden');
+    document.querySelectorAll('.state-pill').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+  }
+</script>
+
+<script>
+  // Desktop-mode toggle
+  (function() {
+    function setView(mode) {
+      document.body.classList.toggle('desktop-mode', mode === 'desktop');
+      document.querySelectorAll('.view-toggle button').forEach(b => {
+        b.classList.toggle('active', b.dataset.view === mode);
+      });
+      try { localStorage.setItem('koolman-view-mode', mode); } catch(e) {}
+    }
+    window.__setView = setView;
+    document.addEventListener('DOMContentLoaded', function() {
+      const saved = (function(){ try { return localStorage.getItem('koolman-view-mode'); } catch(e) { return null; } })();
+      if (saved === 'desktop') setView('desktop');
+    });
+  })();
+</script>
+</body>
+</html>

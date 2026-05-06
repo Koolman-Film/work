@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>S-O3: Owner Payroll Review — Koolman HR Mockup</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script>
+    (function() {
+      try {
+        const saved = localStorage.getItem('koolman-theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (saved === 'dark' || (saved === null && prefersDark)) {
+          document.documentElement.classList.add('dark');
+        }
+      } catch (e) {}
+    })();
+  </script>
+  <style>
+    :root {
+      --primary-50: #eff6ff; --primary-100: #dbeafe; --primary-200: #bfdbfe; --primary-300: #93c5fd;
+      --primary-500: #3b82f6; --primary-600: #2563eb; --primary-700: #1d4ed8;
+      --primary-800: #1e40af; --primary-900: #1e3a8a;
+      --accent-500: #f59e0b;
+      --success: #16a34a; --warning: #ea580c; --danger: #dc2626;
+      --bg: #ffffff; --bg-muted: #f8fafc;
+      --fg: #0f172a; --fg-muted: #64748b; --border: #e2e8f0;
+      --radius-sm: 0.375rem; --radius: 0.625rem; --radius-lg: 1rem;
+      --shadow-md: 0 8px 16px -4px rgb(37 99 235 / 0.12), 0 4px 8px -2px rgb(0 0 0 / 0.05);
+    }
+    .dark {
+      --bg: #0f172a; --bg-muted: #1e293b;
+      --fg: #f1f5f9; --fg-muted: #94a3b8; --border: #334155;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      font-family: 'IBM Plex Sans Thai', system-ui, sans-serif;
+      background: var(--bg-muted); color: var(--fg);
+      line-height: 1.65; letter-spacing: -0.005em;
+    }
+    .page-topbar {
+      position: sticky; top: 0; z-index: 30;
+      background: var(--bg); border-bottom: 1px solid var(--border);
+      padding: 12px 24px; display: flex; justify-content: space-between; align-items: center;
+    }
+    .page-topbar a { color: var(--primary-600); text-decoration: none; font-weight: 500; font-size: 0.875rem; }
+    .meta-mono { font-family: 'IBM Plex Mono', monospace; font-size: 0.8125rem; color: var(--fg-muted); }
+    .toggle-btn {
+      background: var(--bg-muted); border: 1px solid var(--border);
+      padding: 6px 12px; border-radius: var(--radius-sm);
+      cursor: pointer; font: inherit; color: var(--fg); font-size: 0.8125rem;
+    }
+    .spec-banner {
+      background: var(--bg); border-bottom: 1px solid var(--border);
+      padding: 12px 24px; font-size: 0.8125rem; color: var(--fg-muted);
+      display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+    }
+    .spec-banner a { color: var(--primary-600); }
+    .state-bar {
+      background: var(--bg); padding: 16px 24px;
+      display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;
+      border-bottom: 1px solid var(--border);
+    }
+    .state-pill {
+      padding: 6px 14px; font-size: 0.8125rem; font-weight: 500;
+      background: var(--bg-muted); color: var(--fg); border: 1px solid var(--border);
+      border-radius: 999px; cursor: pointer; font: inherit;
+    }
+    .state-pill.active { background: var(--primary-600); color: white; border-color: var(--primary-600); }
+
+    .app-canvas { padding: 24px; display: flex; justify-content: center; }
+    .browser-frame {
+      width: 100%; max-width: 1320px;
+      background: var(--bg);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-md);
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    .browser-bar {
+      background: var(--bg-muted); border-bottom: 1px solid var(--border);
+      padding: 8px 12px; display: flex; align-items: center; gap: 8px;
+    }
+    .browser-dots { display: flex; gap: 4px; }
+    .browser-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .browser-dot.r { background: #ef4444; } .browser-dot.y { background: #f59e0b; } .browser-dot.g { background: #22c55e; }
+    .browser-url {
+      flex: 1; padding: 4px 12px;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 999px; font-size: 0.75rem;
+      color: var(--fg-muted); font-family: 'IBM Plex Mono', monospace;
+    }
+    .app-layout { display: grid; grid-template-columns: 220px 1fr; min-height: 800px; }
+
+    /* Owner sidebar — lighter, minimal */
+    .sidebar { background: var(--bg); border-right: 1px solid var(--border); padding: 16px 12px; }
+    .sidebar-logo { display: flex; align-items: center; gap: 10px; padding: 8px 12px; margin-bottom: 8px; }
+    .sidebar-logo-square {
+      width: 32px; height: 32px;
+      background: var(--accent-500); border-radius: var(--radius-sm);
+      display: flex; align-items: center; justify-content: center;
+      color: white; font-weight: 700; font-size: 0.875rem;
+    }
+    .sidebar-logo-text { font-weight: 700; font-size: 0.9375rem; }
+    .role-label {
+      padding: 4px 12px;
+      background: rgba(245, 158, 11, 0.15); color: var(--accent-500);
+      border-radius: 999px;
+      font-size: 0.6875rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.05em;
+      margin: 0 12px 12px; display: inline-block;
+    }
+    .sidebar-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 12px; border-radius: var(--radius);
+      color: var(--fg); text-decoration: none;
+      font-size: 0.875rem; font-weight: 500;
+      margin-bottom: 2px; cursor: pointer; position: relative;
+    }
+    .sidebar-item:hover { background: var(--bg-muted); }
+    .sidebar-item.active { background: rgba(245,158,11,0.12); color: #92400e; font-weight: 600; }
+    .dark .sidebar-item.active { background: rgba(245,158,11,0.18); color: #fde68a; }
+    .sidebar-item.active::before {
+      content: ''; position: absolute; left: -12px; top: 8px; bottom: 8px;
+      width: 2px; background: var(--accent-500); border-radius: 0 2px 2px 0;
+    }
+
+    .main { padding: 24px 28px; overflow: auto; }
+    .main-topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .breadcrumb { font-size: 0.875rem; color: var(--fg-muted); }
+    .breadcrumb a { color: var(--primary-600); text-decoration: none; cursor: pointer; }
+    .breadcrumb-active { color: var(--fg); font-weight: 600; }
+    .topbar-actions { display: flex; align-items: center; gap: 8px; }
+    .icon-btn {
+      width: 36px; height: 36px; background: transparent; border: 1px solid var(--border);
+      border-radius: var(--radius-sm); cursor: pointer;
+      display: flex; align-items: center; justify-content: center; color: var(--fg);
+    }
+    .avatar-mini {
+      width: 36px; height: 36px;
+      background: rgba(245,158,11,0.15); color: var(--accent-500);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 600; font-size: 0.75rem;
+    }
+
+    .page-header {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      margin-bottom: 16px; gap: 16px; flex-wrap: wrap;
+    }
+    .page-title { font-size: 1.75rem; font-weight: 700; letter-spacing: -0.02em; display: flex; align-items: center; gap: 12px; }
+    .read-only-badge {
+      padding: 4px 10px;
+      background: var(--bg-muted); color: var(--fg-muted);
+      border: 1px solid var(--border);
+      border-radius: 999px; font-size: 0.6875rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .page-meta { color: var(--fg-muted); font-size: 0.875rem; }
+
+    .btn {
+      padding: 9px 16px; font: inherit; font-size: 0.875rem; font-weight: 600;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+    .btn-secondary { background: var(--bg); color: var(--fg); border: 1px solid var(--border); }
+    .btn-secondary:hover { background: var(--bg-muted); }
+
+    /* Year tabs */
+    .year-tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid var(--border); }
+    .year-tab {
+      padding: 8px 16px; font: inherit; font-size: 0.875rem; font-weight: 500;
+      background: transparent; border: none; cursor: pointer;
+      color: var(--fg-muted); border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+    }
+    .year-tab.active { color: var(--accent-500); border-bottom-color: var(--accent-500); font-weight: 600; }
+
+    /* KPI strip */
+    .kpi-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px; }
+    .kpi-card { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 14px 18px; }
+    .kpi-label { font-size: 0.75rem; color: var(--fg-muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.04em; }
+    .kpi-value { font-size: 1.375rem; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+    .kpi-sub { font-size: 0.6875rem; color: var(--fg-muted); margin-top: 2px; }
+    .kpi-sub.up { color: var(--success); }
+    .kpi-sub.down { color: var(--danger); }
+
+    /* Filter bar */
+    .filter-bar {
+      display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+      padding: 12px 16px;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); margin-bottom: 12px;
+    }
+    .filter-input {
+      padding: 7px 12px; border: 1px solid var(--border);
+      border-radius: var(--radius); font: inherit; font-size: 0.875rem;
+      background: var(--bg); color: var(--fg);
+    }
+
+    /* Table */
+    .table-wrap { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+    th, td { padding: 11px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+    th {
+      font-weight: 600; color: var(--fg-muted); font-size: 0.6875rem;
+      text-transform: uppercase; letter-spacing: 0.05em;
+      background: var(--bg-muted);
+    }
+    th.num, td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    tbody tr { cursor: pointer; transition: background 150ms; }
+    tbody tr:hover { background: var(--bg-muted); }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr.current-row { background: rgba(245, 158, 11, 0.06); }
+    tbody tr.override-row { background: rgba(245, 158, 11, 0.04); }
+
+    .month-cell { display: flex; align-items: center; gap: 10px; }
+    .month-icon {
+      width: 36px; height: 36px;
+      background: var(--bg-muted); border: 1px solid var(--border);
+      border-radius: var(--radius); display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      font-size: 0.5625rem; font-weight: 600;
+      color: var(--fg-muted); text-transform: uppercase; letter-spacing: 0.04em;
+      line-height: 1;
+    }
+    .month-icon strong { font-size: 0.875rem; color: var(--fg); font-weight: 700; margin-top: 1px; }
+    .month-icon.current { background: rgba(245, 158, 11, 0.12); border-color: var(--accent-500); }
+    .month-icon.current strong { color: #92400e; }
+
+    .name-cell { display: flex; align-items: center; gap: 8px; }
+    .avatar {
+      width: 24px; height: 24px;
+      background: var(--primary-100); color: var(--primary-700);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 600; font-size: 0.625rem; flex-shrink: 0;
+    }
+
+    .status-chip { padding: 3px 9px; border-radius: 999px; font-size: 0.6875rem; font-weight: 600; display: inline-block; }
+    .status-draft { background: #fef3c7; color: #92400e; }
+    .status-published { background: #d1fae5; color: #065f46; }
+    .status-locked { background: #f1f5f9; color: #475569; }
+    .dark .status-locked { background: #334155; color: #cbd5e1; }
+
+    .override-badge {
+      display: inline-flex; align-items: center; gap: 3px;
+      padding: 2px 7px; border-radius: 999px;
+      background: rgba(245, 158, 11, 0.15); color: var(--accent-500);
+      font-size: 0.625rem; font-weight: 700;
+    }
+
+    .view-eye {
+      color: var(--fg-muted); font-size: 0.75rem;
+    }
+    tbody tr:hover .view-eye { color: var(--primary-600); }
+
+    /* Read-only banner */
+    .ro-banner {
+      background: rgba(245, 158, 11, 0.08);
+      border: 1px solid #fde68a;
+      border-left: 4px solid var(--accent-500);
+      border-radius: var(--radius);
+      padding: 10px 14px;
+      margin-bottom: 16px;
+      font-size: 0.8125rem;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .dark .ro-banner { background: rgba(245, 158, 11, 0.06); border-color: #78350f; }
+
+    .hidden { display: none !important; }
+
+    @media (max-width: 768px) {
+      .app-layout { grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+      .main { padding: 16px; }
+    }
+  
+    /* === Mobile responsive fixes (added during audit pass) === */
+    @media (max-width: 768px) {
+      .app-layout { grid-template-columns: 1fr !important; }
+      .sidebar { display: none !important; }
+      .main { padding: 16px !important; }
+      .main-topbar { flex-wrap: wrap; gap: 8px; }
+      .page-header { flex-direction: column; align-items: flex-start !important; gap: 12px; }
+      .page-title { font-size: 1.375rem !important; }
+      .table-wrap { overflow-x: auto !important; }
+      .table-wrap table { min-width: 640px; }
+      .filter-bar { flex-direction: column; align-items: stretch !important; }
+      .filter-bar > * { width: 100%; }
+      .filter-bar > .filter-search,
+      .filter-bar > .filter-input { min-width: 0; }
+      .summary-card { padding: 16px !important; gap: 16px !important; grid-template-columns: 1fr 1fr !important; }
+      .kpi-strip { grid-template-columns: 1fr 1fr !important; }
+      .drawer, .drawer-overlay > .drawer { width: 100vw !important; max-width: 100vw !important; }
+      .config-row { grid-template-columns: 1fr !important; gap: 8px !important; }
+      .action-bar { flex-direction: column; align-items: stretch !important; }
+      .action-bar > .btn { width: 100%; }
+      .pagination { flex-direction: column; gap: 8px; align-items: stretch !important; }
+      .browser-bar { padding: 6px 8px; }
+      .browser-url { font-size: 0.625rem; }
+    }
+    @media (max-width: 480px) {
+      .table-wrap table { min-width: 560px; }
+      .main { padding: 12px !important; }
+      .summary-card { grid-template-columns: 1fr !important; }
+      .kpi-strip { grid-template-columns: 1fr !important; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="page-topbar">
+  <div style="display:flex; align-items:center; gap:16px;">
+    <a href="index.html">← all mockups</a>
+    <span class="meta-mono">S-O3 · /owner/payroll</span>
+  </div>
+  <button class="toggle-btn" onclick="toggleTheme()" title="Toggle theme">🌓</button>
+</div>
+
+<div class="spec-banner">
+  <span><strong>S-O3: Owner Payroll review</strong> — read-only · sees all amounts (q12 confirmed) · drill into months · override badges visible</span>
+  <a href="../owner.md#s-o3-owner-payroll">spec ↗</a>
+</div>
+
+<div class="state-bar">
+  <button class="state-pill active" onclick="showState('months', this)">Months list</button>
+  <button class="state-pill" onclick="showState('month', this)">Drill: เม.ย. 2569 (Draft + overrides)</button>
+</div>
+
+<div class="app-canvas">
+<div class="browser-frame">
+
+<div class="browser-bar">
+  <div class="browser-dots"><div class="browser-dot r"></div><div class="browser-dot y"></div><div class="browser-dot g"></div></div>
+  <div class="browser-url">https://app.koolman-hr.com/owner/payroll</div>
+</div>
+
+<div class="app-layout">
+
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-square">KM</div>
+      <div class="sidebar-logo-text">Koolman HR</div>
+    </div>
+    <div class="role-label">⭐ Owner</div>
+    <a class="sidebar-item">🏠 หน้าหลัก</a>
+    <a class="sidebar-item">📅 ปฏิทิน</a>
+    <a class="sidebar-item active">💸 เงินเดือน</a>
+    <a class="sidebar-item">📜 Audit log</a>
+  </aside>
+
+  <main class="main">
+
+    <div class="main-topbar">
+      <div class="breadcrumb" id="breadcrumb">
+        <a>Koolman</a> · <span class="breadcrumb-active">เงินเดือน</span>
+      </div>
+      <div class="topbar-actions">
+        <button class="icon-btn" title="Notifications">🔔</button>
+        <div class="avatar-mini">OW</div>
+      </div>
+    </div>
+
+    <!-- MONTHS LIST -->
+    <div id="state-months">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">เงินเดือน <span class="read-only-badge">👁 Read-only</span></h1>
+          <p class="page-meta">ภาพรวมรอบเงินเดือนทุกเดือน · คลิกเดือนเพื่อดูรายละเอียดสลิป</p>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-secondary">📥 Export PDF report</button>
+          <button class="btn btn-secondary">📊 Export ทั้งปี</button>
+        </div>
+      </div>
+
+      <div class="ro-banner">
+        <span>👁</span>
+        <span><strong>Owner read-only view</strong> — เห็นข้อมูลทั้งหมดรวมจำนวนเงิน · ไม่สามารถแก้ไข/publish ได้ (ใช้สิทธิ์ Admin)</span>
+      </div>
+
+      <div class="year-tabs">
+        <button class="year-tab">2567</button>
+        <button class="year-tab">2568</button>
+        <button class="year-tab active">2569</button>
+      </div>
+
+      <div class="kpi-strip">
+        <div class="kpi-card">
+          <div class="kpi-label">รวมจ่าย YTD 2569</div>
+          <div class="kpi-value">฿15,452,650</div>
+          <div class="kpi-sub up">↑ 4.2% vs ปีก่อน</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">เฉลี่ย/เดือน YTD</div>
+          <div class="kpi-value">฿3,863,162</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Override ปีนี้</div>
+          <div class="kpi-value" style="color: var(--accent-500);">5</div>
+          <div class="kpi-sub">฿28,500 รวม · ดูใน Audit</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">รอ publish</div>
+          <div class="kpi-value">1</div>
+          <div class="kpi-sub">เม.ย. 2569 — Draft</div>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>เดือน</th>
+              <th class="num">พนักงาน</th>
+              <th class="num">รวม Income</th>
+              <th class="num">รวม Deduct</th>
+              <th class="num">NetPay</th>
+              <th>สถานะ</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr onclick="goMonth('2569-05')">
+              <td><div class="month-cell"><div class="month-icon">2569<strong>พ.ค.</strong></div></div></td>
+              <td class="num">124</td>
+              <td class="num" style="color:var(--fg-muted);">—</td>
+              <td class="num" style="color:var(--fg-muted);">—</td>
+              <td class="num" style="color:var(--fg-muted);">—</td>
+              <td><span class="status-chip" style="background:var(--bg-muted); color:var(--fg-muted); border:1px solid var(--border);">⏳ ยังไม่เริ่ม</span></td>
+              <td class="view-eye">👁</td>
+            </tr>
+            <tr class="current-row" onclick="goMonth('2569-04')">
+              <td><div class="month-cell"><div class="month-icon current">2569<strong>เม.ย.</strong></div></div></td>
+              <td class="num">124</td>
+              <td class="num">฿4,500,000</td>
+              <td class="num">฿607,550</td>
+              <td class="num"><strong>฿3,892,450</strong></td>
+              <td>
+                <span class="status-chip status-draft">📝 Draft</span>
+                <span class="override-badge">⚠ 3 overrides</span>
+              </td>
+              <td class="view-eye">👁</td>
+            </tr>
+            <tr onclick="goMonth('2569-03')">
+              <td><div class="month-cell"><div class="month-icon">2569<strong>มี.ค.</strong></div></div></td>
+              <td class="num">122</td>
+              <td class="num">฿4,420,000</td>
+              <td class="num">฿590,800</td>
+              <td class="num">฿3,830,200</td>
+              <td><span class="status-chip status-published">✅ Published</span></td>
+              <td class="view-eye">👁</td>
+            </tr>
+            <tr onclick="goMonth('2569-02')">
+              <td><div class="month-cell"><div class="month-icon">2569<strong>ก.พ.</strong></div></div></td>
+              <td class="num">120</td>
+              <td class="num">฿4,310,000</td>
+              <td class="num">฿560,000</td>
+              <td class="num">฿3,750,000</td>
+              <td>
+                <span class="status-chip status-locked">🔒 Locked</span>
+                <span class="override-badge">⚠ 1 override</span>
+              </td>
+              <td class="view-eye">👁</td>
+            </tr>
+            <tr onclick="goMonth('2569-01')">
+              <td><div class="month-cell"><div class="month-icon">2569<strong>ม.ค.</strong></div></div></td>
+              <td class="num">120</td>
+              <td class="num">฿4,520,000</td>
+              <td class="num">฿600,000</td>
+              <td class="num">฿3,920,000</td>
+              <td><span class="status-chip status-locked">🔒 Locked</span></td>
+              <td class="view-eye">👁</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- MONTH DRILL -->
+    <div id="state-month" class="hidden">
+      <div class="main-topbar" style="margin-top:-16px;">
+        <div class="breadcrumb">
+          <a onclick="showState('months', document.querySelectorAll('.state-pill')[0])">เงินเดือน</a> · <span class="breadcrumb-active">เม.ย. 2569</span>
+        </div>
+      </div>
+
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">เม.ย. 2569 <span class="read-only-badge">👁 Read-only</span> <span class="status-chip status-draft" style="font-size:0.75rem;">📝 Draft</span></h1>
+          <p class="page-meta">รอ Admin publish · 124 พนักงาน · 3 overrides ที่ Admin ทำในรอบนี้</p>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-secondary">📥 Export Excel</button>
+        </div>
+      </div>
+
+      <!-- summary card -->
+      <div style="background: linear-gradient(135deg, var(--accent-500), #b45309); color:white; border-radius: var(--radius-lg); padding: 20px 24px; margin-bottom: 16px; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 24px;">
+        <div><div style="font-size:0.75rem; opacity:0.85;">พนักงาน</div><div style="font-size:1.5rem; font-weight:700;">124</div></div>
+        <div><div style="font-size:0.75rem; opacity:0.85;">รวม Income</div><div style="font-size:1.5rem; font-weight:700;">฿4,500,000</div></div>
+        <div><div style="font-size:0.75rem; opacity:0.85;">รวม Deduct</div><div style="font-size:1.5rem; font-weight:700;">฿607,550</div></div>
+        <div><div style="font-size:0.75rem; opacity:0.85;">NetPay</div><div style="font-size:1.75rem; font-weight:700; letter-spacing:-0.02em;">฿3,892,450</div></div>
+      </div>
+
+      <!-- override alerts -->
+      <div class="ro-banner" style="background: rgba(245,158,11,0.08); border-left: 4px solid var(--accent-500);">
+        <span>⚠️</span>
+        <span><strong>3 overrides</strong> ในรอบนี้ — Admin ปรับด้วยตัวเอง · รวมมูลค่า ฿18,200 · <a style="color:var(--primary-600); cursor:pointer;">ดูใน Audit log →</a></span>
+      </div>
+
+      <div class="filter-bar">
+        <input class="filter-input" placeholder="ค้นหาพนักงาน..." style="flex:1; min-width:200px;">
+        <select class="filter-input"><option>แผนก: ทั้งหมด</option><option>Tech</option><option>Sales</option></select>
+        <select class="filter-input"><option>แสดง: ทั้งหมด</option><option>เฉพาะที่มี override</option></select>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>พนักงาน</th>
+              <th>แผนก</th>
+              <th class="num">เงินเดือน</th>
+              <th class="num">OT</th>
+              <th class="num">หัก</th>
+              <th class="num">NetPay</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr onclick="alert('→ /owner/payroll/2569-04/EMP-001 (read-only slip)')">
+              <td><div class="name-cell"><div class="avatar">TS</div><div><div style="font-weight:600;">ตงค์ สมศรี</div><div style="font-size:0.6875rem; color:var(--fg-muted); font-family:'IBM Plex Mono', monospace;">EMP-001</div></div></div></td>
+              <td>Tech</td>
+              <td class="num">฿30,000</td>
+              <td class="num">฿1,200</td>
+              <td class="num">฿4,820</td>
+              <td class="num"><strong>฿26,380</strong></td>
+              <td class="view-eye">👁</td>
+            </tr>
+            <tr class="override-row" onclick="alert('→ /owner/payroll/2569-04/EMP-002 (override visible)')">
+              <td><div class="name-cell"><div class="avatar" style="background:#fce7f3; color:#9d174d;">SS</div><div><div style="font-weight:600;">ส้ม สมศักดิ์</div><div style="font-size:0.6875rem; color:var(--fg-muted); font-family:'IBM Plex Mono', monospace;">EMP-002</div></div></div></td>
+              <td>Sales</td>
+              <td class="num">฿25,000</td>
+              <td class="num">฿0</td>
+              <td class="num">฿2,200 <span class="override-badge">⚠ override</span></td>
+              <td class="num"><strong>฿22,800</strong></td>
+              <td class="view-eye">👁</td>
+            </tr>
+            <tr onclick="alert('→ /owner/payroll/2569-04/EMP-003')">
+              <td><div class="name-cell"><div class="avatar" style="background:#dbeafe; color:#1e40af;">BS</div><div><div style="font-weight:600;">บอย สุวรรณ</div><div style="font-size:0.6875rem; color:var(--fg-muted); font-family:'IBM Plex Mono', monospace;">EMP-003</div></div></div></td>
+              <td>Install</td>
+              <td class="num">฿22,000</td>
+              <td class="num">฿2,400</td>
+              <td class="num">฿3,800</td>
+              <td class="num"><strong>฿20,600</strong></td>
+              <td class="view-eye">👁</td>
+            </tr>
+            <tr class="override-row" onclick="alert('→ /owner/payroll/2569-04/EMP-004 (override + bonus)')">
+              <td><div class="name-cell"><div class="avatar" style="background:#fef3c7; color:#92400e;">PJ</div><div><div style="font-weight:600;">พลอย จันทร์</div><div style="font-size:0.6875rem; color:var(--fg-muted); font-family:'IBM Plex Mono', monospace;">EMP-004</div></div></div></td>
+              <td>Sales</td>
+              <td class="num">฿28,500 <span class="override-badge">+฿10,000 bonus</span></td>
+              <td class="num">฿0</td>
+              <td class="num">฿4,560</td>
+              <td class="num"><strong>฿33,940</strong></td>
+              <td class="view-eye">👁</td>
+            </tr>
+            <tr onclick="alert('→ /owner/payroll/2569-04/EMP-005')">
+              <td><div class="name-cell"><div class="avatar" style="background:#e0e7ff; color:#3730a3;">NK</div><div><div style="font-weight:600;">นภา กิติภา</div><div style="font-size:0.6875rem; color:var(--fg-muted); font-family:'IBM Plex Mono', monospace;">EMP-005</div></div></div></td>
+              <td>HR</td>
+              <td class="num">฿35,000</td>
+              <td class="num">฿0</td>
+              <td class="num">฿5,580</td>
+              <td class="num"><strong>฿29,420</strong></td>
+              <td class="view-eye">👁</td>
+            </tr>
+            <tr style="opacity:0.6">
+              <td colspan="7" style="text-align:center; font-size:0.8125rem; color:var(--fg-muted);">… อีก 119 พนักงาน …</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p style="margin-top:12px; font-size:0.75rem; color:var(--fg-muted); display:flex; align-items:center; gap:6px;">
+        💡 คลิกแถวเพื่อดู slip รายละเอียด (read-only · ไม่มีปุ่ม edit/unlock)
+      </p>
+    </div>
+
+  </main>
+</div>
+</div>
+</div>
+
+<script>
+  function toggleTheme() {
+    const isDark = document.documentElement.classList.toggle('dark');
+    try { localStorage.setItem('koolman-theme', isDark ? 'dark' : 'light'); } catch(e) {}
+  }
+  function showState(name, btn) {
+    ['months','month'].forEach(s => document.getElementById('state-' + s).classList.add('hidden'));
+    document.getElementById('state-' + name).classList.remove('hidden');
+    document.querySelectorAll('.state-pill').forEach(p => p.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+  }
+  function goMonth(month) {
+    showState('month', document.querySelectorAll('.state-pill')[1]);
+  }
+</script>
+
+</body>
+</html>
