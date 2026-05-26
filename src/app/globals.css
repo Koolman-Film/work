@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * Tailwind 4 CSS-first config
+ *
+ * All theme tokens live here (no more tailwind.config.ts). Tokens
+ * are picked up by Tailwind via the `@theme` block and made available
+ * as `--color-*`, `--font-*`, `--spacing-*` etc. for direct CSS use too.
+ *
+ * Brand tokens reflect the choices in docs/v1/design-system.md.
+ * ───────────────────────────────────────────────────────────────────────── */
+
+@theme {
+  /* Color — primary (Finnix Blue-Tech direction, see design-system.md) */
+  --color-primary-50:  oklch(0.97 0.02 250);
+  --color-primary-100: oklch(0.94 0.04 250);
+  --color-primary-200: oklch(0.87 0.08 250);
+  --color-primary-300: oklch(0.78 0.13 250);
+  --color-primary-400: oklch(0.66 0.18 250);
+  --color-primary-500: oklch(0.55 0.22 250);
+  --color-primary-600: oklch(0.46 0.22 250);
+  --color-primary-700: oklch(0.38 0.18 250);
+  --color-primary-800: oklch(0.30 0.13 250);
+  --color-primary-900: oklch(0.22 0.08 250);
+
+  /* Semantic status colors (status badges per shared-patterns.md) */
+  --color-success: oklch(0.62 0.16 145);
+  --color-warning: oklch(0.75 0.14 75);
+  --color-danger:  oklch(0.58 0.22 25);
+  --color-info:    oklch(0.62 0.14 230);
+
+  /* Type — Thai-tuned line-height per design-system.md */
+  --font-sans: 'IBM Plex Sans Thai', 'Sarabun', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Per design-system.md, Thai text needs slightly more line-height than Latin */
+  --line-height-thai-loose: 1.7;
+  --line-height-thai-normal: 1.65;
+  --line-height-thai-tight: 1.5;
+}
+
+/* ─── Base ─── */
+:root {
+  color-scheme: light dark;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  font-family: var(--font-sans);
+  line-height: var(--line-height-thai-normal);
+  font-feature-settings: 'kern' 1, 'liga' 1;
+}
+
+/* Tabular numbers everywhere money / time appears (see shared-patterns.md) */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}

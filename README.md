@@ -1,0 +1,95 @@
+# Koolman HR
+
+Internal HR system for Koolman — multi-branch car-window-film business.
+
+**Stack:** Next.js 16 + React 19 + TypeScript · Tailwind 4 · Prisma 6 · Supabase (Postgres + Auth + Storage + Realtime) · Inngest · LINE LIFF + Messaging API · Vercel.
+
+---
+
+## Quick start
+
+```bash
+# 1. install deps (pnpm 10 required)
+pnpm install
+
+# 2. copy env template
+cp .env.example .env.local
+# fill in values from docs/v2/credentials.local.md (gitignored)
+
+# 3. (later — when Prisma schema lands in W1c) apply migrations
+pnpm db:deploy
+
+# 4. dev server
+pnpm dev
+# → http://localhost:3000
+```
+
+---
+
+## Structure
+
+```
+.
+├── docs/                    # all planning + design docs (v1 + v2)
+│   └── v2/                  ← current plan
+├── prisma/                  # Prisma schema, migrations, seed (W1c)
+├── public/                  # static assets, Thai fonts
+├── src/
+│   ├── app/                 # Next.js App Router
+│   │   ├── (auth)/          ← W1b
+│   │   ├── (admin)/         ← W2
+│   │   ├── (owner)/         ← W5
+│   │   ├── (liff)/          ← W3
+│   │   └── api/             ← webhooks, cron
+│   ├── components/          # shared UI (shadcn primitives go here in W2)
+│   ├── lib/                 # supabase helpers, audit, i18n, line, etc.
+│   └── server/              # server actions, services, repositories
+├── tests/
+│   ├── unit/                # Vitest
+│   └── e2e/                 # Playwright
+└── tools/
+    └── oidc-smoke/          # one-off Stage 2 OIDC verification — ✅ PASS
+```
+
+Full layout in [`docs/v2/architecture.md`](./docs/v2/architecture.md).
+
+---
+
+## Docs entry points
+
+- **[`docs/v2/README.md`](./docs/v2/README.md)** — active engineering plan
+- **[`docs/v2/architecture.md`](./docs/v2/architecture.md)** — locked decisions, schema, auth model
+- **[`docs/v2/build-plan.md`](./docs/v2/build-plan.md)** — week-by-week with tests + DoD
+- **[`docs/v2/oidc-verification.md`](./docs/v2/oidc-verification.md)** — LINE × Supabase OIDC verification (Stage 1 + 2 PASS)
+- **[`docs/v1/`](./docs/v1/)** — historical reference (pre-pivot)
+
+---
+
+## Scripts
+
+| Command | What it does |
+|---|---|
+| `pnpm dev` | Next.js dev server |
+| `pnpm build` | Production build |
+| `pnpm start` | Production server (after build) |
+| `pnpm lint` / `pnpm lint:fix` | Biome lint (read / write) |
+| `pnpm format` | Biome format |
+| `pnpm typecheck` | `tsc --noEmit` |
+| `pnpm test` | Vitest run |
+| `pnpm test:watch` | Vitest watch mode |
+| `pnpm test:e2e` | Playwright |
+| `pnpm db:generate` | Prisma client codegen |
+| `pnpm db:migrate` | Prisma migrate dev |
+| `pnpm db:deploy` | Prisma migrate deploy (CI / prod) |
+| `pnpm db:studio` | Prisma Studio GUI |
+| `pnpm db:seed` | Seed dev database |
+| `pnpm db:reset` | Reset + re-migrate (no seed) |
+
+---
+
+## Status (2026-05-26)
+
+- ✅ V2 plan locked + OIDC verified
+- ✅ W1a scaffold (this commit)
+- ⏳ W1b — Supabase SSR + login
+- ⏳ W1c — Prisma schema + seed
