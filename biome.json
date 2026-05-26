@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.0.0/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.4.15/schema.json",
   "vcs": {
     "enabled": true,
     "clientKind": "git",
@@ -8,17 +8,20 @@
   "files": {
     "ignoreUnknown": true,
     "includes": [
-      "**",
-      "!**/node_modules/**",
-      "!**/.next/**",
-      "!**/dist/**",
-      "!**/build/**",
-      "!**/coverage/**",
-      "!**/.turbo/**",
-      "!**/prisma/migrations/**",
-      "!**/src/generated/**",
-      "!**/tools/oidc-smoke/**",
-      "!**/.vercel/**"
+      "src/**/*.{ts,tsx,js,jsx,json}",
+      "tests/**/*.{ts,tsx,json}",
+      "prisma/**/*.ts",
+      "*.{ts,tsx,js,mjs,json}",
+      "!**/node_modules",
+      "!**/.next",
+      "!**/dist",
+      "!**/build",
+      "!**/coverage",
+      "!**/.turbo",
+      "!**/.vercel",
+      "!**/prisma/migrations",
+      "!**/src/generated",
+      "!next-env.d.ts"
     ]
   },
   "formatter": {

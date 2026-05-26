@@ -47,3 +47,9 @@ docs/v1/Koolman_HR_Mockup_Walkthrough.pdf
 # Temp
 /tmp/
 *.tmp
+
+# Next.js build artifacts
+.next/
+out/
+next-env.d.ts.bak
+*.tsbuildinfo

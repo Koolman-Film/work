@@ -23,16 +23,10 @@ const config: NextConfig = {
     ],
   },
 
-  // Sentry, Prisma client, etc. should not be bundled into the edge runtime
+  // Sentry, Prisma client, etc. should not be bundled into the edge runtime.
+  // Next.js 16 uses Turbopack by default; this option is the cross-bundler way.
+  // (@line/liff is browser-only and should only ever be imported in client components.)
   serverExternalPackages: ['@prisma/client', 'prisma', 'pino', 'pino-pretty'],
-
-  // Allow @line/liff (browser-only) to be handled gracefully if accidentally imported server-side
-  webpack: (config, { isServer }) => {
-    if (isServer) {
-      config.externals = [...(config.externals || []), '@line/liff'];
-    }
-    return config;
-  },
 };
 
 export default config;

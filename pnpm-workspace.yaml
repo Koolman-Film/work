@@ -1,0 +1,14 @@
+# pnpm 10+ moved several settings here (out of package.json).
+# We're not a real workspace — declaring root-only `packages` keeps pnpm
+# happy without changing project structure.
+
+packages:
+  - "."
+
+onlyBuiltDependencies:
+  - "@prisma/client"
+  - "@prisma/engines"
+  - prisma
+  - sharp
+  - esbuild
+  - "@swc/core"
