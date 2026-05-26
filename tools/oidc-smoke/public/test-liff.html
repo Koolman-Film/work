@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Koolman HR — LINE × Supabase OIDC smoke</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      margin: 0; padding: 16px; line-height: 1.5;
+      background: Canvas; color: CanvasText;
+    }
+    h1 { font-size: 18px; margin: 0 0 12px; }
+    .meta { color: GrayText; font-size: 13px; margin-bottom: 16px; }
+    #out {
+      white-space: pre-wrap; word-break: break-all;
+      background: rgba(127,127,127,.1); padding: 12px; border-radius: 8px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 13px; min-height: 200px;
+    }
+    .ok  { color: #1a7f37; }
+    .err { color: #b91c1c; }
+    .dim { color: GrayText; }
+    button {
+      margin-top: 12px; padding: 8px 14px; font-size: 14px; border-radius: 6px;
+      border: 1px solid GrayText; background: ButtonFace; color: ButtonText; cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h1>LINE × Supabase OIDC smoke</h1>
+  <div class="meta">
+    Open this URL inside the LINE app via <code>https://liff.line.me/2010206636-7ktXQqFN</code>.
+    See <code>docs/v2/oidc-verification.md §6</code> for pass criteria.
+  </div>
+  <pre id="out"></pre>
+  <button id="reset">Reset session &amp; re-run</button>
+
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
+
+    // ─── PUBLIC values only — these are safe to embed in client ───
+    const LIFF_ID  = '2010206636-7ktXQqFN';
+    const SB_URL   = 'https://ficzlgdigcfwpkfbidjz.supabase.co';
+    const SB_ANON  = 'sb_publishable_deNRKcZDo__jpadkJELFRw__xaxSM0J';
+
+    const out = document.getElementById('out');
+    const ts = () => new Date().toISOString().split('T')[1].replace('Z', '');
+    const log = (cls, ...parts) => {
+      const span = document.createElement('span');
+      span.className = cls;
+      span.textContent = `${ts()} ${parts.join(' ')}\n`;
+      out.appendChild(span);
+    };
+    const ok  = (...p) => log('ok',  '✅', ...p);
+    const err = (...p) => log('err', '❌', ...p);
+    const dim = (...p) => log('dim', 'ℹ️ ', ...p);
+
+    const supabase = createClient(SB_URL, SB_ANON, {
+      auth: { persistSession: true, autoRefreshToken: true }
+    });
+
+    async function run() {
+      out.textContent = '';
+      try {
+        dim('Initializing LIFF…');
+        await window.liff.init({ liffId: LIFF_ID });
+        ok('liff.init OK');
+        dim('liff.isInClient() =', String(window.liff.isInClient()));
+        dim('liff.isLoggedIn() =', String(window.liff.isLoggedIn()));
+
+        if (!window.liff.isLoggedIn()) {
+          dim('Not logged in — triggering liff.login()…');
+          window.liff.login();
+          return; // page reloads after login
+        }
+
+        const profile = await window.liff.getProfile();
+        ok('liff.getProfile OK');
+        dim('   userId =', profile.userId);
+        dim('   displayName =', profile.displayName);
+
+        const idToken = window.liff.getIDToken();
+        if (!idToken) throw new Error('liff.getIDToken() returned null — check LIFF scope includes openid');
+        ok('liff.getIDToken OK — length', String(idToken.length));
+        dim('   first 30:', idToken.slice(0, 30) + '…');
+
+        // Decode without verifying to show the user what's in the token
+        try {
+          const payload = JSON.parse(atob(idToken.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+          dim('   iss =', payload.iss);
+          dim('   aud =', payload.aud);
+          dim('   sub =', payload.sub);
+          dim('   exp =', new Date(payload.exp * 1000).toISOString());
+          dim('   nonce =', payload.nonce ?? '(none — skip_nonce_check required)');
+        } catch (_) { /* decode is best-effort */ }
+
+        dim('Calling supabase.auth.signInWithIdToken({ provider: "custom:line" })…');
+        const { data, error } = await supabase.auth.signInWithIdToken({
+          provider: 'custom:line',
+          token: idToken,
+        });
+        if (error) throw error;
+
+        ok('Supabase session created');
+        dim('   auth.users.id =', data.user.id);
+        dim('   user_metadata.sub =', data.user.user_metadata?.sub);
+        dim('   app_metadata.provider =', data.user.app_metadata?.provider);
+
+        const { data: who, error: whoErr } = await supabase.auth.getUser();
+        if (whoErr) throw whoErr;
+        const sameId = who.user.id === data.user.id;
+        (sameId ? ok : err)('getUser() round-trip — same id =', String(sameId));
+
+        if (sameId && data.user.user_metadata?.sub === profile.userId) {
+          ok('LINE userId matches OIDC sub — full chain verified');
+        } else {
+          err('sub / userId mismatch — investigate before proceeding');
+        }
+      } catch (e) {
+        err(e.message || JSON.stringify(e));
+        console.error(e);
+      }
+    }
+
+    document.getElementById('reset').addEventListener('click', async () => {
+      await supabase.auth.signOut();
+      if (window.liff?.isLoggedIn?.()) window.liff.logout();
+      location.reload();
+    });
+
+    run();
+  </script>
+</body>
+</html>

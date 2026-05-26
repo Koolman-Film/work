@@ -1,0 +1,10 @@
+{
+  "name": "koolman-oidc-smoke",
+  "private": true,
+  "description": "Stage 2 smoke test for LINE × Supabase Custom OIDC. Static HTML only; deploys via `vercel`.",
+  "version": "0.0.1",
+  "scripts": {
+    "deploy": "vercel --yes",
+    "deploy:prod": "vercel --prod --yes"
+  }
+}
