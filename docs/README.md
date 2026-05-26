@@ -37,6 +37,7 @@ V1 ส่งมอบเป็น **4 phases** — ลูกค้า commit ท
 - [v1/dev-environment.md](./v1/dev-environment.md) — local + staging + production env setup
 - [v1/maintenance.md](./v1/maintenance.md) — post-launch ops + retainer options
 - [v1/future-work.md](./v1/future-work.md) — V2/V3 backlog (features Thai HR systems have but V1 doesn't)
+- [v1/saas-pricing.md](./v1/saas-pricing.md) — SaaS pricing strategy (5 tiers, cost viability, SMS bundles)
 - [v1/screens/](./v1/screens/) — UI specs for every screen, form, modal, toast, edge case
 - [v1/screens/mockups/](./v1/screens/mockups/) — 28 visual HTML mockups grouped by phase
 

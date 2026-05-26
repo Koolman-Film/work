@@ -32,6 +32,7 @@ V1 = 4 phases · separate quotes · sequential delivery. ดู [build-plan.md](
 | [dev-environment.md](./dev-environment.md) | Local + Preview + Production env setup, Supabase CLI workflow, daily commands |
 | [maintenance.md](./maintenance.md) | Post-launch operations + retainer options + monitoring playbooks |
 | [future-work.md](./future-work.md) | Backlog — features Thai HR systems have but V1 doesn't (Tier 1-4, ~40% parity gap analysis) |
+| [saas-pricing.md](./saas-pricing.md) | SaaS subscription pricing strategy — 5 tiers, cost analysis, viability at 1-20 customers, SMS bundles |
 | [design-previews/](./design-previews/) | Visual HTML previews of design directions + font + style comparisons |
 | **[screens/](./screens/)** ⭐ | UI specs per role + flows + navigation + shared patterns + 28 mockups |
 

@@ -76,15 +76,46 @@ gh repo edit koolman-hr --enable-issues --enable-projects=false
 - [ ] Create app: `koolman-hr`
 - [ ] Copy `INNGEST_EVENT_KEY` + `INNGEST_SIGNING_KEY`
 
-### 1.7 SMS provider (skip for Phase 1)
+### 1.7 SMS provider — ThaiBulkSMS (required Phase 1)
 
-**Phase 1:** ไม่ต้องตั้ง SMS เพราะใช้ admin-reset password (admin บอกพนักงานปากเปล่า / via LINE OA chat).
+> **Update 2026-05:** Phase 1 ใช้ phone + password login + SMS OTP สำหรับ reset password + welcome SMS ตอน admin add พนักงาน.
 
-**Phase 2+ ถ้าต้องการ self-service password reset:**
-- [ ] **ThaiBulkSMS** — https://thaibulksms.com — ราคา ~0.30–0.60 ฿/SMS (Thai only)
-- [ ] **SMS Master** — https://smsmaster.co.th — ราคาใกล้เคียง
-- [ ] **Twilio** — https://twilio.com — global, แพงกว่า (~1 ฿/SMS) แต่ DX ดี
-- [ ] Recommend: ThaiBulkSMS ถ้าลูกค้า OK กับ provider ไทย
+#### Setup steps (~30 min + 3-5 day wait for sender ID)
+
+- [ ] Sign up ที่ https://thaibulksms.com (corporate account)
+- [ ] อัปโหลดเอกสารบริษัท (สำเนาทะเบียนบริษัท, ทะเบียน VAT) — required for sender ID approval
+- [ ] **Sender ID registration** — submit "KoolmanHR" (หรือชื่อที่ลูกค้าอยาก) — รอ 3-5 วันทำการ
+- [ ] **Initial credit:** เติม 1,000 ฿ (= ~2,000 SMS @ 0.50 ฿) — เพียงพอสำหรับ Phase 1 ทดสอบ + 6 เดือนแรก
+- [ ] Get `THAIBULKSMS_API_KEY` + `THAIBULKSMS_API_SECRET`
+- [ ] เพิ่ม env vars ใน Vercel + .env.local
+
+#### Volume forecast Phase 1 (per customer)
+
+| Use case | SMS/mo | Cost @ 0.50 ฿ |
+|---|---|---|
+| Welcome SMS (admin add new emp) | ~5-10 | 2.5-5 ฿ |
+| Reset password OTP | ~5-15 | 2.5-7.5 ฿ |
+| **Total** | **~15-25/mo** | **~10-15 ฿/mo** |
+
+ค่าใช้จ่าย SMS เล็กน้อยมาก. 1,000 ฿ initial credit = ใช้ได้ ~6 เดือน.
+
+#### Why ThaiBulkSMS (not Twilio)
+
+- ราคาถูกกว่า Twilio 50% (0.50 vs 1.00 ฿/SMS)
+- รองรับ +66 เบอร์ไทยเท่านั้น (เหมาะกับลูกค้าไทย 100%)
+- API ง่าย · Thai-language docs
+- Sender ID + DLR support
+- เก็บ credit prepaid · ไม่มี subscription
+
+#### Fallback strategy
+
+- ถ้า ThaiBulkSMS API ล่ม → log error + admin-reset แทน (ใช้ `adminResetPassword(employeeId)`)
+- พนักงานที่เป็นแรงงานต่างชาติ (เบอร์ +95/+855) → เปลี่ยนเป็น email reset (ตั้งใน Settings → Foreign workers)
+
+#### Alternative providers (backup choice)
+
+- **SMS Master** — https://smsmaster.co.th — ราคาใกล้เคียง · backup ถ้า ThaiBulkSMS มีปัญหา
+- **Twilio** — https://twilio.com — global, แพงกว่า แต่ DX ดี + sandbox testing free
 
 ---
 
@@ -174,6 +205,9 @@ gh repo edit koolman-hr --enable-issues --enable-projects=false
 - `RESEND_API_KEY`
 - `INNGEST_EVENT_KEY`
 - `INNGEST_SIGNING_KEY`
+- `THAIBULKSMS_API_KEY`
+- `THAIBULKSMS_API_SECRET`
+- `THAIBULKSMS_SENDER_ID` (e.g., "KoolmanHR")
 - `SENTRY_DSN`
 - `SENTRY_AUTH_TOKEN` (สำหรับ source maps upload)
 - `NEXTAUTH_SECRET` หรือ JWT secret (ถ้าใช้ custom token issuance)
@@ -218,6 +252,7 @@ gh repo edit koolman-hr --enable-issues --enable-projects=false
 - [ ] Resend account สร้างแล้ว, domain verify ดำเนินการแล้ว (รอ DNS)
 - [ ] Sentry project สร้างแล้ว
 - [ ] Inngest app สร้างแล้ว
+- [ ] **ThaiBulkSMS account สร้างแล้ว · sender ID submit แล้ว (รอ approval 3-5 วัน) · เติม credit 1,000 ฿**
 
 ### 6.2 Local environment ✓
 - [ ] `node --version` → v24.x
@@ -229,7 +264,7 @@ gh repo edit koolman-hr --enable-issues --enable-projects=false
 
 ### 6.3 Customer dependencies ✓
 - [ ] Contract signed
-- [ ] Phase 1 deposit 40K received
+- [ ] Phase 1 deposit 30K received
 - [ ] Admin contact info ได้ (เบอร์ + email)
 - [ ] Logo + brand color ได้ (หรือใช้ default)
 - [ ] Branch + Department list ได้
@@ -238,6 +273,7 @@ gh repo edit koolman-hr --enable-issues --enable-projects=false
 - [ ] Vercel deploy hello-world Next.js → live URL works
 - [ ] Supabase: connect via `psql $DATABASE_URL`, run `SELECT 1;`
 - [ ] Resend: send test email to your inbox via API
+- [ ] **ThaiBulkSMS: send test SMS to your phone via API**
 - [ ] Sentry: trigger test error via SDK → appears in dashboard
 - [ ] GitHub Actions: push trivial commit → CI runs green
 
@@ -270,28 +306,31 @@ gh repo edit koolman-hr --enable-issues --enable-projects=false
 ## Quick checklist (TL;DR)
 
 ### ก่อนเริ่ม Phase 1 ต้องมี
-- ✅ Contract signed + 40K deposit
+- ✅ Contract signed + 30K deposit
 - ✅ GitHub repo + Vercel + Supabase + Resend + Sentry + Inngest accounts
+- ✅ **ThaiBulkSMS account + sender ID submitted (รอ approval ~5 วัน — ทำตั้งแต่วันแรก)**
 - ✅ Local dev tools (Node 24, pnpm 10, Supabase CLI, Cursor)
 - ✅ AI tooling subscription (Claude Max + Cursor Pro)
 - ✅ DNS records (ถ้าลูกค้ามี domain) submitted สำหรับ Resend verify
 - ✅ Customer info: Admin contact + branch list + leave types
 
 ### เวลารวมที่ต้องทำเอง
-- Service signups: ~1.5 hr
+- Service signups: ~2 hr (รวม ThaiBulkSMS docs upload)
 - Local env: ~1 hr
 - Customer info gathering: ~1 hr
 - Domain + DNS: ~30 min + 24 hr wait
 - Smoke tests: ~1 hr
-- **Total: ~4-6 hr active work + 1 day DNS wait**
+- **Total: ~5-7 hr active work + 1 day DNS wait + 3-5 days SMS sender ID approval (parallel)**
 
 ### สิ่งที่ห้ามลืม
 - ❌ อย่าเริ่ม code ก่อน Resend domain verify เสร็จ (block email testing)
+- ❌ **อย่าเริ่ม code ก่อน ThaiBulkSMS sender ID approval (block SMS testing)** — submit ตั้งแต่ Day 1
 - ❌ อย่าใช้ Vercel Hobby tier สำหรับ commercial production (Phase 2+ ต้อง Pro)
 - ❌ อย่าใช้ Supabase Free สำหรับ critical data (no daily backups) — Phase 2+ ต้อง Pro
 - ❌ อย่าลืม cron-ping สำหรับ Supabase Free (auto-pause 7 days)
 - ❌ อย่า commit env vars ลง git — ใช้ `.env.local` + `.gitignore`
 - ❌ อย่าใส่ `SERVICE_ROLE_KEY` ใน client bundle (server-only!)
+- ❌ อย่าลืม monitor SMS credit — เติมก่อนหมด (ตั้ง alert ที่ 200 ฿ remaining)
 
 ---
 
@@ -308,13 +347,15 @@ gh repo edit koolman-hr --enable-issues --enable-projects=false
 - Sentry Developer: $0
 - Inngest Free: $0
 - Domain renewal (yearly): ~600 ฿
-- **Customer total: ~50 ฿/เดือน (or 0 ถ้าใช้ vercel.app)**
+- **ThaiBulkSMS prepaid:** ~10-25 ฿/mo (depending on volume)
+- **Customer total: ~60-75 ฿/เดือน (or ~10-25 ฿ ถ้าใช้ vercel.app)**
 
 ### Recurring (Phase 2 onwards, Pro tier required)
 - Vercel Pro: $20/mo
 - Supabase Pro: $25/mo
 - Resend (free still OK ถ้า ≤ 3K/mo)
-- **Customer total: ~$45/mo (~1,600 ฿/mo)**
+- ThaiBulkSMS: ~50-150 ฿/mo (volume up at Phase 2+ with more SMS use cases)
+- **Customer total: ~$45/mo + 50-150 ฿ = ~1,650-1,750 ฿/mo**
 
 ### Your tooling (during dev)
 - Claude Max: $200/mo

@@ -10,11 +10,11 @@
 
 | Phase | Scope | Hours (AI heavy) | Calendar | Quote (THB) | Stack tier |
 |---|---|---|---|---|---|
-| **Phase 1** ⭐ | Core Workflow — Leave + Attendance + Advance | 60–90 | 2–4 wk | **130K** | Free tier |
-| **Phase 2** | Payroll Engine + Pay Slip | 80–120 | 3–4 wk | **150K** | Pro tier (~$45/mo customer) |
-| **Phase 3** | Polish — Excel, PEAK, Owner, Audit, Bulk | 60–90 | 2–3 wk | **100K** | Pro tier |
-| **Phase 4** (optional) | LINE LIFF + Messaging API | 25–35 | 1–2 wk | **50K** | Pro tier + LINE OA |
-| **Total V1 complete** | All phases | 225–335 | 8–13 wk | **430K** | — |
+| **Phase 1** ⭐ | Core Workflow — Leave + Attendance + Advance | 25–35 | 2–3 wk | **70K** | Free tier + ThaiBulkSMS |
+| **Phase 2** | Payroll Engine + Pay Slip | 40–55 | 3–4 wk | **85K** | Pro tier (~$45/mo customer) |
+| **Phase 3** | Polish — Excel, PEAK, Owner, Audit, Bulk | 28–38 | 2–3 wk | **50K** | Pro tier |
+| **Phase 4** (optional) | LINE LIFF + Messaging API | 12–18 | 1–2 wk | **25K** | Pro tier + LINE OA |
+| **Total V1 complete** | All phases | 105–146 | 8–12 wk | **230K** | — |
 
 > ลูกค้าเลือกได้ — ทำทีละ phase, หรือบาง phase, หรือสลับลำดับ. แต่ **ห้ามข้าม Phase 1** — เป็นรากฐานของทุก phase.
 
@@ -22,13 +22,18 @@
 
 # Phase 1 — Core Workflow (Leave + Attendance + Cash Advance)
 
-**Quote:** 130K THB · **Calendar:** 2–4 wk · **Hours:** 60–90 (AI-heavy)
+**Quote:** 70K THB · **Calendar:** 2–3 wk · **Hours:** 25–35 (AI-heavy)
 
 **Goal:** ลูกค้าได้สิ่งที่ยังไม่เคยมี — บันทึก ขาด/ลา/มาสาย + ขอเบิกเงินล่วงหน้า
 
 **Why this is Phase 1:** ลูกค้าบอกตรงๆว่าอยากได้สิ่งนี้ก่อน. ส่วน payroll ลูกค้ามีอยู่แล้ว (อาจเป็น Excel หรือระบบเก่า). เลื่อนได้.
 
-**Stack:** Free tier ทั้งหมด — Vercel Hobby + Supabase Free + Resend Free. ไม่ต้อง SMS provider (admin reset password แทน).
+**Stack:** Free tier ทั้งหมด — Vercel Hobby + Supabase Free + Resend Free + **ThaiBulkSMS prepaid (~1,000 ฿ initial credit = ~2,000 SMS)**.
+
+**SMS usage Phase 1:**
+- Welcome SMS เมื่อ admin add พนักงาน (1 SMS ต่อพนักงานใหม่)
+- Reset password OTP เมื่อพนักงานลืมรหัสผ่าน (5-15 SMS/เดือน เฉลี่ย)
+- Total estimated: ~30-50 SMS/เดือน @ 0.50 ฿/SMS = **~15-25 ฿/เดือน · เล็กน้อยมาก**
 
 ## Phase 1 Detailed Checklist
 
@@ -48,7 +53,11 @@
 - [ ] Migration: `Employees` table + link `auth_user_id` to `auth.users`
 - [ ] Supabase Auth: enable Phone provider, disable Email provider for login
 - [ ] Server Actions: `signIn(phone, password)`, `signOut()`
-- [ ] Server Action: `adminResetPassword(employeeId)` — generate temp password, return ให้ admin บอกพนักงานปากเปล่า
+- [ ] Server Action: `requestPasswordReset(phone)` → ส่ง SMS OTP via ThaiBulkSMS API (5 min TTL)
+- [ ] Server Action: `verifyResetOtpAndSetPassword(phone, otp, newPassword)` → verify + update
+- [ ] Server Action: `adminResetPassword(employeeId)` — fallback ถ้า SMS fail (generate temp password)
+- [ ] `lib/sms/thaibulksms.ts` — wrapper for ThaiBulkSMS API + retry + audit log
+- [ ] Welcome SMS template เมื่อ admin add new employee (link to /welcome?token=...)
 - [ ] Page `/login` — phone + password form (UI from mockup 01-login.html)
 - [ ] Middleware: redirect by role (Employee → /dashboard, Admin → /admin)
 - [ ] RLS policies — Employees can only read own row, Admins can CRUD all
@@ -175,15 +184,15 @@
 
 | Milestone | Trigger | THB | Cumulative |
 |---|---|---|---|
-| Contract sign | Day 0 | 40K | 40K |
-| Mid-phase demo | ~W2 | 40K | 80K |
-| UAT pass + go-live | ~W3 | 50K | **130K** |
+| Contract sign | Day 0 | 30K | 30K |
+| Mid-phase demo | ~W2 | 20K | 50K |
+| UAT pass + go-live | ~W3 | 20K | **70K** |
 
 ---
 
 # Phase 2 — Payroll Engine + Pay Slip
 
-**Quote:** 150K THB · **Calendar:** 3–4 wk · **Hours:** 80–120
+**Quote:** 85K THB · **Calendar:** 3–4 wk · **Hours:** 40–55
 
 **Goal:** คำนวณเงินเดือนรายเดือน + ส่งสลิป + override + lock
 
@@ -290,7 +299,7 @@
 
 # Phase 3 — Polish (Excel, PEAK, Owner, Audit, Bulk)
 
-**Quote:** 100K THB · **Calendar:** 2–3 wk · **Hours:** 60–90
+**Quote:** 50K THB · **Calendar:** 2–3 wk · **Hours:** 28–38
 
 **Goal:** Operational efficiency — bulk import, fingerprint scan, accounting export, audit log, owner role.
 
@@ -387,7 +396,7 @@
 
 # Phase 4 — LINE LIFF + Messaging API (optional)
 
-**Quote:** 50K THB · **Calendar:** 1–2 wk · **Hours:** 25–35
+**Quote:** 25K THB · **Calendar:** 1–2 wk · **Hours:** 12–18
 
 **Goal:** Push notification ผ่าน LINE OA + ผูกบัญชี LINE ของพนักงาน
 
