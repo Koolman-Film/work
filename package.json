@@ -36,6 +36,7 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
+    "@line/bot-sdk": "^11.0.0",
     "@line/liff": "^2.27.0",
     "@prisma/client": "^6.0.0",
     "@sentry/nextjs": "^9.0.0",
@@ -49,7 +50,7 @@
     "date-fns": "^4.1.0",
     "date-fns-tz": "^3.2.0",
     "decimal.js": "^10.4.3",
-    "inngest": "^4.0.0",
+    "inngest": "^4.4.0",
     "jose": "^6.2.3",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.16.0",

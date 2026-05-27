@@ -19,6 +19,9 @@
  * No push is sent during this probe — purely a read-only auth check.
  */
 
+// See tools/inngest-smoke/probe.ts for why we need `export {}` here.
+export {};
+
 const RED = '\x1b[31m';
 const GREEN = '\x1b[32m';
 const DIM = '\x1b[2m';

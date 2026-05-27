@@ -25,6 +25,12 @@
  * in the dashboard.
  */
 
+// Make this file a module so its top-level consts don't collide with
+// the identically-named ones in the sibling probe scripts (each tools/
+// subfolder is its own throwaway script but tsc treats the whole repo
+// as one project).
+export {};
+
 const RED = '\x1b[31m';
 const GREEN = '\x1b[32m';
 const DIM = '\x1b[2m';

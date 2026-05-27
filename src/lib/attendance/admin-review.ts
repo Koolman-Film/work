@@ -30,6 +30,7 @@ import { headers } from 'next/headers';
 import { auditLogTx } from '@/lib/audit/log';
 import { requireRole } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
+import { sendNotification } from '@/lib/inngest/events';
 
 export type ReviewResult =
   | { ok: true; nextStatus: 'Confirmed' | 'Rejected' }
@@ -64,8 +65,14 @@ async function review(input: ReviewInput, decision: 'approve' | 'reject'): Promi
   const action =
     decision === 'approve' ? 'attendance.dispute-approve' : 'attendance.dispute-reject';
 
+  // Holder object — see src/lib/leave/admin.ts for the closure-narrowing
+  // workaround note.
+  const notifBox: {
+    data: { recipientUserId: string; employeeFirstName: string; date: string } | null;
+  } = { data: null };
+
   try {
-    return await prisma.$transaction<ReviewResult>(async (tx) => {
+    const result = await prisma.$transaction<ReviewResult>(async (tx) => {
       const row = await tx.attendance.findUnique({
         where: { id: input.attendanceId },
         select: {
@@ -73,6 +80,8 @@ async function review(input: ReviewInput, decision: 'approve' | 'reject'): Promi
           checkInStatus: true,
           isOverridden: true,
           employeeId: true,
+          date: true,
+          employee: { select: { firstName: true, userId: true } },
         },
       });
 
@@ -118,8 +127,27 @@ async function review(input: ReviewInput, decision: 'approve' | 'reject'): Promi
         metadata: { ip, userAgent, source: 'admin-ui' },
       });
 
+      notifBox.data = {
+        recipientUserId: row.employee.userId,
+        employeeFirstName: row.employee.firstName,
+        date: row.date.toISOString().slice(0, 10),
+      };
+
       return { ok: true as const, nextStatus };
     });
+
+    if (result.ok && notifBox.data) {
+      await sendNotification(notifBox.data.recipientUserId, {
+        kind:
+          decision === 'approve' ? 'attendance.dispute-approved' : 'attendance.dispute-rejected',
+        attendanceId: input.attendanceId,
+        employeeFirstName: notifBox.data.employeeFirstName,
+        date: notifBox.data.date,
+        reviewNote: trimmedNote,
+      });
+    }
+
+    return result;
   } catch (err) {
     console.error('[admin-review] tx failed', err);
     return {

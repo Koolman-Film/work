@@ -21,6 +21,19 @@ import { headers } from 'next/headers';
 import { auditLogTx } from '@/lib/audit/log';
 import { requireRole } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
+import { sendNotification } from '@/lib/inngest/events';
+
+/** Format Prisma.Decimal as a human-friendly currency string for Flex
+ *  Message display. Stays in string form across the Inngest event
+ *  boundary so JSON serialisation doesn't drop precision. */
+function formatAmount(d: { toString(): string }): string {
+  const n = Number(d.toString());
+  if (!Number.isFinite(n)) return d.toString();
+  return new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(n);
+}
 
 export type ApproveAdvanceResult =
   | { ok: true }
@@ -52,11 +65,23 @@ export async function approveCashAdvance(input: ApproveInput): Promise<ApproveAd
     undefined;
   const userAgent = headerList.get('user-agent') ?? undefined;
 
+  // Holder object — TS narrows `let foo: T | null = null` assigned in
+  // async closures to `never` post-tx. Object mutation is exempt.
+  // See src/lib/leave/admin.ts for the long-form note.
+  const approveNotifBox: {
+    data: { recipientUserId: string; employeeFirstName: string; amount: string } | null;
+  } = { data: null };
+
   try {
     const result = await prisma.$transaction<ApproveAdvanceResult>(async (tx) => {
       const row = await tx.cashAdvance.findUnique({
         where: { id: input.cashAdvanceId },
-        select: { id: true, status: true, amount: true },
+        select: {
+          id: true,
+          status: true,
+          amount: true,
+          employee: { select: { firstName: true, userId: true } },
+        },
       });
       if (!row) {
         return { ok: false as const, code: 'not-found' as const, message: 'ไม่พบคำขอเบิก' };
@@ -96,8 +121,23 @@ export async function approveCashAdvance(input: ApproveInput): Promise<ApproveAd
         metadata: { ip, userAgent, source: 'admin-ui' },
       });
 
+      approveNotifBox.data = {
+        recipientUserId: row.employee.userId,
+        employeeFirstName: row.employee.firstName,
+        amount: formatAmount(row.amount),
+      };
+
       return { ok: true as const };
     });
+
+    if (result.ok && approveNotifBox.data) {
+      await sendNotification(approveNotifBox.data.recipientUserId, {
+        kind: 'advance.approved',
+        cashAdvanceId: input.cashAdvanceId,
+        employeeFirstName: approveNotifBox.data.employeeFirstName,
+        amount: approveNotifBox.data.amount,
+      });
+    }
 
     revalidatePath('/admin/advance');
     return result;
@@ -117,11 +157,20 @@ export async function rejectCashAdvance(input: RejectInput): Promise<RejectAdvan
     undefined;
   const userAgent = headerList.get('user-agent') ?? undefined;
 
+  const rejectNotifBox: {
+    data: { recipientUserId: string; employeeFirstName: string; amount: string } | null;
+  } = { data: null };
+
   try {
     const result = await prisma.$transaction<RejectAdvanceResult>(async (tx) => {
       const row = await tx.cashAdvance.findUnique({
         where: { id: input.cashAdvanceId },
-        select: { id: true, status: true, amount: true },
+        select: {
+          id: true,
+          status: true,
+          amount: true,
+          employee: { select: { firstName: true, userId: true } },
+        },
       });
       if (!row) {
         return { ok: false as const, code: 'not-found' as const, message: 'ไม่พบคำขอเบิก' };
@@ -149,8 +198,23 @@ export async function rejectCashAdvance(input: RejectInput): Promise<RejectAdvan
         metadata: { ip, userAgent, source: 'admin-ui' },
       });
 
+      rejectNotifBox.data = {
+        recipientUserId: row.employee.userId,
+        employeeFirstName: row.employee.firstName,
+        amount: formatAmount(row.amount),
+      };
+
       return { ok: true as const };
     });
+
+    if (result.ok && rejectNotifBox.data) {
+      await sendNotification(rejectNotifBox.data.recipientUserId, {
+        kind: 'advance.rejected',
+        cashAdvanceId: input.cashAdvanceId,
+        employeeFirstName: rejectNotifBox.data.employeeFirstName,
+        amount: rejectNotifBox.data.amount,
+      });
+    }
 
     revalidatePath('/admin/advance');
     return result;

@@ -31,6 +31,7 @@ import { headers } from 'next/headers';
 import { auditLogTx } from '@/lib/audit/log';
 import { requireRole } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
+import { sendNotification } from '@/lib/inngest/events';
 import { workingDaysIn } from './working-days';
 
 export type ApproveResult =
@@ -71,6 +72,27 @@ export async function approveLeaveRequest(input: Input): Promise<ApproveResult> 
     undefined;
   const userAgent = headerList.get('user-agent') ?? undefined;
 
+  // The notification payload captured INSIDE the tx (so it includes the
+  // employee + leave-type data we already have to fetch anyway), then
+  // FIRED AFTER the tx commits. Firing inside the tx would leak an event
+  // for a tx that later rolls back.
+  //
+  // We hold the captured data on an object property rather than via
+  // `let foo = null`. Reason: TypeScript's flow-analysis loses track of
+  // assignments to a let-variable from inside an async closure and
+  // narrows the post-tx type to `never`. Object mutation isn't subject
+  // to the same narrowing — the property type stays as declared.
+  const notifBox: {
+    data: {
+      recipientUserId: string;
+      employeeFirstName: string;
+      leaveTypeName: string;
+      startDate: string;
+      endDate: string;
+      workingDayCount: number;
+    } | null;
+  } = { data: null };
+
   try {
     const result = await prisma.$transaction<ApproveResult>(async (tx) => {
       const req = await tx.leaveRequest.findUnique({
@@ -82,6 +104,8 @@ export async function approveLeaveRequest(input: Input): Promise<ApproveResult> 
           leaveTypeId: true,
           startDate: true,
           endDate: true,
+          employee: { select: { firstName: true, userId: true } },
+          leaveType: { select: { name: true } },
         },
       });
 
@@ -162,12 +186,38 @@ export async function approveLeaveRequest(input: Input): Promise<ApproveResult> 
         metadata: { ip, userAgent, source: 'admin-ui' },
       });
 
+      // Stash for after-tx notification (see comment above the try block).
+      notifBox.data = {
+        recipientUserId: req.employee.userId,
+        employeeFirstName: req.employee.firstName,
+        leaveTypeName: req.leaveType.name,
+        startDate: req.startDate.toISOString().slice(0, 10),
+        endDate: req.endDate.toISOString().slice(0, 10),
+        workingDayCount: workingDays.length,
+      };
+
       return {
         ok: true as const,
         attendanceRowsCreated: inserted.count,
         workingDays: workingDays.length,
       };
     });
+
+    // Fire-and-await notification AFTER the tx commits. Inngest's send is
+    // typically <100ms; we don't want the action to block the response on
+    // network, but losing the event would be worse than waiting briefly.
+    if (result.ok && notifBox.data) {
+      await sendNotification(notifBox.data.recipientUserId, {
+        kind: 'leave.approved',
+        leaveRequestId: input.leaveRequestId,
+        employeeFirstName: notifBox.data.employeeFirstName,
+        leaveTypeName: notifBox.data.leaveTypeName,
+        startDate: notifBox.data.startDate,
+        endDate: notifBox.data.endDate,
+        workingDays: notifBox.data.workingDayCount,
+        reviewNote: note,
+      });
+    }
 
     revalidatePath('/admin/leave');
     return result;
@@ -192,11 +242,30 @@ export async function rejectLeaveRequest(input: Input): Promise<RejectResult> {
     undefined;
   const userAgent = headerList.get('user-agent') ?? undefined;
 
+  // Object holder to dodge TS's let-in-async-closure → never narrowing.
+  // See approveLeaveRequest above for the long-form explanation.
+  const rejectNotifBox: {
+    data: {
+      recipientUserId: string;
+      employeeFirstName: string;
+      leaveTypeName: string;
+      startDate: string;
+      endDate: string;
+    } | null;
+  } = { data: null };
+
   try {
     const result = await prisma.$transaction<RejectResult>(async (tx) => {
       const req = await tx.leaveRequest.findUnique({
         where: { id: input.leaveRequestId },
-        select: { id: true, status: true },
+        select: {
+          id: true,
+          status: true,
+          startDate: true,
+          endDate: true,
+          employee: { select: { firstName: true, userId: true } },
+          leaveType: { select: { name: true } },
+        },
       });
       if (!req) return { ok: false as const, code: 'not-found' as const, message: 'ไม่พบคำขอลา' };
       if (req.status !== 'Pending') {
@@ -227,8 +296,29 @@ export async function rejectLeaveRequest(input: Input): Promise<RejectResult> {
         metadata: { ip, userAgent, source: 'admin-ui' },
       });
 
+      rejectNotifBox.data = {
+        recipientUserId: req.employee.userId,
+        employeeFirstName: req.employee.firstName,
+        leaveTypeName: req.leaveType.name,
+        startDate: req.startDate.toISOString().slice(0, 10),
+        endDate: req.endDate.toISOString().slice(0, 10),
+      };
+
       return { ok: true as const };
     });
+
+    if (result.ok && rejectNotifBox.data) {
+      await sendNotification(rejectNotifBox.data.recipientUserId, {
+        kind: 'leave.rejected',
+        leaveRequestId: input.leaveRequestId,
+        employeeFirstName: rejectNotifBox.data.employeeFirstName,
+        leaveTypeName: rejectNotifBox.data.leaveTypeName,
+        startDate: rejectNotifBox.data.startDate,
+        endDate: rejectNotifBox.data.endDate,
+        workingDays: null,
+        reviewNote: note,
+      });
+    }
 
     revalidatePath('/admin/leave');
     return result;
