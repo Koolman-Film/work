@@ -41,7 +41,7 @@ const NAV: ReadonlyArray<NavItem> = [
   { href: '/admin/employees', label: 'พนักงาน', Icon: Users, enabled: true },
   { href: '/admin/leave', label: 'คำขอลา', Icon: Calendar }, // W4
   { href: '/admin/advance', label: 'คำขอเบิก', Icon: Banknote }, // W4
-  { href: '/admin/attendance', label: 'ลงเวลา', Icon: Clock }, // W3
+  { href: '/admin/attendance', label: 'ลงเวลา', Icon: Clock, enabled: true }, // W3c-1: disputed inbox live; Live + Manual tabs pending
   { href: '/admin/payroll', label: 'เงินเดือน', Icon: FileText }, // Phase 2
   { href: '/admin/accounting', label: 'บัญชี', Icon: Calculator }, // Phase 3
   { href: '/admin/audit', label: 'Audit log', Icon: History }, // Phase 3

@@ -1,0 +1,139 @@
+'use server';
+
+/**
+ * Admin actions for reviewing Disputed check-ins.
+ *
+ * State machine on the Attendance row:
+ *
+ *   checkInStatus=Disputed  ──[approve]──→  checkInStatus=Confirmed,
+ *                                            isOverridden=true,
+ *                                            overrideNote=<admin note>
+ *
+ *   checkInStatus=Disputed  ──[reject]───→  checkInStatus=Rejected,
+ *                                            isOverridden=true,
+ *                                            overrideNote=<admin note>
+ *
+ * Both transitions are one-way for the row's lifecycle. Once an admin has
+ * decided, the row is "settled" — `isOverridden=true` is the breadcrumb
+ * that payroll/reporting checks before counting this row.
+ *
+ * Why "approve" and "reject" instead of "override status to X" generic
+ * setter:
+ *   - The two intents have different downstream consequences. An approved
+ *     check-in counts as a worked day; a rejected one does not.
+ *   - Each gets a distinct AuditAction so the audit log filter is honest
+ *     about what happened (we have `attendance.dispute-approve` and
+ *     `attendance.dispute-reject` already enumerated in audit/log.ts).
+ */
+
+import { headers } from 'next/headers';
+import { auditLogTx } from '@/lib/audit/log';
+import { requireRole } from '@/lib/auth/require-role';
+import { prisma } from '@/lib/db/prisma';
+
+export type ReviewResult =
+  | { ok: true; nextStatus: 'Confirmed' | 'Rejected' }
+  | { ok: false; code: 'not-found' | 'not-disputed' | 'forbidden' | 'db-error'; message: string };
+
+type ReviewInput = {
+  attendanceId: string;
+  /** Required — admin must explain their decision. Becomes overrideNote. */
+  note: string;
+};
+
+async function review(input: ReviewInput, decision: 'approve' | 'reject'): Promise<ReviewResult> {
+  const { user } = await requireRole(['Admin']);
+
+  const trimmedNote = input.note.trim();
+  if (trimmedNote.length === 0) {
+    return {
+      ok: false,
+      code: 'forbidden',
+      message: 'กรุณาระบุเหตุผลของการตัดสินใจ',
+    };
+  }
+
+  const headerList = await headers();
+  const ip =
+    headerList.get('x-forwarded-for')?.split(',')[0]?.trim() ??
+    headerList.get('x-real-ip') ??
+    undefined;
+  const userAgent = headerList.get('user-agent') ?? undefined;
+
+  const nextStatus = decision === 'approve' ? 'Confirmed' : 'Rejected';
+  const action =
+    decision === 'approve' ? 'attendance.dispute-approve' : 'attendance.dispute-reject';
+
+  try {
+    return await prisma.$transaction<ReviewResult>(async (tx) => {
+      const row = await tx.attendance.findUnique({
+        where: { id: input.attendanceId },
+        select: {
+          id: true,
+          checkInStatus: true,
+          isOverridden: true,
+          employeeId: true,
+        },
+      });
+
+      if (!row) {
+        return {
+          ok: false,
+          code: 'not-found' as const,
+          message: 'ไม่พบรายการนี้',
+        };
+      }
+
+      // Guard: an already-reviewed row is settled. Reopening requires a
+      // separate "edit attendance" flow (not in W3c scope). This prevents
+      // accidental double-clicks from racing.
+      if (row.checkInStatus !== 'Disputed') {
+        return {
+          ok: false,
+          code: 'not-disputed' as const,
+          message: 'รายการนี้ถูกตัดสินใจไปแล้ว',
+        };
+      }
+
+      const updated = await tx.attendance.update({
+        where: { id: row.id },
+        data: {
+          checkInStatus: nextStatus,
+          isOverridden: true,
+          overrideNote: trimmedNote,
+        },
+      });
+
+      await auditLogTx(tx, {
+        actorId: user.id,
+        action,
+        entityType: 'Attendance',
+        entityId: row.id,
+        before: { checkInStatus: 'Disputed', isOverridden: row.isOverridden },
+        after: {
+          checkInStatus: updated.checkInStatus,
+          isOverridden: updated.isOverridden,
+          overrideNote: updated.overrideNote,
+        },
+        metadata: { ip, userAgent, source: 'admin-ui' },
+      });
+
+      return { ok: true as const, nextStatus };
+    });
+  } catch (err) {
+    console.error('[admin-review] tx failed', err);
+    return {
+      ok: false,
+      code: 'db-error',
+      message: 'ระบบขัดข้อง กรุณาลองใหม่อีกครั้ง',
+    };
+  }
+}
+
+export async function approveDisputed(input: ReviewInput): Promise<ReviewResult> {
+  return review(input, 'approve');
+}
+
+export async function rejectDisputed(input: ReviewInput): Promise<ReviewResult> {
+  return review(input, 'reject');
+}
