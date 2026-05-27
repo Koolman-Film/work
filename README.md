@@ -129,5 +129,5 @@ What's tested so far (78 unit tests):
   - ✅ W4a — LeaveType admin CRUD (`/admin/settings/leave-types`)
   - ✅ W4b — LIFF leave request flow (`/liff/leave` + new + detail with cancel)
   - ✅ W4c — Admin leave inbox (`/admin/leave`) + approve expands to Attendance(OnLeave) rows in one tx
-  - ⏳ W4d — Cash advance flow (LIFF + admin)
+  - ✅ W4d — Cash advance flow (`/liff/advance` + `/admin/advance` — receipt photo upload deferred to W4-late)
   - ⏳ W4-late — Photo uploads + LINE push + in-app bell + team calendar
