@@ -77,7 +77,7 @@ export default async function PairingLandingPage({ params }: { params: Params })
     <div className="grid min-h-dvh place-items-center bg-gray-50 px-4 py-12">
       <div className="w-full max-w-sm space-y-6 rounded-xl border border-gray-200 bg-white p-8 shadow-sm">
         <div className="text-center">
-          <p className="text-sm text-gray-500">Koolman HR</p>
+          <p className="text-sm text-gray-500">Koolman Work</p>
           <h1 className="mt-1 text-xl font-semibold text-gray-900">สวัสดี, {emp.firstName}</h1>
           <p className="mt-2 text-sm text-gray-600">เปิดลิงก์นี้ในแอป LINE เพื่อเริ่มเชื่อมบัญชี</p>
         </div>
@@ -139,7 +139,7 @@ function ExpiredLink({
     },
     'already-linked': {
       title: 'เชื่อมบัญชี LINE แล้ว',
-      body: 'บัญชีนี้เชื่อม LINE เรียบร้อยแล้ว เปิดแอป LINE ของคุณเพื่อใช้งาน Koolman HR.',
+      body: 'บัญชีนี้เชื่อม LINE เรียบร้อยแล้ว เปิดแอป LINE ของคุณเพื่อใช้งาน Koolman Work.',
     },
   };
   const m = messages[reason];
@@ -147,7 +147,7 @@ function ExpiredLink({
   return (
     <div className="grid min-h-dvh place-items-center bg-gray-50 px-4 py-12">
       <div className="w-full max-w-sm space-y-3 rounded-xl border border-gray-200 bg-white p-8 text-center shadow-sm">
-        <p className="text-sm text-gray-500">Koolman HR</p>
+        <p className="text-sm text-gray-500">Koolman Work</p>
         <h1 className="text-xl font-semibold text-gray-900">{m.title}</h1>
         <p className="text-sm text-gray-600">{m.body}</p>
       </div>

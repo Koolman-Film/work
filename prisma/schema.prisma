@@ -1,4 +1,4 @@
-// Koolman HR — Prisma schema
+// Koolman Work — Prisma schema
 // Source of truth for the public-schema data model.
 // Matches docs/v2/architecture.md §3 model-for-model. RLS policies, triggers,
 // and functions live in Supabase migrations (not yet authored — defensive

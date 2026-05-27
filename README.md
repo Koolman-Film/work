@@ -1,4 +1,4 @@
-# Koolman HR
+# Koolman Work
 
 Internal HR system for Koolman — multi-branch car-window-film business.
 

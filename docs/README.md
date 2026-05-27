@@ -1,8 +1,8 @@
-# Koolman HR System
+# Koolman Work System
 
 ระบบ HR สำหรับ **Koolman** (ธุรกิจติดฟิล์มรถยนต์) ครอบคลุม การลงเวลา, การลา, การเบิกเงินล่วงหน้า, และการออกสลิปเงินเดือนแบบอัตโนมัติ
 
-**Project codename:** Koolman HR
+**Project codename:** Koolman Work
 **Customer:** Koolman — car window film installation, multi-branch
 **Operating model:** หลายสาขา, Tue–Sun 9:00–18:00, ปิด Monday
 

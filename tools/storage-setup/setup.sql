@@ -1,4 +1,4 @@
--- Storage tier setup for Koolman HR (Phase 2.7-B in production runbook).
+-- Storage tier setup for Koolman Work (Phase 2.7-B in production runbook).
 --
 -- What this creates:
 --   1. `attendance-photos` bucket — private, image-only, 5MB cap

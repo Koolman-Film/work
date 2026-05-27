@@ -1,8 +1,8 @@
 {
-  "name": "koolman-hr",
+  "name": "koolman-work",
   "version": "0.1.0",
   "private": true,
-  "description": "Koolman HR system — Next.js 16 + Supabase + LINE LIFF",
+  "description": "Koolman Work — internal HR system, Next.js 16 + Supabase + LINE LIFF",
   "type": "module",
   "engines": {
     "node": ">=24.0.0",

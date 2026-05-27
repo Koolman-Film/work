@@ -29,7 +29,7 @@ export default async function LiffPairPage({ searchParams }: { searchParams: Sea
     return (
       <div className="grid min-h-dvh place-items-center px-4 py-12">
         <div className="w-full max-w-sm space-y-3 rounded-xl border border-gray-200 bg-white p-8 text-center shadow-sm">
-          <p className="text-sm text-gray-500">Koolman HR</p>
+          <p className="text-sm text-gray-500">Koolman Work</p>
           <h1 className="text-xl font-semibold text-gray-900">ขาดลิงก์การจับคู่</h1>
           <p className="text-sm text-gray-600">
             กรุณาเปิดลิงก์จับคู่ที่แอดมินส่งให้คุณอีกครั้ง หรือติดต่อแอดมินเพื่อขอลิงก์ใหม่

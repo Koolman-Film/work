@@ -46,7 +46,7 @@ describe('verifyPairingToken — rejects malformed tokens', () => {
     const wrongSecret = new TextEncoder().encode('wrong-secret-also-32-chars-long-xxx-yz');
     const evilToken = await new SignJWT({ scope: 'employee-pair' })
       .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
-      .setIssuer('koolman-hr')
+      .setIssuer('koolman-work')
       .setAudience('pair')
       .setSubject(TEST_EMPLOYEE_ID)
       .setIssuedAt()
@@ -62,7 +62,7 @@ describe('verifyPairingToken — rejects misused tokens', () => {
     // E.g. attacker tries to reuse a Supabase session token as a pairing token
     const wrongScope = await new SignJWT({ scope: 'session' })
       .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
-      .setIssuer('koolman-hr')
+      .setIssuer('koolman-work')
       .setAudience('pair')
       .setSubject(TEST_EMPLOYEE_ID)
       .setIssuedAt()
@@ -88,7 +88,7 @@ describe('verifyPairingToken — rejects misused tokens', () => {
   it('rejects a token with the wrong audience', async () => {
     const wrongAud = await new SignJWT({ scope: 'employee-pair' })
       .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
-      .setIssuer('koolman-hr')
+      .setIssuer('koolman-work')
       .setAudience('not-pair')
       .setSubject(TEST_EMPLOYEE_ID)
       .setIssuedAt()
@@ -101,7 +101,7 @@ describe('verifyPairingToken — rejects misused tokens', () => {
   it('rejects an expired token', async () => {
     const expired = await new SignJWT({ scope: 'employee-pair' })
       .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
-      .setIssuer('koolman-hr')
+      .setIssuer('koolman-work')
       .setAudience('pair')
       .setSubject(TEST_EMPLOYEE_ID)
       .setIssuedAt(Math.floor(Date.now() / 1000) - 7200) // 2h ago
@@ -114,7 +114,7 @@ describe('verifyPairingToken — rejects misused tokens', () => {
   it('rejects a token without sub claim', async () => {
     const noSub = await new SignJWT({ scope: 'employee-pair' })
       .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
-      .setIssuer('koolman-hr')
+      .setIssuer('koolman-work')
       .setAudience('pair')
       // no setSubject()
       .setIssuedAt()
@@ -131,7 +131,7 @@ describe('verifyPairingToken — algorithm pinning', () => {
     // even if the secret is correct, preventing alg=none style attacks.
     const hs512 = await new SignJWT({ scope: 'employee-pair' })
       .setProtectedHeader({ alg: 'HS512', typ: 'JWT' })
-      .setIssuer('koolman-hr')
+      .setIssuer('koolman-work')
       .setAudience('pair')
       .setSubject(TEST_EMPLOYEE_ID)
       .setIssuedAt()

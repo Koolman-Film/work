@@ -25,7 +25,7 @@
 import { jwtVerify, SignJWT } from 'jose';
 
 const SCOPE = 'employee-pair';
-const ISSUER = 'koolman-hr';
+const ISSUER = 'koolman-work';
 const AUDIENCE = 'pair';
 const TTL_SECONDS = 24 * 60 * 60; // 24 hours
 

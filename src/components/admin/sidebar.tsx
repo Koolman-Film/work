@@ -130,7 +130,7 @@ export function Sidebar() {
                 KM
               </span>
               <div>
-                <p className="text-sm font-semibold leading-tight text-gray-900">Koolman HR</p>
+                <p className="text-sm font-semibold leading-tight text-gray-900">Koolman Work</p>
                 <p className="text-xs text-gray-500">แผงควบคุมผู้ดูแล</p>
               </div>
             </Link>
@@ -197,7 +197,7 @@ export function Sidebar() {
 
           {/* Footer: brand mark only (sign-out moved to topbar dropdown) */}
           <div className="border-t border-gray-100 px-5 py-3">
-            <p className="text-[11px] uppercase tracking-wider text-gray-400">Koolman HR · V1</p>
+            <p className="text-[11px] uppercase tracking-wider text-gray-400">Koolman Work · V1</p>
           </div>
         </div>
       </aside>

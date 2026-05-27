@@ -17,13 +17,13 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <div className="grid size-14 place-items-center rounded-2xl bg-primary-600 shadow-brand">
             <span className="text-lg font-bold text-white">KM</span>
           </div>
-          <h1 className="mt-4 text-xl font-semibold text-gray-900">Koolman HR</h1>
+          <h1 className="mt-4 text-xl font-semibold text-gray-900">Koolman Work</h1>
           <p className="mt-0.5 text-sm text-gray-500">ระบบ HR ภายใน</p>
         </div>
         <div className="rounded-xl border border-gray-200 bg-white p-8 shadow-brand">
           {children}
         </div>
-        <p className="mt-6 text-center text-xs text-gray-400">Powered by Koolman HR</p>
+        <p className="mt-6 text-center text-xs text-gray-400">Powered by Koolman Work</p>
       </div>
     </div>
   );

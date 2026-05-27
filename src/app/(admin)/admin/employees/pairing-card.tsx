@@ -120,7 +120,7 @@ export async function PairingCard({
             />
             <a
               href={qrDataUrl}
-              download={`koolman-hr-pair-${employeeId.slice(0, 8)}.png`}
+              download={`koolman-work-pair-${employeeId.slice(0, 8)}.png`}
               className="text-xs text-primary-600 hover:text-primary-700"
             >
               ดาวน์โหลด QR

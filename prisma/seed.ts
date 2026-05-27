@@ -1,5 +1,5 @@
 /**
- * Seed script — bootstraps Koolman HR's initial reference data.
+ * Seed script — bootstraps Koolman Work's initial reference data.
  *
  * Run: `pnpm db:seed`
  * Idempotent: safe to re-run; uses upserts keyed on natural unique fields.
@@ -144,7 +144,7 @@ async function upsertAuthUser(email: string, password: string) {
 // ─── Seed runner ───────────────────────────────────────────────────────────
 
 async function main() {
-  console.log('\n🌱 Seeding Koolman HR...\n');
+  console.log('\n🌱 Seeding Koolman Work...\n');
 
   // 1. Departments
   console.log('Departments:');

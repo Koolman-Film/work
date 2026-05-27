@@ -55,7 +55,7 @@ export default function PairClient({ pairingToken }: { pairingToken: string }) {
         if (cancelled) return;
 
         // Step 3: bind on the server
-        setState({ phase: 'linking', message: 'กำลังเชื่อมบัญชีกับ Koolman HR...' });
+        setState({ phase: 'linking', message: 'กำลังเชื่อมบัญชีกับ Koolman Work...' });
         const result: LinkLineResult = await linkLineToEmployee({ pairingToken });
         if (cancelled) return;
 
@@ -103,7 +103,7 @@ export default function PairClient({ pairingToken }: { pairingToken: string }) {
   return (
     <div className="grid min-h-dvh place-items-center px-4 py-12">
       <div className="w-full max-w-sm rounded-xl border border-gray-200 bg-white p-8 shadow-sm">
-        <p className="text-center text-sm text-gray-500">Koolman HR</p>
+        <p className="text-center text-sm text-gray-500">Koolman Work</p>
         <h1 className="mt-1 text-center text-xl font-semibold text-gray-900">เชื่อมบัญชี LINE</h1>
 
         <div className="mt-6">

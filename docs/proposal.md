@@ -1,4 +1,4 @@
-# Koolman HR — Customer Proposal
+# Koolman Work — Customer Proposal
 
 ระบบ HR สำหรับ **Koolman** (ติดฟิล์มรถยนต์) — ส่งมอบเป็น **4 phases** แยก quote.
 

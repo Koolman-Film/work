@@ -4,7 +4,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Koolman HR',
+  title: 'Koolman Work',
   description: 'ระบบ HR สำหรับ Koolman',
   // Default to Thai; per-route localization will refine later via next-intl
 };

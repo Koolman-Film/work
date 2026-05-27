@@ -17,6 +17,6 @@
 
 import { Inngest } from 'inngest';
 
-export const inngest = new Inngest({ id: 'koolman-hr' });
+export const inngest = new Inngest({ id: 'koolman-work' });
 
 export type KoolmanInngest = typeof inngest;
