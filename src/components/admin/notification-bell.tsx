@@ -234,6 +234,27 @@ function renderNotification(n: BellNotification): RenderedKind {
         subtitle: payload.reason ?? '',
         href: '/admin/attendance/disputed',
       };
+    case 'attendance.late-summary': {
+      const count = payload.countNotCheckedIn ?? '0';
+      const samples = Array.isArray(payload.sampleEmployeeNames)
+        ? (payload.sampleEmployeeNames as string[]).slice(0, 3).join(', ')
+        : '';
+      return {
+        emoji: '⏰',
+        title: `${count} พนักงานยังไม่เช็คอินวันนี้`,
+        subtitle: samples,
+        href: '/admin/attendance/live',
+      };
+    }
+    case 'probation.ending':
+      return {
+        emoji: '🎓',
+        title: `${payload.employeeName ?? 'พนักงาน'} จะหมดทดลองงานในอีก ${payload.daysRemaining ?? '?'} วัน`,
+        subtitle: `จบทดลองงาน ${payload.endDate ?? ''}`,
+        href: payload.employeeId
+          ? `/admin/employees/${payload.employeeId}/edit`
+          : '/admin/employees',
+      };
     default:
       return {
         emoji: '🔔',

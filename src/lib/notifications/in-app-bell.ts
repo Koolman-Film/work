@@ -48,6 +48,26 @@ export type AdminBellEvent =
       date: string;
       /** Thai reason text from evaluateCheckIn(). */
       reason: string;
+    }
+  | {
+      // Daily summary fired by the late-check cron — ONE notification per
+      // day regardless of how many employees are late, to avoid bell spam.
+      kind: 'attendance.late-summary';
+      /** YYYY-MM-DD of today. */
+      date: string;
+      countNotCheckedIn: number;
+      /** First few names for display; full list lives on /admin/attendance/live. */
+      sampleEmployeeNames: string[];
+    }
+  | {
+      // Per-employee daily ping from probation-reminder cron. Volume is
+      // typically 0-1/day so individual notifications are fine here.
+      kind: 'probation.ending';
+      employeeId: string;
+      employeeName: string;
+      /** YYYY-MM-DD when probation ends. */
+      endDate: string;
+      daysRemaining: number;
     };
 
 /**

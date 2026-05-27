@@ -21,9 +21,17 @@
 
 import { serve } from 'inngest/next';
 import { inngest } from '@/lib/inngest/client';
+import { attendanceForceCheckoutEod } from '@/lib/inngest/functions/attendance-force-checkout-eod';
+import { attendanceLateCheck } from '@/lib/inngest/functions/attendance-late-check';
 import { linePushNotification } from '@/lib/inngest/functions/line-push';
+import { probationReminder } from '@/lib/inngest/functions/probation-reminder';
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
-  functions: [linePushNotification],
+  functions: [
+    linePushNotification,
+    attendanceForceCheckoutEod,
+    attendanceLateCheck,
+    probationReminder,
+  ],
 });
