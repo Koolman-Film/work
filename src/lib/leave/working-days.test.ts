@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseInputDate, workingDaysIn } from './working-days';
+import { expandHolidaysWithSubstitutes, parseInputDate, workingDaysIn } from './working-days';
 
 const d = (ymd: string) => new Date(`${ymd}T00:00:00.000Z`);
 
@@ -106,5 +106,72 @@ describe('parseInputDate', () => {
     expect(parseInputDate('2028-02-29')?.toISOString().slice(0, 10)).toBe('2028-02-29');
     // 2026 is not — Feb 29 should be rejected.
     expect(parseInputDate('2026-02-29')).toBeNull();
+  });
+});
+
+describe('expandHolidaysWithSubstitutes', () => {
+  it('passes through non-Sunday holidays unchanged', () => {
+    // 2026-04-13 is a Monday (Songkran). No substitute needed.
+    const input = [d('2026-04-13')];
+    const out = expandHolidaysWithSubstitutes(input);
+    expect(out).toHaveLength(1);
+    expect(out[0]?.toISOString().slice(0, 10)).toBe('2026-04-13');
+  });
+
+  it('adds a Monday substitute when a holiday falls on Sunday', () => {
+    // Construct: Sunday 2026-01-04. Substitute should be Monday 2026-01-05.
+    const sundayHoliday = d('2026-01-04');
+    expect(sundayHoliday.getUTCDay()).toBe(0); // sanity — actually Sunday
+    const out = expandHolidaysWithSubstitutes([sundayHoliday]);
+    expect(out).toHaveLength(2);
+    expect(out[0]?.toISOString().slice(0, 10)).toBe('2026-01-04');
+    expect(out[1]?.toISOString().slice(0, 10)).toBe('2026-01-05');
+  });
+
+  it('dedups when admin already manually added the substitute', () => {
+    // Admin entered both Sun + Mon as separate Holiday rows.
+    const sun = d('2026-01-04');
+    const monManual = d('2026-01-05');
+    const out = expandHolidaysWithSubstitutes([sun, monManual]);
+    expect(out).toHaveLength(2); // not 3 — no duplicate Monday
+    expect(out.map((x) => x.toISOString().slice(0, 10))).toEqual(['2026-01-04', '2026-01-05']);
+  });
+
+  it('handles multiple Sunday holidays each generating their own substitute', () => {
+    const out = expandHolidaysWithSubstitutes([d('2026-01-04'), d('2026-02-08')]);
+    expect(out).toHaveLength(4);
+    expect(out.map((x) => x.toISOString().slice(0, 10))).toEqual([
+      '2026-01-04',
+      '2026-01-05',
+      '2026-02-08',
+      '2026-02-09',
+    ]);
+  });
+
+  it('does not mutate the input array', () => {
+    const input = [d('2026-01-04')];
+    const inputLengthBefore = input.length;
+    expandHolidaysWithSubstitutes(input);
+    expect(input).toHaveLength(inputLengthBefore);
+  });
+});
+
+describe('workingDaysIn with substitutes', () => {
+  it('subtracts the substitute Monday from working days', () => {
+    // Range: Mon 2026-01-05 to Fri 2026-01-09 = 5 working days normally.
+    // If Sun 2026-01-04 is a holiday, Mon 2026-01-05 becomes a substitute → 4 working days.
+    const holidays = expandHolidaysWithSubstitutes([d('2026-01-04')]);
+    const out = workingDaysIn({
+      startDate: d('2026-01-05'),
+      endDate: d('2026-01-09'),
+      holidays,
+    });
+    expect(out).toHaveLength(4); // Mon (sub), Tue, Wed, Thu, Fri → 4 working
+    expect(out.map((x) => x.toISOString().slice(0, 10))).toEqual([
+      '2026-01-06',
+      '2026-01-07',
+      '2026-01-08',
+      '2026-01-09',
+    ]);
   });
 });

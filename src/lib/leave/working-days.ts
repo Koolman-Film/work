@@ -78,6 +78,44 @@ export function workingDaysIn(args: {
 }
 
 /**
+ * Augment a holiday list with auto-computed substitute days.
+ *
+ * Thai labor law: when a public holiday falls on a non-working day, the
+ * worker is entitled to the next working day as a substitute holiday
+ * ("วันหยุดชดเชย"). In our schema the only non-working weekday is Sunday
+ * (CLOSED_DOW), so this function adds the Monday-after for any Sunday
+ * holiday.
+ *
+ * Dedup by date-string: if admin already added the substitute manually
+ * via /admin/settings/holidays, we don't double-count it. So this is a
+ * safe addition — manual entries always win on order (they come first
+ * in the input array and are seen first).
+ *
+ * The function returns a NEW array; the input is not mutated.
+ */
+export function expandHolidaysWithSubstitutes(holidays: readonly Date[]): Date[] {
+  const seen = new Set<string>();
+  const out: Date[] = [];
+  function add(d: Date) {
+    const key = d.toISOString().slice(0, 10);
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(d);
+  }
+  for (const h of holidays) {
+    add(h);
+    if (h.getUTCDay() === CLOSED_DOW) {
+      // Substitute = next day (we already know it's not a Sunday since
+      // CLOSED_DOW is Sunday and we're moving +1). If the substitute
+      // ALSO happens to be on a Holiday row (rare edge case — e.g.,
+      // 2-day public holiday spanning Sun+Mon), the dedup handles it.
+      add(new Date(h.getTime() + 86_400_000));
+    }
+  }
+  return out;
+}
+
+/**
  * Parse a YYYY-MM-DD string (what `<input type=date>` emits) into a UTC-
  * midnight Date suitable for storage in a Prisma `@db.Date` column.
  *

@@ -14,7 +14,7 @@
 import Link from 'next/link';
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
 import { prisma } from '@/lib/db/prisma';
-import { workingDaysIn } from '@/lib/leave/working-days';
+import { expandHolidaysWithSubstitutes, workingDaysIn } from '@/lib/leave/working-days';
 import { signAttendancePhotoUrls } from '@/lib/storage/signed-urls';
 import { LeaveReviewPanel } from './leave-review-panel';
 
@@ -169,100 +169,110 @@ export default async function AdminLeaveInboxPage({
             </div>
           ) : (
             <ul className="divide-y divide-gray-100">
-              {rows.map((r) => {
-                const badge = STATUS_LABEL[r.status] ?? STATUS_LABEL.Pending;
-                const wd = workingDaysIn({
-                  startDate: r.startDate,
-                  endDate: r.endDate,
-                  holidays: holidays.map((h) => h.date),
-                });
-                return (
-                  <li key={r.id} className="px-5 py-4">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          {badge && (
-                            <span
-                              className={`rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${badge.cls}`}
-                            >
-                              {badge.label}
-                            </span>
-                          )}
-                          <p className="truncate text-sm font-medium text-gray-900">
-                            {r.employee.firstName} {r.employee.lastName}
-                            {r.employee.nickname && (
-                              <span className="text-gray-500"> ({r.employee.nickname})</span>
+              {(() => {
+                // Pre-expand holidays once (auto-add Sun→Mon substitutes).
+                // Computed once outside the per-row loop since the full
+                // holiday list doesn't depend on the row.
+                const expandedHolidays = expandHolidaysWithSubstitutes(holidays.map((h) => h.date));
+                return rows.map((r) => {
+                  const badge = STATUS_LABEL[r.status] ?? STATUS_LABEL.Pending;
+                  const wd = workingDaysIn({
+                    startDate: r.startDate,
+                    endDate: r.endDate,
+                    holidays: expandedHolidays,
+                  });
+                  return (
+                    <li key={r.id} className="px-5 py-4">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            {badge && (
+                              <span
+                                className={`rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${badge.cls}`}
+                              >
+                                {badge.label}
+                              </span>
                             )}
+                            <p className="truncate text-sm font-medium text-gray-900">
+                              {r.employee.firstName} {r.employee.lastName}
+                              {r.employee.nickname && (
+                                <span className="text-gray-500"> ({r.employee.nickname})</span>
+                              )}
+                            </p>
+                          </div>
+                          <p className="mt-1 text-xs text-gray-500">
+                            {r.employee.branch.name}
+                            {r.employee.department ? ` • ${r.employee.department.name}` : ''}
                           </p>
                         </div>
-                        <p className="mt-1 text-xs text-gray-500">
-                          {r.employee.branch.name}
-                          {r.employee.department ? ` • ${r.employee.department.name}` : ''}
-                        </p>
+                        <div className="text-left text-xs text-gray-700 sm:max-w-[300px] sm:text-right">
+                          <p>
+                            <strong>{r.leaveType.name}</strong>{' '}
+                            {r.leaveType.isPaid ? (
+                              ''
+                            ) : (
+                              <span className="text-gray-500">(ไม่จ่าย)</span>
+                            )}
+                          </p>
+                          <p className="mt-0.5 text-gray-600">
+                            {formatRange(r.startDate, r.endDate)} • {wd.length} วันทำงาน
+                          </p>
+                          <p className="mt-0.5 text-[10px] text-gray-400">
+                            ส่งเมื่อ {formatDateTime(r.createdAt)}
+                          </p>
+                        </div>
                       </div>
-                      <div className="text-left text-xs text-gray-700 sm:max-w-[300px] sm:text-right">
-                        <p>
-                          <strong>{r.leaveType.name}</strong>{' '}
-                          {r.leaveType.isPaid ? '' : <span className="text-gray-500">(ไม่จ่าย)</span>}
-                        </p>
-                        <p className="mt-0.5 text-gray-600">
-                          {formatRange(r.startDate, r.endDate)} • {wd.length} วันทำงาน
-                        </p>
-                        <p className="mt-0.5 text-[10px] text-gray-400">
-                          ส่งเมื่อ {formatDateTime(r.createdAt)}
-                        </p>
-                      </div>
-                    </div>
 
-                    <p className="mt-3 line-clamp-3 whitespace-pre-wrap text-sm text-gray-700">
-                      {r.reason}
-                    </p>
+                      <p className="mt-3 line-clamp-3 whitespace-pre-wrap text-sm text-gray-700">
+                        {r.reason}
+                      </p>
 
-                    {resolveAttachment(r.attachmentUrl) && (
-                      <a
-                        href={resolveAttachment(r.attachmentUrl) ?? '#'}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="mt-2 inline-block overflow-hidden rounded-lg border border-gray-200 transition hover:opacity-90"
-                      >
-                        {/* biome-ignore lint/performance/noImgElement: signed-URL preview */}
-                        <img
-                          src={resolveAttachment(r.attachmentUrl) ?? ''}
-                          alt="ไฟล์แนบ"
-                          className="block h-24 w-24 object-cover"
-                          loading="lazy"
+                      {resolveAttachment(r.attachmentUrl) && (
+                        <a
+                          href={resolveAttachment(r.attachmentUrl) ?? '#'}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-2 inline-block overflow-hidden rounded-lg border border-gray-200 transition hover:opacity-90"
+                        >
+                          {/* biome-ignore lint/performance/noImgElement: signed-URL preview */}
+                          <img
+                            src={resolveAttachment(r.attachmentUrl) ?? ''}
+                            alt="ไฟล์แนบ"
+                            className="block h-24 w-24 object-cover"
+                            loading="lazy"
+                          />
+                        </a>
+                      )}
+
+                      {r.status === 'Pending' ? (
+                        <LeaveReviewPanel
+                          leaveRequestId={r.id}
+                          workingDays={wd.map((d) => d.toISOString().slice(0, 10))}
+                          holidayNames={holidays
+                            .filter(
+                              (h) =>
+                                h.date.getTime() >= r.startDate.getTime() &&
+                                h.date.getTime() <= r.endDate.getTime(),
+                            )
+                            .map((h) => ({
+                              date: h.date.toISOString().slice(0, 10),
+                              name: h.name,
+                            }))}
                         />
-                      </a>
-                    )}
-
-                    {r.status === 'Pending' ? (
-                      <LeaveReviewPanel
-                        leaveRequestId={r.id}
-                        workingDays={wd.map((d) => d.toISOString().slice(0, 10))}
-                        holidayNames={holidays
-                          .filter(
-                            (h) =>
-                              h.date.getTime() >= r.startDate.getTime() &&
-                              h.date.getTime() <= r.endDate.getTime(),
-                          )
-                          .map((h) => ({
-                            date: h.date.toISOString().slice(0, 10),
-                            name: h.name,
-                          }))}
-                      />
-                    ) : r.reviewNote ? (
-                      <div className="mt-3 rounded-md bg-gray-50 px-3 py-2 text-xs text-gray-700">
-                        <strong className="text-gray-900">หมายเหตุ:</strong> {r.reviewNote}
-                        {r.reviewedAt && (
-                          <span className="ml-2 text-gray-400">
-                            ({formatDateTime(r.reviewedAt)})
-                          </span>
-                        )}
-                      </div>
-                    ) : null}
-                  </li>
-                );
-              })}
+                      ) : r.reviewNote ? (
+                        <div className="mt-3 rounded-md bg-gray-50 px-3 py-2 text-xs text-gray-700">
+                          <strong className="text-gray-900">หมายเหตุ:</strong> {r.reviewNote}
+                          {r.reviewedAt && (
+                            <span className="ml-2 text-gray-400">
+                              ({formatDateTime(r.reviewedAt)})
+                            </span>
+                          )}
+                        </div>
+                      ) : null}
+                    </li>
+                  );
+                });
+              })()}
             </ul>
           )}
         </CardBody>

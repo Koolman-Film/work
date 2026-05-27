@@ -32,7 +32,7 @@ import { auditLogTx } from '@/lib/audit/log';
 import { requireRole } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
 import { sendNotification } from '@/lib/inngest/events';
-import { workingDaysIn } from './working-days';
+import { expandHolidaysWithSubstitutes, workingDaysIn } from './working-days';
 
 export type ApproveResult =
   | { ok: true; attendanceRowsCreated: number; workingDays: number }
@@ -120,20 +120,26 @@ export async function approveLeaveRequest(input: Input): Promise<ApproveResult> 
         };
       }
 
-      // Pull holidays overlapping the range (read inside the same tx so
-      // a concurrent holiday-create doesn't drift our computation).
+      // Pull holidays. We extend the lower bound by 1 day so a Sunday
+      // holiday immediately before `startDate` correctly contributes a
+      // Monday substitute that falls inside the leave range.
+      const dayBeforeStart = new Date(req.startDate.getTime() - 86_400_000);
       const holidays = await tx.holiday.findMany({
         where: {
           archivedAt: null,
-          date: { gte: req.startDate, lte: req.endDate },
+          date: { gte: dayBeforeStart, lte: req.endDate },
         },
         select: { date: true },
       });
 
+      // Auto-add Monday-after-Sunday substitutes per Thai labor law
+      // ("วันหยุดชดเชย"). Dedups against admin-entered substitute rows.
+      const expandedHolidays = expandHolidaysWithSubstitutes(holidays.map((h) => h.date));
+
       const workingDays = workingDaysIn({
         startDate: req.startDate,
         endDate: req.endDate,
-        holidays: holidays.map((h) => h.date),
+        holidays: expandedHolidays,
       });
 
       // Build the Attendance rows. `date` is the calendar day (UTC midnight,
