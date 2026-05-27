@@ -24,62 +24,72 @@ type Props =
 
 export function AccountingGroupForm({ mode, action, initial, error, extraActions }: Props) {
   return (
-    <form action={action}>
-      <Card>
-        <CardHeader>
-          <CardTitle>{mode === 'create' ? 'เพิ่มกลุ่มบัญชีใหม่' : 'แก้ไขกลุ่มบัญชี'}</CardTitle>
-        </CardHeader>
-        <CardBody className="space-y-5">
-          {error && (
-            <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
-              {error}
-            </p>
-          )}
-          <FormField label="ชื่อกลุ่ม" htmlFor="name" required>
-            <Input
-              id="name"
-              name="name"
-              required
-              maxLength={80}
-              defaultValue={initial?.name ?? ''}
-              autoFocus
-            />
-          </FormField>
-          <FormField
-            label="PEAK Code"
-            htmlFor="peakCode"
-            hint="รหัสบัญชีใน PEAK สำหรับการ export (ไม่บังคับ)"
-          >
-            <Input
-              id="peakCode"
-              name="peakCode"
-              maxLength={40}
-              defaultValue={initial?.peakCode ?? ''}
-              className="max-w-xs"
-            />
-          </FormField>
-          <FormField label="คำอธิบาย" htmlFor="description" hint="ไม่บังคับ">
-            <Textarea
-              id="description"
-              name="description"
-              rows={3}
-              maxLength={500}
-              defaultValue={initial?.description ?? ''}
-            />
-          </FormField>
-        </CardBody>
-        <CardFooter className="flex items-center justify-between">
-          <Link href="/admin/settings/accounting-groups">
-            <Button type="button" variant="secondary">
-              ยกเลิก
-            </Button>
-          </Link>
-          <div className="flex gap-2">
-            {extraActions}
+    <>
+      <form action={action}>
+        <Card>
+          <CardHeader>
+            <CardTitle>{mode === 'create' ? 'เพิ่มกลุ่มบัญชีใหม่' : 'แก้ไขกลุ่มบัญชี'}</CardTitle>
+          </CardHeader>
+          <CardBody className="space-y-5">
+            {error && (
+              <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+                {error}
+              </p>
+            )}
+            <FormField label="ชื่อกลุ่ม" htmlFor="name" required>
+              <Input
+                id="name"
+                name="name"
+                required
+                maxLength={80}
+                defaultValue={initial?.name ?? ''}
+                autoFocus
+              />
+            </FormField>
+            <FormField
+              label="PEAK Code"
+              htmlFor="peakCode"
+              hint="รหัสบัญชีใน PEAK สำหรับการ export (ไม่บังคับ)"
+            >
+              <Input
+                id="peakCode"
+                name="peakCode"
+                maxLength={40}
+                defaultValue={initial?.peakCode ?? ''}
+                className="max-w-xs"
+              />
+            </FormField>
+            <FormField label="คำอธิบาย" htmlFor="description" hint="ไม่บังคับ">
+              <Textarea
+                id="description"
+                name="description"
+                rows={3}
+                maxLength={500}
+                defaultValue={initial?.description ?? ''}
+              />
+            </FormField>
+          </CardBody>
+          <CardFooter className="flex items-center justify-between">
+            <Link href="/admin/settings/accounting-groups">
+              <Button type="button" variant="secondary">
+                ยกเลิก
+              </Button>
+            </Link>
             <Button type="submit">{mode === 'create' ? 'สร้างกลุ่ม' : 'บันทึก'}</Button>
-          </div>
-        </CardFooter>
-      </Card>
-    </form>
+          </CardFooter>
+        </Card>
+      </form>
+
+      {/* "Danger Zone" — destructive actions (archive) live OUTSIDE the
+          update form. Nested forms are invalid HTML and would cause the
+          archive button to silently submit the update action. */}
+      {extraActions && (
+        <div className="mt-6 rounded-xl border border-red-200 bg-red-50/30 px-5 py-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-red-700">พื้นที่อันตราย</p>
+          <p className="mt-1 text-xs text-red-700/80">การกระทำในส่วนนี้ไม่สามารถย้อนกลับได้</p>
+          <div className="mt-3 flex justify-end">{extraActions}</div>
+        </div>
+      )}
+    </>
   );
 }
