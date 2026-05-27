@@ -17,7 +17,7 @@ export default async function OwnerLayout({ children }: { children: React.ReactN
 
   return (
     <div className="flex min-h-dvh flex-col bg-gray-50">
-      <Topbar userLabel={user.email ?? 'Owner'} />
+      <Topbar userLabel={user.email ?? 'Owner'} userId={user.id} />
       <main className="min-w-0 flex-1">{children}</main>
     </div>
   );

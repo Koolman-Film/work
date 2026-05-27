@@ -1,10 +1,11 @@
 'use client';
 
-import { Bell, ChevronDown, LogOut, Menu } from 'lucide-react';
+import { ChevronDown, LogOut, Menu } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
+import { NotificationBell } from './notification-bell';
 import { useMobileNav } from './use-mobile-nav';
 
 /**
@@ -21,11 +22,12 @@ import { useMobileNav } from './use-mobile-nav';
 type Props = {
   /** User display label (email for now; switches to firstName once Employee fields shipped) */
   userLabel: string;
-  /** Optional unread notification count */
-  unreadCount?: number;
+  /** Current user's User.id — used by the NotificationBell to filter
+   *  Realtime to this admin's own row inserts. */
+  userId: string;
 };
 
-export function Topbar({ userLabel, unreadCount = 0 }: Props) {
+export function Topbar({ userLabel, userId }: Props) {
   const pathname = usePathname();
   const segments = pathname.split('/').filter(Boolean);
   const toggleMobileNav = useMobileNav((s) => s.toggle);
@@ -75,18 +77,7 @@ export function Topbar({ userLabel, unreadCount = 0 }: Props) {
 
       {/* Right cluster */}
       <div className="flex items-center gap-2">
-        <button
-          type="button"
-          aria-label="การแจ้งเตือน"
-          className="relative grid size-9 place-items-center rounded-full text-gray-500 transition hover:bg-gray-100 hover:text-gray-700"
-        >
-          <Bell size={18} strokeWidth={2} aria-hidden="true" />
-          {unreadCount > 0 && (
-            <span className="absolute right-1.5 top-1.5 grid min-w-[18px] place-items-center rounded-full bg-red-500 px-1 text-[10px] font-semibold text-white">
-              {unreadCount > 99 ? '99+' : unreadCount}
-            </span>
-          )}
-        </button>
+        <NotificationBell userId={userId} />
 
         <UserMenu userLabel={userLabel} />
       </div>

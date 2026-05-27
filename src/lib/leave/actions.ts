@@ -26,12 +26,22 @@
  *     competing requests for the same week.
  */
 
+import type { Employee } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
 import { auditLog } from '@/lib/audit/log';
 import { requireRole } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
+import { notifyAdminsInApp } from '@/lib/notifications/in-app-bell';
 import { parseInputDate } from './working-days';
+
+/** Display name for bell notifications. Prefers nickname when present so
+ *  admins recognize "ไก่" faster than "ปรีชา สมศักดิ์". Falls back to
+ *  full name for newly-onboarded employees who haven't set a nickname. */
+function employeeDisplayName(e: Pick<Employee, 'firstName' | 'lastName' | 'nickname'>): string {
+  if (e.nickname && e.nickname.trim().length > 0) return e.nickname;
+  return `${e.firstName} ${e.lastName}`.trim();
+}
 
 export type SubmitLeaveResult =
   | { ok: true; id: string }
@@ -196,6 +206,19 @@ export async function submitLeaveRequest(input: SubmitInput): Promise<SubmitLeav
         attachmentKey: attachmentKey ?? null,
       },
       metadata: { ip, userAgent, source: 'liff' },
+    });
+
+    // Fan-out in-app bell to all active Admin/Owner. Fire-and-forget; if
+    // this throws inside notifyAdminsInApp it's logged but doesn't fail
+    // the submission — the employee shouldn't see "ระบบขัดข้อง" because
+    // a notification write hiccuped.
+    void notifyAdminsInApp({
+      kind: 'leave.submitted',
+      leaveRequestId: created.id,
+      employeeName: employeeDisplayName(employee),
+      leaveTypeName: lt.name,
+      startDate: input.startDate,
+      endDate: input.endDate,
     });
 
     revalidatePath('/liff/leave');

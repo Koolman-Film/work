@@ -32,12 +32,19 @@
  *   - Force-checkout cron.
  */
 
-import { Prisma } from '@prisma/client';
+import { type Employee, Prisma } from '@prisma/client';
 import { headers } from 'next/headers';
 import { auditLogTx } from '@/lib/audit/log';
 import { requireRole } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
+import { notifyAdminsInApp } from '@/lib/notifications/in-app-bell';
 import { type CheckInPoint, disputeReasonText, evaluateCheckIn } from './evaluate';
+
+/** Display name for admin bell — prefer nickname. Mirrors leave/actions.ts. */
+function employeeDisplayName(e: Pick<Employee, 'firstName' | 'lastName' | 'nickname'>): string {
+  if (e.nickname && e.nickname.trim().length > 0) return e.nickname;
+  return `${e.firstName} ${e.lastName}`.trim();
+}
 
 export type CheckInState = {
   /** YYYY-MM-DD in the server's timezone (Asia/Bangkok). */
@@ -230,6 +237,11 @@ export async function submitCheckIn(input: SubmitCheckInInput): Promise<SubmitCh
     undefined;
   const userAgent = headerList.get('user-agent') ?? undefined;
 
+  // Holder pattern: TS would narrow `let attendanceId: string | null = null`
+  // to `never` inside the async closure since it can't see the assignment
+  // crosses the await. Wrapping in an object disables narrowing.
+  const attendanceBox: { id: string | null } = { id: null };
+
   try {
     await prisma.$transaction(async (tx) => {
       const created = await tx.attendance.create({
@@ -254,6 +266,8 @@ export async function submitCheckIn(input: SubmitCheckInInput): Promise<SubmitCh
           createdById: user.id,
         },
       });
+
+      attendanceBox.id = created.id;
 
       await auditLogTx(tx, {
         actorId: user.id,
@@ -280,6 +294,19 @@ export async function submitCheckIn(input: SubmitCheckInInput): Promise<SubmitCh
       code: 'db-error',
       message: 'ระบบขัดข้อง กรุณาลองใหม่อีกครั้ง',
     };
+  }
+
+  // Disputed check-ins fan out an in-app bell to admins so they know to
+  // open /admin/attendance/disputed. Confirmed check-ins are silent —
+  // the live board already shows them, no need for a bell ping.
+  if (verdict.status === 'Disputed' && attendanceBox.id) {
+    void notifyAdminsInApp({
+      kind: 'attendance.disputed',
+      attendanceId: attendanceBox.id,
+      employeeName: employeeDisplayName(employee),
+      date: bangkokDateString(now),
+      reason: disputeReason ?? 'unknown',
+    });
   }
 
   const state = await getCheckInState();

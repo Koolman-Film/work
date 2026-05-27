@@ -470,6 +470,14 @@ ALTER PUBLICATION supabase_realtime ADD TABLE "Attendance";
 
 (If RLS is off on the table — our current state — the live board subscribes with the anon-key channel and just relies on the admin's own role gate in the Server Component that calls `getTodayAttendance`. When RLS is turned on, the subscription will enforce per-row visibility.)
 
+**One-time setup (W4-late/D):** The `Notification` table must also be in the publication so the admin/owner topbar bell receives `INSERT` events when an employee submits leave / advance / disputed check-in. Run once per environment:
+
+```sql
+ALTER PUBLICATION supabase_realtime ADD TABLE "Notification";
+```
+
+The bell component subscribes with `filter: userId=eq.${me}` so each admin/owner only sees rows targeted at them — both a noise filter and a server-side privacy guarantee. (Same RLS-off caveat as Attendance until we turn it on.)
+
 ### 4.2 Admin / Owner — Email + Password
 
 - Login at `/login`: email + password via `supabase.auth.signInWithPassword()`.

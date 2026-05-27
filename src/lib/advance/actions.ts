@@ -18,12 +18,31 @@
  *     from the moment the value enters the system.
  */
 
-import { Prisma } from '@prisma/client';
+import { type Employee, Prisma } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
 import { auditLog } from '@/lib/audit/log';
 import { requireRole } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
+import { notifyAdminsInApp } from '@/lib/notifications/in-app-bell';
+
+/** Same display-name policy as leave/actions.ts — prefer nickname, fall
+ *  back to full name. Kept as a per-file helper rather than a shared util
+ *  because the rule is short and exporting from leave/actions would force
+ *  unrelated re-imports. */
+function employeeDisplayName(e: Pick<Employee, 'firstName' | 'lastName' | 'nickname'>): string {
+  if (e.nickname && e.nickname.trim().length > 0) return e.nickname;
+  return `${e.firstName} ${e.lastName}`.trim();
+}
+
+/** Format a baht amount with thousands separators + 2 decimal places for
+ *  the admin bell payload. Mirrors the formatter in advance/admin.ts. */
+function formatBaht(amount: number): string {
+  return new Intl.NumberFormat('th-TH', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
+}
 
 export type SubmitAdvanceResult =
   | { ok: true; id: string }
@@ -111,6 +130,14 @@ export async function submitCashAdvance(input: SubmitInput): Promise<SubmitAdvan
       entityId: created.id,
       after: { amount: input.amount.toString() },
       metadata: { ip, userAgent, source: 'liff' },
+    });
+
+    // Fan-out in-app bell (fire-and-forget — see leave/actions.ts).
+    void notifyAdminsInApp({
+      kind: 'advance.submitted',
+      cashAdvanceId: created.id,
+      employeeName: employeeDisplayName(employee),
+      amount: formatBaht(input.amount),
     });
 
     revalidatePath('/liff/advance');
