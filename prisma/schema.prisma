@@ -169,6 +169,15 @@ model Employee {
   lastName          String
   nickname          String?
 
+  // ─── Employee-managed contact fields (Sprint 2, /liff/profile) ──────────
+  // All optional — employees self-service via /liff/profile after pairing.
+  // Admin can also edit via /admin/employees/[id]/edit (Phase-2 work).
+  // `personalEmail` is distinct from `User.email` (which is admin/owner auth).
+  phone             String?
+  personalEmail     String?
+  address           String?
+  emergencyContact  String?
+
   branchId          String   @db.Uuid
   branch            Branch   @relation("HomeBranch", fields: [branchId], references: [id], onDelete: Restrict)
   /// Multi-branch employees (e.g., rotating installers). Includes home branchId.

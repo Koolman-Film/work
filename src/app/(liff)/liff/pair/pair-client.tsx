@@ -54,7 +54,7 @@ import { type LiffBootstrapError, liffBootstrap } from '@/lib/liff/init';
  * Add new slugs here when you add new LIFF pages users should be able
  * to deep-link to from the rich menu.
  */
-const DEST_WHITELIST = new Set(['check-in', 'leave', 'advance', 'calendar']);
+const DEST_WHITELIST = new Set(['check-in', 'leave', 'advance', 'calendar', 'profile']);
 const DEFAULT_DEST = '/liff/check-in';
 
 type PhaseState =

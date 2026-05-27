@@ -34,6 +34,7 @@ export type AuditAction =
   | 'employee.rehire'
   | 'employee.line-link'
   | 'employee.line-unlink'
+  | 'employee.profile.self-update'
   // Org
   | 'branch.create'
   | 'branch.update'
