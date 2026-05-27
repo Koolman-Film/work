@@ -14,7 +14,7 @@ import {
   parseMonth,
   shiftMonth,
   type TeamCalendarEntry,
-} from './team-calendar';
+} from './team-calendar-shape';
 
 describe('parseMonth', () => {
   it('parses a valid YYYY-MM', () => {

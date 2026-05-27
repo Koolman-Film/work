@@ -22,13 +22,13 @@ import { format } from 'date-fns';
 import { th } from 'date-fns/locale';
 import Link from 'next/link';
 import { requireRole } from '@/lib/auth/require-role';
+import { getTeamCalendarData } from '@/lib/leave/team-calendar';
 import {
   buildMonthGrid,
   currentMonthYM,
-  getTeamCalendarData,
   parseMonth,
   shiftMonth,
-} from '@/lib/leave/team-calendar';
+} from '@/lib/leave/team-calendar-shape';
 import { CalendarGrid } from './calendar-grid';
 
 type SearchParams = Promise<{ ym?: string }>;

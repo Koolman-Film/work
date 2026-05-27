@@ -21,8 +21,15 @@
  */
 
 import { useMemo, useState } from 'react';
-import type { GridDay, TeamCalendarEntry, TeamCalendarHoliday } from '@/lib/leave/team-calendar';
-import { indexEntriesByDate } from '@/lib/leave/team-calendar';
+import type {
+  GridDay,
+  TeamCalendarEntry,
+  TeamCalendarHoliday,
+} from '@/lib/leave/team-calendar-shape';
+// IMPORTANT: import from -shape, NOT team-calendar. The latter is
+// `server-only` and importing it from a client component will throw
+// at build time. The -shape module has the pure helpers + types.
+import { indexEntriesByDate } from '@/lib/leave/team-calendar-shape';
 import { cn } from '@/lib/utils';
 
 const WEEKDAY_LABELS = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'] as const;
