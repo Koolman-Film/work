@@ -1,5 +1,17 @@
 'use client';
 
+import type { LucideIcon } from 'lucide-react';
+import {
+  Banknote,
+  Calculator,
+  Calendar,
+  Clock,
+  FileText,
+  History,
+  Home,
+  Settings,
+  Users,
+} from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -7,43 +19,33 @@ import { cn } from '@/lib/utils';
 /**
  * Admin sidebar nav.
  *
- * The structure follows docs/v1/screens/navigation.md §sidebar layout —
- * 240px wide on desktop, slide-in drawer on mobile (the mobile drawer is
- * deferred until we actually have an admin using a phone).
+ * Item order matches docs/v1/screens/navigation.md:163-172 exactly. Items
+ * whose pages don't exist yet are rendered disabled (gray + cursor-not-allowed)
+ * with a "เร็วๆ นี้" tooltip — preserves the IA so admins see the full menu
+ * shape from day one.
  *
- * Active-item detection: a nav item is "active" when the current pathname
- * starts with its href (so /admin/branches/new still highlights "สาขา").
+ * Active-item detection: `/admin` matches exactly; everything else matches
+ * by pathname prefix (so /admin/employees/new still highlights "พนักงาน").
+ * Active items get a 2px primary-600 left accent rail per spec.
  */
 
-type NavItem = { href: string; label: string; emoji: string };
+type NavItem = {
+  href: string;
+  label: string;
+  Icon: LucideIcon;
+  enabled?: boolean;
+};
 
-const NAV: ReadonlyArray<{ section: string; items: NavItem[] }> = [
-  {
-    section: 'งานประจำวัน',
-    items: [
-      { href: '/admin', label: 'แดชบอร์ด', emoji: '🏠' },
-      // { href: '/admin/leave', label: 'คำขอลา', emoji: '🟡' },          // W4
-      // { href: '/admin/advance', label: 'คำขอเบิก', emoji: '💵' },      // W4
-      // { href: '/admin/attendance', label: 'การเข้างาน', emoji: '⏰' }, // W3
-    ],
-  },
-  {
-    section: 'พนักงาน',
-    items: [
-      { href: '/admin/employees', label: 'พนักงาน', emoji: '👥' }, // W2b
-      { href: '/admin/branches', label: 'สาขา', emoji: '🏢' },
-      { href: '/admin/departments', label: 'แผนก', emoji: '🗂️' },
-      { href: '/admin/accounting-groups', label: 'กลุ่มบัญชี', emoji: '📊' },
-    ],
-  },
-  // {
-  //   section: 'ตั้งค่า',
-  //   items: [
-  //     { href: '/admin/leave-types', label: 'ประเภทการลา', emoji: '📝' },
-  //     { href: '/admin/work-schedules', label: 'ตารางงาน', emoji: '🕓' },
-  //     { href: '/admin/holidays', label: 'วันหยุด', emoji: '🎉' },
-  //   ],
-  // },
+const NAV: ReadonlyArray<NavItem> = [
+  { href: '/admin', label: 'หน้าหลัก', Icon: Home, enabled: true },
+  { href: '/admin/employees', label: 'พนักงาน', Icon: Users, enabled: true },
+  { href: '/admin/leave', label: 'คำขอลา', Icon: Calendar }, // W4
+  { href: '/admin/advance', label: 'คำขอเบิก', Icon: Banknote }, // W4
+  { href: '/admin/attendance', label: 'ลงเวลา', Icon: Clock }, // W3
+  { href: '/admin/payroll', label: 'เงินเดือน', Icon: FileText }, // Phase 2
+  { href: '/admin/accounting', label: 'บัญชี', Icon: Calculator }, // Phase 3
+  { href: '/admin/audit', label: 'Audit log', Icon: History }, // Phase 3
+  { href: '/admin/settings', label: 'ตั้งค่า', Icon: Settings, enabled: true },
 ];
 
 export function Sidebar() {
@@ -55,50 +57,71 @@ export function Sidebar() {
   return (
     <aside className="hidden w-60 shrink-0 border-r border-gray-200 bg-white lg:block">
       <div className="sticky top-0 flex h-dvh flex-col">
-        <div className="border-b border-gray-100 px-5 py-5">
-          <Link href="/admin" className="block text-lg font-semibold text-primary-700">
-            Koolman HR
+        {/* Logo block */}
+        <div className="flex items-center gap-3 border-b border-gray-100 px-5 py-4">
+          <Link href="/admin" className="flex items-center gap-2.5">
+            <span className="grid size-9 place-items-center rounded-lg bg-primary-600 text-sm font-bold text-white shadow-brand">
+              KM
+            </span>
+            <div>
+              <p className="text-sm font-semibold leading-tight text-gray-900">Koolman HR</p>
+              <p className="text-xs text-gray-500">แผงควบคุมผู้ดูแล</p>
+            </div>
           </Link>
-          <p className="mt-0.5 text-xs text-gray-500">แผงควบคุมผู้ดูแล</p>
         </div>
 
-        <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-4">
-          {NAV.map((group) => (
-            <div key={group.section}>
-              <p className="px-3 pb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
-                {group.section}
-              </p>
-              <ul className="space-y-0.5">
-                {group.items.map((item) => (
+        {/* Nav */}
+        <nav className="flex-1 overflow-y-auto px-3 py-4">
+          <ul className="space-y-0.5">
+            {NAV.map((item) => {
+              const active = isActive(item.href);
+              const disabled = !item.enabled;
+              const Icon = item.Icon;
+
+              if (disabled) {
+                return (
                   <li key={item.href}>
-                    <Link
-                      href={item.href}
-                      className={cn(
-                        'flex items-center gap-2.5 rounded-md px-3 py-2 text-sm transition',
-                        isActive(item.href)
-                          ? 'bg-primary-50 font-medium text-primary-700'
-                          : 'text-gray-700 hover:bg-gray-50',
-                      )}
+                    <span
+                      className="flex cursor-not-allowed items-center justify-between rounded-md px-3 py-2 text-sm text-gray-400"
+                      title="เร็วๆ นี้"
                     >
-                      <span aria-hidden="true">{item.emoji}</span>
-                      <span>{item.label}</span>
-                    </Link>
+                      <span className="flex items-center gap-2.5">
+                        <Icon size={18} strokeWidth={2} aria-hidden="true" />
+                        <span>{item.label}</span>
+                      </span>
+                      <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-500">
+                        soon
+                      </span>
+                    </span>
                   </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+                );
+              }
+
+              return (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    aria-current={active ? 'page' : undefined}
+                    className={cn(
+                      'relative flex items-center gap-2.5 rounded-md px-3 py-2 text-sm transition',
+                      active
+                        ? 'bg-primary-50 font-medium text-primary-700 before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-0.5 before:rounded-full before:bg-primary-600'
+                        : 'text-gray-700 hover:bg-gray-50',
+                    )}
+                  >
+                    <Icon size={18} strokeWidth={active ? 2.5 : 2} aria-hidden="true" />
+                    <span>{item.label}</span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
         </nav>
 
-        <form action="/logout" method="post" className="border-t border-gray-100 px-3 py-3">
-          <button
-            type="submit"
-            className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm text-gray-700 transition hover:bg-gray-50"
-          >
-            <span aria-hidden="true">🚪</span>
-            <span>ออกจากระบบ</span>
-          </button>
-        </form>
+        {/* Footer: brand mark only (sign-out moved to topbar dropdown) */}
+        <div className="border-t border-gray-100 px-5 py-3">
+          <p className="text-[11px] uppercase tracking-wider text-gray-400">Koolman HR · V1</p>
+        </div>
       </div>
     </aside>
   );

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
+import { StatusBadge, type StatusKey } from '@/components/ui/status-badge';
 import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/table';
 import { prisma } from '@/lib/db/prisma';
 
@@ -23,10 +24,10 @@ const STATUS_LABEL: Record<string, string> = {
   Archived: 'พ้นสภาพ',
 };
 
-const STATUS_PILL: Record<string, string> = {
-  Probation: 'bg-yellow-100 text-yellow-800',
-  Active: 'bg-green-100 text-green-800',
-  Archived: 'bg-gray-100 text-gray-600',
+const STATUS_KIND: Record<string, StatusKey> = {
+  Probation: 'probation',
+  Active: 'active',
+  Archived: 'archived',
 };
 
 export default async function EmployeeListPage({ searchParams }: { searchParams: SearchParams }) {
@@ -122,11 +123,9 @@ export default async function EmployeeListPage({ searchParams }: { searchParams:
                       </span>
                     </TD>
                     <TD>
-                      <span
-                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_PILL[e.status] ?? ''}`}
-                      >
+                      <StatusBadge status={STATUS_KIND[e.status] ?? 'neutral'}>
                         {STATUS_LABEL[e.status] ?? e.status}
-                      </span>
+                      </StatusBadge>
                     </TD>
                     <TD className="text-right">
                       <Link

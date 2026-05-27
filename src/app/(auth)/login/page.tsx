@@ -1,4 +1,7 @@
 import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { FormField } from '@/components/ui/form-field';
+import { Input } from '@/components/ui/input';
 import { signIn } from './actions';
 
 type SearchParams = Promise<{ redirectTo?: string; error?: string }>;
@@ -10,34 +13,27 @@ export default async function LoginPage({ searchParams }: { searchParams: Search
     <form action={signIn} className="space-y-4">
       <input type="hidden" name="redirectTo" value={redirectTo ?? ''} />
 
-      <div>
-        <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-          อีเมล
-        </label>
-        <input
+      <FormField label="อีเมล" htmlFor="email" required>
+        <Input
           id="email"
           name="email"
           type="email"
           required
           autoComplete="email"
           inputMode="email"
-          className="mt-1.5 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
+          autoFocus
         />
-      </div>
+      </FormField>
 
-      <div>
-        <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-          รหัสผ่าน
-        </label>
-        <input
+      <FormField label="รหัสผ่าน" htmlFor="password" required>
+        <Input
           id="password"
           name="password"
           type="password"
           required
           autoComplete="current-password"
-          className="mt-1.5 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
         />
-      </div>
+      </FormField>
 
       {error && (
         <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -45,12 +41,9 @@ export default async function LoginPage({ searchParams }: { searchParams: Search
         </p>
       )}
 
-      <button
-        type="submit"
-        className="w-full rounded-md bg-primary-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500/50"
-      >
+      <Button type="submit" size="lg" className="w-full">
         เข้าสู่ระบบ
-      </button>
+      </Button>
 
       <div className="border-t border-gray-100 pt-4 text-center text-sm">
         <Link href="/reset-password" className="text-primary-600 hover:text-primary-700">

@@ -3,47 +3,53 @@
 /* ─────────────────────────────────────────────────────────────────────────
  * Tailwind 4 CSS-first config
  *
- * All theme tokens live here (no more tailwind.config.ts). Tokens
- * are picked up by Tailwind via the `@theme` block and made available
- * as `--color-*`, `--font-*`, `--spacing-*` etc. for direct CSS use too.
+ * Brand tokens copied verbatim from docs/v1/screens/mockups/01-login.html
+ * (the canonical mockup token source). Tokens are picked up by Tailwind via
+ * the `@theme` block and made available as `--color-*`, `--font-*`,
+ * `--spacing-*` etc. for direct CSS use too.
  *
- * Brand tokens reflect the choices in docs/v1/design-system.md.
+ * Why hex (not OKLCH): the mockups and design-system.md use these exact
+ * hex values. Matching them ensures visual parity with the v1 design
+ * specs. We can revisit OKLCH later for perceptual-uniform ramps.
  * ───────────────────────────────────────────────────────────────────────── */
 
 @theme {
-  /* Color — primary (Finnix Blue-Tech direction, see design-system.md) */
-  --color-primary-50:  oklch(0.97 0.02 250);
-  --color-primary-100: oklch(0.94 0.04 250);
-  --color-primary-200: oklch(0.87 0.08 250);
-  --color-primary-300: oklch(0.78 0.13 250);
-  --color-primary-400: oklch(0.66 0.18 250);
-  --color-primary-500: oklch(0.55 0.22 250);
-  --color-primary-600: oklch(0.46 0.22 250);
-  --color-primary-700: oklch(0.38 0.18 250);
-  --color-primary-800: oklch(0.30 0.13 250);
-  --color-primary-900: oklch(0.22 0.08 250);
+  /* Primary ramp — Finnix Blue (canonical, hex from 01-login.html:23-34) */
+  --color-primary-50:  #eff6ff;
+  --color-primary-100: #dbeafe;
+  --color-primary-200: #bfdbfe;
+  --color-primary-300: #93c5fd;
+  --color-primary-400: #60a5fa;
+  --color-primary-500: #3b82f6;
+  --color-primary-600: #2563eb;
+  --color-primary-700: #1d4ed8;
+  --color-primary-800: #1e40af;
+  --color-primary-900: #1e3a8a;
 
-  /* Semantic status colors (status badges per shared-patterns.md) */
-  --color-success: oklch(0.62 0.16 145);
-  --color-warning: oklch(0.75 0.14 75);
-  --color-danger:  oklch(0.58 0.22 25);
-  --color-info:    oklch(0.62 0.14 230);
+  --color-accent-500: #f59e0b;
+
+  /* Semantic status colors (canonical, design-system.md) */
+  --color-success: #16a34a;
+  --color-warning: #ea580c;
+  --color-danger:  #dc2626;
+  --color-info:    #0891b2;
 
   /* Type — Thai-tuned line-height per design-system.md */
   --font-sans: 'IBM Plex Sans Thai', 'Sarabun', ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
-
-  /* Per design-system.md, Thai text needs slightly more line-height than Latin */
-  --line-height-thai-loose: 1.7;
-  --line-height-thai-normal: 1.65;
-  --line-height-thai-tight: 1.5;
+  --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
-/* ─── Base ─── */
+/* ─── Brand-glow shadows (from 01-login.html:55-60) ─── */
 :root {
+  --shadow-sm: 0 2px 4px 0 rgb(0 0 0 / 0.04);
+  --shadow:    0 4px 8px -2px rgb(0 0 0 / 0.05), 0 2px 4px -1px rgb(0 0 0 / 0.03);
+  --shadow-md: 0 8px 16px -4px rgb(37 99 235 / 0.12), 0 4px 8px -2px rgb(0 0 0 / 0.05);
+  --shadow-lg: 0 16px 32px -8px rgb(37 99 235 / 0.15), 0 8px 16px -4px rgb(0 0 0 / 0.06);
+  --shadow-glow: 0 0 0 4px rgb(37 99 235 / 0.15);
   color-scheme: light dark;
 }
 
+/* ─── Base ─── */
 html {
   -webkit-text-size-adjust: 100%;
   text-rendering: optimizeLegibility;
@@ -51,11 +57,21 @@ html {
 
 body {
   font-family: var(--font-sans);
-  line-height: var(--line-height-thai-normal);
+  /* Thai-tuned line-height: tone marks need vertical room (design-system.md) */
+  line-height: 1.65;
+  letter-spacing: -0.005em;
   font-feature-settings: 'kern' 1, 'liga' 1;
 }
 
-/* Tabular numbers everywhere money / time appears (see shared-patterns.md) */
+/* Tabular numbers everywhere money / time appears (shared-patterns.md) */
 .tabular {
   font-variant-numeric: tabular-nums;
+}
+
+/* Brand-glow shadow utility — colored shadow tinted with primary-600 alpha */
+.shadow-brand {
+  box-shadow: var(--shadow-md);
+}
+.shadow-brand-lg {
+  box-shadow: var(--shadow-lg);
 }
