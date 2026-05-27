@@ -107,9 +107,17 @@ export function LiveBoardClient({ initialRows }: { initialRows: LiveAttendanceRo
       {/* Status row */}
       <div className="flex items-center justify-between gap-3 text-xs">
         <StatusPill status={status} />
-        <p className="text-gray-400">
-          อัปเดตล่าสุด: {lastUpdated.toLocaleTimeString('th-TH', { timeZone: 'Asia/Bangkok' })}
-        </p>
+        <div className="flex items-center gap-3">
+          <a
+            href="/admin/attendance/manual"
+            className="rounded-md border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+          >
+            + บันทึกด้วยตนเอง
+          </a>
+          <p className="text-gray-400">
+            อัปเดตล่าสุด: {lastUpdated.toLocaleTimeString('th-TH', { timeZone: 'Asia/Bangkok' })}
+          </p>
+        </div>
       </div>
 
       {/* Board */}
