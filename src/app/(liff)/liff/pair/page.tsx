@@ -31,10 +31,41 @@ import PairClient from './pair-client';
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
+/**
+ * Extract the pair token from the request searchParams.
+ *
+ * Tries three sources in order — pragmatic because each LIFF/LINE
+ * combination delivers the token differently in the wild:
+ *
+ *   1. `?pair=<token>` — what we'd hope for; the raw query form
+ *   2. `?liff.state=<urlencoded(?pair=<token>)>` — LIFF's official state
+ *      mechanism. This is what /i/[token] now generates; the server sees
+ *      this on FIRST render before LIFF SDK rewrites the URL client-side.
+ *   3. (See also /liff/pair/[token]/page.tsx for the path-based fallback.)
+ *
+ * Returns null if no token can be extracted from any source.
+ */
+function extractPairToken(sp: Record<string, string | string[] | undefined>): string | null {
+  // (1) Direct ?pair=<token>
+  const rawPair = sp.pair;
+  if (typeof rawPair === 'string' && rawPair.length > 0) return rawPair;
+
+  // (2) liff.state — LIFF wraps a query/path inside this param. We expect
+  //     "?pair=<token>". Parse it out.
+  const rawState = sp['liff.state'];
+  if (typeof rawState === 'string' && rawState.length > 0) {
+    const stripped = rawState.startsWith('?') ? rawState.slice(1) : rawState;
+    const inner = new URLSearchParams(stripped);
+    const innerPair = inner.get('pair');
+    if (innerPair && innerPair.length > 0) return innerPair;
+  }
+
+  return null;
+}
+
 export default async function LiffPairPage({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams;
-  const raw = sp.pair;
-  const pairingToken = typeof raw === 'string' && raw.length > 0 ? raw : null;
+  const pairingToken = extractPairToken(sp);
 
   // Scenario A: pair token present → run the binding client.
   if (pairingToken) {

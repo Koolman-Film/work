@@ -61,22 +61,32 @@ export default async function PairingLandingPage({ params }: { params: Params })
   const inLineApp = /\bLine\//i.test(ua);
 
   if (inLineApp) {
-    // Bounce directly into LIFF. Use the PATH form (liffId/<token>) rather
-    // than the QUERY form (liffId?pair=<token>) — LINE WebView versions in
-    // the wild inconsistently strip query strings during the LIFF redirect,
-    // which lands the user on /liff/pair with no token → "ขาดลิงก์" page.
-    // Path segments are preserved 100% reliably. The dynamic route at
-    // /liff/pair/[token] handles this shape.
+    // Bounce directly into LIFF using `liff.state` — LIFF's officially-
+    // documented mechanism for passing state through the redirect chain.
+    //
+    // History of failed approaches:
+    //  - `?pair=<token>` (query) — stripped by some LINE WebView versions
+    //  - `/<token>` (path) — also stripped despite docs saying paths are
+    //    preserved; reproduced live in prod on a real device
+    //
+    // liff.state is read by LIFF SDK and rewritten to the destination URL
+    // via history.replaceState after liff.init() runs client-side. The
+    // server still sees ?liff.state=... on first render — we parse it on
+    // the destination too (see /liff/pair/page.tsx).
     const liffId = process.env.NEXT_PUBLIC_LIFF_ID ?? '';
     if (liffId) {
-      redirect(`https://liff.line.me/${liffId}/${encodeURIComponent(token)}`);
+      const liffState = `?pair=${encodeURIComponent(token)}`;
+      redirect(`https://liff.line.me/${liffId}?liff.state=${encodeURIComponent(liffState)}`);
     }
   }
 
-  // Fallback: install-LINE prompt (and a manual "I'm in LINE now" link).
-  // Same path-based form for the same reason.
+  // Fallback: install-LINE prompt + the manual "I'm in LINE now" link.
+  // Same liff.state form for the same reason.
   const liffId = process.env.NEXT_PUBLIC_LIFF_ID ?? '';
-  const liffUrl = liffId ? `https://liff.line.me/${liffId}/${encodeURIComponent(token)}` : '#';
+  const liffState = `?pair=${encodeURIComponent(token)}`;
+  const liffUrl = liffId
+    ? `https://liff.line.me/${liffId}?liff.state=${encodeURIComponent(liffState)}`
+    : '#';
 
   return (
     <div className="grid min-h-dvh place-items-center bg-gray-50 px-4 py-12">
