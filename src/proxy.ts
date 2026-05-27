@@ -1,5 +1,9 @@
 /**
- * Next.js middleware — runs on every request before page render.
+ * Next.js 16 proxy — runs on every request before page render.
+ *
+ * Renamed from `middleware.ts` per Next 16 convention (Vercel ships a separate
+ * "Routing Middleware" product at the platform layer; calling this `proxy`
+ * disambiguates).
  *
  * Responsibilities:
  *   1. Refresh Supabase session (rotates expired access tokens, writes
@@ -9,8 +13,8 @@
  *   3. Bounce authenticated users away from /login back to their home.
  *
  * Role-based authorization (admin vs owner vs employee) happens *inside*
- * each route group via `requireRole()` once the User table exists (W1c).
- * Middleware just handles "logged in or not".
+ * each route group via `requireRole()` (W1c). The proxy just handles
+ * "logged in or not".
  */
 
 import { type NextRequest, NextResponse } from 'next/server';
@@ -22,7 +26,7 @@ const PROTECTED_PREFIXES = ['/admin', '/owner', '/liff'];
 // Routes that should bounce a logged-in user elsewhere (auth screens)
 const AUTH_PREFIXES = ['/login', '/reset-password', '/update-password'];
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { supabaseResponse, user } = await updateSession(request);
   const { pathname } = request.nextUrl;
 
