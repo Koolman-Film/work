@@ -76,3 +76,26 @@ export async function signAttendancePhotoUrls(
   }
   return out;
 }
+
+/**
+ * Detect whether a stored "URL"-ish string is actually a Storage key
+ * (path within the bucket) or a fully-qualified external URL.
+ *
+ * Returns the input untouched if it looks like a URL (http/https), or
+ * a Promise of the signed URL if it looks like a storage key.
+ *
+ * Why a runtime sniff: `Attendance.checkInSelfieUrl` and
+ * `CashAdvance.receiptUrl` are both `String?` columns and the schema
+ * doesn't distinguish. We chose to store paths post-W4-late, but old
+ * rows (or admin-pasted Drive links from before A2) may be URLs.
+ * Sniffing keeps the view layer simple: pass either kind in, get a
+ * displayable URL out.
+ */
+export async function resolveStoredImageUrl(value: string | null): Promise<string | null> {
+  if (!value) return null;
+  // Anything starting with a scheme is a URL — pass through.
+  if (/^https?:\/\//i.test(value)) return value;
+  // Otherwise treat as a storage key.
+  const signed = await signAttendancePhotoUrls([value]);
+  return signed.get(value) ?? null;
+}

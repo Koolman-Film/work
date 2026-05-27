@@ -56,7 +56,24 @@ type RejectInput = {
 };
 
 export async function approveCashAdvance(input: ApproveInput): Promise<ApproveAdvanceResult> {
-  const { user } = await requireRole(['Admin']);
+  const { user, authUserId } = await requireRole(['Admin']);
+
+  // Validate receiptUrl shape: if it looks like a Storage key (no http
+  // scheme), it MUST start with the admin's own authUserId (because we
+  // upload receipts to `{adminAuthUid}/advance-receipts/...`). This
+  // protects against a misbehaving client claiming a key in someone
+  // else's folder. The Storage RLS already enforces this at upload
+  // time, but having the server-side check produces a clean error.
+  const rawReceipt = input.receiptUrl?.trim();
+  if (rawReceipt && !/^https?:\/\//i.test(rawReceipt)) {
+    if (!rawReceipt.startsWith(`${authUserId}/advance-receipts/`)) {
+      return {
+        ok: false,
+        code: 'forbidden',
+        message: 'ลิงก์ใบเสร็จไม่ถูกต้อง',
+      };
+    }
+  }
 
   const headerList = await headers();
   const ip =

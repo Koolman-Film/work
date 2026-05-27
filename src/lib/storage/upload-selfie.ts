@@ -114,6 +114,33 @@ function canvasToBlob(
 }
 
 /**
+ * Internal: actually push a Blob to the `attendance-photos` bucket at
+ * a precomputed key. Used by the public helpers below; each one
+ * constructs its own deterministic path so the RLS check on
+ * `(storage.foldername(name))[1] = auth.uid()` is satisfied.
+ */
+async function uploadToBucket(
+  supabase: SupabaseClient,
+  blob: Blob,
+  key: string,
+): Promise<SelfieUploadResult> {
+  if (blob.size > MAX_BYTES) {
+    throw { kind: 'too-large-after-compress', sizeBytes: blob.size };
+  }
+
+  const { error } = await supabase.storage.from('attendance-photos').upload(key, blob, {
+    contentType: 'image/jpeg',
+    upsert: false, // unique path; refuse silent overwrites
+  });
+
+  if (error) {
+    throw { kind: 'upload-failed', message: error.message };
+  }
+
+  return { key, sizeBytes: blob.size };
+}
+
+/**
  * Upload a compressed selfie blob to the `attendance-photos` bucket at
  * `{authUserId}/checkins/{timestamp}-{rand}.jpg`.
  *
@@ -127,26 +154,48 @@ export async function uploadSelfie(
   blob: Blob,
   authUserId: string,
 ): Promise<SelfieUploadResult> {
-  if (blob.size > MAX_BYTES) {
-    throw { kind: 'too-large-after-compress', sizeBytes: blob.size };
-  }
-
   // Path components:
   //   - {authUserId} — required by RLS (folder must equal auth.uid())
   //   - "checkins"   — sub-folder; lets us later add /leave-medical-cert/
   //                    etc. without conflict
   //   - timestamp-random.jpg — sortable + unique enough
   const random = Math.random().toString(36).slice(2, 8);
-  const key = `${authUserId}/checkins/${Date.now()}-${random}.jpg`;
+  return uploadToBucket(supabase, blob, `${authUserId}/checkins/${Date.now()}-${random}.jpg`);
+}
 
+/**
+ * Upload a compressed cash-advance receipt to
+ * `{authUserId}/advance-receipts/{cashAdvanceId}.jpg`.
+ *
+ * The auth user here is the ADMIN approving the advance, not the
+ * employee who requested it. The RLS lets any authenticated user write
+ * to their own folder, so admin uploads to admin's folder cleanly.
+ *
+ * Path uses cashAdvanceId (not a timestamp) so re-uploading replaces
+ * the previous receipt for the same advance — `upsert: true` so the
+ * second upload doesn't 409 on the unique path. This is fine because
+ * each CashAdvance row has a 1:1 receipt; admin re-attaching is a
+ * legitimate fix workflow.
+ */
+export async function uploadAdvanceReceipt(
+  supabase: SupabaseClient,
+  blob: Blob,
+  adminAuthUserId: string,
+  cashAdvanceId: string,
+): Promise<SelfieUploadResult> {
+  const key = `${adminAuthUserId}/advance-receipts/${cashAdvanceId}.jpg`;
+  if (blob.size > MAX_BYTES) {
+    throw { kind: 'too-large-after-compress', sizeBytes: blob.size };
+  }
+  // Direct call instead of `uploadToBucket` because we need upsert:true
+  // here. (Selfies are append-only — each check-in is unique by path —
+  // so they use upsert:false. Receipts are mutable per advance.)
   const { error } = await supabase.storage.from('attendance-photos').upload(key, blob, {
     contentType: 'image/jpeg',
-    upsert: false, // unique path; refuse silent overwrites
+    upsert: true,
   });
-
   if (error) {
     throw { kind: 'upload-failed', message: error.message };
   }
-
   return { key, sizeBytes: blob.size };
 }

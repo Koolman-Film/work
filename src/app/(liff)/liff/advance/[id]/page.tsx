@@ -10,6 +10,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireRole } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
+import { resolveStoredImageUrl } from '@/lib/storage/signed-urls';
 import { AdvanceDetailActions } from './advance-detail-actions';
 
 type Params = Promise<{ id: string }>;
@@ -63,6 +64,11 @@ export default async function AdvanceDetailPage({ params }: { params: Params }) 
   if (!row) notFound();
   if (row.employeeId !== employee.id) notFound();
 
+  // receiptUrl may be a Storage path (post-W4-late) or a legacy URL.
+  // resolveStoredImageUrl returns a fresh signed URL in the first case,
+  // pass-through in the second.
+  const resolvedReceiptUrl = await resolveStoredImageUrl(row.receiptUrl);
+
   const badge = STATUS_LABEL[row.status] ?? STATUS_LABEL.Pending;
 
   return (
@@ -102,16 +108,30 @@ export default async function AdvanceDetailPage({ params }: { params: Params }) 
         )}
       </section>
 
-      {row.receiptUrl && (
+      {resolvedReceiptUrl && (
         <section className="mt-4 rounded-2xl border border-gray-200 bg-gray-50 p-6">
           <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">ใบเสร็จ</h2>
           <a
-            href={row.receiptUrl}
+            href={resolvedReceiptUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-2 inline-block text-sm text-primary-700 underline hover:text-primary-800"
+            className="mt-3 block overflow-hidden rounded-lg border border-gray-200 transition hover:opacity-90"
           >
-            เปิดดู →
+            {/* biome-ignore lint/performance/noImgElement: signed-URL preview can't use next/image (short TTL + external storage origin) */}
+            <img
+              src={resolvedReceiptUrl}
+              alt="ใบเสร็จ"
+              className="block h-auto w-full"
+              loading="lazy"
+            />
+          </a>
+          <a
+            href={resolvedReceiptUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-2 inline-block text-xs text-primary-700 underline hover:text-primary-800"
+          >
+            เปิดเต็มขนาด →
           </a>
         </section>
       )}

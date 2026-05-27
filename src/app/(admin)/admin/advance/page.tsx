@@ -8,6 +8,7 @@
 import Link from 'next/link';
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
 import { prisma } from '@/lib/db/prisma';
+import { signAttendancePhotoUrls } from '@/lib/storage/signed-urls';
 import { AdvanceReviewPanel } from './advance-review-panel';
 
 type SearchParams = Promise<{ status?: string }>;
@@ -82,6 +83,21 @@ export default async function AdminAdvanceInboxPage({
       },
     },
   });
+
+  // Batch-sign any receipt storage keys in one round-trip. Old rows
+  // (or any admin-pasted Drive URLs from before A2) get pass-through.
+  const receiptKeys = rows
+    .map((r) => r.receiptUrl)
+    .filter((v): v is string => !!v && v.length > 0 && !/^https?:\/\//i.test(v));
+  const signedReceiptUrls = await signAttendancePhotoUrls(receiptKeys);
+
+  /** Resolve a stored receipt value to its displayable URL — handles
+   *  both Storage paths (signed) and legacy URLs (pass-through). */
+  function resolveReceipt(value: string | null): string | null {
+    if (!value) return null;
+    if (/^https?:\/\//i.test(value)) return value;
+    return signedReceiptUrls.get(value) ?? null;
+  }
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-8">
@@ -167,9 +183,9 @@ export default async function AdminAdvanceInboxPage({
                         amountDisplay={formatMoney(r.amount)}
                       />
                     )}
-                    {r.status === 'Approved' && r.receiptUrl && (
+                    {r.status === 'Approved' && resolveReceipt(r.receiptUrl) && (
                       <a
-                        href={r.receiptUrl}
+                        href={resolveReceipt(r.receiptUrl) ?? '#'}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="mt-3 inline-block text-xs text-primary-700 underline hover:text-primary-800"
