@@ -1,0 +1,21 @@
+/**
+ * LIFF route group layout — minimal chrome for the LINE in-app browser.
+ *
+ * Differences from the admin/owner shells:
+ *   - No sidebar, no topbar, no breadcrumbs. LINE's own header bar is
+ *     already on screen; we draw inside the remaining 100vh-minus-header.
+ *   - `min-h-dvh` (not `min-h-screen`) so mobile address bars / nav bars
+ *     don't introduce vh-jank.
+ *   - Subtle gray background (#f9fafb) — high contrast with white cards
+ *     so check-in CTAs pop on small screens with bright outdoor light.
+ *
+ * Note: we deliberately do NOT call `requireRole(['Employee'])` here.
+ * The /liff/pair route is the entry point where the User row gets *bound*
+ * to LINE — at that moment the user has a Supabase session but no
+ * matching User row yet. requireRole runs per-page on the protected
+ * sub-routes (/liff/check-in, /liff/history, etc.) once the bind is done.
+ */
+
+export default function LiffLayout({ children }: { children: React.ReactNode }) {
+  return <div className="min-h-dvh bg-gray-50">{children}</div>;
+}

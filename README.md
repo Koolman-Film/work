@@ -115,5 +115,8 @@ What's tested so far (44 unit tests):
 
 - ✅ W1 — Foundation + auth + DB + role gates
 - ✅ W2 — Admin CRUDs (employees / branches / departments / accounting groups) + LINE pairing + geofence map
-- ⏳ W3 — LIFF check-in / check-out
+- 🔨 W3 — LIFF check-in / check-out
+  - ✅ W3a — LIFF pairing flow (`/liff/pair`): LINE OIDC → Supabase → atomic User-bind
+  - ⏳ W3b — GPS + geofence check-in / check-out
+  - ⏳ W3c — Selfie capture + admin disputed inbox
 - ⏳ W4 — Leave + cash advance flows

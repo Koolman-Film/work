@@ -19,7 +19,12 @@ import { createClient } from '@/lib/supabase/server';
 const ROLE_HOMES: Record<string, string> = {
   Admin: '/admin',
   Owner: '/owner',
-  Employee: '/liff/check-in', // Phase 1 W3 destination — not built yet, but where we'll send them
+  // Phase 1 W3 destination — /liff/check-in lands here in W3b. Until that
+  // page is built, a freshly-paired Employee landing on `/` will see the
+  // 404 placeholder. The LIFF pairing flow itself redirects directly to
+  // /liff/check-in after success, so this branch is only reached if an
+  // already-paired Employee visits the bare-domain root.
+  Employee: '/liff/check-in',
 };
 
 export default async function HomePage() {

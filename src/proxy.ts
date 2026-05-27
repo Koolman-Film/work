@@ -23,6 +23,12 @@ import { updateSession } from '@/lib/supabase/middleware';
 // Routes that require a logged-in user (any role)
 const PROTECTED_PREFIXES = ['/admin', '/owner', '/liff'];
 
+// Carve-outs inside protected prefixes that are intentionally public.
+//   /liff/pair is the LINE-login entry point — the user arrives there
+//   WITHOUT a Supabase session and the page itself does signInWithIdToken
+//   to create one. Treating it as protected would loop them to /login.
+const PUBLIC_INSIDE_PROTECTED: string[] = ['/liff/pair'];
+
 // Routes that should bounce a logged-in user elsewhere (auth screens)
 const AUTH_PREFIXES = ['/login', '/reset-password', '/update-password'];
 
@@ -30,7 +36,9 @@ export async function proxy(request: NextRequest) {
   const { supabaseResponse, user } = await updateSession(request);
   const { pathname } = request.nextUrl;
 
-  const isProtected = PROTECTED_PREFIXES.some((p) => pathname.startsWith(p));
+  const isProtected =
+    PROTECTED_PREFIXES.some((p) => pathname.startsWith(p)) &&
+    !PUBLIC_INSIDE_PROTECTED.some((p) => pathname === p || pathname.startsWith(`${p}/`));
   const isAuthScreen = AUTH_PREFIXES.some((p) => pathname.startsWith(p));
 
   // Unauthenticated user hitting a protected page → /login?redirectTo=...
