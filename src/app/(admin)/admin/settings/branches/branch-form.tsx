@@ -97,7 +97,7 @@ export function BranchForm({ mode, action, initial, error, extraActions }: Props
           <p className="text-xs italic text-gray-400">(ตำแหน่งบนแผนที่ — เพิ่มในขั้นถัดไป)</p>
         </CardBody>
         <CardFooter className="flex items-center justify-between">
-          <Link href="/admin/branches">
+          <Link href="/admin/settings/branches">
             <Button type="button" variant="secondary">
               ยกเลิก
             </Button>

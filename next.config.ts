@@ -27,6 +27,29 @@ const config: NextConfig = {
   // Next.js 16 uses Turbopack by default; this option is the cross-bundler way.
   // (@line/liff is browser-only and should only ever be imported in client components.)
   serverExternalPackages: ['@prisma/client', 'prisma', 'pino', 'pino-pretty'],
+
+  // Permanent redirects for the W2-IA URL move (pre-existing local URLs only;
+  // nothing ever deployed under these, but keep these for ~6 months in case
+  // anyone shared an in-progress link).
+  async redirects() {
+    return [
+      {
+        source: '/admin/branches/:path*',
+        destination: '/admin/settings/branches/:path*',
+        permanent: true,
+      },
+      {
+        source: '/admin/departments/:path*',
+        destination: '/admin/settings/departments/:path*',
+        permanent: true,
+      },
+      {
+        source: '/admin/accounting-groups/:path*',
+        destination: '/admin/settings/accounting-groups/:path*',
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default config;

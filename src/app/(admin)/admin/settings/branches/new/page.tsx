@@ -7,7 +7,7 @@ export default async function NewBranchPage({ searchParams }: { searchParams: Se
   const { error } = await searchParams;
 
   return (
-    <div className="mx-auto max-w-2xl px-6 py-8">
+    <div className="max-w-2xl">
       <BranchForm
         mode="create"
         action={createBranch}

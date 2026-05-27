@@ -53,7 +53,7 @@ export async function createAccountingGroup(formData: FormData) {
   const parsed = readForm(formData);
   if (!parsed.success) {
     redirect(
-      `/admin/accounting-groups/new?error=${encodeURIComponent(parsed.error.issues[0]?.message ?? 'ข้อมูลไม่ถูกต้อง')}`,
+      `/admin/settings/accounting-groups/new?error=${encodeURIComponent(parsed.error.issues[0]?.message ?? 'ข้อมูลไม่ถูกต้อง')}`,
     );
   }
 
@@ -69,13 +69,15 @@ export async function createAccountingGroup(formData: FormData) {
     });
   } catch (err: unknown) {
     if (isUniqueViolation(err)) {
-      redirect(`/admin/accounting-groups/new?error=${encodeURIComponent(uniqueMessage(err))}`);
+      redirect(
+        `/admin/settings/accounting-groups/new?error=${encodeURIComponent(uniqueMessage(err))}`,
+      );
     }
     throw err;
   }
 
-  revalidatePath('/admin/accounting-groups');
-  redirect('/admin/accounting-groups');
+  revalidatePath('/admin/settings/accounting-groups');
+  redirect('/admin/settings/accounting-groups');
 }
 
 export async function updateAccountingGroup(id: string, formData: FormData) {
@@ -84,12 +86,12 @@ export async function updateAccountingGroup(id: string, formData: FormData) {
   const parsed = readForm(formData);
   if (!parsed.success) {
     redirect(
-      `/admin/accounting-groups/${id}/edit?error=${encodeURIComponent(parsed.error.issues[0]?.message ?? 'ข้อมูลไม่ถูกต้อง')}`,
+      `/admin/settings/accounting-groups/${id}/edit?error=${encodeURIComponent(parsed.error.issues[0]?.message ?? 'ข้อมูลไม่ถูกต้อง')}`,
     );
   }
 
   const before = await prisma.accountingGroup.findUnique({ where: { id } });
-  if (!before) redirect('/admin/accounting-groups');
+  if (!before) redirect('/admin/settings/accounting-groups');
 
   try {
     await prisma.accountingGroup.update({ where: { id }, data: parsed.data });
@@ -105,28 +107,28 @@ export async function updateAccountingGroup(id: string, formData: FormData) {
   } catch (err: unknown) {
     if (isUniqueViolation(err)) {
       redirect(
-        `/admin/accounting-groups/${id}/edit?error=${encodeURIComponent(uniqueMessage(err))}`,
+        `/admin/settings/accounting-groups/${id}/edit?error=${encodeURIComponent(uniqueMessage(err))}`,
       );
     }
     throw err;
   }
 
-  revalidatePath('/admin/accounting-groups');
-  redirect('/admin/accounting-groups');
+  revalidatePath('/admin/settings/accounting-groups');
+  redirect('/admin/settings/accounting-groups');
 }
 
 export async function archiveAccountingGroup(id: string) {
   const { user } = await requireRole(['Admin']);
 
   const before = await prisma.accountingGroup.findUnique({ where: { id } });
-  if (!before || before.archivedAt) redirect('/admin/accounting-groups');
+  if (!before || before.archivedAt) redirect('/admin/settings/accounting-groups');
 
   const dependents = await prisma.employee.count({
     where: { accountingGroupId: id, archivedAt: null },
   });
   if (dependents > 0) {
     redirect(
-      `/admin/accounting-groups?error=${encodeURIComponent(`มีพนักงาน ${dependents} คนอยู่ในกลุ่มนี้`)}`,
+      `/admin/settings/accounting-groups?error=${encodeURIComponent(`มีพนักงาน ${dependents} คนอยู่ในกลุ่มนี้`)}`,
     );
   }
 
@@ -143,6 +145,6 @@ export async function archiveAccountingGroup(id: string) {
     metadata: { source: 'admin-ui' },
   });
 
-  revalidatePath('/admin/accounting-groups');
-  redirect('/admin/accounting-groups');
+  revalidatePath('/admin/settings/accounting-groups');
+  redirect('/admin/settings/accounting-groups');
 }

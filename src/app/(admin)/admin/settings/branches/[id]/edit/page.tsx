@@ -32,7 +32,7 @@ export default async function EditBranchPage({
   const updateBound = updateBranch.bind(null, id);
 
   return (
-    <div className="mx-auto max-w-2xl px-6 py-8">
+    <div className="max-w-2xl">
       <BranchForm
         mode="edit"
         action={updateBound}

@@ -10,7 +10,7 @@ export default async function NewAccountingGroupPage({
 }) {
   const { error } = await searchParams;
   return (
-    <div className="mx-auto max-w-2xl px-6 py-8">
+    <div className="max-w-2xl">
       <AccountingGroupForm
         mode="create"
         action={createAccountingGroup}

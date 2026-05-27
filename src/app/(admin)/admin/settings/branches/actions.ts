@@ -57,7 +57,7 @@ export async function createBranch(formData: FormData) {
   const parsed = readForm(formData);
   if (!parsed.success) {
     const msg = parsed.error.issues[0]?.message ?? 'ข้อมูลไม่ถูกต้อง';
-    redirect(`/admin/branches/new?error=${encodeURIComponent(msg)}`);
+    redirect(`/admin/settings/branches/new?error=${encodeURIComponent(msg)}`);
   }
 
   try {
@@ -72,13 +72,13 @@ export async function createBranch(formData: FormData) {
     });
   } catch (err: unknown) {
     if (isUniqueViolation(err)) {
-      redirect(`/admin/branches/new?error=${encodeURIComponent('มีสาขาชื่อนี้อยู่แล้ว')}`);
+      redirect(`/admin/settings/branches/new?error=${encodeURIComponent('มีสาขาชื่อนี้อยู่แล้ว')}`);
     }
     throw err;
   }
 
-  revalidatePath('/admin/branches');
-  redirect('/admin/branches');
+  revalidatePath('/admin/settings/branches');
+  redirect('/admin/settings/branches');
 }
 
 export async function updateBranch(id: string, formData: FormData) {
@@ -87,12 +87,12 @@ export async function updateBranch(id: string, formData: FormData) {
   const parsed = readForm(formData);
   if (!parsed.success) {
     const msg = parsed.error.issues[0]?.message ?? 'ข้อมูลไม่ถูกต้อง';
-    redirect(`/admin/branches/${id}/edit?error=${encodeURIComponent(msg)}`);
+    redirect(`/admin/settings/branches/${id}/edit?error=${encodeURIComponent(msg)}`);
   }
 
   const before = await prisma.branch.findUnique({ where: { id } });
   if (!before) {
-    redirect(`/admin/branches?error=${encodeURIComponent('ไม่พบสาขา')}`);
+    redirect(`/admin/settings/branches?error=${encodeURIComponent('ไม่พบสาขา')}`);
   }
 
   try {
@@ -108,13 +108,13 @@ export async function updateBranch(id: string, formData: FormData) {
     });
   } catch (err: unknown) {
     if (isUniqueViolation(err)) {
-      redirect(`/admin/branches/${id}/edit?error=${encodeURIComponent('มีสาขาชื่อนี้อยู่แล้ว')}`);
+      redirect(`/admin/settings/branches/${id}/edit?error=${encodeURIComponent('มีสาขาชื่อนี้อยู่แล้ว')}`);
     }
     throw err;
   }
 
-  revalidatePath('/admin/branches');
-  redirect('/admin/branches');
+  revalidatePath('/admin/settings/branches');
+  redirect('/admin/settings/branches');
 }
 
 export async function archiveBranch(id: string) {
@@ -122,10 +122,10 @@ export async function archiveBranch(id: string) {
 
   const before = await prisma.branch.findUnique({ where: { id } });
   if (!before) {
-    redirect(`/admin/branches?error=${encodeURIComponent('ไม่พบสาขา')}`);
+    redirect(`/admin/settings/branches?error=${encodeURIComponent('ไม่พบสาขา')}`);
   }
   if (before.archivedAt) {
-    redirect('/admin/branches'); // already archived; no-op
+    redirect('/admin/settings/branches'); // already archived; no-op
   }
 
   // Refuse if any active employee has this as home branch.
@@ -133,7 +133,9 @@ export async function archiveBranch(id: string) {
     where: { branchId: id, archivedAt: null },
   });
   if (dependents > 0) {
-    redirect(`/admin/branches?error=${encodeURIComponent(`มีพนักงาน ${dependents} คนอยู่ในสาขานี้`)}`);
+    redirect(
+      `/admin/settings/branches?error=${encodeURIComponent(`มีพนักงาน ${dependents} คนอยู่ในสาขานี้`)}`,
+    );
   }
 
   await prisma.branch.update({
@@ -149,8 +151,8 @@ export async function archiveBranch(id: string) {
     metadata: { source: 'admin-ui' },
   });
 
-  revalidatePath('/admin/branches');
-  redirect('/admin/branches');
+  revalidatePath('/admin/settings/branches');
+  redirect('/admin/settings/branches');
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────────────

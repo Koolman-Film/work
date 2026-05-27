@@ -39,7 +39,7 @@ export async function createDepartment(formData: FormData) {
   const parsed = readForm(formData);
   if (!parsed.success) {
     redirect(
-      `/admin/departments/new?error=${encodeURIComponent(parsed.error.issues[0]?.message ?? 'ข้อมูลไม่ถูกต้อง')}`,
+      `/admin/settings/departments/new?error=${encodeURIComponent(parsed.error.issues[0]?.message ?? 'ข้อมูลไม่ถูกต้อง')}`,
     );
   }
 
@@ -55,13 +55,13 @@ export async function createDepartment(formData: FormData) {
     });
   } catch (err: unknown) {
     if (isUniqueViolation(err)) {
-      redirect(`/admin/departments/new?error=${encodeURIComponent('มีแผนกชื่อนี้อยู่แล้ว')}`);
+      redirect(`/admin/settings/departments/new?error=${encodeURIComponent('มีแผนกชื่อนี้อยู่แล้ว')}`);
     }
     throw err;
   }
 
-  revalidatePath('/admin/departments');
-  redirect('/admin/departments');
+  revalidatePath('/admin/settings/departments');
+  redirect('/admin/settings/departments');
 }
 
 export async function updateDepartment(id: string, formData: FormData) {
@@ -70,12 +70,12 @@ export async function updateDepartment(id: string, formData: FormData) {
   const parsed = readForm(formData);
   if (!parsed.success) {
     redirect(
-      `/admin/departments/${id}/edit?error=${encodeURIComponent(parsed.error.issues[0]?.message ?? 'ข้อมูลไม่ถูกต้อง')}`,
+      `/admin/settings/departments/${id}/edit?error=${encodeURIComponent(parsed.error.issues[0]?.message ?? 'ข้อมูลไม่ถูกต้อง')}`,
     );
   }
 
   const before = await prisma.department.findUnique({ where: { id } });
-  if (!before) redirect('/admin/departments');
+  if (!before) redirect('/admin/settings/departments');
 
   try {
     await prisma.department.update({ where: { id }, data: parsed.data });
@@ -90,26 +90,30 @@ export async function updateDepartment(id: string, formData: FormData) {
     });
   } catch (err: unknown) {
     if (isUniqueViolation(err)) {
-      redirect(`/admin/departments/${id}/edit?error=${encodeURIComponent('มีแผนกชื่อนี้อยู่แล้ว')}`);
+      redirect(
+        `/admin/settings/departments/${id}/edit?error=${encodeURIComponent('มีแผนกชื่อนี้อยู่แล้ว')}`,
+      );
     }
     throw err;
   }
 
-  revalidatePath('/admin/departments');
-  redirect('/admin/departments');
+  revalidatePath('/admin/settings/departments');
+  redirect('/admin/settings/departments');
 }
 
 export async function archiveDepartment(id: string) {
   const { user } = await requireRole(['Admin']);
 
   const before = await prisma.department.findUnique({ where: { id } });
-  if (!before || before.archivedAt) redirect('/admin/departments');
+  if (!before || before.archivedAt) redirect('/admin/settings/departments');
 
   const dependents = await prisma.employee.count({
     where: { departmentId: id, archivedAt: null },
   });
   if (dependents > 0) {
-    redirect(`/admin/departments?error=${encodeURIComponent(`มีพนักงาน ${dependents} คนอยู่ในแผนกนี้`)}`);
+    redirect(
+      `/admin/settings/departments?error=${encodeURIComponent(`มีพนักงาน ${dependents} คนอยู่ในแผนกนี้`)}`,
+    );
   }
 
   await prisma.department.update({
@@ -125,6 +129,6 @@ export async function archiveDepartment(id: string) {
     metadata: { source: 'admin-ui' },
   });
 
-  revalidatePath('/admin/departments');
-  redirect('/admin/departments');
+  revalidatePath('/admin/settings/departments');
+  redirect('/admin/settings/departments');
 }

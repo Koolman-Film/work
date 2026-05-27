@@ -19,7 +19,7 @@ export default async function NewEmployeePage({ searchParams }: { searchParams: 
           <CardBody className="space-y-3 text-center">
             <h2 className="text-lg font-semibold text-gray-900">ยังไม่มีสาขา</h2>
             <p className="text-sm text-gray-500">ต้องเพิ่มสาขาอย่างน้อย 1 แห่งก่อน จึงจะสร้างพนักงานได้</p>
-            <Link href="/admin/branches/new" className="inline-block">
+            <Link href="/admin/settings/branches/new" className="inline-block">
               <Button>ไปที่หน้าเพิ่มสาขา</Button>
             </Link>
           </CardBody>

@@ -69,7 +69,7 @@ export function AccountingGroupForm({ mode, action, initial, error, extraActions
           </FormField>
         </CardBody>
         <CardFooter className="flex items-center justify-between">
-          <Link href="/admin/accounting-groups">
+          <Link href="/admin/settings/accounting-groups">
             <Button type="button" variant="secondary">
               ยกเลิก
             </Button>

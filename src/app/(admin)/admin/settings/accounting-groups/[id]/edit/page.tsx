@@ -1,13 +1,13 @@
 import { notFound } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { prisma } from '@/lib/db/prisma';
-import { archiveDepartment, updateDepartment } from '../../actions';
-import { DepartmentForm } from '../../department-form';
+import { AccountingGroupForm } from '../../accounting-group-form';
+import { archiveAccountingGroup, updateAccountingGroup } from '../../actions';
 
 type Params = Promise<{ id: string }>;
 type SearchParams = Promise<{ error?: string }>;
 
-export default async function EditDepartmentPage({
+export default async function EditAccountingGroupPage({
   params,
   searchParams,
 }: {
@@ -17,21 +17,21 @@ export default async function EditDepartmentPage({
   const { id } = await params;
   const { error } = await searchParams;
 
-  const row = await prisma.department.findUnique({
+  const row = await prisma.accountingGroup.findUnique({
     where: { id },
-    select: { id: true, name: true, description: true, archivedAt: true },
+    select: { id: true, name: true, peakCode: true, description: true, archivedAt: true },
   });
   if (!row || row.archivedAt) notFound();
 
   return (
-    <div className="mx-auto max-w-2xl px-6 py-8">
-      <DepartmentForm
+    <div className="max-w-2xl">
+      <AccountingGroupForm
         mode="edit"
-        action={updateDepartment.bind(null, id)}
-        initial={{ name: row.name, description: row.description }}
+        action={updateAccountingGroup.bind(null, id)}
+        initial={{ name: row.name, peakCode: row.peakCode, description: row.description }}
         error={error ? decodeURIComponent(error) : null}
         extraActions={
-          <form action={archiveDepartment.bind(null, id)}>
+          <form action={archiveAccountingGroup.bind(null, id)}>
             <Button type="submit" variant="destructive">
               เก็บถาวร
             </Button>

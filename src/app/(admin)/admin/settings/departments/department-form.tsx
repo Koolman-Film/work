@@ -54,7 +54,7 @@ export function DepartmentForm({ mode, action, initial, error, extraActions }: P
           </FormField>
         </CardBody>
         <CardFooter className="flex items-center justify-between">
-          <Link href="/admin/departments">
+          <Link href="/admin/settings/departments">
             <Button type="button" variant="secondary">
               ยกเลิก
             </Button>

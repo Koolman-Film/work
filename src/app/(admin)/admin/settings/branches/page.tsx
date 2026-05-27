@@ -26,10 +26,13 @@ export default async function BranchListPage({ searchParams }: { searchParams: S
   });
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-8">
+    <div>
       <div className="mb-6 flex items-baseline justify-between">
-        <h1 className="text-2xl font-semibold text-gray-900">สาขา</h1>
-        <Link href="/admin/branches/new">
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900">สาขา</h2>
+          <p className="mt-0.5 text-sm text-gray-500">ตำแหน่ง + geofence — ใช้กับ LIFF check-in</p>
+        </div>
+        <Link href="/admin/settings/branches/new">
           <Button>+ เพิ่มสาขา</Button>
         </Link>
       </div>
@@ -73,7 +76,7 @@ export default async function BranchListPage({ searchParams }: { searchParams: S
                     <TD className="tabular-nums">{b._count.employees}</TD>
                     <TD className="text-right">
                       <Link
-                        href={`/admin/branches/${b.id}/edit`}
+                        href={`/admin/settings/branches/${b.id}/edit`}
                         className="text-sm font-medium text-primary-600 hover:text-primary-700"
                       >
                         แก้ไข
@@ -94,7 +97,7 @@ function EmptyState() {
   return (
     <div className="px-6 py-12 text-center">
       <p className="text-sm text-gray-500">ยังไม่มีสาขา</p>
-      <Link href="/admin/branches/new" className="mt-3 inline-block">
+      <Link href="/admin/settings/branches/new" className="mt-3 inline-block">
         <Button variant="secondary">+ เพิ่มสาขาแรก</Button>
       </Link>
     </div>
