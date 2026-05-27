@@ -8,15 +8,12 @@ export default function HomePage() {
 
       <section className="mt-10 rounded-lg border border-gray-200 bg-gray-50 p-6">
         <h2 className="text-sm font-medium uppercase tracking-wide text-gray-500">
-          Scaffold status — W1a
+          Scaffold status
         </h2>
         <ul className="mt-3 space-y-1.5 text-sm text-gray-700">
-          <li>✅ Next.js 16 + React 19 + TypeScript</li>
-          <li>✅ Tailwind 4 CSS-first (`@theme` in globals.css)</li>
-          <li>✅ Biome 2 lint + format</li>
-          <li>✅ Vercel Speed Insights + Analytics wired</li>
-          <li>⏳ W1b — Supabase SSR + login</li>
-          <li>⏳ W1c — Prisma schema + seed</li>
+          <li>✅ W1a — Next.js 16 + React 19 + Tailwind 4 + Biome + TS</li>
+          <li>✅ W1b — Supabase SSR + middleware + login / reset / update-password</li>
+          <li>⏳ W1c — Prisma schema + seed + requireRole + audit log</li>
         </ul>
       </section>
 
@@ -25,14 +22,20 @@ export default function HomePage() {
           href="/login"
           className="inline-flex items-center rounded-md bg-primary-600 px-4 py-2 font-medium text-white hover:bg-primary-700"
         >
-          ไปหน้า Login (W1b)
+          เข้าสู่ระบบ
         </Link>
-        <a
-          href="https://github.com/anthropics/claude-code"
+        <Link
+          href="/admin"
           className="inline-flex items-center rounded-md border border-gray-300 px-4 py-2 font-medium text-gray-700 hover:bg-gray-50"
         >
-          docs/v2/build-plan.md
-        </a>
+          /admin (protected)
+        </Link>
+        <Link
+          href="/owner"
+          className="inline-flex items-center rounded-md border border-gray-300 px-4 py-2 font-medium text-gray-700 hover:bg-gray-50"
+        >
+          /owner (protected)
+        </Link>
       </nav>
     </main>
   );
