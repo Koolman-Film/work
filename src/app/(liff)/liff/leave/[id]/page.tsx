@@ -14,6 +14,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireRole } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
+import { resolveStoredImageUrl } from '@/lib/storage/signed-urls';
 import { LeaveDetailActions } from './leave-detail-actions';
 
 type Params = Promise<{ id: string }>;
@@ -63,11 +64,16 @@ export default async function LeaveDetailPage({ params }: { params: Params }) {
       reviewNote: true,
       reviewedAt: true,
       createdAt: true,
+      attachmentUrl: true,
     },
   });
 
   if (!row) notFound();
   if (row.employeeId !== employee.id) notFound(); // not your request
+
+  // attachmentUrl may be a Storage path or a legacy URL; resolve at
+  // view-time so signed URLs always reflect a fresh TTL.
+  const resolvedAttachmentUrl = await resolveStoredImageUrl(row.attachmentUrl);
 
   const badge = STATUS_LABEL[row.status] ?? STATUS_LABEL.Pending;
 
@@ -101,6 +107,26 @@ export default async function LeaveDetailPage({ params }: { params: Params }) {
         <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">เหตุผล</h2>
         <p className="mt-2 whitespace-pre-wrap text-sm text-gray-800">{row.reason}</p>
       </section>
+
+      {resolvedAttachmentUrl && (
+        <section className="mt-4 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+          <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">ไฟล์แนบ</h2>
+          <a
+            href={resolvedAttachmentUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-3 block overflow-hidden rounded-lg border border-gray-200 transition hover:opacity-90"
+          >
+            {/* biome-ignore lint/performance/noImgElement: signed-URL preview can't use next/image */}
+            <img
+              src={resolvedAttachmentUrl}
+              alt="ไฟล์แนบ"
+              className="block h-auto w-full"
+              loading="lazy"
+            />
+          </a>
+        </section>
+      )}
 
       {/* Admin review feedback, if any. */}
       {row.reviewNote && (

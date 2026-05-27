@@ -45,6 +45,7 @@ export type SubmitLeaveResult =
         | 'bad-leave-type'
         | 'overlap'
         | 'short-reason'
+        | 'bad-attachment-path'
         | 'db-error';
       message: string;
     };
@@ -60,6 +61,10 @@ type SubmitInput = {
   /** YYYY-MM-DD (inclusive). */
   endDate: string;
   reason: string;
+  /** Storage key for an optional medical certificate / supporting doc.
+   *  Path must match `{authUserId}/leave-medical-certs/...` — Storage
+   *  RLS enforces this at upload time; we re-check server-side here. */
+  attachmentKey?: string | null;
 };
 
 const MAX_FUTURE_DAYS = 365;
@@ -71,7 +76,7 @@ function todayUtcMidnight(): Date {
 }
 
 export async function submitLeaveRequest(input: SubmitInput): Promise<SubmitLeaveResult> {
-  const { user, employee } = await requireRole(['Employee']);
+  const { user, employee, authUserId } = await requireRole(['Employee']);
   if (!employee) {
     return { ok: false, code: 'forbidden', message: 'ไม่พบบัญชีพนักงาน' };
   }
@@ -152,6 +157,19 @@ export async function submitLeaveRequest(input: SubmitInput): Promise<SubmitLeav
   const userAgent = headerList.get('user-agent') ?? undefined;
 
   try {
+    // Validate the optional attachment storage key shape. The Storage
+    // RLS already enforces that the employee can only upload to their
+    // own folder; this server-side recheck catches a misbehaving
+    // client claiming a key in someone else's folder.
+    const attachmentKey = input.attachmentKey?.trim() || null;
+    if (attachmentKey && !attachmentKey.startsWith(`${authUserId}/leave-medical-certs/`)) {
+      return {
+        ok: false,
+        code: 'bad-attachment-path',
+        message: 'ลิงก์ไฟล์แนบไม่ถูกต้อง',
+      };
+    }
+
     const created = await prisma.leaveRequest.create({
       data: {
         employeeId: employee.id,
@@ -160,6 +178,7 @@ export async function submitLeaveRequest(input: SubmitInput): Promise<SubmitLeav
         endDate: end,
         reason,
         status: 'Pending',
+        attachmentUrl: attachmentKey,
       },
       select: { id: true },
     });
@@ -174,6 +193,7 @@ export async function submitLeaveRequest(input: SubmitInput): Promise<SubmitLeav
         startDate: input.startDate,
         endDate: input.endDate,
         reason,
+        attachmentKey: attachmentKey ?? null,
       },
       metadata: { ip, userAgent, source: 'liff' },
     });

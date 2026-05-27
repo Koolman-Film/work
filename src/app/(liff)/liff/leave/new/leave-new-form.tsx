@@ -12,9 +12,11 @@
  */
 
 import { useRouter } from 'next/navigation';
-import { useMemo, useState, useTransition } from 'react';
+import { useMemo, useRef, useState, useTransition } from 'react';
 import { submitLeaveRequest } from '@/lib/leave/actions';
 import { parseInputDate, workingDaysIn } from '@/lib/leave/working-days';
+import { compressToJpeg, uploadLeaveMedicalCert } from '@/lib/storage/upload-selfie';
+import { createClient } from '@/lib/supabase/browser';
 
 type LeaveTypeOption = {
   id: string;
@@ -36,7 +38,25 @@ export function LeaveNewForm({ leaveTypes, minDate }: Props) {
   const [startDate, setStartDate] = useState<string>(minDate);
   const [endDate, setEndDate] = useState<string>(minDate);
   const [reason, setReason] = useState<string>('');
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
+  const [attachmentPreviewUrl, setAttachmentPreviewUrl] = useState<string | null>(null);
+  const attachmentInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
+
+  function handleAttachmentChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (attachmentPreviewUrl) URL.revokeObjectURL(attachmentPreviewUrl);
+    setAttachmentFile(file);
+    setAttachmentPreviewUrl(URL.createObjectURL(file));
+  }
+
+  function clearAttachment() {
+    if (attachmentPreviewUrl) URL.revokeObjectURL(attachmentPreviewUrl);
+    setAttachmentFile(null);
+    setAttachmentPreviewUrl(null);
+    if (attachmentInputRef.current) attachmentInputRef.current.value = '';
+  }
 
   // Client-preview of working-day count. Excludes Sundays only — server
   // is the source of truth for the holiday-aware count.
@@ -55,16 +75,44 @@ export function LeaveNewForm({ leaveTypes, minDate }: Props) {
     setError(null);
 
     startTransition(async () => {
-      const result = await submitLeaveRequest({
-        leaveTypeId,
-        startDate,
-        endDate,
-        reason,
-      });
-      if (result.ok) {
-        router.push(`/liff/leave/${result.id}`);
-      } else {
-        setError(result.message);
+      try {
+        let attachmentKey: string | undefined;
+
+        // Upload BEFORE creating the leave row. Failing the upload
+        // should not produce a half-attached LeaveRequest — same
+        // coupling principle as the advance receipt flow (A2).
+        if (attachmentFile) {
+          const supabase = createClient();
+          const { data: authData } = await supabase.auth.getUser();
+          if (!authData.user) {
+            setError('เซสชันหมดอายุ — กรุณาเปิด LINE ใหม่อีกครั้ง');
+            return;
+          }
+          const compressed = await compressToJpeg(attachmentFile);
+          const uploaded = await uploadLeaveMedicalCert(supabase, compressed, authData.user.id);
+          attachmentKey = uploaded.key;
+        }
+
+        const result = await submitLeaveRequest({
+          leaveTypeId,
+          startDate,
+          endDate,
+          reason,
+          attachmentKey,
+        });
+        if (result.ok) {
+          router.push(`/liff/leave/${result.id}`);
+        } else {
+          setError(result.message);
+        }
+      } catch (err) {
+        const message =
+          typeof err === 'object' && err !== null && 'kind' in err
+            ? attachErrMessage(err as { kind: string; message?: string })
+            : err instanceof Error
+              ? err.message
+              : 'เกิดข้อผิดพลาด';
+        setError(message);
       }
     });
   }
@@ -183,6 +231,69 @@ export function LeaveNewForm({ leaveTypes, minDate }: Props) {
           <p className="mt-1 text-right text-[10px] text-gray-400">{reason.length}/500</p>
         </div>
 
+        {/* Optional attachment — typically a medical certificate */}
+        <div>
+          <label htmlFor="attachment" className="mb-1.5 block text-sm font-medium text-gray-700">
+            ไฟล์แนบ <span className="text-gray-400">(ไม่บังคับ — เช่น ใบรับรองแพทย์)</span>
+          </label>
+
+          {!attachmentPreviewUrl ? (
+            <label
+              htmlFor="attachment"
+              className="flex w-full cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-white px-4 py-6 text-center text-sm text-gray-500 hover:border-primary-300 hover:bg-primary-50/30"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={1.5}
+                className="h-8 w-8 text-gray-400"
+                aria-hidden="true"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"
+                />
+              </svg>
+              <span className="mt-2 font-medium text-gray-700">แนบรูปภาพ</span>
+              <span className="text-xs">JPG / PNG / WEBP</span>
+            </label>
+          ) : (
+            <div className="flex items-start gap-3 rounded-lg border border-gray-200 bg-white p-3">
+              {/* biome-ignore lint/performance/noImgElement: object-URL preview can't use next/image */}
+              <img
+                src={attachmentPreviewUrl}
+                alt="ตัวอย่างไฟล์แนบ"
+                className="h-20 w-20 rounded object-cover"
+              />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs font-medium text-gray-900">{attachmentFile?.name}</p>
+                <p className="mt-0.5 text-[10px] text-gray-500">
+                  {attachmentFile ? `${Math.round(attachmentFile.size / 1024)} KB ก่อนบีบอัด` : ''}
+                </p>
+                <button
+                  type="button"
+                  onClick={clearAttachment}
+                  disabled={pending}
+                  className="mt-1 text-[11px] text-red-600 hover:text-red-700"
+                >
+                  ลบ
+                </button>
+              </div>
+            </div>
+          )}
+
+          <input
+            ref={attachmentInputRef}
+            id="attachment"
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            onChange={handleAttachmentChange}
+            className="sr-only"
+          />
+        </div>
+
         <div className="flex items-center justify-between gap-2 pt-2">
           <button
             type="button"
@@ -197,10 +308,23 @@ export function LeaveNewForm({ leaveTypes, minDate }: Props) {
             disabled={submitDisabled}
             className="rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {pending ? 'กำลังส่ง...' : 'ส่งคำขอ'}
+            {pending ? (attachmentFile ? 'กำลังอัปโหลด...' : 'กำลังส่ง...') : 'ส่งคำขอ'}
           </button>
         </div>
       </form>
     </main>
   );
+}
+
+function attachErrMessage(e: { kind: string; message?: string }): string {
+  switch (e.kind) {
+    case 'decode-failed':
+      return 'อ่านไฟล์รูปไม่ได้';
+    case 'upload-failed':
+      return `อัปโหลดไฟล์แนบไม่สำเร็จ: ${e.message ?? ''}`;
+    case 'too-large-after-compress':
+      return 'ไฟล์ใหญ่เกินไป กรุณาลองใหม่';
+    default:
+      return 'เกิดข้อผิดพลาด';
+  }
 }

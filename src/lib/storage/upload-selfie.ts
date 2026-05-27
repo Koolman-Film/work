@@ -164,6 +164,35 @@ export async function uploadSelfie(
 }
 
 /**
+ * Upload a compressed leave-request medical certificate to
+ * `{authUserId}/leave-medical-certs/{timestamp}-{rand}.jpg`.
+ *
+ * Path uses timestamp+random rather than leaveRequestId because at
+ * upload time the LeaveRequest row doesn't exist yet (submitLeaveRequest
+ * creates it AFTER the client uploads the attachment and passes the
+ * resulting key in). The LeaveRequest.attachmentUrl column points
+ * back to the storage key, so the 1:1 mapping is preserved on the DB
+ * side even though the path doesn't carry the ID.
+ *
+ * upsert:false because each leave submission is a one-shot — if the
+ * employee retakes the photo, they pick a different file and we end
+ * up with two paths under the same folder (one orphaned). Acceptable
+ * waste at ~5 KB per orphan; cleanup would be a future cron.
+ */
+export async function uploadLeaveMedicalCert(
+  supabase: SupabaseClient,
+  blob: Blob,
+  authUserId: string,
+): Promise<SelfieUploadResult> {
+  const random = Math.random().toString(36).slice(2, 8);
+  return uploadToBucket(
+    supabase,
+    blob,
+    `${authUserId}/leave-medical-certs/${Date.now()}-${random}.jpg`,
+  );
+}
+
+/**
  * Upload a compressed cash-advance receipt to
  * `{authUserId}/advance-receipts/{cashAdvanceId}.jpg`.
  *

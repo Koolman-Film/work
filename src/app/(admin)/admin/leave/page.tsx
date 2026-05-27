@@ -15,6 +15,7 @@ import Link from 'next/link';
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
 import { prisma } from '@/lib/db/prisma';
 import { workingDaysIn } from '@/lib/leave/working-days';
+import { signAttendancePhotoUrls } from '@/lib/storage/signed-urls';
 import { LeaveReviewPanel } from './leave-review-panel';
 
 type SearchParams = Promise<{ status?: string }>;
@@ -94,6 +95,7 @@ export default async function AdminLeaveInboxPage({
         reviewNote: true,
         reviewedAt: true,
         createdAt: true,
+        attachmentUrl: true,
         leaveType: { select: { name: true, isPaid: true } },
         employee: {
           select: {
@@ -111,6 +113,19 @@ export default async function AdminLeaveInboxPage({
       select: { date: true, name: true },
     }),
   ]);
+
+  // Bulk-sign attachment storage keys so the admin sees medical-cert
+  // thumbnails inline while reviewing. Legacy URL strings (pre-A3,
+  // shouldn't exist yet) pass through untouched.
+  const attachmentKeys = rows
+    .map((r) => r.attachmentUrl)
+    .filter((v): v is string => !!v && v.length > 0 && !/^https?:\/\//i.test(v));
+  const signedAttachmentUrls = await signAttendancePhotoUrls(attachmentKeys);
+  function resolveAttachment(value: string | null): string | null {
+    if (!value) return null;
+    if (/^https?:\/\//i.test(value)) return value;
+    return signedAttachmentUrls.get(value) ?? null;
+  }
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-8">
@@ -202,6 +217,23 @@ export default async function AdminLeaveInboxPage({
                     <p className="mt-3 line-clamp-3 whitespace-pre-wrap text-sm text-gray-700">
                       {r.reason}
                     </p>
+
+                    {resolveAttachment(r.attachmentUrl) && (
+                      <a
+                        href={resolveAttachment(r.attachmentUrl) ?? '#'}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-2 inline-block overflow-hidden rounded-lg border border-gray-200 transition hover:opacity-90"
+                      >
+                        {/* biome-ignore lint/performance/noImgElement: signed-URL preview */}
+                        <img
+                          src={resolveAttachment(r.attachmentUrl) ?? ''}
+                          alt="ไฟล์แนบ"
+                          className="block h-24 w-24 object-cover"
+                          loading="lazy"
+                        />
+                      </a>
+                    )}
 
                     {r.status === 'Pending' ? (
                       <LeaveReviewPanel
