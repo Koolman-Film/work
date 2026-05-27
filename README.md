@@ -96,14 +96,20 @@ Full layout in [`docs/v2/architecture.md`](./docs/v2/architecture.md).
 | **Biome 2** | Lint + format (JS/TS/JSON) | `pnpm lint`, `pnpm lint:fix`; auto on commit via `lint-staged` |
 | **TypeScript strict** | Type-check (`noUncheckedIndexedAccess`, etc.) | `pnpm typecheck`; on every build |
 | **Vitest** | Unit tests | `pnpm test` (one-shot), `pnpm test:watch` (TDD) |
-| **Playwright** | E2E (deferred to Tier 2 — see `docs/v2/build-plan.md`) | `pnpm test:e2e` once specs land |
+| **Playwright** | Integration / e2e (10 tests — see `tests/e2e/README.md`) | `pnpm test:e2e` (auto-starts dev server) |
 | **Next build** | Full build smoke | `pnpm build` |
 
 **Pre-commit hook** auto-runs Biome on staged files only (sub-second). Bypass with `SKIP_SIMPLE_GIT_HOOKS=1 git commit ...` if you really need to commit through a lint failure (e.g. WIP after a debug session).
 
 **CI** runs lint + typecheck + test in parallel, then build, on every push and PR (`.github/workflows/ci.yml`).
 
-What's tested so far (78 unit tests):
+**Integration tests** (10 Playwright specs in `tests/e2e/`):
+- Smoke (3): home + login render, protected-route redirect
+- Auth (3): admin login, anti-enumeration error message, authed → /login bounce
+- Department CRUD (1 + 1 skipped pending nested-forms-bug fix)
+- Leave approval (2): `$transaction` correctness — approve creates Attendance(OnLeave) rows; reject creates none
+
+**Unit tests** (78 Vitest specs):
 - `src/lib/auth/safe-redirect.ts` — open-redirect defense (15 tests)
 - `src/lib/auth/login-error.ts` — error → Thai message + anti-enumeration policy (11 tests)
 - `src/lib/pairing/token.ts` — JWT mint/verify + replay + tamper + alg-confusion (12 tests)

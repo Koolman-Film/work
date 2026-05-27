@@ -53,3 +53,9 @@ docs/v1/Koolman_HR_Mockup_Walkthrough.pdf
 out/
 next-env.d.ts.bak
 *.tsbuildinfo
+
+# Playwright artifacts
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
