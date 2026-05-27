@@ -1,33 +1,61 @@
 'use client';
 
 /**
- * Client orchestrator for the LIFF pairing flow.
+ * Client orchestrator for the LIFF entry point (`/liff/pair`).
+ *
+ * Handles THREE flows depending on what's in the URL after liff.init()
+ * rewrites it from `?liff.state=...`:
+ *
+ *   1. BINDING — `?pair=<jwt>` present (first-time pairing)
+ *        liffBootstrap → linkLineToEmployee → redirect to dest or check-in
+ *
+ *   2. DISPATCH — `?dest=<slug>` present (rich menu deep link, already paired)
+ *        liffBootstrap (session is usually warm) → redirect to /liff/<slug>
+ *        Slug MUST be in DEST_WHITELIST — otherwise it's ignored and we
+ *        fall through to default. This prevents open-redirect attacks.
+ *
+ *   3. DEFAULT — neither (returning user opened LIFF with no extra state)
+ *        liffBootstrap → redirect to /liff/check-in
  *
  * Lifecycle (single useEffect, runs once on mount):
  *   ┌────────────────────────────────────────────────────────────────┐
  *   │ 1. liffBootstrap()                                              │
- *   │      ├─ liff.init({ liffId })                                   │
+ *   │      ├─ liff.init({ liffId })  ←  processes ?liff.state= and    │
+ *   │      │                            rewrites window.location.     │
  *   │      ├─ supabase.auth.getSession()  (fast-path if already in)   │
  *   │      ├─ liff.getIDToken()                                       │
  *   │      └─ supabase.auth.signInWithIdToken('custom:line')          │
- *   │ 2. linkLineToEmployee({ pairingToken })  (Server Action)        │
- *   │      ├─ verifyPairingToken  (JWT)                               │
- *   │      └─ atomic User+Employee bind + audit                       │
- *   │ 3. On success: show "เชื่อมสำเร็จ" → redirect /liff/check-in    │
- *   │    On failure: show Thai message + "ติดต่อแอดมิน" CTA           │
+ *   │ 2. Inspect window.location.search for ?pair / ?dest             │
+ *   │ 3. Branch: BINDING / DISPATCH / DEFAULT  (described above)      │
+ *   │ 4. window.location.href = <next page>                           │
  *   └────────────────────────────────────────────────────────────────┘
  *
  * Why the redirect uses window.location instead of next/navigation
  * `router.push`:
- *   - We need a full page-load to /liff/check-in so the proxy's session
- *     refresh runs and the new Supabase cookies are present when the
- *     destination page's `requireRole(['Employee'])` reads them. A
- *     client-side router.push would race the cookie write.
+ *   - We need a full page-load so the proxy's session refresh runs and
+ *     the new Supabase cookies are present when the destination page's
+ *     `requireRole(['Employee'])` reads them. A client-side router.push
+ *     would race the cookie write.
  */
 
 import { useEffect, useState } from 'react';
 import { type LinkLineResult, linkLineToEmployee } from '@/lib/auth/link-line-to-employee';
 import { type LiffBootstrapError, liffBootstrap } from '@/lib/liff/init';
+
+/**
+ * Allowed `?dest=<slug>` values for the dispatch flow.
+ *
+ * These map 1:1 onto LIFF route folders under `src/app/(liff)/liff/`.
+ * Anything not in this set is silently rejected (we fall through to the
+ * check-in default) — never use the raw `?dest=` value as a path
+ * directly, or attackers can redirect employees to arbitrary URLs by
+ * crafting links like `?dest=../../external-phishing-site`.
+ *
+ * Add new slugs here when you add new LIFF pages users should be able
+ * to deep-link to from the rich menu.
+ */
+const DEST_WHITELIST = new Set(['check-in', 'leave', 'advance', 'calendar']);
+const DEFAULT_DEST = '/liff/check-in';
 
 type PhaseState =
   | { phase: 'booting'; message: string }
@@ -53,57 +81,69 @@ export default function PairClient({ pairingToken }: { pairingToken: string | nu
         // Step 1+2: liff.init + signInWithIdToken.
         // Side effect: liff.init() processes any `?liff.state=` in the
         // URL and rewrites window.location via history.replaceState. This
-        // is what makes the next step (resolving the token) work for the
-        // LIFF-launched case — the server couldn't see liff.state, but
-        // after init() runs client-side, ?pair=<token> is in the URL.
+        // is what makes the next steps (resolving ?pair / ?dest) work for
+        // the LIFF-launched case — the server couldn't see liff.state,
+        // but after init() runs client-side, the unwrapped query is in
+        // the URL.
         await liffBootstrap();
         if (cancelled) return;
 
-        // Step 3: resolve the pair token.
-        // Source precedence:
+        // Step 3: resolve token + destination from the rewritten URL.
+        // Source precedence for the pair token:
         //   (a) Prop from server — set when the server saw ?pair= or
-        //       ?liff.state= on the initial request (e.g. non-LIFF dev test).
+        //       ?liff.state= on the initial request (non-LIFF dev test).
         //   (b) window.location.search after liff.init() — the LIFF case.
-        //       LIFF SDK unwraps `?liff.state=?pair=<token>` into
-        //       `?pair=<token>` on the live URL via history.replaceState.
         let resolvedToken = pairingToken;
-        if (!resolvedToken && typeof window !== 'undefined') {
+        let destSlug: string | null = null;
+        if (typeof window !== 'undefined') {
           const sp = new URLSearchParams(window.location.search);
-          resolvedToken = sp.get('pair');
+          if (!resolvedToken) resolvedToken = sp.get('pair');
+          destSlug = sp.get('dest');
         }
 
-        if (!resolvedToken) {
-          setState({
-            phase: 'error',
-            message: 'ขาดลิงก์การจับคู่ — กรุณาเปิดลิงก์ที่แอดมินส่งให้คุณอีกครั้ง',
-            canRetry: false,
+        // Whitelist the destination slug — never use raw `?dest=` in a
+        // redirect target. Anything not on the allowlist falls back to
+        // the default (check-in).
+        const destPath =
+          destSlug && DEST_WHITELIST.has(destSlug) ? `/liff/${destSlug}` : DEFAULT_DEST;
+
+        // ── Branch A: BINDING flow (first-time pair) ─────────────────
+        if (resolvedToken) {
+          setState({ phase: 'linking', message: 'กำลังเชื่อมบัญชีกับ Koolman Work...' });
+          const result: LinkLineResult = await linkLineToEmployee({
+            pairingToken: resolvedToken,
           });
+          if (cancelled) return;
+
+          if (result.ok) {
+            setState({
+              phase: 'success',
+              employeeName: `${result.employee.firstName} ${result.employee.lastName}`.trim(),
+            });
+            // Full page-load to ensure cookies propagate before requireRole.
+            // Honor the dest hint if rich menu pre-supplied one alongside ?pair=.
+            setTimeout(() => {
+              window.location.href = destPath;
+            }, 1500);
+          } else {
+            setState({
+              phase: 'error',
+              message: result.message,
+              // Retry only makes sense for transient classes; consumed/
+              // expired tokens are terminal until admin re-issues.
+              canRetry: false,
+            });
+          }
           return;
         }
 
-        // Step 4: bind on the server
-        setState({ phase: 'linking', message: 'กำลังเชื่อมบัญชีกับ Koolman Work...' });
-        const result: LinkLineResult = await linkLineToEmployee({ pairingToken: resolvedToken });
-        if (cancelled) return;
-
-        if (result.ok) {
-          setState({
-            phase: 'success',
-            employeeName: `${result.employee.firstName} ${result.employee.lastName}`.trim(),
-          });
-          // Full page-load to ensure cookies propagate before requireRole.
-          setTimeout(() => {
-            window.location.href = '/liff/check-in';
-          }, 1500);
-        } else {
-          setState({
-            phase: 'error',
-            message: result.message,
-            // Retry only makes sense for transient classes; consumed/expired
-            // tokens are terminal until admin re-issues.
-            canRetry: false,
-          });
-        }
+        // ── Branch B: DISPATCH / DEFAULT ─────────────────────────────
+        // liffBootstrap succeeded → user is authed. Just navigate.
+        // No "success" UI — they shouldn't dwell here; the destination
+        // page handles the rest.
+        setState({ phase: 'linking', message: 'กำลังโหลด...' });
+        window.location.href = destPath;
+        return;
       } catch (err) {
         if (cancelled) return;
         const e = err as LiffBootstrapError;

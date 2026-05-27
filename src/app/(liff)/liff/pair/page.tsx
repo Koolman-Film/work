@@ -1,32 +1,37 @@
 /**
  * /liff/pair — the LIFF webview's entry point.
  *
- * This is the LIFF Endpoint URL configured in LINE Developers Console.
- * Both first-time pairing AND returning-user flows funnel through here:
+ * Configured as the LIFF Endpoint URL in LINE Developers Console.
+ * All LIFF flows funnel through here:
  *
  *   - Scenario A: First-time pairing
  *     Admin shares /i/<token> → employee scans on phone → /i/<token>
- *     redirects to liff.line.me/<liffId>?pair=<token> → LIFF webview opens
- *     this page with ?pair=<jwt>. We hand the token to PairClient which
- *     signs them into Supabase via LINE OIDC and binds the Employee row.
+ *     redirects to liff.line.me/<liffId>?liff.state=?pair=<token>. LIFF
+ *     strips liff.state on the server hit (it's processed client-side
+ *     in PairClient via liff.init()).
  *
- *   - Scenario B: Returning user (already paired)
- *     Employee taps the LINE rich menu button or a push-notification link
- *     → opens liff.line.me/<liffId> → LIFF webview loads this page WITHOUT
- *     ?pair=. If their Supabase session is still valid (cookie not
- *     expired), we bounce them straight to /liff/check-in. If not,
- *     they see the "ขอลิงก์ใหม่" message asking admin for a fresh link.
+ *   - Scenario B: Returning user — daily check-in via rich menu / push
+ *     Employee taps "เช็คอิน" rich menu → liff.line.me/<liffId>
+ *     → loads /liff/pair → PairClient → liffBootstrap (warm session) →
+ *     redirect /liff/check-in.
+ *
+ *   - Scenario C: Returning user — rich menu deep link to leave/advance/
+ *     calendar etc. Rich menu URL: liff.line.me/<liffId>?liff.state=?dest=leave
+ *     → PairClient sees ?dest=leave after liff.init() → redirect /liff/leave.
+ *
+ * Why we render PairClient unconditionally (no server-side fast-redirect):
+ *   LIFF strips both query strings and path segments before forwarding to
+ *   our endpoint. The destination hint (`?dest=`) only becomes visible
+ *   AFTER `liff.init()` runs client-side and rewrites window.location.
+ *   If we redirected server-side based on auth state alone, every rich
+ *   menu deep link would lose its hint and land on /liff/check-in.
  *
  * Why this page is public (whitelisted in proxy.ts PUBLIC_INSIDE_PROTECTED):
  *   The pairing flow's whole point is to ESTABLISH the Supabase session.
  *   If the proxy required auth, it would 307 to /login and the LIFF
- *   handshake could never run. That was the bug that broke Scenario A
- *   when the endpoint URL was mistakenly pointed at /liff/check-in.
+ *   handshake could never run.
  */
 
-import { redirect } from 'next/navigation';
-import { prisma } from '@/lib/db/prisma';
-import { createClient } from '@/lib/supabase/server';
 import PairClient from './pair-client';
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
@@ -64,45 +69,14 @@ function extractPairToken(sp: Record<string, string | string[] | undefined>): st
 }
 
 export default async function LiffPairPage({ searchParams }: { searchParams: SearchParams }) {
+  // We DO still parse the server-visible query params — this is the
+  // fast path for the rare case where LIFF actually preserves the raw
+  // query (some LINE versions / non-LIFF dev tests). If we get a token
+  // server-side, PairClient skips its window.location.search lookup.
+  // No server-side auth check or redirect: everything routes through
+  // PairClient client-side so `?dest=` from liff.state can be honored.
   const sp = await searchParams;
   const pairingToken = extractPairToken(sp);
 
-  // Scenario A: pair token present → run the binding client.
-  if (pairingToken) {
-    return <PairClient pairingToken={pairingToken} />;
-  }
-
-  // Scenario B: no token. If the user already has a Supabase session AND
-  // a linked Employee row, send them straight to check-in. This is the
-  // hot path for returning users tapping the LINE rich menu.
-  const supabase = await createClient();
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
-
-  if (authUser) {
-    const user = await prisma.user.findUnique({
-      where: { authUserId: authUser.id },
-      select: {
-        archivedAt: true,
-        employee: { select: { id: true } },
-      },
-    });
-    if (user && !user.archivedAt && user.employee) {
-      redirect('/liff/check-in');
-    }
-  }
-
-  // No server-side token and no Supabase session. This is the LIFF
-  // first-time-pair path: LIFF stripped `liff.state` from the URL before
-  // forwarding to us (LIFF processes liff.state client-side, not on the
-  // initial endpoint load). So we render PairClient with a null token;
-  // PairClient runs liff.init() which rewrites the URL to include
-  // ?pair=<token>, then extracts the token from window.location.
-  //
-  // For visitors arriving here OUTSIDE LIFF (no LINE context, no token),
-  // PairClient's liff.init() will throw 'not-in-line' and the UI will
-  // tell them to open the link in LINE — a better UX than the old
-  // "ขาดลิงก์การจับคู่" terminal screen anyway.
-  return <PairClient pairingToken={null} />;
+  return <PairClient pairingToken={pairingToken} />;
 }
