@@ -1,7 +1,7 @@
 'use client';
 
 import type { LucideIcon } from 'lucide-react';
-import { Building2, Calculator, CalendarOff, FolderTree } from 'lucide-react';
+import { Building2, Calculator, CalendarDays, CalendarOff, FolderTree } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -53,7 +53,14 @@ const TABS: ReadonlyArray<SettingsTab> = [
     Icon: CalendarOff,
     enabled: true,
   },
-  // ดีเฟอร์: ตารางงาน / วันหยุด / Payroll config
+  {
+    href: '/admin/settings/holidays',
+    label: 'วันหยุด',
+    description: 'วันหยุดราชการ + ชดเชย',
+    Icon: CalendarDays,
+    enabled: true,
+  },
+  // ดีเฟอร์: ตารางงาน / Payroll config
 ];
 
 export function SettingsNav() {
