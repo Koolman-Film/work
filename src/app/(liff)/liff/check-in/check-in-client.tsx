@@ -298,19 +298,29 @@ export default function CheckInClient({
           </div>
         </section>
 
-        {/* Quick actions — leave, advance (advance lands in W4d) */}
-        <section className="mt-6 grid grid-cols-2 gap-3">
+        {/* Quick actions — leave, advance, team calendar.
+            grid-cols-3 keeps the tiles equal-width at all phone widths;
+            the calendar tile was added in W4-late/E and intentionally
+            sits last (right-most) so the muscle memory for the existing
+            two tiles stays the same. */}
+        <section className="mt-6 grid grid-cols-3 gap-2.5">
           <a
             href="/liff/leave"
-            className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-center text-sm font-medium text-gray-700 shadow-sm transition hover:border-primary-200 hover:text-primary-700"
+            className="rounded-xl border border-gray-200 bg-white px-3 py-3 text-center text-xs font-medium text-gray-700 shadow-sm transition hover:border-primary-200 hover:text-primary-700"
           >
             📅 คำขอลา
           </a>
           <a
             href="/liff/advance"
-            className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-center text-sm font-medium text-gray-700 shadow-sm transition hover:border-primary-200 hover:text-primary-700"
+            className="rounded-xl border border-gray-200 bg-white px-3 py-3 text-center text-xs font-medium text-gray-700 shadow-sm transition hover:border-primary-200 hover:text-primary-700"
           >
-            💰 ขอเบิกเงิน
+            💰 ขอเบิก
+          </a>
+          <a
+            href="/liff/calendar"
+            className="rounded-xl border border-gray-200 bg-white px-3 py-3 text-center text-xs font-medium text-gray-700 shadow-sm transition hover:border-primary-200 hover:text-primary-700"
+          >
+            🗓️ ปฏิทินทีม
           </a>
         </section>
 

@@ -1,0 +1,275 @@
+'use client';
+
+/**
+ * Calendar grid + day-tap detail panel.
+ *
+ * The grid is a 7×6 CSS grid (always 6 weeks tall, even when the month
+ * only spans 5 — keeps the layout from jumping when you scrub months).
+ * Each cell shows:
+ *   - Day number (top-left), gray if out-of-month, red if Sunday
+ *   - Holiday dot (red) if there's a Holiday on that date
+ *   - Up to 2 colored bars indicating people on leave
+ *   - "+N" overflow indicator when more than 2
+ *
+ * Tapping a cell selects it and renders a detail panel BELOW the grid
+ * (not a modal — modals on a 320px LIFF screen feel disruptive). The
+ * panel shows: full Thai date, holiday name if any, then a list of
+ * each person on leave with their type + status badge.
+ *
+ * Defaults: today is preselected when it's in the visible month;
+ * otherwise the first day of the month.
+ */
+
+import { useMemo, useState } from 'react';
+import type { GridDay, TeamCalendarEntry, TeamCalendarHoliday } from '@/lib/leave/team-calendar';
+import { indexEntriesByDate } from '@/lib/leave/team-calendar';
+import { cn } from '@/lib/utils';
+
+const WEEKDAY_LABELS = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'] as const;
+const THAI_MONTHS = [
+  'มกราคม',
+  'กุมภาพันธ์',
+  'มีนาคม',
+  'เมษายน',
+  'พฤษภาคม',
+  'มิถุนายน',
+  'กรกฎาคม',
+  'สิงหาคม',
+  'กันยายน',
+  'ตุลาคม',
+  'พฤศจิกายน',
+  'ธันวาคม',
+] as const;
+
+type Props = {
+  grid: GridDay[];
+  entries: TeamCalendarEntry[];
+  holidays: TeamCalendarHoliday[];
+};
+
+export function CalendarGrid({ grid, entries, holidays }: Props) {
+  // Build lookup maps once per props change. The grid re-renders on day
+  // selection but the underlying indices don't change, so useMemo keeps
+  // the per-cell render cheap (Map.get is O(1)).
+  const entriesByDate = useMemo(() => indexEntriesByDate(entries), [entries]);
+  const holidayByDate = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const h of holidays) m.set(h.date, h.name);
+    return m;
+  }, [holidays]);
+
+  // Default selection: today if in the visible month, else day 1.
+  const todayYmd = useMemo(() => {
+    return new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
+  }, []);
+  const defaultSelected = useMemo(() => {
+    const todayCell = grid.find((g) => g.date === todayYmd && g.inMonth);
+    if (todayCell) return todayCell.date;
+    const firstInMonth = grid.find((g) => g.inMonth);
+    // buildMonthGrid contractually returns 42 cells, but TS can't see that
+    // through noUncheckedIndexedAccess. Fall back to today's YMD as a
+    // defensive default if the grid is somehow empty.
+    return firstInMonth?.date ?? grid[0]?.date ?? todayYmd;
+  }, [grid, todayYmd]);
+
+  const [selected, setSelected] = useState<string>(defaultSelected);
+
+  const selectedEntries = entriesByDate.get(selected) ?? [];
+  const selectedHoliday = holidayByDate.get(selected) ?? null;
+
+  return (
+    <>
+      {/* Weekday header */}
+      <div className="grid grid-cols-7 gap-1 px-0.5 pb-1.5">
+        {WEEKDAY_LABELS.map((w, i) => (
+          <p
+            key={w}
+            className={cn(
+              'text-center text-[10px] font-medium',
+              // Sunday + Saturday colored to match cell day colors.
+              i === 0 ? 'text-red-500' : 'text-gray-500',
+            )}
+          >
+            {w}
+          </p>
+        ))}
+      </div>
+
+      {/* Day grid */}
+      <div className="grid grid-cols-7 gap-1">
+        {grid.map((cell) => {
+          const dayEntries = entriesByDate.get(cell.date) ?? [];
+          const holiday = holidayByDate.get(cell.date);
+          const isToday = cell.date === todayYmd;
+          const isSelected = cell.date === selected;
+          const dow = new Date(`${cell.date}T00:00:00.000Z`).getUTCDay();
+          const isSunday = dow === 0;
+
+          return (
+            <button
+              key={cell.date}
+              type="button"
+              onClick={() => setSelected(cell.date)}
+              aria-pressed={isSelected}
+              aria-label={`${cell.day}${holiday ? ` ${holiday}` : ''}${
+                dayEntries.length > 0 ? ` (มีลา ${dayEntries.length})` : ''
+              }`}
+              className={cn(
+                'relative flex aspect-square flex-col rounded-md border p-1 text-left transition',
+                // Out-of-month cells: muted background + ghost text.
+                !cell.inMonth && 'border-transparent bg-transparent text-gray-300',
+                cell.inMonth && !isSelected && 'border-gray-200 bg-white hover:border-primary-200',
+                isSelected && 'border-primary-500 bg-primary-50 ring-2 ring-primary-200',
+                holiday && cell.inMonth && !isSelected && 'border-red-100 bg-red-50/40',
+              )}
+            >
+              <span
+                className={cn(
+                  'text-[11px] font-medium leading-none',
+                  cell.inMonth && isSunday && 'text-red-600',
+                  cell.inMonth && !isSunday && 'text-gray-900',
+                  isToday && cell.inMonth && 'rounded-full bg-primary-600 px-1 text-white',
+                )}
+              >
+                {cell.day}
+              </span>
+
+              {/* Entry bars — show up to 2 then "+N" */}
+              {cell.inMonth && dayEntries.length > 0 && (
+                <div className="mt-auto flex flex-col gap-0.5">
+                  {dayEntries.slice(0, 2).map((e) => (
+                    <span
+                      key={e.leaveRequestId}
+                      className={cn(
+                        'block truncate rounded-sm px-0.5 text-[9px] leading-tight',
+                        e.status === 'Approved'
+                          ? 'bg-primary-100 text-primary-800'
+                          : // Pending: hatched look via dashed border + lighter bg.
+                            'border border-dashed border-amber-300 bg-amber-50 text-amber-800',
+                        e.isMine && 'ring-1 ring-primary-400',
+                      )}
+                    >
+                      {e.shortLabel}
+                    </span>
+                  ))}
+                  {dayEntries.length > 2 && (
+                    <span className="text-[9px] font-medium leading-none text-gray-500">
+                      +{dayEntries.length - 2}
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {/* Holiday red dot (top-right) — visible even when cell has no entries */}
+              {holiday && cell.inMonth && (
+                <span
+                  aria-hidden="true"
+                  className="absolute right-1 top-1 size-1.5 rounded-full bg-red-500"
+                />
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Detail panel — fills the gap below the grid */}
+      <section className="mt-4 rounded-xl border border-gray-200 bg-white">
+        <header className="border-b border-gray-100 px-4 py-3">
+          <p className="text-sm font-semibold text-gray-900">{formatThaiDate(selected)}</p>
+          {selectedHoliday && (
+            <p className="mt-0.5 text-xs font-medium text-red-700">วันหยุด: {selectedHoliday}</p>
+          )}
+        </header>
+
+        {selectedEntries.length === 0 ? (
+          <div className="px-4 py-8 text-center">
+            <p className="text-sm text-gray-500">ไม่มีคนลาวันนี้</p>
+            {selectedHoliday && <p className="mt-1 text-xs text-gray-400">เนื่องจากเป็นวันหยุด</p>}
+          </div>
+        ) : (
+          <ul className="divide-y divide-gray-100">
+            {selectedEntries.map((e) => (
+              <li key={e.leaveRequestId} className="flex items-start gap-3 px-4 py-3">
+                {/* Initial circle — avatar stand-in until we have profile photos */}
+                <span
+                  className={cn(
+                    'grid size-8 shrink-0 place-items-center rounded-full text-xs font-bold',
+                    e.isMine ? 'bg-primary-100 text-primary-700' : 'bg-gray-100 text-gray-600',
+                  )}
+                >
+                  {(e.shortLabel[0] ?? '?').toUpperCase()}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="truncate text-sm font-medium text-gray-900">
+                      {e.employeeName}
+                      {e.isMine && (
+                        <span className="ml-1 text-xs font-normal text-primary-600">(คุณ)</span>
+                      )}
+                    </p>
+                  </div>
+                  <p className="mt-0.5 text-xs text-gray-600">
+                    {e.leaveTypeName}
+                    {e.startDate !== e.endDate && (
+                      <span className="text-gray-400">
+                        {' '}
+                        · {formatRangeCompact(e.startDate, e.endDate)}
+                      </span>
+                    )}
+                  </p>
+                </div>
+                <StatusBadge status={e.status} />
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </>
+  );
+}
+
+function StatusBadge({ status }: { status: 'Pending' | 'Approved' }) {
+  if (status === 'Approved') {
+    return (
+      <span className="shrink-0 rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-medium text-green-800">
+        อนุมัติแล้ว
+      </span>
+    );
+  }
+  return (
+    <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800">
+      รออนุมัติ
+    </span>
+  );
+}
+
+/** Full Thai date with Buddhist year — used for the detail panel header. */
+function formatThaiDate(ymd: string): string {
+  const [yStr, mStr, dStr] = ymd.split('-');
+  const y = Number(yStr);
+  const m0 = Number(mStr) - 1;
+  const d = Number(dStr);
+  const weekday = new Date(`${ymd}T00:00:00.000Z`).toLocaleDateString('th-TH', {
+    timeZone: 'UTC',
+    weekday: 'long',
+  });
+  return `${weekday} ${d} ${THAI_MONTHS[m0]} ${y + 543}`;
+}
+
+/** Compact "1–5 พ.ค." style for the secondary line on multi-day entries. */
+function formatRangeCompact(start: string, end: string): string {
+  const startDay = Number(start.slice(8, 10));
+  const endDay = Number(end.slice(8, 10));
+  // If the range crosses months we just show both full dates.
+  if (start.slice(0, 7) !== end.slice(0, 7)) {
+    return `${formatShort(start)} – ${formatShort(end)}`;
+  }
+  const monthLabel = THAI_MONTHS[Number(start.slice(5, 7)) - 1];
+  return `${startDay}–${endDay} ${monthLabel}`;
+}
+
+function formatShort(ymd: string): string {
+  const day = Number(ymd.slice(8, 10));
+  const m0 = Number(ymd.slice(5, 7)) - 1;
+  return `${day} ${THAI_MONTHS[m0]}`;
+}

@@ -115,9 +115,12 @@ export default async function LiffLeaveListPage() {
         </ul>
       )}
 
-      <nav className="mt-8 flex justify-center text-xs">
+      <nav className="mt-8 flex justify-center gap-4 text-xs">
         <Link href="/liff/check-in" className="text-gray-500 hover:text-gray-700">
           ← กลับหน้าเช็คอิน
+        </Link>
+        <Link href="/liff/calendar" className="text-gray-500 hover:text-gray-700">
+          ดูปฏิทินทีม →
         </Link>
       </nav>
     </main>
