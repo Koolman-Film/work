@@ -103,12 +103,13 @@ Full layout in [`docs/v2/architecture.md`](./docs/v2/architecture.md).
 
 **CI** runs lint + typecheck + test in parallel, then build, on every push and PR (`.github/workflows/ci.yml`).
 
-What's tested so far (68 unit tests):
+What's tested so far (78 unit tests):
 - `src/lib/auth/safe-redirect.ts` — open-redirect defense (15 tests)
 - `src/lib/auth/login-error.ts` — error → Thai message + anti-enumeration policy (11 tests)
 - `src/lib/pairing/token.ts` — JWT mint/verify + replay + tamper + alg-confusion (12 tests)
 - `src/lib/attendance/haversine.ts` — great-circle distance + closest-branch + impossible-travel (14 tests)
 - `src/lib/attendance/evaluate.ts` — Confirmed/Disputed decision engine (10 tests)
+- `src/lib/leave/working-days.ts` — working-day expansion (skip Sun + holidays) + date parsing (10 tests)
 - `src/lib/utils.ts` — `cn()` class-name combiner (6 tests)
 
 ---
@@ -123,5 +124,10 @@ What's tested so far (68 unit tests):
   - 🔨 W3c — admin attendance views + selfie
     - ✅ W3c-1 — disputed inbox (`/admin/attendance/disputed`): review + Approve/Reject with required note
     - ✅ W3c-2 — live attendance board (`/admin/attendance/live`): Supabase Realtime + 30s polling fallback
-    - ⏳ W3c-3 — selfie capture + Supabase Storage bucket
-- ⏳ W4 — Leave + cash advance flows
+    - ⏳ W3c-3 — (deferred) selfie capture + Supabase Storage bucket (folded into W4-late)
+- 🔨 W4 — Leave + cash advance flows
+  - ✅ W4a — LeaveType admin CRUD (`/admin/settings/leave-types`)
+  - ✅ W4b — LIFF leave request flow (`/liff/leave` + new + detail with cancel)
+  - ⏳ W4c — Admin leave inbox + approve expands to Attendance(OnLeave) rows
+  - ⏳ W4d — Cash advance flow (LIFF + admin)
+  - ⏳ W4-late — Photo uploads + LINE push + in-app bell + team calendar

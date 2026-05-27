@@ -211,6 +211,22 @@ export default function CheckInClient({
         </div>
       </section>
 
+      {/* Quick actions — leave, advance (advance lands in W4d) */}
+      <section className="mt-6 grid grid-cols-2 gap-3">
+        <a
+          href="/liff/leave"
+          className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-center text-sm font-medium text-gray-700 shadow-sm transition hover:border-primary-200 hover:text-primary-700"
+        >
+          📅 คำขอลา
+        </a>
+        <a
+          href="/liff/advance"
+          className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-center text-sm font-medium text-gray-700 shadow-sm transition hover:border-primary-200 hover:text-primary-700"
+        >
+          💰 ขอเบิกเงิน
+        </a>
+      </section>
+
       {/* Assigned branches list (helps employee orient themselves) */}
       {branches.length > 0 && (
         <section className="mt-8">
