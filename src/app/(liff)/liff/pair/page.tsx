@@ -1,21 +1,32 @@
 /**
- * /liff/pair — LIFF entry page that binds a LINE user to an Employee.
+ * /liff/pair — the LIFF webview's entry point.
  *
- * URL shape:  /liff/pair?pair=<jwt>
+ * This is the LIFF Endpoint URL configured in LINE Developers Console.
+ * Both first-time pairing AND returning-user flows funnel through here:
  *
- * The LIFF redirect from /i/[token] always carries `?pair=<jwt>`. If the
- * query parameter is missing, the user arrived in some unusual way
- * (bookmarked the LIFF URL directly?). We render a friendly "ขอลิงก์ใหม่"
- * page rather than crashing.
+ *   - Scenario A: First-time pairing
+ *     Admin shares /i/<token> → employee scans on phone → /i/<token>
+ *     redirects to liff.line.me/<liffId>?pair=<token> → LIFF webview opens
+ *     this page with ?pair=<jwt>. We hand the token to PairClient which
+ *     signs them into Supabase via LINE OIDC and binds the Employee row.
  *
- * This is a Server Component because:
- *   - Reading `searchParams` server-side avoids a Client-Component-only
- *     `useSearchParams()` dance, which would otherwise require Suspense
- *     boundaries in Next 16.
- *   - The actual LIFF SDK work (init, signInWithIdToken, fetch) lives in
- *     the Client child below — we just hand it the validated token string.
+ *   - Scenario B: Returning user (already paired)
+ *     Employee taps the LINE rich menu button or a push-notification link
+ *     → opens liff.line.me/<liffId> → LIFF webview loads this page WITHOUT
+ *     ?pair=. If their Supabase session is still valid (cookie not
+ *     expired), we bounce them straight to /liff/check-in. If not,
+ *     they see the "ขอลิงก์ใหม่" message asking admin for a fresh link.
+ *
+ * Why this page is public (whitelisted in proxy.ts PUBLIC_INSIDE_PROTECTED):
+ *   The pairing flow's whole point is to ESTABLISH the Supabase session.
+ *   If the proxy required auth, it would 307 to /login and the LIFF
+ *   handshake could never run. That was the bug that broke Scenario A
+ *   when the endpoint URL was mistakenly pointed at /liff/check-in.
  */
 
+import { redirect } from 'next/navigation';
+import { prisma } from '@/lib/db/prisma';
+import { createClient } from '@/lib/supabase/server';
 import PairClient from './pair-client';
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
@@ -25,19 +36,47 @@ export default async function LiffPairPage({ searchParams }: { searchParams: Sea
   const raw = sp.pair;
   const pairingToken = typeof raw === 'string' && raw.length > 0 ? raw : null;
 
-  if (!pairingToken) {
-    return (
-      <div className="grid min-h-dvh place-items-center px-4 py-12">
-        <div className="w-full max-w-sm space-y-3 rounded-xl border border-gray-200 bg-white p-8 text-center shadow-sm">
-          <p className="text-sm text-gray-500">Koolman Work</p>
-          <h1 className="text-xl font-semibold text-gray-900">ขาดลิงก์การจับคู่</h1>
-          <p className="text-sm text-gray-600">
-            กรุณาเปิดลิงก์จับคู่ที่แอดมินส่งให้คุณอีกครั้ง หรือติดต่อแอดมินเพื่อขอลิงก์ใหม่
-          </p>
-        </div>
-      </div>
-    );
+  // Scenario A: pair token present → run the binding client.
+  if (pairingToken) {
+    return <PairClient pairingToken={pairingToken} />;
   }
 
-  return <PairClient pairingToken={pairingToken} />;
+  // Scenario B: no token. If the user already has a Supabase session AND
+  // a linked Employee row, send them straight to check-in. This is the
+  // hot path for returning users tapping the LINE rich menu.
+  const supabase = await createClient();
+  const {
+    data: { user: authUser },
+  } = await supabase.auth.getUser();
+
+  if (authUser) {
+    const user = await prisma.user.findUnique({
+      where: { authUserId: authUser.id },
+      select: {
+        archivedAt: true,
+        employee: { select: { id: true } },
+      },
+    });
+    if (user && !user.archivedAt && user.employee) {
+      redirect('/liff/check-in');
+    }
+  }
+
+  // No token, and either no session or no linked Employee.
+  // (Employee with expired Supabase cookie also lands here — Phase-2 we
+  // could add a silent re-auth client that runs liff.init →
+  // signInWithIdToken on its own then redirects to check-in. For V1 the
+  // "ask admin" message is acceptable since the most common returning-
+  // user path is via push-notification links which carry fresh context.)
+  return (
+    <div className="grid min-h-dvh place-items-center px-4 py-12">
+      <div className="w-full max-w-sm space-y-3 rounded-xl border border-gray-200 bg-white p-8 text-center shadow-sm">
+        <p className="text-sm text-gray-500">Koolman Work</p>
+        <h1 className="text-xl font-semibold text-gray-900">ขาดลิงก์การจับคู่</h1>
+        <p className="text-sm text-gray-600">
+          กรุณาเปิดลิงก์จับคู่ที่แอดมินส่งให้คุณอีกครั้ง หรือติดต่อแอดมินเพื่อขอลิงก์ใหม่
+        </p>
+      </div>
+    </div>
+  );
 }
