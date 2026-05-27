@@ -1,7 +1,7 @@
 'use client';
 
 import type { LucideIcon } from 'lucide-react';
-import { Building2, Calculator, FolderTree } from 'lucide-react';
+import { Building2, Calculator, CalendarOff, FolderTree } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -46,7 +46,14 @@ const TABS: ReadonlyArray<SettingsTab> = [
     Icon: Calculator,
     enabled: true,
   },
-  // ดีเฟอร์: ประเภทการลา / ตารางงาน / วันหยุด / Payroll config
+  {
+    href: '/admin/settings/leave-types',
+    label: 'ประเภทการลา',
+    description: 'ลาป่วย / ลากิจ / ลาพักร้อน',
+    Icon: CalendarOff,
+    enabled: true,
+  },
+  // ดีเฟอร์: ตารางงาน / วันหยุด / Payroll config
 ];
 
 export function SettingsNav() {
