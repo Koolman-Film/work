@@ -19,6 +19,24 @@ import { requireRole } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
 
 /**
+ * Re-render the dashboard at most every 30 seconds.
+ *
+ * The KPIs (pending counts, on-leave-today, recent activity) are SHARED
+ * across all admins — there's no per-user personalization on this page.
+ * So a fresh /admin hit from Admin A returns the same HTML to Admin B
+ * if it's been less than 30s since the last server render.
+ *
+ * Cost: counts can be up to 30s stale. Acceptable trade-off — admins
+ * scanning the dashboard don't notice a 30s lag on "3 pending → 4 pending",
+ * but DO notice a 1.5s page load every time they navigate here.
+ *
+ * Real-time-ness for urgent events still works: the bell + live board
+ * use Supabase Realtime push, not page polling. The dashboard cards
+ * are decoration — admins click through to the inbox for the real view.
+ */
+export const revalidate = 30;
+
+/**
  * Today as UTC midnight matching @db.Date semantics — same helper as
  * check-in.ts / live.ts. Inlined here to keep the dashboard import graph
  * tiny.
