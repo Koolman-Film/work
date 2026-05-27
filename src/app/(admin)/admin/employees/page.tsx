@@ -1,11 +1,29 @@
+import type { Prisma } from '@prisma/client';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardBody } from '@/components/ui/card';
 import { StatusBadge, type StatusKey } from '@/components/ui/status-badge';
 import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/table';
 import { prisma } from '@/lib/db/prisma';
+import { EmployeeFilters } from './employee-filters';
 
-type SearchParams = Promise<{ error?: string; status?: string }>;
+/**
+ * Employee list with URL-driven filters: search (q), branch, department,
+ * status. Default view shows non-archived employees; explicit
+ * ?status=archived surfaces pasted-sphere employees.
+ *
+ * All filters compose — `?q=ตงค์&branchId=...&status=active` returns the
+ * intersection. The where-clause builder below collects them into a
+ * single Prisma WhereInput so the DB does the work.
+ */
+
+type SearchParams = Promise<{
+  error?: string;
+  q?: string;
+  branchId?: string;
+  departmentId?: string;
+  status?: string;
+}>;
 
 /** Format Decimal/string baseSalary as ฿X,XXX */
 function fmtMoney(v: unknown): string {
@@ -30,42 +48,80 @@ const STATUS_KIND: Record<string, StatusKey> = {
   Archived: 'archived',
 };
 
-export default async function EmployeeListPage({ searchParams }: { searchParams: SearchParams }) {
-  const { error, status } = await searchParams;
+/**
+ * Translate the `status` URL param to a Prisma where clause fragment.
+ *
+ *   ''         → default: archivedAt: null (non-archived; mixed Active +
+ *                                            Probation)
+ *   'active'   → status: 'Active'
+ *   'probation'→ status: 'Probation'
+ *   'archived' → status: 'Archived'
+ */
+function statusWhere(status: string): Prisma.EmployeeWhereInput {
+  if (status === 'archived') return { status: 'Archived' };
+  if (status === 'active') return { status: 'Active' };
+  if (status === 'probation') return { status: 'Probation' };
+  return { archivedAt: null };
+}
 
-  // Filter: by default hide Archived; allow ?status=archived to see them
-  const showArchived = status === 'archived';
-  const employees = await prisma.employee.findMany({
-    where: showArchived ? { status: 'Archived' } : { archivedAt: null },
-    orderBy: [{ status: 'asc' }, { firstName: 'asc' }],
-    select: {
-      id: true,
-      firstName: true,
-      lastName: true,
-      nickname: true,
-      status: true,
-      salaryType: true,
-      baseSalary: true,
-      branch: { select: { name: true } },
-      department: { select: { name: true } },
-    },
-  });
+export default async function EmployeeListPage({ searchParams }: { searchParams: SearchParams }) {
+  const sp = await searchParams;
+  const error = sp.error;
+  const q = sp.q?.trim() ?? '';
+  const branchId = sp.branchId ?? '';
+  const departmentId = sp.departmentId ?? '';
+  const status = sp.status ?? '';
+
+  // Compose the Prisma where clause from all active filters. The base is
+  // the status filter (which sets either status= or archivedAt=null);
+  // then we layer branch, department, and search on top.
+  const where: Prisma.EmployeeWhereInput = { ...statusWhere(status) };
+  if (branchId) where.branchId = branchId;
+  if (departmentId) where.departmentId = departmentId;
+  if (q) {
+    where.OR = [
+      { firstName: { contains: q, mode: 'insensitive' } },
+      { lastName: { contains: q, mode: 'insensitive' } },
+      { nickname: { contains: q, mode: 'insensitive' } },
+    ];
+  }
+
+  // Single round-trip for the data + the dropdown options.
+  const [employees, branches, departments] = await Promise.all([
+    prisma.employee.findMany({
+      where,
+      orderBy: [{ status: 'asc' }, { firstName: 'asc' }],
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        nickname: true,
+        status: true,
+        salaryType: true,
+        baseSalary: true,
+        branch: { select: { name: true } },
+        department: { select: { name: true } },
+      },
+    }),
+    prisma.branch.findMany({
+      where: { archivedAt: null },
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true },
+    }),
+    prisma.department.findMany({
+      where: { archivedAt: null },
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true },
+    }),
+  ]);
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-8">
       <div className="mb-6 flex items-baseline justify-between">
         <h1 className="text-2xl font-semibold text-gray-900">พนักงาน</h1>
-        <div className="flex items-center gap-3">
-          <Link
-            href={showArchived ? '/admin/employees' : '/admin/employees?status=archived'}
-            className="text-sm text-primary-600 hover:text-primary-700"
-          >
-            {showArchived ? '← กลับไปดูพนักงานปัจจุบัน' : 'ดูพนักงานพ้นสภาพ →'}
-          </Link>
-          <Link href="/admin/employees/new">
-            <Button>+ เพิ่มพนักงาน</Button>
-          </Link>
-        </div>
+        <Link href="/admin/employees/new">
+          <Button>+ เพิ่มพนักงาน</Button>
+        </Link>
       </div>
 
       {error && (
@@ -74,20 +130,25 @@ export default async function EmployeeListPage({ searchParams }: { searchParams:
         </div>
       )}
 
+      <EmployeeFilters
+        initial={{ q, branchId, departmentId, status }}
+        branches={branches}
+        departments={departments}
+        matchedCount={employees.length}
+      />
+
       <Card>
-        <CardHeader>
-          <CardTitle>
-            {showArchived ? 'พ้นสภาพ' : 'ทั้งหมด'}{' '}
-            <span className="tabular-nums text-gray-500">({employees.length})</span>
-          </CardTitle>
-        </CardHeader>
         <CardBody className="!p-0">
           {employees.length === 0 ? (
             <div className="px-6 py-12 text-center">
               <p className="text-sm text-gray-500">
-                {showArchived ? 'ยังไม่มีพนักงานพ้นสภาพ' : 'ยังไม่มีพนักงาน'}
+                {status === 'archived'
+                  ? 'ยังไม่มีพนักงานพ้นสภาพ'
+                  : q || branchId || departmentId
+                    ? 'ไม่พบพนักงานที่ตรงกับตัวกรอง'
+                    : 'ยังไม่มีพนักงาน'}
               </p>
-              {!showArchived && (
+              {!q && !branchId && !departmentId && status !== 'archived' && (
                 <Link href="/admin/employees/new" className="mt-3 inline-block">
                   <Button variant="secondary">+ เพิ่มพนักงานคนแรก</Button>
                 </Link>
