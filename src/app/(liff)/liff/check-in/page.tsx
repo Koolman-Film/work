@@ -1,39 +1,62 @@
 /**
- * Placeholder for the W3b check-in / check-out page.
+ * /liff/check-in — the daily widget.
  *
- * Right now this just confirms the LIFF→Supabase session is alive and
- * the User row resolves with role='Employee'. W3b replaces this with the
- * GPS + geofence + selfie capture flow.
+ * Layout (per docs/v1/screens/employee.md — adapted for a check-in-focused
+ * Phase-1 LIFF, not the full v1 dashboard):
+ *   - Greeting + today's date in Thai Buddhist calendar
+ *   - Today's status card (not checked in / checked in / checked out)
+ *   - Big primary button: "เช็คอินเข้างาน" or "เช็คเอาท์"
  *
- * Why ship a placeholder now (W3a) instead of dropping the redirect at
- * the end of /liff/pair into a 404:
- *   - A freshly-paired employee seeing "Page not found" right after the
- *     "Linked successfully" toast is alarming. A clear "you're in, the
- *     check-in screen is coming next" message is honest and reassuring.
- *   - It also lets us smoke-test the requireRole(['Employee']) path
- *     against a real LINE-paired Supabase session before the full feature
- *     lands.
+ * Server Component does the data fetch (employee profile + today's state +
+ * the list of assigned branch names for context) and passes that to the
+ * Client Component which owns the geolocation + button-state machinery.
  */
 
+import { format } from 'date-fns';
+import { th } from 'date-fns/locale';
+import { toZonedTime } from 'date-fns-tz';
+import { getCheckInState } from '@/lib/attendance/check-in';
 import { requireRole } from '@/lib/auth/require-role';
+import { prisma } from '@/lib/db/prisma';
+import CheckInClient from './check-in-client';
 
-export default async function LiffCheckInPlaceholder() {
+export default async function LiffCheckInPage() {
   const { employee } = await requireRole(['Employee']);
+  if (!employee) {
+    throw new Error('requireRole did not return an Employee — should have notFound()');
+  }
+
+  const [state, branchNames] = await Promise.all([
+    getCheckInState(),
+    prisma.branch.findMany({
+      where: {
+        id: { in: Array.from(new Set([employee.branchId, ...employee.assignedBranchIds])) },
+        archivedAt: null,
+      },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    }),
+  ]);
+
+  // Format today's date in Thai Buddhist calendar. We do this server-side
+  // (UTC offset Asia/Bangkok = +07:00) so the client never has to know.
+  const bkkNow = toZonedTime(new Date(), 'Asia/Bangkok');
+  // date-fns doesn't natively handle Thai Buddhist era; we format the
+  // Gregorian date then swap the year. (Year 2026 → พ.ศ. 2569.)
+  const gregYear = bkkNow.getFullYear();
+  const thaiYear = gregYear + 543;
+  const dateLine = format(bkkNow, 'EEEEที่ d MMMM', { locale: th }).replace(
+    /\bMMMM\b/,
+    '', // no-op fallback if pattern fails — defensive
+  );
 
   return (
-    <div className="grid min-h-dvh place-items-center px-4 py-12">
-      <div className="w-full max-w-sm rounded-xl border border-gray-200 bg-white p-8 text-center shadow-sm">
-        <p className="text-sm text-gray-500">Koolman HR</p>
-        <h1 className="mt-1 text-xl font-semibold text-gray-900">เชื่อมบัญชีสำเร็จ</h1>
-        <p className="mt-3 text-sm text-gray-600">
-          ยินดีต้อนรับ
-          {employee ? <strong className="text-gray-900"> {employee.firstName}</strong> : ''}
-        </p>
-        <div className="mt-6 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-left text-xs text-amber-800">
-          <strong>กำลังก่อสร้าง:</strong> หน้าเช็คอิน / เช็คเอาท์ จะมาถึงในสัปดาห์หน้า (W3b).
-          ตอนนี้บัญชีของคุณพร้อมใช้งานแล้ว — รอเปิดให้บริการ.
-        </div>
-      </div>
-    </div>
+    <CheckInClient
+      employeeFirstName={employee.firstName}
+      employeeLastName={employee.lastName}
+      branches={branchNames}
+      initialState={state}
+      dateLine={`${dateLine} ${thaiYear}`}
+    />
   );
 }

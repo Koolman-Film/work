@@ -103,10 +103,12 @@ Full layout in [`docs/v2/architecture.md`](./docs/v2/architecture.md).
 
 **CI** runs lint + typecheck + test in parallel, then build, on every push and PR (`.github/workflows/ci.yml`).
 
-What's tested so far (44 unit tests):
+What's tested so far (68 unit tests):
 - `src/lib/auth/safe-redirect.ts` — open-redirect defense (15 tests)
 - `src/lib/auth/login-error.ts` — error → Thai message + anti-enumeration policy (11 tests)
 - `src/lib/pairing/token.ts` — JWT mint/verify + replay + tamper + alg-confusion (12 tests)
+- `src/lib/attendance/haversine.ts` — great-circle distance + closest-branch + impossible-travel (14 tests)
+- `src/lib/attendance/evaluate.ts` — Confirmed/Disputed decision engine (10 tests)
 - `src/lib/utils.ts` — `cn()` class-name combiner (6 tests)
 
 ---
@@ -117,6 +119,6 @@ What's tested so far (44 unit tests):
 - ✅ W2 — Admin CRUDs (employees / branches / departments / accounting groups) + LINE pairing + geofence map
 - 🔨 W3 — LIFF check-in / check-out
   - ✅ W3a — LIFF pairing flow (`/liff/pair`): LINE OIDC → Supabase → atomic User-bind
-  - ⏳ W3b — GPS + geofence check-in / check-out
-  - ⏳ W3c — Selfie capture + admin disputed inbox
+  - ✅ W3b — GPS + geofence check-in / check-out (Haversine, impossible-travel, Confirmed/Disputed)
+  - ⏳ W3c — Selfie capture + admin disputed inbox + live attendance board
 - ⏳ W4 — Leave + cash advance flows
