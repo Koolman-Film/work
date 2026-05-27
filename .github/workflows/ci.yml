@@ -1,0 +1,98 @@
+# CI pipeline — runs on every push to main + every PR.
+#
+# Why this set of jobs:
+#   - Catches what local pre-commit hooks can't (e.g., tests that fail only
+#     in CI environment, or developers using SKIP_SIMPLE_GIT_HOOKS).
+#   - Build job validates Next.js compiles end-to-end + Prisma client
+#     generates from the committed schema.
+#
+# We run jobs in parallel where they're independent (lint + typecheck +
+# test don't depend on each other) so total wall time stays under 2 min.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  # Pinned Node + pnpm to match local development
+  NODE_VERSION: '24'
+  PNPM_VERSION: '10'
+
+jobs:
+  lint:
+    name: Lint (Biome)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+
+  typecheck:
+    name: Type-check (tsc)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      # Prisma's generated types are required for `tsc` — without this,
+      # any import from @prisma/client fails with "module has no exports."
+      - run: pnpm prisma generate
+      - run: pnpm typecheck
+
+  test:
+    name: Unit tests (Vitest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm prisma generate
+      - run: pnpm test
+
+  build:
+    name: Build (Next.js)
+    runs-on: ubuntu-latest
+    # Don't burn CI minutes on a build if the earlier jobs already failed.
+    needs: [lint, typecheck, test]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm prisma generate
+      - run: pnpm build
+        env:
+          # Build-time env stubs — Next inlines NEXT_PUBLIC_* at build,
+          # so even production builds need *some* value here. Fake values
+          # are fine because CI never executes user-facing requests.
+          NEXT_PUBLIC_SUPABASE_URL: 'https://placeholder.supabase.co'
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: 'placeholder-anon-key-for-build-only'
+          NEXT_PUBLIC_LIFF_ID: 'placeholder-liff-id'
+          PAIRING_JWT_SECRET: 'placeholder-secret-32chars-for-build-only-xx'

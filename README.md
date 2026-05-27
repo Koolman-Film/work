@@ -87,9 +87,33 @@ Full layout in [`docs/v2/architecture.md`](./docs/v2/architecture.md).
 
 ---
 
-## Status (2026-05-26)
+---
 
-- ✅ V2 plan locked + OIDC verified
-- ✅ W1a scaffold (this commit)
-- ⏳ W1b — Supabase SSR + login
-- ⏳ W1c — Prisma schema + seed
+## Quality checks
+
+| Tool | What | When it runs |
+|---|---|---|
+| **Biome 2** | Lint + format (JS/TS/JSON) | `pnpm lint`, `pnpm lint:fix`; auto on commit via `lint-staged` |
+| **TypeScript strict** | Type-check (`noUncheckedIndexedAccess`, etc.) | `pnpm typecheck`; on every build |
+| **Vitest** | Unit tests | `pnpm test` (one-shot), `pnpm test:watch` (TDD) |
+| **Playwright** | E2E (deferred to Tier 2 — see `docs/v2/build-plan.md`) | `pnpm test:e2e` once specs land |
+| **Next build** | Full build smoke | `pnpm build` |
+
+**Pre-commit hook** auto-runs Biome on staged files only (sub-second). Bypass with `SKIP_SIMPLE_GIT_HOOKS=1 git commit ...` if you really need to commit through a lint failure (e.g. WIP after a debug session).
+
+**CI** runs lint + typecheck + test in parallel, then build, on every push and PR (`.github/workflows/ci.yml`).
+
+What's tested so far (44 unit tests):
+- `src/lib/auth/safe-redirect.ts` — open-redirect defense (15 tests)
+- `src/lib/auth/login-error.ts` — error → Thai message + anti-enumeration policy (11 tests)
+- `src/lib/pairing/token.ts` — JWT mint/verify + replay + tamper + alg-confusion (12 tests)
+- `src/lib/utils.ts` — `cn()` class-name combiner (6 tests)
+
+---
+
+## Status
+
+- ✅ W1 — Foundation + auth + DB + role gates
+- ✅ W2 — Admin CRUDs (employees / branches / departments / accounting groups) + LINE pairing + geofence map
+- ⏳ W3 — LIFF check-in / check-out
+- ⏳ W4 — Leave + cash advance flows

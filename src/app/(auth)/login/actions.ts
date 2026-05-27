@@ -3,6 +3,7 @@
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { loginErrorMessage } from '@/lib/auth/login-error';
+import { safeRedirect } from '@/lib/auth/safe-redirect';
 import { createClient } from '@/lib/supabase/server';
 
 const SignInSchema = z.object({
@@ -10,13 +11,6 @@ const SignInSchema = z.object({
   password: z.string().min(1),
   redirectTo: z.string().optional().default(''),
 });
-
-// Safe-redirect: only allow relative paths to our own app, never absolute URLs.
-// Defends against open-redirect attacks via the `redirectTo` query param.
-function safeRedirect(target: string, fallback = '/'): string {
-  if (!target?.startsWith('/') || target.startsWith('//')) return fallback;
-  return target;
-}
 
 export async function signIn(formData: FormData) {
   const raw = {
