@@ -1,9 +1,11 @@
+import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { prisma } from '@/lib/db/prisma';
 import { loadEmployeeFormOptions } from '../../_load-options';
 import { archiveEmployee, updateEmployee } from '../../actions';
 import { EmployeeForm } from '../../employee-form';
+import { PairingCard } from '../../pairing-card';
 
 type Params = Promise<{ id: string }>;
 type SearchParams = Promise<{ error?: string; ok?: string }>;
@@ -37,6 +39,8 @@ export default async function EditEmployeePage({
         canCheckIn: true,
         hiredAt: true,
         archivedAt: true,
+        inviteToken: true,
+        inviteExpiresAt: true,
         user: { select: { lineUserId: true, authUserId: true } },
       },
     }),
@@ -44,8 +48,15 @@ export default async function EditEmployeePage({
   ]);
   if (!emp) notFound();
 
+  // Build absolute base URL from request headers — works dev / preview / prod
+  const headerList = await headers();
+  const host = headerList.get('host') ?? 'localhost:3000';
+  const proto =
+    headerList.get('x-forwarded-proto') ?? (host.startsWith('localhost') ? 'http' : 'https');
+  const baseUrl = `${proto}://${host}`;
+
   return (
-    <div className="mx-auto max-w-3xl px-6 py-8">
+    <div className="mx-auto max-w-3xl px-6 py-8 space-y-6">
       <div className="mb-6 flex items-baseline justify-between">
         <h1 className="text-2xl font-semibold text-gray-900">
           แก้ไข: {emp.firstName} {emp.lastName}
@@ -88,6 +99,14 @@ export default async function EditEmployeePage({
             </form>
           )
         }
+      />
+
+      <PairingCard
+        employeeId={id}
+        inviteToken={emp.inviteToken}
+        inviteExpiresAt={emp.inviteExpiresAt}
+        lineUserId={emp.user.lineUserId}
+        baseUrl={baseUrl}
       />
     </div>
   );
