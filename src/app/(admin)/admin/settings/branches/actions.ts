@@ -73,13 +73,20 @@ const BranchSchema = z
   });
 
 function readForm(formData: FormData) {
+  // Coerce missing keys (formData.get returns null) to undefined so the
+  // schema's `.optional()` handles them. Without this, the GeofencePicker
+  // case where no pin has been dropped (hidden lat/lng inputs not in the
+  // DOM at all) makes Zod fail with "expected string, received null".
+  // The pre-existing `transform(s => s.trim() === '' ? null : ...)` then
+  // correctly maps the absent fields to null pin / no-geofence semantics.
+  const get = (k: string) => formData.get(k) ?? undefined;
   return BranchSchema.safeParse({
-    name: formData.get('name'),
-    address: formData.get('address'),
-    latitude: formData.get('latitude'),
-    longitude: formData.get('longitude'),
-    radiusMeters: formData.get('radiusMeters'),
-    requireSelfie: formData.get('requireSelfie'),
+    name: get('name'),
+    address: get('address'),
+    latitude: get('latitude'),
+    longitude: get('longitude'),
+    radiusMeters: get('radiusMeters'),
+    requireSelfie: get('requireSelfie'),
   });
 }
 

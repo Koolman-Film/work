@@ -103,12 +103,15 @@ Full layout in [`docs/v2/architecture.md`](./docs/v2/architecture.md).
 
 **CI** runs lint + typecheck + test in parallel, then build, on every push and PR (`.github/workflows/ci.yml`).
 
-**Integration tests** (13 Playwright specs in `tests/e2e/`, all passing):
+**Integration tests** (20 Playwright specs in `tests/e2e/`, all passing in isolation):
 - Smoke (3): home + login render, protected-route redirect
 - Auth (3): admin login, anti-enumeration error message, authed → /login bounce
 - Department CRUD (2): uniqueness Thai error + full create/edit/archive lifecycle
+- Settings CRUDs (7): parametrized create/edit/archive + uniqueness for Branch, AccountingGroup, LeaveType, Holiday
 - Leave approval (2): `$transaction` correctness — approve creates Attendance(OnLeave) rows; reject creates none
 - Advance approval (3): approve+receiptUrl round-trips, empty-receipt → null guard, reject two-step confirm
+
+Note: running the *full* suite at once can hit Supabase's dev-pool limit. See `tests/e2e/README.md`.
 
 **Unit tests** (78 Vitest specs):
 - `src/lib/auth/safe-redirect.ts` — open-redirect defense (15 tests)

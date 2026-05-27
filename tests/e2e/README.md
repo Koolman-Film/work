@@ -32,8 +32,9 @@ pnpm test:e2e --debug tests/e2e/admin-department-crud.spec.ts
 
 - **Smoke (`smoke.spec.ts`)** — the public landing page renders and `/login` is reachable.
 - **Auth (`auth.spec.ts`)** — admin can log in with seed credentials and is redirected to `/admin`. Logout returns to the home page.
-- **Admin CRUDs (`admin-department-crud.spec.ts`, `admin-leave-type-crud.spec.ts`)** — full create / list / edit / archive lifecycle for the settings CRUDs that don't depend on other entities.
-- **Leave approval (`admin-leave-approval.spec.ts`)** — the high-value one. Seeds a pending LeaveRequest via Prisma directly, then drives the `/admin/leave` UI to approve it, then asserts the correct count of `Attendance` rows (type=OnLeave) were created in the same transaction.
+- **Admin CRUDs (`admin-department-crud.spec.ts` + `admin-settings-crud.spec.ts`)** — full create / list / edit / archive lifecycle. The latter is parametrized across Branch, AccountingGroup, LeaveType, and Holiday.
+- **Leave approval (`admin-leave-approval.spec.ts`)** — Seeds a pending LeaveRequest via Prisma, drives the `/admin/leave` UI to approve, then asserts the correct count of `Attendance` rows (type=OnLeave) were created in the same transaction.
+- **Advance approval (`admin-advance-approval.spec.ts`)** — Same shape for cash advances, with the additional check that the `receiptUrl` empty-string → null trim guard works.
 
 ## Test DB caveat
 
@@ -50,6 +51,17 @@ Until we pick one, every test must:
 - Use entity names prefixed `e2e-` plus a unique suffix.
 - Register cleanup in `afterAll` (best effort — failure to clean up is logged but doesn't fail the suite).
 - Avoid touching seeded data (the 3 default LeaveTypes, the admin/owner users).
+
+### Known limitation: dev pooler exhaustion
+
+Running the **full** suite (`pnpm test:e2e` with no path filter) can exhaust the Supabase session-mode pooler — the dev project caps at ~15 connections, and a long sequential run accumulates more than that before pooled clients are released. Symptom: a late-suite test fails with `EMAXCONNSESSION max clients reached in session mode`.
+
+Workarounds:
+- Run a subset: `pnpm test:e2e tests/e2e/admin-leave-approval.spec.ts`
+- Wait a few seconds and re-run (idle clients eventually drop)
+- Land the proper test-DB plan (above), which would have its own pool.
+
+The failing test always passes in isolation — it's not a correctness issue, just dev-environment pressure.
 
 ## Login credentials
 
