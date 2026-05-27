@@ -61,17 +61,22 @@ export default async function PairingLandingPage({ params }: { params: Params })
   const inLineApp = /\bLine\//i.test(ua);
 
   if (inLineApp) {
-    // Bounce directly into LIFF; the W3 /liff/pair page reads ?pair=... and
-    // calls signInWithIdToken + linkLineToEmployee.
+    // Bounce directly into LIFF. Use the PATH form (liffId/<token>) rather
+    // than the QUERY form (liffId?pair=<token>) — LINE WebView versions in
+    // the wild inconsistently strip query strings during the LIFF redirect,
+    // which lands the user on /liff/pair with no token → "ขาดลิงก์" page.
+    // Path segments are preserved 100% reliably. The dynamic route at
+    // /liff/pair/[token] handles this shape.
     const liffId = process.env.NEXT_PUBLIC_LIFF_ID ?? '';
     if (liffId) {
-      redirect(`https://liff.line.me/${liffId}?pair=${encodeURIComponent(token)}`);
+      redirect(`https://liff.line.me/${liffId}/${encodeURIComponent(token)}`);
     }
   }
 
-  // Fallback: install-LINE prompt (and a manual "I'm in LINE now" link)
+  // Fallback: install-LINE prompt (and a manual "I'm in LINE now" link).
+  // Same path-based form for the same reason.
   const liffId = process.env.NEXT_PUBLIC_LIFF_ID ?? '';
-  const liffUrl = liffId ? `https://liff.line.me/${liffId}?pair=${encodeURIComponent(token)}` : '#';
+  const liffUrl = liffId ? `https://liff.line.me/${liffId}/${encodeURIComponent(token)}` : '#';
 
   return (
     <div className="grid min-h-dvh place-items-center bg-gray-50 px-4 py-12">
