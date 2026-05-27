@@ -124,7 +124,7 @@ export default async function DisputedInboxPage() {
               latitude={r.checkInLat ? Number(r.checkInLat) : null}
               longitude={r.checkInLng ? Number(r.checkInLng) : null}
               candidateBranch={
-                r.checkInBranch && r.checkInBranch.latitude && r.checkInBranch.longitude
+                r.checkInBranch?.latitude && r.checkInBranch.longitude
                   ? {
                       id: r.checkInBranch.id,
                       name: r.checkInBranch.name,

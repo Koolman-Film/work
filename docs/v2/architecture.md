@@ -462,6 +462,14 @@ if (!session) {
 
 **Realtime + RLS:** because the Employee now has a real Supabase JWT in the browser, Supabase Realtime channels enforce RLS. The live admin board subscription `attendance:{date}` correctly hides rows the subscribing user shouldn't see.
 
+**One-time setup (W3c-2):** The `Attendance` table must be added to the `supabase_realtime` publication so postgres_changes fire on insert/update. Run once per environment in Supabase SQL Editor:
+
+```sql
+ALTER PUBLICATION supabase_realtime ADD TABLE "Attendance";
+```
+
+(If RLS is off on the table — our current state — the live board subscribes with the anon-key channel and just relies on the admin's own role gate in the Server Component that calls `getTodayAttendance`. When RLS is turned on, the subscription will enforce per-row visibility.)
+
 ### 4.2 Admin / Owner — Email + Password
 
 - Login at `/login`: email + password via `supabase.auth.signInWithPassword()`.

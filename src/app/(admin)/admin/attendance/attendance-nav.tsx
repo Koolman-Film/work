@@ -39,6 +39,7 @@ const TABS: ReadonlyArray<AttTab> = [
     label: 'ลงเวลาวันนี้',
     description: 'แผงเรียลไทม์',
     Icon: Activity,
+    enabled: true,
   },
   {
     href: '/admin/attendance/manual',

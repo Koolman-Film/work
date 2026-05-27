@@ -122,6 +122,6 @@ What's tested so far (68 unit tests):
   - ✅ W3b — GPS + geofence check-in / check-out (Haversine, impossible-travel, Confirmed/Disputed)
   - 🔨 W3c — admin attendance views + selfie
     - ✅ W3c-1 — disputed inbox (`/admin/attendance/disputed`): review + Approve/Reject with required note
-    - ⏳ W3c-2 — live attendance board (Realtime channel + 30s polling)
+    - ✅ W3c-2 — live attendance board (`/admin/attendance/live`): Supabase Realtime + 30s polling fallback
     - ⏳ W3c-3 — selfie capture + Supabase Storage bucket
 - ⏳ W4 — Leave + cash advance flows
