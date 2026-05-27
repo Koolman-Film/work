@@ -19,14 +19,18 @@ export default async function EditBranchPage({
 
   const branch = await prisma.branch.findUnique({
     where: { id },
-    select: { id: true, name: true, address: true, radiusMeters: true, requireSelfie: true },
+    select: {
+      id: true,
+      name: true,
+      address: true,
+      latitude: true,
+      longitude: true,
+      radiusMeters: true,
+      requireSelfie: true,
+      archivedAt: true,
+    },
   });
-  if (
-    !branch ||
-    (await prisma.branch.findUnique({ where: { id }, select: { archivedAt: true } }))?.archivedAt
-  ) {
-    notFound();
-  }
+  if (!branch || branch.archivedAt) notFound();
 
   // Server Action bound to this branch's id
   const updateBound = updateBranch.bind(null, id);
@@ -39,6 +43,8 @@ export default async function EditBranchPage({
         initial={{
           name: branch.name,
           address: branch.address,
+          latitude: branch.latitude ? Number(branch.latitude) : null,
+          longitude: branch.longitude ? Number(branch.longitude) : null,
           radiusMeters: branch.radiusMeters,
           requireSelfie: branch.requireSelfie,
         }}

@@ -20,32 +20,64 @@ import { prisma } from '@/lib/db/prisma';
  *   - `auditLog()` for every mutation (fire-and-forget)
  */
 
-const BranchSchema = z.object({
-  name: z.string().trim().min(1, 'กรุณากรอกชื่อสาขา').max(80, 'ชื่อยาวเกินไป'),
-  address: z
-    .string()
-    .trim()
-    .max(500)
-    .optional()
-    .transform((s) => (s ? s : null)),
-  radiusMeters: z
+/**
+ * Latitude / longitude come in as strings from the GeofencePicker's
+ * hidden inputs. Empty string = "admin cleared the pin" → null.
+ * Bounds: lat ∈ [-90, 90], lng ∈ [-180, 180].
+ */
+const coordSchema = (kind: 'lat' | 'lng') =>
+  z
     .string()
     .optional()
-    .transform((s) => {
-      if (!s) return 150;
+    .transform((s, ctx) => {
+      if (!s || s.trim() === '') return null;
       const n = Number(s);
-      return Number.isFinite(n) && n >= 50 && n <= 1000 ? n : 150;
-    }),
-  requireSelfie: z
-    .string()
-    .optional()
-    .transform((s) => s === 'on'),
-});
+      const bound = kind === 'lat' ? 90 : 180;
+      if (!Number.isFinite(n) || n < -bound || n > bound) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `${kind} ไม่ถูกต้อง`,
+        });
+        return z.NEVER;
+      }
+      return n;
+    });
+
+const BranchSchema = z
+  .object({
+    name: z.string().trim().min(1, 'กรุณากรอกชื่อสาขา').max(80, 'ชื่อยาวเกินไป'),
+    address: z
+      .string()
+      .trim()
+      .max(500)
+      .optional()
+      .transform((s) => (s ? s : null)),
+    latitude: coordSchema('lat'),
+    longitude: coordSchema('lng'),
+    radiusMeters: z
+      .string()
+      .optional()
+      .transform((s) => {
+        if (!s) return 150;
+        const n = Number(s);
+        return Number.isFinite(n) && n >= 50 && n <= 1000 ? n : 150;
+      }),
+    requireSelfie: z
+      .string()
+      .optional()
+      .transform((s) => s === 'on'),
+  })
+  .refine((d) => (d.latitude == null) === (d.longitude == null), {
+    message: 'ต้องระบุพิกัดทั้ง lat และ lng หรือทั้งคู่ว่าง',
+    path: ['latitude'],
+  });
 
 function readForm(formData: FormData) {
   return BranchSchema.safeParse({
     name: formData.get('name'),
     address: formData.get('address'),
+    latitude: formData.get('latitude'),
+    longitude: formData.get('longitude'),
     radiusMeters: formData.get('radiusMeters'),
     requireSelfie: formData.get('requireSelfie'),
   });

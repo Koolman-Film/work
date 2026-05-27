@@ -1,21 +1,22 @@
 import Link from 'next/link';
+import { GeofencePicker } from '@/components/map/geofence-picker-dynamic';
 import { Button } from '@/components/ui/button';
 import { Card, CardBody, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { FormField } from '@/components/ui/form-field';
 import { Input, Textarea } from '@/components/ui/input';
 
+type Initial = {
+  name: string;
+  address: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  radiusMeters: number;
+  requireSelfie: boolean;
+};
+
 type Mode =
   | { mode: 'create'; action: (formData: FormData) => Promise<void>; initial?: undefined }
-  | {
-      mode: 'edit';
-      action: (formData: FormData) => Promise<void>;
-      initial: {
-        name: string;
-        address: string | null;
-        radiusMeters: number;
-        requireSelfie: boolean;
-      };
-    };
+  | { mode: 'edit'; action: (formData: FormData) => Promise<void>; initial: Initial };
 
 type Props = Mode & {
   error?: string | null;
@@ -25,6 +26,7 @@ type Props = Mode & {
 
 export function BranchForm({ mode, action, initial, error, extraActions }: Props) {
   const submitLabel = mode === 'create' ? 'สร้างสาขา' : 'บันทึก';
+  const initialRadius = initial?.radiusMeters ?? 150;
 
   return (
     <form action={action}>
@@ -72,8 +74,22 @@ export function BranchForm({ mode, action, initial, error, extraActions }: Props
               min={50}
               max={1000}
               step={10}
-              defaultValue={initial?.radiusMeters ?? 150}
+              defaultValue={initialRadius}
               className="max-w-xs"
+            />
+          </FormField>
+
+          <FormField
+            label="ตำแหน่งบนแผนที่"
+            htmlFor="latitude"
+            hint="คลิกเพื่อปักหมุด หรือลากหมุดเพื่อปรับ — ไม่บังคับ (ถ้าไม่ตั้งค่า จะไม่บังคับ geofence)"
+          >
+            <GeofencePicker
+              initialLat={initial?.latitude ?? null}
+              initialLng={initial?.longitude ?? null}
+              initialRadiusMeters={initialRadius}
+              latInputName="latitude"
+              lngInputName="longitude"
             />
           </FormField>
 
@@ -91,10 +107,6 @@ export function BranchForm({ mode, action, initial, error, extraActions }: Props
               เพิ่มความน่าเชื่อถือ — ป้องกันการให้คนอื่นเช็คอินแทน
             </p>
           </div>
-
-          {/* Map picker for lat/lng arrives in W2d — for now branches are
-              created without geofence and admin can set it later. */}
-          <p className="text-xs italic text-gray-400">(ตำแหน่งบนแผนที่ — เพิ่มในขั้นถัดไป)</p>
         </CardBody>
         <CardFooter className="flex items-center justify-between">
           <Link href="/admin/settings/branches">
