@@ -93,39 +93,48 @@ export async function PairingCard({
           </p>
         )}
 
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-[1fr_auto]">
-          <div className="space-y-3">
-            <div>
-              <p className="mb-1 text-xs font-medium uppercase tracking-wider text-gray-500">ลิงก์</p>
-              <div className="flex items-center gap-2">
-                <code className="flex-1 truncate rounded border border-gray-200 bg-gray-50 px-2 py-1.5 text-xs">
-                  {url}
-                </code>
-                <CopyButton text={url} />
-              </div>
-            </div>
-            <p className="text-xs text-gray-500">
-              ส่งให้พนักงานทาง LINE / SMS / email หรือพิมพ์ QR แล้วให้สแกน
-            </p>
+        {/* Link with copy button.
+            `min-w-0` is the magic incantation: without it, the <code> element's
+            intrinsic content width prevents the flex child from shrinking, and
+            the long JWT URL overflows the card. With it, `truncate` works as
+            intended (ellipsis on overflow). */}
+        <div>
+          <p className="mb-1 text-xs font-medium uppercase tracking-wider text-gray-500">ลิงก์</p>
+          <div className="flex items-center gap-2">
+            <code className="min-w-0 flex-1 truncate rounded border border-gray-200 bg-gray-50 px-2 py-1.5 text-xs">
+              {url}
+            </code>
+            <CopyButton text={url} />
           </div>
+          <p className="mt-1.5 text-xs text-gray-500">ส่งให้พนักงานทาง LINE / SMS / email</p>
+        </div>
 
-          <div className="flex flex-col items-center gap-2">
+        {/* QR code panel — vertical stack instead of responsive side-by-side
+            grid. The sidebar-constrained admin layout often crosses the `sm:`
+            breakpoint (640px) right at the wrong moment, hiding the QR column
+            entirely. Stacking removes the ambiguity. */}
+        <div>
+          <p className="mb-2 text-xs font-medium uppercase tracking-wider text-gray-500">
+            QR สำหรับสแกน
+          </p>
+          <div className="flex flex-col items-center gap-3 rounded-md border border-gray-200 bg-white p-4">
             {/* biome-ignore lint/performance/noImgElement: data: URL QR codes can't go through next/image (no remote loader needed) */}
             <img
               src={qrDataUrl}
               alt="QR สำหรับเชื่อม LINE"
-              width={160}
-              height={160}
-              className="rounded border border-gray-200"
+              width={192}
+              height={192}
+              className="rounded border border-gray-100"
             />
             <a
               href={qrDataUrl}
               download={`koolman-work-pair-${employeeId.slice(0, 8)}.png`}
-              className="text-xs text-primary-600 hover:text-primary-700"
+              className="inline-flex items-center gap-1.5 rounded-md border border-primary-200 bg-primary-50 px-3 py-1.5 text-xs font-medium text-primary-700 hover:bg-primary-100"
             >
-              ดาวน์โหลด QR
+              ⬇ ดาวน์โหลด QR
             </a>
           </div>
+          <p className="mt-1.5 text-xs text-gray-500">พิมพ์ QR แล้วให้พนักงานสแกนด้วยกล้อง LINE</p>
         </div>
 
         <div className="flex items-center justify-between border-t border-gray-100 pt-3">
