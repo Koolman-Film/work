@@ -1,48 +1,61 @@
 /**
- * Admin home — placeholder until W2 lands the real dashboard.
+ * Admin dashboard — landing page after Admin login.
  *
- * Authorization is now role-aware: `requireRole(['Admin'])` resolves the
- * Supabase session → our User row → confirms role === Admin. Anyone else
- * gets 404 (including authenticated Owners hitting this page — they belong
- * at /owner).
+ * Currently a placeholder showing session info + a quick-link grid to the
+ * CRUD pages. Real KPI cards (pending leave/advance, today's check-ins)
+ * land in W4 when those flows exist.
  */
 
+import Link from 'next/link';
+import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
 import { requireRole } from '@/lib/auth/require-role';
+import { prisma } from '@/lib/db/prisma';
 
 export default async function AdminHomePage() {
-  const { user, authUserId } = await requireRole(['Admin']);
+  const { user } = await requireRole(['Admin']);
+
+  // Quick counts so the dashboard isn't empty
+  const [branchCount, deptCount, accGroupCount, employeeCount] = await Promise.all([
+    prisma.branch.count({ where: { archivedAt: null } }),
+    prisma.department.count({ where: { archivedAt: null } }),
+    prisma.accountingGroup.count({ where: { archivedAt: null } }),
+    prisma.employee.count({ where: { archivedAt: null } }),
+  ]);
 
   return (
-    <main className="mx-auto max-w-2xl px-6 py-16">
-      <h1 className="text-2xl font-semibold text-primary-700">Admin (W1c placeholder)</h1>
-      <p className="mt-2 text-gray-600">Hello, {user.email}. The real dashboard arrives in W2.</p>
+    <div className="mx-auto max-w-5xl px-6 py-8">
+      <div className="mb-6 flex items-baseline justify-between">
+        <h1 className="text-2xl font-semibold text-gray-900">แดชบอร์ด</h1>
+        <p className="text-sm text-gray-500">สวัสดี, {user.email}</p>
+      </div>
 
-      <section className="mt-8 rounded-lg border border-gray-200 bg-gray-50 p-6">
-        <h2 className="text-sm font-medium uppercase tracking-wide text-gray-500">
-          Resolved session
-        </h2>
-        <dl className="mt-3 grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1.5 text-sm">
-          <dt className="font-medium text-gray-700">role</dt>
-          <dd className="text-gray-900">{user.role}</dd>
-          <dt className="font-medium text-gray-700">User.id</dt>
-          <dd className="font-mono text-xs text-gray-900">{user.id}</dd>
-          <dt className="font-medium text-gray-700">auth.users.id</dt>
-          <dd className="font-mono text-xs text-gray-900">{authUserId}</dd>
-          <dt className="font-medium text-gray-700">email</dt>
-          <dd className="text-gray-900">{user.email ?? '—'}</dd>
-          <dt className="font-medium text-gray-700">created</dt>
-          <dd className="text-gray-900">{user.createdAt.toISOString()}</dd>
-        </dl>
-      </section>
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <StatCard label="พนักงาน" value={employeeCount} href="/admin/employees" />
+        <StatCard label="สาขา" value={branchCount} href="/admin/branches" />
+        <StatCard label="แผนก" value={deptCount} href="/admin/departments" />
+        <StatCard label="กลุ่มบัญชี" value={accGroupCount} href="/admin/accounting-groups" />
+      </div>
 
-      <form action="/logout" method="post" className="mt-6">
-        <button
-          type="submit"
-          className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-        >
-          ออกจากระบบ
-        </button>
-      </form>
-    </main>
+      <Card className="mt-8">
+        <CardHeader>
+          <CardTitle>การเข้างานวันนี้</CardTitle>
+        </CardHeader>
+        <CardBody>
+          <p className="text-sm text-gray-500">(ยังว่าง — รอ Phase 1 W3 LIFF check-in)</p>
+        </CardBody>
+      </Card>
+    </div>
+  );
+}
+
+function StatCard({ label, value, href }: { label: string; value: number; href: string }) {
+  return (
+    <Link
+      href={href}
+      className="block rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition hover:border-primary-300 hover:shadow"
+    >
+      <p className="text-xs font-medium uppercase tracking-wider text-gray-500">{label}</p>
+      <p className="mt-1 text-2xl font-semibold tabular-nums text-gray-900">{value}</p>
+    </Link>
   );
 }
