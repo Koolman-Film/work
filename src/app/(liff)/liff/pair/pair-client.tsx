@@ -36,7 +36,7 @@ type PhaseState =
   | { phase: 'success'; employeeName: string }
   | { phase: 'error'; message: string; canRetry: boolean };
 
-export default function PairClient({ pairingToken }: { pairingToken: string }) {
+export default function PairClient({ pairingToken }: { pairingToken: string | null }) {
   const [state, setState] = useState<PhaseState>({
     phase: 'booting',
     message: 'กำลังเตรียมการเชื่อมต่อกับ LINE...',
@@ -50,13 +50,40 @@ export default function PairClient({ pairingToken }: { pairingToken: string }) {
         if (cancelled) return;
         setState({ phase: 'signing-in', message: 'กำลังเข้าสู่ระบบด้วย LINE...' });
 
-        // Step 1+2: liff.init + signInWithIdToken
+        // Step 1+2: liff.init + signInWithIdToken.
+        // Side effect: liff.init() processes any `?liff.state=` in the
+        // URL and rewrites window.location via history.replaceState. This
+        // is what makes the next step (resolving the token) work for the
+        // LIFF-launched case — the server couldn't see liff.state, but
+        // after init() runs client-side, ?pair=<token> is in the URL.
         await liffBootstrap();
         if (cancelled) return;
 
-        // Step 3: bind on the server
+        // Step 3: resolve the pair token.
+        // Source precedence:
+        //   (a) Prop from server — set when the server saw ?pair= or
+        //       ?liff.state= on the initial request (e.g. non-LIFF dev test).
+        //   (b) window.location.search after liff.init() — the LIFF case.
+        //       LIFF SDK unwraps `?liff.state=?pair=<token>` into
+        //       `?pair=<token>` on the live URL via history.replaceState.
+        let resolvedToken = pairingToken;
+        if (!resolvedToken && typeof window !== 'undefined') {
+          const sp = new URLSearchParams(window.location.search);
+          resolvedToken = sp.get('pair');
+        }
+
+        if (!resolvedToken) {
+          setState({
+            phase: 'error',
+            message: 'ขาดลิงก์การจับคู่ — กรุณาเปิดลิงก์ที่แอดมินส่งให้คุณอีกครั้ง',
+            canRetry: false,
+          });
+          return;
+        }
+
+        // Step 4: bind on the server
         setState({ phase: 'linking', message: 'กำลังเชื่อมบัญชีกับ Koolman Work...' });
-        const result: LinkLineResult = await linkLineToEmployee({ pairingToken });
+        const result: LinkLineResult = await linkLineToEmployee({ pairingToken: resolvedToken });
         if (cancelled) return;
 
         if (result.ok) {

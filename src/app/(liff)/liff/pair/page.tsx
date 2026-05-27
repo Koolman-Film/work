@@ -93,21 +93,16 @@ export default async function LiffPairPage({ searchParams }: { searchParams: Sea
     }
   }
 
-  // No token, and either no session or no linked Employee.
-  // (Employee with expired Supabase cookie also lands here — Phase-2 we
-  // could add a silent re-auth client that runs liff.init →
-  // signInWithIdToken on its own then redirects to check-in. For V1 the
-  // "ask admin" message is acceptable since the most common returning-
-  // user path is via push-notification links which carry fresh context.)
-  return (
-    <div className="grid min-h-dvh place-items-center px-4 py-12">
-      <div className="w-full max-w-sm space-y-3 rounded-xl border border-gray-200 bg-white p-8 text-center shadow-sm">
-        <p className="text-sm text-gray-500">Koolman Work</p>
-        <h1 className="text-xl font-semibold text-gray-900">ขาดลิงก์การจับคู่</h1>
-        <p className="text-sm text-gray-600">
-          กรุณาเปิดลิงก์จับคู่ที่แอดมินส่งให้คุณอีกครั้ง หรือติดต่อแอดมินเพื่อขอลิงก์ใหม่
-        </p>
-      </div>
-    </div>
-  );
+  // No server-side token and no Supabase session. This is the LIFF
+  // first-time-pair path: LIFF stripped `liff.state` from the URL before
+  // forwarding to us (LIFF processes liff.state client-side, not on the
+  // initial endpoint load). So we render PairClient with a null token;
+  // PairClient runs liff.init() which rewrites the URL to include
+  // ?pair=<token>, then extracts the token from window.location.
+  //
+  // For visitors arriving here OUTSIDE LIFF (no LINE context, no token),
+  // PairClient's liff.init() will throw 'not-in-line' and the UI will
+  // tell them to open the link in LINE — a better UX than the old
+  // "ขาดลิงก์การจับคู่" terminal screen anyway.
+  return <PairClient pairingToken={null} />;
 }
