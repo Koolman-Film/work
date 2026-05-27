@@ -39,7 +39,7 @@ type NavItem = {
 const NAV: ReadonlyArray<NavItem> = [
   { href: '/admin', label: 'หน้าหลัก', Icon: Home, enabled: true },
   { href: '/admin/employees', label: 'พนักงาน', Icon: Users, enabled: true },
-  { href: '/admin/leave', label: 'คำขอลา', Icon: Calendar }, // W4
+  { href: '/admin/leave', label: 'คำขอลา', Icon: Calendar, enabled: true }, // W4c
   { href: '/admin/advance', label: 'คำขอเบิก', Icon: Banknote }, // W4
   { href: '/admin/attendance', label: 'ลงเวลา', Icon: Clock, enabled: true }, // W3c-1: disputed inbox live; Live + Manual tabs pending
   { href: '/admin/payroll', label: 'เงินเดือน', Icon: FileText }, // Phase 2
