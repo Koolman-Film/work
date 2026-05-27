@@ -26,17 +26,23 @@ export default async function LiffCheckInPage() {
     throw new Error('requireRole did not return an Employee — should have notFound()');
   }
 
-  const [state, branchNames] = await Promise.all([
+  const [state, branchInfo] = await Promise.all([
     getCheckInState(),
     prisma.branch.findMany({
       where: {
         id: { in: Array.from(new Set([employee.branchId, ...employee.assignedBranchIds])) },
         archivedAt: null,
       },
-      select: { id: true, name: true },
+      select: { id: true, name: true, requireSelfie: true },
       orderBy: { name: 'asc' },
     }),
   ]);
+
+  // Selfie required when ANY of the employee's assigned branches has
+  // requireSelfie=true. Same rule the server enforces at submitCheckIn
+  // time — keeps client + server in agreement on the gate. See
+  // src/lib/attendance/check-in.ts for the server-side check.
+  const selfieRequired = branchInfo.some((b) => b.requireSelfie);
 
   // Format today's date in Thai Buddhist calendar. We do this server-side
   // (UTC offset Asia/Bangkok = +07:00) so the client never has to know.
@@ -54,7 +60,8 @@ export default async function LiffCheckInPage() {
     <CheckInClient
       employeeFirstName={employee.firstName}
       employeeLastName={employee.lastName}
-      branches={branchNames}
+      branches={branchInfo.map((b) => ({ id: b.id, name: b.name }))}
+      selfieRequired={selfieRequired}
       initialState={state}
       dateLine={`${dateLine} ${thaiYear}`}
     />

@@ -1,0 +1,152 @@
+/**
+ * Client-side selfie upload helper.
+ *
+ * Flow:
+ *   1. Read the user's File (from <input type=file capture=user>)
+ *   2. Decode to ImageBitmap → draw on canvas at scaled dimensions
+ *   3. Canvas.toBlob('image/jpeg', quality) — iterates quality down if
+ *      the result is still larger than the target size
+ *   4. Upload the compressed Blob via Supabase Storage to the path
+ *      `{authUserId}/checkins/{timestamp}-{rand}.jpg`
+ *   5. Return the storage *key* (path-within-bucket), NOT the URL.
+ *      Admin disputed-review UI generates fresh signed URLs at view-
+ *      time. Storing the URL would bake in a TTL.
+ *
+ * Why client-direct upload (no presigned-URL Server Action):
+ *   The RLS policy on storage.objects already grants the authenticated
+ *   employee write access to their own folder. The Supabase browser
+ *   client (with the session created by signInWithIdToken in W3a) hits
+ *   the RLS as that user. An intermediary Server Action would be
+ *   redundant.
+ *
+ * Why target size 200 KB:
+ *   Mobile camera output is ~5 MB raw. Without compression, a single
+ *   selfie eats half a megabyte of Storage bandwidth on every check-in.
+ *   200 KB is plenty for a 1600×1200 thumbnail that admins can read at
+ *   a glance for fraud-review. The 5 MB bucket cap is a backstop, not
+ *   the goal.
+ */
+
+import type { SupabaseClient } from '@supabase/supabase-js';
+
+export type SelfieUploadResult = {
+  /** Path within the `attendance-photos` bucket, e.g. `{authUserId}/checkins/xxxx.jpg` */
+  key: string;
+  /** Compressed file size in bytes (for logging / debugging) */
+  sizeBytes: number;
+};
+
+export type SelfieUploadError =
+  | { kind: 'no-file' }
+  | { kind: 'decode-failed'; message: string }
+  | { kind: 'upload-failed'; message: string }
+  | { kind: 'too-large-after-compress'; sizeBytes: number };
+
+const MAX_DIMENSION = 1600; // longest edge in pixels
+const TARGET_BYTES = 200 * 1024; // 200 KB
+const MAX_BYTES = 5 * 1024 * 1024; // 5 MB — matches bucket-level cap
+const QUALITY_STEPS = [0.85, 0.7, 0.55] as const;
+
+/**
+ * Read a File, downscale, encode as JPEG, iterating quality steps down
+ * until the result fits TARGET_BYTES or we exhaust the quality list.
+ *
+ * Returns the smallest blob we could produce — even if it's still over
+ * the target, the caller decides whether to accept it or reject.
+ */
+export async function compressToJpeg(file: File): Promise<Blob> {
+  // ImageBitmap is the fastest decoder available in browsers; falls back
+  // to <img> + drawImage if not supported (rare these days).
+  const bitmap = await createImageBitmap(file).catch(() => null);
+  if (!bitmap) {
+    throw { kind: 'decode-failed', message: 'Browser failed to decode the image' };
+  }
+
+  // Compute scaled dimensions while preserving aspect ratio.
+  const longest = Math.max(bitmap.width, bitmap.height);
+  const scale = longest > MAX_DIMENSION ? MAX_DIMENSION / longest : 1;
+  const w = Math.round(bitmap.width * scale);
+  const h = Math.round(bitmap.height * scale);
+
+  // OffscreenCanvas avoids touching the DOM; falls back to <canvas> if
+  // not supported (Safari < 16.4).
+  const canvas =
+    typeof OffscreenCanvas !== 'undefined'
+      ? new OffscreenCanvas(w, h)
+      : Object.assign(document.createElement('canvas'), { width: w, height: h });
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw { kind: 'decode-failed', message: 'Canvas 2D context unavailable' };
+  ctx.drawImage(bitmap, 0, 0, w, h);
+  bitmap.close(); // free the decoded bitmap
+
+  // Try each quality step until we hit the target. We always return the
+  // SMALLEST result we produced — even if all steps exceed target, the
+  // smallest is still better than the original.
+  let best: Blob | null = null;
+  for (const quality of QUALITY_STEPS) {
+    const blob = await canvasToBlob(canvas, 'image/jpeg', quality);
+    if (!best || blob.size < best.size) best = blob;
+    if (blob.size <= TARGET_BYTES) break;
+  }
+  if (!best) throw { kind: 'decode-failed', message: 'Canvas produced no output' };
+  return best;
+}
+
+/**
+ * canvas.toBlob normalized across HTMLCanvasElement + OffscreenCanvas
+ * (the two have completely different APIs for the same operation).
+ */
+function canvasToBlob(
+  canvas: HTMLCanvasElement | OffscreenCanvas,
+  type: string,
+  quality: number,
+): Promise<Blob> {
+  if ('convertToBlob' in canvas) {
+    return canvas.convertToBlob({ type, quality });
+  }
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (b) => (b ? resolve(b) : reject(new Error('toBlob returned null'))),
+      type,
+      quality,
+    );
+  });
+}
+
+/**
+ * Upload a compressed selfie blob to the `attendance-photos` bucket at
+ * `{authUserId}/checkins/{timestamp}-{rand}.jpg`.
+ *
+ * Caller MUST have an authenticated Supabase session for the employee
+ * (created by W3a's signInWithIdToken). The RLS policy enforces that
+ * the path starts with auth.uid(); passing a wrong authUserId here
+ * would be rejected by the server.
+ */
+export async function uploadSelfie(
+  supabase: SupabaseClient,
+  blob: Blob,
+  authUserId: string,
+): Promise<SelfieUploadResult> {
+  if (blob.size > MAX_BYTES) {
+    throw { kind: 'too-large-after-compress', sizeBytes: blob.size };
+  }
+
+  // Path components:
+  //   - {authUserId} — required by RLS (folder must equal auth.uid())
+  //   - "checkins"   — sub-folder; lets us later add /leave-medical-cert/
+  //                    etc. without conflict
+  //   - timestamp-random.jpg — sortable + unique enough
+  const random = Math.random().toString(36).slice(2, 8);
+  const key = `${authUserId}/checkins/${Date.now()}-${random}.jpg`;
+
+  const { error } = await supabase.storage.from('attendance-photos').upload(key, blob, {
+    contentType: 'image/jpeg',
+    upsert: false, // unique path; refuse silent overwrites
+  });
+
+  if (error) {
+    throw { kind: 'upload-failed', message: error.message };
+  }
+
+  return { key, sizeBytes: blob.size };
+}

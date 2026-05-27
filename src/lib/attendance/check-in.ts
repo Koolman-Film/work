@@ -13,8 +13,21 @@
  *     employee on the same date.
  *   - Write the Attendance row + audit log inside one transaction.
  *
- * Deferred to W3c:
- *   - Selfie upload (Branch.requireSelfie path).
+ * Selfie path (W4-late/A):
+ *   - Client compresses + uploads selfie before calling submitCheckIn,
+ *     passes the resulting storage key (path within attendance-photos
+ *     bucket) as `selfieKey`.
+ *   - If ANY of the candidate branches has requireSelfie=true and no
+ *     selfieKey was provided, we reject with 'selfie-required'. The
+ *     client computes the same rule and shouldn't let this branch fire,
+ *     but it's defense-in-depth against a misbehaving client.
+ *   - The selfieKey must start with `${user.authUserId}/` (matching the
+ *     RLS folder convention). The Storage RLS already enforces this at
+ *     upload time; the server-side check just produces a clean error
+ *     if a client somehow uploads to its own folder then claims the row
+ *     points elsewhere.
+ *
+ * Deferred to W4-late/B+C:
  *   - Inngest `attendance.recorded` emission for downstream late-check.
  *   - Force-checkout cron.
  */
@@ -50,9 +63,17 @@ export type SubmitCheckInResult =
         | 'already-checked-in'
         | 'already-checked-out'
         | 'not-checked-in'
+        | 'selfie-required'
+        | 'selfie-bad-path'
         | 'db-error';
       message: string;
     };
+
+/** Input to submitCheckIn — GPS reading + optional selfie storage key. */
+export type SubmitCheckInInput = CheckInPoint & {
+  /** Path within the `attendance-photos` bucket; null if no selfie required. */
+  selfieKey?: string | null;
+};
 
 /** Compute YYYY-MM-DD in Asia/Bangkok regardless of server timezone. */
 function bangkokDateString(d: Date): string {
@@ -82,7 +103,14 @@ async function loadCandidateBranches(employeeId: string) {
   const ids = Array.from(new Set([emp.branchId, ...emp.assignedBranchIds]));
   const branches = await prisma.branch.findMany({
     where: { id: { in: ids }, archivedAt: null },
-    select: { id: true, name: true, latitude: true, longitude: true, radiusMeters: true },
+    select: {
+      id: true,
+      name: true,
+      latitude: true,
+      longitude: true,
+      radiusMeters: true,
+      requireSelfie: true,
+    },
   });
 
   return branches.map((b) => ({
@@ -92,6 +120,7 @@ async function loadCandidateBranches(employeeId: string) {
     latitude: b.latitude ? Number(b.latitude) : null,
     longitude: b.longitude ? Number(b.longitude) : null,
     radiusMeters: b.radiusMeters,
+    requireSelfie: b.requireSelfie,
   }));
 }
 
@@ -121,8 +150,8 @@ export async function getCheckInState(): Promise<CheckInState> {
   };
 }
 
-export async function submitCheckIn(input: CheckInPoint): Promise<SubmitCheckInResult> {
-  const { user, employee } = await requireRole(['Employee']);
+export async function submitCheckIn(input: SubmitCheckInInput): Promise<SubmitCheckInResult> {
+  const { user, employee, authUserId } = await requireRole(['Employee']);
   if (!employee) {
     return { ok: false, code: 'forbidden', message: 'ไม่พบบัญชีพนักงาน' };
   }
@@ -153,6 +182,34 @@ export async function submitCheckIn(input: CheckInPoint): Promise<SubmitCheckInR
       ok: false,
       code: 'already-checked-in',
       message: 'คุณเช็คอินวันนี้แล้ว',
+    };
+  }
+
+  // ── Selfie policy check ──────────────────────────────────────────────
+  // If ANY candidate branch requires a selfie, the employee must have
+  // uploaded one. Same rule as the client computes; this is the server
+  // half of "client + server agree on what's required."
+  const selfieRequired = candidateBranches.some((b) => b.requireSelfie);
+  const selfieKey = input.selfieKey?.trim() ?? null;
+
+  if (selfieRequired && !selfieKey) {
+    return {
+      ok: false,
+      code: 'selfie-required',
+      message: 'สาขาของคุณกำหนดให้ต้องถ่ายเซลฟี่ — กรุณาถ่ายแล้วลองอีกครั้ง',
+    };
+  }
+
+  // Defense-in-depth: if a selfieKey was provided, it MUST live in the
+  // caller's own authUserId folder (matches the Storage RLS convention).
+  // The Storage RLS already enforces this at upload time, so the only
+  // way to land here with a bad key is a misbehaving client passing a
+  // string they didn't actually upload. Reject loudly.
+  if (selfieKey && !selfieKey.startsWith(`${authUserId}/`)) {
+    return {
+      ok: false,
+      code: 'selfie-bad-path',
+      message: 'ลิงก์เซลฟี่ไม่ถูกต้อง',
     };
   }
 
@@ -187,6 +244,11 @@ export async function submitCheckIn(input: CheckInPoint): Promise<SubmitCheckInR
           checkInBranchId: verdict.branchId,
           checkInStatus: verdict.status,
           disputeReason,
+          // Storage path within attendance-photos bucket; the field is
+          // named "Url" for historical reasons but we store the path
+          // (URLs expire — paths don't). Admin disputed-review UI
+          // regenerates fresh signed URLs at view-time.
+          checkInSelfieUrl: selfieKey,
           // For LIFF check-ins the actor IS the employee — their User row's id.
           // Admin manual entries and cron rows fill this with a different actor.
           createdById: user.id,
@@ -206,6 +268,7 @@ export async function submitCheckIn(input: CheckInPoint): Promise<SubmitCheckInR
               ? verdict.distanceMeters
               : null,
           accuracy: input.accuracy,
+          selfieKey: selfieKey ?? null,
         },
         metadata: { ip, userAgent, source: 'liff' },
       });

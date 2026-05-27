@@ -5,20 +5,24 @@
  *
  * State machine the button cycles through:
  *
- *   ╭────────────╮  tap  ╭────────────╮  ok  ╭─────────────╮
- *   │ idle       │ ───→  │ locating   │ ───→ │ submitting  │
- *   │ "เช็คอิน"  │       │ "กำลังหา..." │      │ "บันทึก..."  │
- *   ╰─────┬──────╯       ╰─────┬──────╯      ╰──────┬──────╯
- *         │                    │ deny/timeout       │ ok
- *         │                    ↓                    ↓
- *         │              ╭────────────╮       ╭─────────────╮
- *         │              │ gps-error  │       │ done        │
- *         │              ╰────────────╯       │ Confirmed/  │
- *         │                                   │ Disputed    │
- *         │                                   ╰─────────────╯
+ *   ╭────────────╮  tap  ╭──────────────╮ ok ╭────────────╮ ok ╭────────────╮
+ *   │ idle       │ ───→  │ capturing-   │ →  │ locating   │ →  │ uploading  │
+ *   │ "เช็คอิน"  │       │ selfie *     │    │            │    │ +submitting│
+ *   ╰─────┬──────╯       ╰──────┬───────╯    ╰─────┬──────╯    ╰──────┬─────╯
+ *         │                     │ cancel           │ deny/timeout    │ ok
+ *         │                     ↓                  ↓                 ↓
+ *         │               (back to idle)     ╭────────────╮    ╭─────────────╮
+ *         │                                  │ gps-error  │    │ done        │
+ *         │                                  ╰────────────╯    │ Confirmed/  │
+ *         │                                                    │ Disputed    │
+ *         │                                                    ╰─────────────╯
  *         │
  *         │ (initialState says hasCheckedIn=true) →
- *         │ show check-out button instead. Same flow but no GPS needed.
+ *         │ show check-out button instead. Same flow but no GPS / selfie needed.
+ *
+ *   * The capturing-selfie phase is skipped entirely when selfieRequired=false.
+ *     When required, the SelfieStep overlay handles capture → preview → confirm,
+ *     then we proceed to GPS + upload + submit.
  *
  * Why no LIFF SDK init here:
  *   - By the time the user lands on /liff/check-in, the LIFF→Supabase
@@ -30,9 +34,14 @@
 
 import { useState } from 'react';
 import { type CheckInState, submitCheckIn, submitCheckOut } from '@/lib/attendance/check-in';
+import { compressToJpeg, uploadSelfie } from '@/lib/storage/upload-selfie';
+import { createClient } from '@/lib/supabase/browser';
+import { SelfieStep } from './selfie-step';
 
 type Phase =
   | { kind: 'idle' }
+  | { kind: 'capturing-selfie' }
+  | { kind: 'uploading-selfie' }
   | { kind: 'locating' }
   | { kind: 'submitting' }
   | { kind: 'success'; outcome: 'Confirmed' | 'Disputed'; message: string }
@@ -44,6 +53,8 @@ type Props = {
   employeeFirstName: string;
   employeeLastName: string;
   branches: readonly Branch[];
+  /** Server-computed: ANY assigned branch has requireSelfie=true. */
+  selfieRequired: boolean;
   initialState: CheckInState;
   dateLine: string;
 };
@@ -80,21 +91,47 @@ export default function CheckInClient({
   employeeFirstName,
   employeeLastName,
   branches,
+  selfieRequired,
   initialState,
   dateLine,
 }: Props) {
   const [state, setStateLocal] = useState<CheckInState>(initialState);
   const [phase, setPhase] = useState<Phase>({ kind: 'idle' });
 
-  async function onCheckIn() {
+  /**
+   * Core check-in pipeline (after any selfie capture is complete).
+   * Either `selfieFile=null` (no selfie required) or a captured File
+   * (compress + upload before submitting).
+   */
+  async function runCheckIn(selfieFile: File | null) {
     try {
+      let selfieKey: string | null = null;
+
+      if (selfieFile) {
+        setPhase({ kind: 'uploading-selfie' });
+        const supabase = createClient();
+        const { data: authData } = await supabase.auth.getUser();
+        if (!authData.user) {
+          setPhase({
+            kind: 'error',
+            message: 'เซสชันหมดอายุ — กรุณาเปิด LINE ใหม่อีกครั้ง',
+          });
+          return;
+        }
+        const compressed = await compressToJpeg(selfieFile);
+        const uploadResult = await uploadSelfie(supabase, compressed, authData.user.id);
+        selfieKey = uploadResult.key;
+      }
+
       setPhase({ kind: 'locating' });
       const pos = await getPosition();
+
       setPhase({ kind: 'submitting' });
       const result = await submitCheckIn({
         lat: pos.coords.latitude,
         lng: pos.coords.longitude,
         accuracy: pos.coords.accuracy,
+        selfieKey,
       });
       if (result.ok) {
         setStateLocal(result.state);
@@ -103,14 +140,51 @@ export default function CheckInClient({
         setPhase({ kind: 'error', message: result.message });
       }
     } catch (err) {
-      const message =
-        err instanceof GeolocationPositionError
-          ? geoErrorMessage(err)
-          : err instanceof Error
-            ? err.message
-            : 'เกิดข้อผิดพลาด';
+      // Narrow the various error shapes — GeolocationPositionError from
+      // the Web API, our own SelfieUploadError object shape, generic
+      // Error fallback.
+      let message = 'เกิดข้อผิดพลาด';
+      if (err instanceof GeolocationPositionError) {
+        message = geoErrorMessage(err);
+      } else if (typeof err === 'object' && err !== null && 'kind' in err) {
+        // Shape from upload-selfie.ts
+        const e = err as { kind: string; message?: string };
+        message =
+          e.kind === 'decode-failed'
+            ? 'อ่านไฟล์รูปไม่ได้'
+            : e.kind === 'upload-failed'
+              ? `อัปโหลดเซลฟี่ไม่สำเร็จ: ${e.message ?? ''}`
+              : e.kind === 'too-large-after-compress'
+                ? 'รูปใหญ่เกินไป กรุณาลองใหม่'
+                : 'เกิดข้อผิดพลาด';
+      } else if (err instanceof Error) {
+        message = err.message;
+      }
       setPhase({ kind: 'error', message });
     }
+  }
+
+  /**
+   * Top-level check-in handler. Branches based on whether a selfie is
+   * required: if so, open the capture overlay first and resume in
+   * `onSelfieConfirmed`. Otherwise, go straight to GPS + submit.
+   */
+  function onCheckIn() {
+    if (selfieRequired) {
+      setPhase({ kind: 'capturing-selfie' });
+    } else {
+      void runCheckIn(null);
+    }
+  }
+
+  function onSelfieConfirmed(file: File) {
+    // Returning to idle visually + then running the pipeline. We don't
+    // want the selfie overlay rendered while uploading / locating.
+    void runCheckIn(file);
+  }
+
+  function onSelfieCancelled() {
+    setPhase({ kind: 'idle' });
   }
 
   async function onCheckOut() {
@@ -139,110 +213,124 @@ export default function CheckInClient({
       ? 'check-out'
       : 'done';
 
-  const isBusy = phase.kind === 'locating' || phase.kind === 'submitting';
+  const isBusy =
+    phase.kind === 'capturing-selfie' ||
+    phase.kind === 'uploading-selfie' ||
+    phase.kind === 'locating' ||
+    phase.kind === 'submitting';
 
   return (
-    <main className="mx-auto max-w-md px-4 pt-8 pb-12">
-      {/* Greeting */}
-      <div className="space-y-1">
-        <p className="text-sm text-gray-500">{dateLine}</p>
-        <h1 className="text-2xl font-semibold text-gray-900">
-          สวัสดี, {employeeFirstName} {employeeLastName}
-        </h1>
-      </div>
-
-      {/* Today's status card */}
-      <section className="mt-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">สถานะวันนี้</h2>
-        <div className="mt-3 space-y-2 text-sm">
-          <StatusRow
-            label="เช็คอิน"
-            value={
-              state.clockInAt
-                ? `${formatTimeBkk(state.clockInAt)}${state.branchName ? ` • ${state.branchName}` : ''}`
-                : 'ยังไม่ได้เช็คอิน'
-            }
-            tone={state.clockInAt ? 'on' : 'off'}
-            badge={state.checkInStatus === 'Disputed' ? 'ตรวจสอบ' : null}
-          />
-          <StatusRow
-            label="เช็คเอาท์"
-            value={state.hasCheckedOut ? 'เช็คเอาท์แล้ว' : '—'}
-            tone={state.hasCheckedOut ? 'on' : 'off'}
-            badge={null}
-          />
-        </div>
-      </section>
-
-      {/* Primary action */}
-      <section className="mt-6">
-        {mode === 'check-in' && (
-          <PrimaryButton
-            label={isBusy ? '...' : 'เช็คอินเข้างาน'}
-            onClick={onCheckIn}
-            disabled={isBusy}
-            tone="primary"
-          />
-        )}
-        {mode === 'check-out' && (
-          <PrimaryButton
-            label={isBusy ? '...' : 'เช็คเอาท์'}
-            onClick={onCheckOut}
-            disabled={isBusy}
-            tone="secondary"
-          />
-        )}
-        {mode === 'done' && (
-          <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-4 text-center text-sm text-green-800">
-            ✓ เสร็จสิ้นวันนี้แล้ว ขอบคุณค่ะ
-          </div>
-        )}
-
-        {/* Live phase feedback under the button */}
-        <div className="mt-3 min-h-[1.5rem] text-center text-xs text-gray-500">
-          {phase.kind === 'locating' && 'กำลังหาตำแหน่ง...'}
-          {phase.kind === 'submitting' && 'กำลังบันทึก...'}
-          {phase.kind === 'success' && (
-            <span className={phase.outcome === 'Confirmed' ? 'text-green-700' : 'text-amber-700'}>
-              {phase.message}
-            </span>
-          )}
-          {phase.kind === 'error' && <span className="text-red-700">{phase.message}</span>}
-        </div>
-      </section>
-
-      {/* Quick actions — leave, advance (advance lands in W4d) */}
-      <section className="mt-6 grid grid-cols-2 gap-3">
-        <a
-          href="/liff/leave"
-          className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-center text-sm font-medium text-gray-700 shadow-sm transition hover:border-primary-200 hover:text-primary-700"
-        >
-          📅 คำขอลา
-        </a>
-        <a
-          href="/liff/advance"
-          className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-center text-sm font-medium text-gray-700 shadow-sm transition hover:border-primary-200 hover:text-primary-700"
-        >
-          💰 ขอเบิกเงิน
-        </a>
-      </section>
-
-      {/* Assigned branches list (helps employee orient themselves) */}
-      {branches.length > 0 && (
-        <section className="mt-8">
-          <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">
-            สาขาที่ได้รับมอบหมาย
-          </h2>
-          <ul className="mt-2 space-y-1 text-sm text-gray-700">
-            {branches.map((b) => (
-              <li key={b.id} className="rounded-md bg-gray-50 px-3 py-2">
-                {b.name}
-              </li>
-            ))}
-          </ul>
-        </section>
+    <>
+      {/* Selfie capture overlay — fullscreen modal when active. The
+          main content below stays mounted so phase transitions don't
+          reset scroll position when the overlay closes. */}
+      {phase.kind === 'capturing-selfie' && (
+        <SelfieStep onConfirm={onSelfieConfirmed} onCancel={onSelfieCancelled} />
       )}
-    </main>
+
+      <main className="mx-auto max-w-md px-4 pt-8 pb-12">
+        {/* Greeting */}
+        <div className="space-y-1">
+          <p className="text-sm text-gray-500">{dateLine}</p>
+          <h1 className="text-2xl font-semibold text-gray-900">
+            สวัสดี, {employeeFirstName} {employeeLastName}
+          </h1>
+        </div>
+
+        {/* Today's status card */}
+        <section className="mt-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+          <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">สถานะวันนี้</h2>
+          <div className="mt-3 space-y-2 text-sm">
+            <StatusRow
+              label="เช็คอิน"
+              value={
+                state.clockInAt
+                  ? `${formatTimeBkk(state.clockInAt)}${state.branchName ? ` • ${state.branchName}` : ''}`
+                  : 'ยังไม่ได้เช็คอิน'
+              }
+              tone={state.clockInAt ? 'on' : 'off'}
+              badge={state.checkInStatus === 'Disputed' ? 'ตรวจสอบ' : null}
+            />
+            <StatusRow
+              label="เช็คเอาท์"
+              value={state.hasCheckedOut ? 'เช็คเอาท์แล้ว' : '—'}
+              tone={state.hasCheckedOut ? 'on' : 'off'}
+              badge={null}
+            />
+          </div>
+        </section>
+
+        {/* Primary action */}
+        <section className="mt-6">
+          {mode === 'check-in' && (
+            <PrimaryButton
+              label={isBusy ? '...' : 'เช็คอินเข้างาน'}
+              onClick={onCheckIn}
+              disabled={isBusy}
+              tone="primary"
+            />
+          )}
+          {mode === 'check-out' && (
+            <PrimaryButton
+              label={isBusy ? '...' : 'เช็คเอาท์'}
+              onClick={onCheckOut}
+              disabled={isBusy}
+              tone="secondary"
+            />
+          )}
+          {mode === 'done' && (
+            <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-4 text-center text-sm text-green-800">
+              ✓ เสร็จสิ้นวันนี้แล้ว ขอบคุณค่ะ
+            </div>
+          )}
+
+          {/* Live phase feedback under the button */}
+          <div className="mt-3 min-h-[1.5rem] text-center text-xs text-gray-500">
+            {phase.kind === 'uploading-selfie' && 'กำลังอัปโหลดเซลฟี่...'}
+            {phase.kind === 'locating' && 'กำลังหาตำแหน่ง...'}
+            {phase.kind === 'submitting' && 'กำลังบันทึก...'}
+            {phase.kind === 'success' && (
+              <span className={phase.outcome === 'Confirmed' ? 'text-green-700' : 'text-amber-700'}>
+                {phase.message}
+              </span>
+            )}
+            {phase.kind === 'error' && <span className="text-red-700">{phase.message}</span>}
+          </div>
+        </section>
+
+        {/* Quick actions — leave, advance (advance lands in W4d) */}
+        <section className="mt-6 grid grid-cols-2 gap-3">
+          <a
+            href="/liff/leave"
+            className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-center text-sm font-medium text-gray-700 shadow-sm transition hover:border-primary-200 hover:text-primary-700"
+          >
+            📅 คำขอลา
+          </a>
+          <a
+            href="/liff/advance"
+            className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-center text-sm font-medium text-gray-700 shadow-sm transition hover:border-primary-200 hover:text-primary-700"
+          >
+            💰 ขอเบิกเงิน
+          </a>
+        </section>
+
+        {/* Assigned branches list (helps employee orient themselves) */}
+        {branches.length > 0 && (
+          <section className="mt-8">
+            <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">
+              สาขาที่ได้รับมอบหมาย
+            </h2>
+            <ul className="mt-2 space-y-1 text-sm text-gray-700">
+              {branches.map((b) => (
+                <li key={b.id} className="rounded-md bg-gray-50 px-3 py-2">
+                  {b.name}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+      </main>
+    </>
   );
 }
 

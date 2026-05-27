@@ -39,6 +39,9 @@ type Props = {
   longitude: number | null;
   /** System's would-be-matched branch, if any. */
   candidateBranch: Branch | null;
+  /** Pre-signed Storage URL for the employee's check-in selfie (when
+   *  Branch.requireSelfie at submission time). Null = no selfie taken. */
+  selfieSignedUrl: string | null;
 };
 
 type LocalState =
@@ -136,6 +139,30 @@ export function DisputedReviewPanel(props: Props) {
         >
           เปิดใน Google Maps →
         </a>
+      )}
+
+      {/* Selfie preview — only when Branch.requireSelfie was true at
+          submission time. The signed URL is pre-fetched server-side and
+          expires after ~10 minutes; if the admin sits on this page too
+          long, the image breaks. They can refresh the page to re-sign. */}
+      {props.selfieSignedUrl && (
+        <div>
+          <p className="text-xs font-medium text-gray-700">เซลฟี่ตอนเช็คอิน</p>
+          <a
+            href={props.selfieSignedUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-1 block max-w-[200px] overflow-hidden rounded-lg border border-gray-200 transition hover:opacity-90"
+          >
+            {/* biome-ignore lint/performance/noImgElement: signed-URL preview can't use next/image — URL has a short TTL and external/dynamic domain */}
+            <img
+              src={props.selfieSignedUrl}
+              alt={`เซลฟี่ของ ${props.employeeName}`}
+              className="block h-auto w-full"
+              loading="lazy"
+            />
+          </a>
+        </div>
       )}
 
       {/* Note + actions */}

@@ -20,6 +20,7 @@
 
 import Link from 'next/link';
 import { prisma } from '@/lib/db/prisma';
+import { signAttendancePhotoUrls } from '@/lib/storage/signed-urls';
 import { DisputedReviewPanel } from './disputed-review-panel';
 
 const STATUS_FILTER = ['Disputed'] as const;
@@ -52,6 +53,7 @@ export default async function DisputedInboxPage() {
       checkInLng: true,
       checkInStatus: true,
       disputeReason: true,
+      checkInSelfieUrl: true,
       checkInBranch: {
         select: { id: true, name: true, latitude: true, longitude: true, radiusMeters: true },
       },
@@ -67,6 +69,14 @@ export default async function DisputedInboxPage() {
       },
     },
   });
+
+  // Batch-sign any selfie URLs in one round-trip. Map<storageKey, signedUrl>;
+  // keys whose signing failed (deleted file, permission glitch) won't appear
+  // in the map → the panel falls back to "no selfie" UI.
+  const selfieKeys = rows
+    .map((r) => r.checkInSelfieUrl)
+    .filter((k): k is string => !!k && k.length > 0);
+  const signedSelfieUrls = await signAttendancePhotoUrls(selfieKeys);
 
   if (rows.length === 0) {
     return (
@@ -123,6 +133,9 @@ export default async function DisputedInboxPage() {
               clockInAtIso={r.clockInAt ? r.clockInAt.toISOString() : null}
               latitude={r.checkInLat ? Number(r.checkInLat) : null}
               longitude={r.checkInLng ? Number(r.checkInLng) : null}
+              selfieSignedUrl={
+                r.checkInSelfieUrl ? (signedSelfieUrls.get(r.checkInSelfieUrl) ?? null) : null
+              }
               candidateBranch={
                 r.checkInBranch?.latitude && r.checkInBranch.longitude
                   ? {
