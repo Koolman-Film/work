@@ -144,6 +144,14 @@ model Branch {
   /// Default false: a fresh branch is GPS-optional until admin opts in.
   /// Existing branches are also set to false by migration 0005.
   requireGps       Boolean   @default(false)
+  /// When true, the LIFF widget prompts employees to tap "เช็คเอาท์" after
+  /// their work day; when false, the check-in flow finishes at "เสร็จสิ้น"
+  /// and the prompt disappears (employees can still tap an optional
+  /// check-out link if they want to log their exit time). Independent of
+  /// the `attendance-force-checkout-eod` cron, which still auto-closes any
+  /// row without clockOutAt at 22:00 BKK regardless of branch policy.
+  /// Default false; existing branches set to false by migration 0006.
+  requireCheckOut  Boolean   @default(false)
   attendanceSource AttSource @default(Liff)
   archivedAt       DateTime?
   createdAt        DateTime  @default(now())

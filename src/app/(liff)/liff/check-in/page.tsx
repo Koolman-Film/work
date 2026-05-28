@@ -33,7 +33,7 @@ export default async function LiffCheckInPage() {
         id: { in: Array.from(new Set([employee.branchId, ...employee.assignedBranchIds])) },
         archivedAt: null,
       },
-      select: { id: true, name: true, requireSelfie: true },
+      select: { id: true, name: true, requireSelfie: true, requireCheckOut: true },
       orderBy: { name: 'asc' },
     }),
   ]);
@@ -43,6 +43,14 @@ export default async function LiffCheckInPage() {
   // time — keeps client + server in agreement on the gate. See
   // src/lib/attendance/check-in.ts for the server-side check.
   const selfieRequired = branchInfo.some((b) => b.requireSelfie);
+
+  // Check-out prompt required when ANY assigned branch enables it. Same
+  // "minimum bar across the assignment" rule as selfie: a multi-branch
+  // employee who belongs to even one strict branch sees the prompt. The
+  // server-side `submitCheckOut` action stays unconditional — this flag
+  // only controls the LIFF UX (button prominence). Force-checkout cron
+  // is unaffected.
+  const checkOutRequired = branchInfo.some((b) => b.requireCheckOut);
 
   // Format today's date in Thai Buddhist calendar. We do this server-side
   // (UTC offset Asia/Bangkok = +07:00) so the client never has to know.
@@ -62,6 +70,7 @@ export default async function LiffCheckInPage() {
       employeeLastName={employee.lastName}
       branches={branchInfo.map((b) => ({ id: b.id, name: b.name }))}
       selfieRequired={selfieRequired}
+      checkOutRequired={checkOutRequired}
       initialState={state}
       dateLine={`${dateLine} ${thaiYear}`}
     />

@@ -28,6 +28,7 @@ export default async function EditBranchPage({
       radiusMeters: true,
       requireSelfie: true,
       requireGps: true,
+      requireCheckOut: true,
       archivedAt: true,
     },
   });
@@ -49,6 +50,7 @@ export default async function EditBranchPage({
           radiusMeters: branch.radiusMeters,
           requireSelfie: branch.requireSelfie,
           requireGps: branch.requireGps,
+          requireCheckOut: branch.requireCheckOut,
         }}
         error={error ? decodeURIComponent(error) : null}
         extraActions={
