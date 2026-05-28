@@ -81,12 +81,21 @@ const SEED = {
     { name: 'ลากิจ', isPaid: true, annualQuota: 3 },
     { name: 'ลาพักร้อน', isPaid: true, annualQuota: 6 }, // minimum per Thai labor law
   ],
+  // Default schedule: Mon–Sat 09:00–18:00 with Sunday closed.
+  // Per-day rows now live in WorkScheduleDay — `days` below is the
+  // creation seed for those.
   workSchedule: {
-    name: 'Tue–Sun 09:00–18:00',
-    startTime: '09:00',
-    endTime: '18:00',
-    workDays: [2, 3, 4, 5, 6, 0], // Tue,Wed,Thu,Fri,Sat,Sun (Mon=1 closed)
+    name: 'Mon–Sat 09:00–18:00',
     lateToleranceMin: 15,
+    days: [
+      { dayOfWeek: 1, startTime: '09:00', endTime: '18:00' }, // Mon
+      { dayOfWeek: 2, startTime: '09:00', endTime: '18:00' }, // Tue
+      { dayOfWeek: 3, startTime: '09:00', endTime: '18:00' }, // Wed
+      { dayOfWeek: 4, startTime: '09:00', endTime: '18:00' }, // Thu
+      { dayOfWeek: 5, startTime: '09:00', endTime: '18:00' }, // Fri
+      { dayOfWeek: 6, startTime: '09:00', endTime: '18:00' }, // Sat
+      // Sun (0) intentionally omitted — closed by default.
+    ],
   },
   // Phase 2 W6 — Thai-labor-law payroll defaults. Admin will edit via
   // /admin/settings/payroll-config (Phase 3).
@@ -202,17 +211,33 @@ async function main() {
     console.log(`  ✓ ${row.name}  (paid=${row.isPaid}, quota=${row.annualQuota ?? '∞'})`);
   }
 
-  // 5. WorkSchedule — no natural unique key; check by name
+  // 5. WorkSchedule — no natural unique key; check by name.
+  //    Now creates per-day rows via the WorkScheduleDay relation.
   console.log('\nWorkSchedule:');
   const existingSchedule = await prisma.workSchedule.findFirst({
     where: { name: SEED.workSchedule.name },
+    include: { days: true },
   });
   const schedule = existingSchedule
     ? existingSchedule
-    : await prisma.workSchedule.create({ data: SEED.workSchedule });
-  console.log(
-    `  ✓ ${schedule.name}  (${schedule.startTime}–${schedule.endTime}, days=${schedule.workDays.join(',')})`,
-  );
+    : await prisma.workSchedule.create({
+        data: {
+          name: SEED.workSchedule.name,
+          lateToleranceMin: SEED.workSchedule.lateToleranceMin,
+          days: {
+            create: SEED.workSchedule.days,
+          },
+        },
+        include: { days: true },
+      });
+  const daysSummary = schedule.days
+    .sort((a, b) => a.dayOfWeek - b.dayOfWeek)
+    .map(
+      (d) =>
+        `${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.dayOfWeek]} ${d.startTime}-${d.endTime}`,
+    )
+    .join(', ');
+  console.log(`  ✓ ${schedule.name}  [${daysSummary}]`);
 
   // 6. Holidays
   console.log('\nHolidays 2026:');

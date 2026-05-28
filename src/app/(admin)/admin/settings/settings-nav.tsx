@@ -6,6 +6,7 @@ import {
   Calculator,
   CalendarDays,
   CalendarOff,
+  Clock,
   FolderTree,
   ShieldCheck,
 } from 'lucide-react';
@@ -68,13 +69,20 @@ const TABS: ReadonlyArray<SettingsTab> = [
     enabled: true,
   },
   {
+    href: '/admin/settings/work-schedules',
+    label: 'ตารางงาน',
+    description: 'วันทำงาน + เวลาต่อวัน',
+    Icon: Clock,
+    enabled: true,
+  },
+  {
     href: '/admin/settings/team',
     label: 'ทีมผู้ดูแล',
     description: 'บัญชี Admin + Owner',
     Icon: ShieldCheck,
     enabled: true,
   },
-  // ดีเฟอร์: ตารางงาน / Payroll config
+  // ดีเฟอร์: Payroll config
 ];
 
 export function SettingsNav() {

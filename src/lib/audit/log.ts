@@ -51,6 +51,7 @@ export type AuditAction =
   | 'accountingGroup.archive'
   | 'workSchedule.create'
   | 'workSchedule.update'
+  | 'workSchedule.archive'
   | 'leaveType.create'
   | 'leaveType.update'
   | 'leaveType.archive'
