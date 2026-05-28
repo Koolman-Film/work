@@ -52,11 +52,17 @@ export const SYSTEM_ROLES: Record<
     description: 'ผู้ดูแลสาขา — จัดการพนักงาน คำขอลา/เบิก และการลงเวลาในสาขาที่ได้รับมอบหมาย',
     isSuperadmin: false,
     permissions: [
-      // Employees
+      // Employees — full lifecycle including hard delete. We grant
+      // employee.delete here (unlike team.delete, which is Superadmin-
+      // only) because hiring + firing is the bread-and-butter of branch
+      // admin work; deleted-then-recreated is a real workflow our
+      // customer hit on day 1 (the "ฝ้าย" incident). Customers can
+      // tighten via the Roles CRUD if their policy differs.
       'employee.read',
       'employee.create',
       'employee.update',
       'employee.archive',
+      'employee.delete',
       'employee.line-unlink',
       // Attendance — full operational control
       'attendance.read',
@@ -69,9 +75,11 @@ export const SYSTEM_ROLES: Record<
       'advance.read',
       'advance.approve',
       // Org config — they manage their branch's config but the perms
-      // are listed flat; Phase 3 will restrict by branch scope.
+      // are listed flat; Phase 3.7 will restrict by branch scope.
       'settings.branch.manage',
       'settings.department.manage',
+      'settings.accounting-group.manage',
+      'settings.leave-type.manage',
       'settings.holiday.manage',
       'settings.work-schedule.manage',
       // Read-only on team / roles — they can SEE other admins but

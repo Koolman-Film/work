@@ -6,7 +6,7 @@ import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { auditLog } from '@/lib/audit/log';
-import { requireRole } from '@/lib/auth/require-role';
+import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 
@@ -103,7 +103,7 @@ function normalizeAssigned(branchId: string, raw: string[]): string[] {
 }
 
 export async function createEmployee(formData: FormData) {
-  const { user } = await requireRole(['Admin']);
+  const { user } = await requirePermission('employee.create');
 
   const parsed = readForm(formData);
   if (!parsed.success) {
@@ -180,7 +180,10 @@ export async function createEmployee(formData: FormData) {
 }
 
 export async function updateEmployee(id: string, formData: FormData) {
-  const { user } = await requireRole(['Admin']);
+  // Phase 3.6: gate on employee.update. Phase 3.7 will add the
+  // employee's branchId as context so branch-scoped admins can only
+  // edit employees in their own branch.
+  const { user } = await requirePermission('employee.update');
 
   const parsed = readForm(formData);
   if (!parsed.success) {
@@ -253,7 +256,7 @@ export async function updateEmployee(id: string, formData: FormData) {
 }
 
 export async function archiveEmployee(id: string) {
-  const { user } = await requireRole(['Admin']);
+  const { user } = await requirePermission('employee.archive');
 
   const before = await prisma.employee.findUnique({ where: { id } });
   if (!before || before.archivedAt) redirect('/admin/employees');
@@ -304,7 +307,7 @@ export async function archiveEmployee(id: string) {
  * uniqueness check on User.authUserId would trip.
  */
 export async function deleteEmployee(id: string) {
-  const { user } = await requireRole(['Admin']);
+  const { user } = await requirePermission('employee.delete');
 
   const emp = await prisma.employee.findUnique({
     where: { id },
@@ -425,11 +428,11 @@ export async function deleteEmployee(id: string) {
  *      generate a fresh QR explicitly.
  *   4. Audit-log as 'employee.line-unlink'.
  *
- * Safety: requireRole(['Admin']) gates. No-op when the User row already
+ * Safety: requirePermission('employee.line-unlink') gates. No-op when the User row already
  * has authUserId=null AND lineUserId=null (already unlinked).
  */
 export async function unlinkLineFromEmployee(id: string): Promise<void> {
-  const { user: actor } = await requireRole(['Admin']);
+  const { user: actor } = await requirePermission('employee.line-unlink');
 
   const emp = await prisma.employee.findUnique({
     where: { id },
