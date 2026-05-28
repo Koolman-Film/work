@@ -166,16 +166,43 @@ model Branch {
   attendanceCheckIns  Attendance[] @relation("CheckInBranch")
 }
 
+/// A named work-schedule template — different employees / roles can be
+/// assigned different schedules (e.g., "Office Mon-Fri", "Retail Mon-Sat").
+/// Per-day times live in WorkScheduleDay; a missing row for a given
+/// weekday means that day is non-working (closed).
 model WorkSchedule {
-  id               String    @id @default(uuid()) @db.Uuid
+  id               String            @id @default(uuid()) @db.Uuid
   name             String
-  startTime        String // "09:00"
-  endTime          String // "18:00"
-  // ISO weekday encoding: 0=Sun..6=Sat. Koolman: [2,3,4,5,6,0] = Tue-Sun (Mon closed).
-  workDays         Int[]
-  lateToleranceMin Int       @default(15)
+  /// Minutes after the day's startTime before a check-in is flagged as
+  /// "Late" by attendance-late-check. Applies uniformly to every day.
+  lateToleranceMin Int               @default(15)
   archivedAt       DateTime?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  days             WorkScheduleDay[]
   employees        Employee[]
+}
+
+/// One row per working weekday for a given WorkSchedule. Days that
+/// aren't represented are non-working (closed). dayOfWeek follows JS
+/// `Date.getDay()` semantics: 0=Sunday, 1=Monday, ..., 6=Saturday.
+///
+/// Why a separate table (not a JSON column on WorkSchedule):
+///   - DB-enforced uniqueness — can't accidentally create two Mondays
+///   - Cheap to query "which schedules include Saturday"
+///   - onDelete: Cascade — dropping a schedule cleans its days too
+model WorkScheduleDay {
+  id             String       @id @default(uuid()) @db.Uuid
+  workScheduleId String       @db.Uuid
+  workSchedule   WorkSchedule @relation(fields: [workScheduleId], references: [id], onDelete: Cascade)
+  /// 0=Sun, 1=Mon, ..., 6=Sat (matches Date.getDay()).
+  dayOfWeek      Int
+  /// "HH:MM" 24-hour. App-validated; stored as text for simplicity.
+  startTime      String
+  endTime        String
+
+  @@unique([workScheduleId, dayOfWeek])
+  @@index([workScheduleId])
 }
 
 // ─── Employee ──────────────────────────────────────────────────────────────
