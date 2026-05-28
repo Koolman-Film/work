@@ -31,6 +31,7 @@ export type AuditAction =
   | 'employee.create'
   | 'employee.update'
   | 'employee.archive'
+  | 'employee.delete'
   | 'employee.rehire'
   | 'employee.line-link'
   | 'employee.line-unlink'
