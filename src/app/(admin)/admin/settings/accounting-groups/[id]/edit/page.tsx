@@ -33,7 +33,7 @@ export default async function EditAccountingGroupPage({
         extraActions={
           <form action={archiveAccountingGroup.bind(null, id)}>
             <Button type="submit" variant="destructive">
-              เก็บถาวร
+              ลบถาวร
             </Button>
           </form>
         }

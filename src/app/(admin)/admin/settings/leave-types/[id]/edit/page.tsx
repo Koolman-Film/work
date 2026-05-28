@@ -42,7 +42,7 @@ export default async function EditLeaveTypePage({
       extraActions={
         <form action={archive}>
           <Button type="submit" variant="destructive">
-            เก็บถาวร
+            ลบถาวร
           </Button>
         </form>
       }

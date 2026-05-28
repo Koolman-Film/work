@@ -51,7 +51,7 @@ export default async function EditWorkSchedulePage({
         extraActions={
           <form action={archiveWorkSchedule.bind(null, id)}>
             <Button type="submit" variant="destructive">
-              เก็บถาวร
+              ลบถาวร
             </Button>
           </form>
         }
