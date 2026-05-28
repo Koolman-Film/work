@@ -18,6 +18,7 @@ export default async function BranchListPage({ searchParams }: { searchParams: S
       address: true,
       radiusMeters: true,
       requireSelfie: true,
+      requireGps: true,
       latitude: true,
       longitude: true,
       attendanceSource: true,
@@ -59,6 +60,7 @@ export default async function BranchListPage({ searchParams }: { searchParams: S
                   <TH>ชื่อ</TH>
                   <TH>ที่อยู่</TH>
                   <TH>Geofence</TH>
+                  <TH>GPS</TH>
                   <TH>Selfie</TH>
                   <TH>พนักงาน</TH>
                   <TH className="text-right">การจัดการ</TH>
@@ -72,6 +74,7 @@ export default async function BranchListPage({ searchParams }: { searchParams: S
                     <TD className="tabular-nums">
                       {b.latitude && b.longitude ? `${b.radiusMeters}m` : '— (ยังไม่ตั้งค่า)'}
                     </TD>
+                    <TD>{b.requireGps ? '✅' : '—'}</TD>
                     <TD>{b.requireSelfie ? '✅' : '—'}</TD>
                     <TD className="tabular-nums">{b._count.employees}</TD>
                     <TD className="text-right">

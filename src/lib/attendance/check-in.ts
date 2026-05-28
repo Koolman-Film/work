@@ -117,6 +117,7 @@ async function loadCandidateBranches(employeeId: string) {
       longitude: true,
       radiusMeters: true,
       requireSelfie: true,
+      requireGps: true,
     },
   });
 
@@ -128,6 +129,7 @@ async function loadCandidateBranches(employeeId: string) {
     longitude: b.longitude ? Number(b.longitude) : null,
     radiusMeters: b.radiusMeters,
     requireSelfie: b.requireSelfie,
+    requireGps: b.requireGps,
   }));
 }
 

@@ -12,6 +12,7 @@ type Initial = {
   longitude: number | null;
   radiusMeters: number;
   requireSelfie: boolean;
+  requireGps: boolean;
 };
 
 type Mode =
@@ -94,6 +95,22 @@ export function BranchForm({ mode, action, initial, error, extraActions }: Props
                 lngInputName="longitude"
               />
             </FormField>
+
+            <div>
+              <label className="flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  name="requireGps"
+                  defaultChecked={initial?.requireGps ?? false}
+                  className="size-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500/30"
+                />
+                <span>ตรวจสอบตำแหน่ง GPS ตอนเช็คอิน</span>
+              </label>
+              <p className="ml-6 mt-0.5 text-xs text-gray-500">
+                เปิดเพื่อให้เช็คอินนอกพื้นที่สาขาถูกตั้งสถานะเป็น "ต้องตรวจสอบ" — ปิดเมื่อพนักงานทำงาน นอกสถานที่
+                และไม่ต้องการตรวจพิกัด
+              </p>
+            </div>
 
             <div>
               <label className="flex items-center gap-2 text-sm text-gray-700">

@@ -54,6 +54,7 @@ describe('findClosestBranch', () => {
     latitude: 13.7563,
     longitude: 100.5018,
     radiusMeters: 150,
+    requireGps: true,
   };
   const branchB: GeofenceCandidate = {
     id: 'b',
@@ -61,6 +62,7 @@ describe('findClosestBranch', () => {
     latitude: 13.8,
     longitude: 100.6,
     radiusMeters: 200,
+    requireGps: true,
   };
   const branchWithNoFence: GeofenceCandidate = {
     id: 'c',
@@ -68,6 +70,7 @@ describe('findClosestBranch', () => {
     latitude: null,
     longitude: null,
     radiusMeters: 150,
+    requireGps: true,
   };
 
   it('returns null when no candidates have lat/lng configured', () => {

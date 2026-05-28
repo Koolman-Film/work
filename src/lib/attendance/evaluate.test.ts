@@ -10,6 +10,7 @@ const branchInRange: GeofenceCandidate = {
   latitude: 13.7563,
   longitude: 100.5018,
   radiusMeters: 150,
+  requireGps: true,
 };
 const branchOutOfRange: GeofenceCandidate = {
   id: 'b-far',
@@ -18,6 +19,7 @@ const branchOutOfRange: GeofenceCandidate = {
   latitude: 13.8563,
   longitude: 100.5018,
   radiusMeters: 200,
+  requireGps: true,
 };
 const branchUnconfigured: GeofenceCandidate = {
   id: 'b-null',
@@ -25,6 +27,7 @@ const branchUnconfigured: GeofenceCandidate = {
   latitude: null,
   longitude: null,
   radiusMeters: 150,
+  requireGps: true,
 };
 
 describe('evaluateCheckIn', () => {
@@ -116,6 +119,7 @@ describe('evaluateCheckIn', () => {
       latitude: 13.7563,
       longitude: 100.5018,
       radiusMeters: 5_000,
+      requireGps: true,
     };
     const result = evaluateCheckIn({
       // 0.02 deg lat ≈ 2.2 km from branch — within the 5km wide range.
@@ -160,6 +164,125 @@ describe('evaluateCheckIn', () => {
     const result = evaluateCheckIn({
       point: { lat: 13.7563, lng: 100.5018, accuracy: 10 },
       candidateBranches: [branchUnconfigured, branchInRange],
+      previousCheckInAt: null,
+      now: NOW,
+    });
+    expect(result.status).toBe('Confirmed');
+    if (result.status === 'Confirmed') {
+      expect(result.branchId).toBe('b-in');
+    }
+  });
+
+  // ─── requireGps=false branch behavior ─────────────────────────────────
+  // A branch can opt out of geofence enforcement. The matched branch's
+  // `requireGps` flag decides whether the three GPS-derived gates run.
+
+  it('Confirms an out-of-range check-in when the matched branch has requireGps=false', () => {
+    const optionalBranch: GeofenceCandidate = {
+      ...branchInRange,
+      id: 'b-optional',
+      requireGps: false,
+    };
+    const result = evaluateCheckIn({
+      // Same far-away point that would normally produce no-branch-in-range.
+      point: { lat: 13.7, lng: 100.5018, accuracy: 10 },
+      candidateBranches: [optionalBranch],
+      previousCheckInAt: null,
+      now: NOW,
+    });
+    expect(result.status).toBe('Confirmed');
+    if (result.status === 'Confirmed') {
+      expect(result.branchId).toBe('b-optional');
+      // Distance is still reported (informational for audit log) — it's
+      // just no longer used to gate the verdict.
+      expect(result.distanceMeters).toBeGreaterThan(150);
+    }
+  });
+
+  it('Confirms a low-accuracy check-in when the matched branch has requireGps=false', () => {
+    const optionalBranch: GeofenceCandidate = {
+      ...branchInRange,
+      id: 'b-optional',
+      requireGps: false,
+    };
+    const result = evaluateCheckIn({
+      // Inside fence but ±400m accuracy — would normally be gps-too-imprecise.
+      point: { lat: 13.7563, lng: 100.5018, accuracy: 400 },
+      candidateBranches: [optionalBranch],
+      previousCheckInAt: null,
+      now: NOW,
+    });
+    expect(result.status).toBe('Confirmed');
+  });
+
+  it('Confirms despite impossible-travel when the matched branch has requireGps=false', () => {
+    const optionalWide: GeofenceCandidate = {
+      id: 'b-optional-wide',
+      name: 'GPS-optional wide branch',
+      latitude: 13.7563,
+      longitude: 100.5018,
+      radiusMeters: 5_000,
+      requireGps: false,
+    };
+    const result = evaluateCheckIn({
+      // 2.2 km from fence, with previous check-in only 10s ago → would
+      // normally trip impossible-travel.
+      point: { lat: 13.7763, lng: 100.5018, accuracy: 10 },
+      candidateBranches: [optionalWide],
+      previousCheckInAt: new Date(NOW.getTime() - 10_000),
+      now: NOW,
+    });
+    expect(result.status).toBe('Confirmed');
+  });
+
+  it('Confirms with distanceMeters=null when all candidates are GPS-optional and have null coords', () => {
+    const optionalNoCoords: GeofenceCandidate = {
+      id: 'b-optional-null',
+      name: 'WFH branch',
+      latitude: null,
+      longitude: null,
+      radiusMeters: 150,
+      requireGps: false,
+    };
+    const result = evaluateCheckIn({
+      point: { lat: 13.7563, lng: 100.5018, accuracy: 10 },
+      candidateBranches: [optionalNoCoords],
+      previousCheckInAt: null,
+      now: NOW,
+    });
+    expect(result.status).toBe('Confirmed');
+    if (result.status === 'Confirmed') {
+      expect(result.branchId).toBe('b-optional-null');
+      expect(result.distanceMeters).toBeNull();
+    }
+  });
+
+  it('Still Disputes when all candidates require GPS AND have null coords (config gap)', () => {
+    // Same fixture as the existing no-configured-branch test, just to
+    // pin down that the requireGps=true path is preserved.
+    const result = evaluateCheckIn({
+      point: { lat: 13.7563, lng: 100.5018, accuracy: 10 },
+      candidateBranches: [branchUnconfigured],
+      previousCheckInAt: null,
+      now: NOW,
+    });
+    expect(result.status).toBe('Disputed');
+    if (result.status === 'Disputed') {
+      expect(result.reason).toBe('no-configured-branch');
+    }
+  });
+
+  it('Applies the matched branch policy, not a global one (mixed-policy multi-branch)', () => {
+    // Multi-branch employee: A requires GPS (closest, 0m), B is GPS-optional
+    // but 11km away. Closest match is A → A's policy applies → Confirmed.
+    const optionalFarBranch: GeofenceCandidate = {
+      ...branchOutOfRange,
+      id: 'b-optional-far',
+      requireGps: false,
+    };
+    const result = evaluateCheckIn({
+      point: { lat: 13.7563, lng: 100.5018, accuracy: 10 },
+      candidateBranches: [branchInRange, optionalFarBranch],
       previousCheckInAt: null,
       now: NOW,
     });
