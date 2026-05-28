@@ -57,6 +57,33 @@ import { type LiffBootstrapError, liffBootstrap } from '@/lib/liff/init';
 const DEST_WHITELIST = new Set(['check-in', 'leave', 'advance', 'calendar', 'profile']);
 const DEFAULT_DEST = '/liff/check-in';
 
+/**
+ * LINE Add-Friend deep link for the Koolman Work Messaging API OA.
+ *
+ * Used as the post-binding redirect for first-time pair completion —
+ * after a new employee successfully links their LINE account to their
+ * Employee row, we send them here so they add the OA as a friend. Why
+ * it matters:
+ *   - LINE push notifications (leave approved, advance approved, etc.)
+ *     only deliver if the recipient is friends with the OA. Silently
+ *     drop otherwise — so a non-friend employee never receives any
+ *     notifications. Forcing friend-add at the END of pairing makes
+ *     every new account fully wired up before they start daily use.
+ *   - LINE's rich menu (the tile bar at the bottom of the chat) only
+ *     appears when you're friends. Without it, employees would have to
+ *     bookmark / re-type LIFF URLs every day.
+ *
+ * Behavior on returning users (already friends with the OA): LINE opens
+ * the existing chat directly instead of showing the add-friend dialog.
+ * So this URL is safe to redirect to even when re-running the pair flow.
+ *
+ * Basic ID format `@<id>` is URL-encoded to `%40<id>` for the path.
+ * (Hardcoded for V1; could be moved to NEXT_PUBLIC_LINE_OA_BASIC_ID
+ * env var if multiple OAs ever need to coexist.)
+ */
+const OA_BASIC_ID = '@994gaezx';
+const ADD_FRIEND_URL = `https://line.me/R/ti/p/${encodeURIComponent(OA_BASIC_ID)}`;
+
 type PhaseState =
   | { phase: 'booting'; message: string }
   | { phase: 'signing-in'; message: string }
@@ -120,10 +147,19 @@ export default function PairClient({ pairingToken }: { pairingToken: string | nu
               phase: 'success',
               employeeName: `${result.employee.firstName} ${result.employee.lastName}`.trim(),
             });
-            // Full page-load to ensure cookies propagate before requireRole.
-            // Honor the dest hint if rich menu pre-supplied one alongside ?pair=.
+            // For first-time pairing we redirect to the LINE Add-Friend page
+            // for the Koolman Work OA, NOT to /liff/check-in. Reasoning:
+            //   - Push notifications fail silently if the user isn't friends
+            //     with the OA. Forcing the friend-add at the end of pair
+            //     ensures every account is fully wired before daily use.
+            //   - Already-friend users land directly in the chat (LINE
+            //     handles that case gracefully), so re-running pair is safe.
+            //   - The `destPath` from rich-menu dispatch (?dest=) doesn't
+            //     apply here — first-time pair URLs come from admin QR /
+            //     /i/[token] redirects, which never carry ?dest. The hint
+            //     IS still honored in the dispatch (no-token) branch below.
             setTimeout(() => {
-              window.location.href = destPath;
+              window.location.href = ADD_FRIEND_URL;
             }, 1500);
           } else {
             setState({
@@ -217,7 +253,8 @@ function SuccessBlock({ employeeName }: { employeeName: string }) {
       </div>
       <p className="text-base font-medium text-gray-900">เชื่อมบัญชีสำเร็จ</p>
       <p className="text-sm text-gray-600">ยินดีต้อนรับ, {employeeName}</p>
-      <p className="text-xs text-gray-400">กำลังพาคุณไปหน้าเช็คอิน...</p>
+      <p className="text-xs text-gray-500">ขั้นตอนสุดท้าย: เพิ่มเพื่อน Koolman Work เพื่อรับการแจ้งเตือน</p>
+      <p className="text-xs text-gray-400">กำลังพาคุณไปหน้าเพิ่มเพื่อน...</p>
     </div>
   );
 }
