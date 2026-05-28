@@ -11,7 +11,7 @@
   "packageManager": "pnpm@10.0.0",
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && (test -n \"$DATABASE_URL\" && prisma migrate deploy || echo '⚠ DATABASE_URL not set — skipping prisma migrate deploy (expected in CI/lint env, not in real deploy)') && next build",
+    "build": "prisma generate && (test -n \"$DIRECT_URL\" && prisma migrate deploy || echo '⚠ DIRECT_URL not set — skipping prisma migrate deploy. Set DIRECT_URL on Vercel to enable auto-migrate (must point at port 5432, not pgbouncer 6543).') && next build",
     "start": "next start",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
