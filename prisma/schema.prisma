@@ -94,6 +94,11 @@ model User {
   email      String?   @unique // Admin / Owner only
   lineUserId String?   @unique // Employee only — set after LIFF link
   role       Role
+  /// Preferred UI language (BCP 47 — 'th', 'en', 'my', 'lo', 'zh-CN').
+  /// NULL until the user explicitly picks a language. When non-null,
+  /// overrides the NEXT_LOCALE cookie on next login so the preference
+  /// follows the user across devices. See src/lib/i18n/config.ts.
+  locale     String?
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
   archivedAt DateTime?

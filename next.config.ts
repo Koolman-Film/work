@@ -1,9 +1,16 @@
 import type { NextConfig } from 'next';
+import createNextIntlPlugin from 'next-intl/plugin';
+
+// next-intl plugin — points at our request-config module that runs
+// getRequestConfig on every Server Component request and provides the
+// resolved locale + messages to the React tree via NextIntlClientProvider.
+const withNextIntl = createNextIntlPlugin('./src/lib/i18n/request.ts');
 
 const config: NextConfig = {
   reactStrictMode: true,
 
-  // i18n + custom routing live in middleware (next-intl) for App Router
+  // i18n: cookie-based (NEXT_LOCALE) — no URL prefix. next-intl plugin
+  // wraps the config below via withNextIntl(). See src/lib/i18n/.
 
   // Images served from Supabase Storage signed URLs go through next/image.
   // The `protocol`+`hostname` allowlist lets Vercel Image Optimization fetch them.
@@ -52,4 +59,4 @@ const config: NextConfig = {
   },
 };
 
-export default config;
+export default withNextIntl(config);

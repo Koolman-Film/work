@@ -4,6 +4,7 @@ import { ChevronDown, LogOut, Menu, UserCog } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
+import { LanguageSwitcher } from '@/components/language-switcher';
 import { cn } from '@/lib/utils';
 import { NotificationBell } from './notification-bell';
 import { useMobileNav } from './use-mobile-nav';
@@ -134,6 +135,12 @@ function UserMenu({ userLabel }: { userLabel: string }) {
             <UserCog size={16} aria-hidden="true" />
             <span>โปรไฟล์ของฉัน</span>
           </Link>
+          {/* Language picker — its dropdown change submits a Server Action
+              which revalidates the layout, so we don't need to close the
+              parent popover manually. */}
+          <div className="border-t border-gray-100">
+            <LanguageSwitcher variant="topbar" />
+          </div>
           <form action="/logout" method="post" className="border-t border-gray-100">
             <button
               type="submit"

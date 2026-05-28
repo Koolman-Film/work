@@ -1,0 +1,6 @@
+{
+  "_meta": {
+    "locale": "zh-CN",
+    "note": "Simplified Chinese translations — pending translator. Falls back to en.json keys at runtime until populated."
+  }
+}
