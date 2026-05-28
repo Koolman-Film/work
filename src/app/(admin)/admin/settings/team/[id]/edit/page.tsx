@@ -5,6 +5,7 @@ import { Card, CardBody, CardFooter, CardHeader, CardTitle } from '@/components/
 import { FormField } from '@/components/ui/form-field';
 import { Input } from '@/components/ui/input';
 import { requirePermission } from '@/lib/auth/check-permission';
+import { canActOnRole, canActOnUserScope } from '@/lib/auth/team-guards';
 import { prisma } from '@/lib/db/prisma';
 import {
   archiveTeamMember,
@@ -62,9 +63,14 @@ export default async function EditTeamMemberPage({
   if (target.archivedAt) notFound();
   if (target.role === 'Staff') notFound();
 
-  // Admin actor cannot edit Superadmin — defense in depth on top of the
-  // server actions' canActOnRole check.
-  if (actor.role === 'Admin' && target.role === 'Superadmin') notFound();
+  // Defense-in-depth UX shortcut. The action layer enforces these
+  // same rules; we do them here too so the user gets a 404 instead of
+  // rendering a form whose submit would silently fail.
+  //   - Tier: Admin cannot edit Superadmin.
+  //   - Branch: branch-scoped Admin cannot edit Admins outside their
+  //     shared branch (Phase 3.7).
+  if (!canActOnRole(actor.role, target.role)) notFound();
+  if (!(await canActOnUserScope(actor.id, target.id))) notFound();
 
   const isSelf = target.id === actor.id;
 
