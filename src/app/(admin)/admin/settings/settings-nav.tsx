@@ -1,7 +1,14 @@
 'use client';
 
 import type { LucideIcon } from 'lucide-react';
-import { Building2, Calculator, CalendarDays, CalendarOff, FolderTree } from 'lucide-react';
+import {
+  Building2,
+  Calculator,
+  CalendarDays,
+  CalendarOff,
+  FolderTree,
+  ShieldCheck,
+} from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -58,6 +65,13 @@ const TABS: ReadonlyArray<SettingsTab> = [
     label: 'วันหยุด',
     description: 'วันหยุดราชการ + ชดเชย',
     Icon: CalendarDays,
+    enabled: true,
+  },
+  {
+    href: '/admin/settings/team',
+    label: 'ทีมผู้ดูแล',
+    description: 'บัญชี Admin + Owner',
+    Icon: ShieldCheck,
     enabled: true,
   },
   // ดีเฟอร์: ตารางงาน / Payroll config

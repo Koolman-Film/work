@@ -27,6 +27,7 @@ export type AuditAction =
   | 'user.create'
   | 'user.archive'
   | 'user.role-change'
+  | 'user.password-reset'
   // Employee
   | 'employee.create'
   | 'employee.update'
