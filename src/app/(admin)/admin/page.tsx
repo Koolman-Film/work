@@ -15,7 +15,7 @@
 import { Calendar, CheckCircle2, Coins, UserX } from 'lucide-react';
 import Link from 'next/link';
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
-import { requireRole } from '@/lib/auth/require-role';
+import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 
 /**
@@ -81,7 +81,7 @@ function formatDateTimeShort(d: Date): string {
 }
 
 export default async function AdminHomePage() {
-  await requireRole(['Admin']);
+  await requirePermission('dashboard.read');
 
   const today = bangkokDateUtcMidnight(new Date());
   const todayIsSunday = today.getUTCDay() === 0;
