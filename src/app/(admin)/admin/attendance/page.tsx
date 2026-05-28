@@ -22,7 +22,7 @@
 import type { AttType } from '@prisma/client';
 import Link from 'next/link';
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
-import { requireRole } from '@/lib/auth/require-role';
+import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 
 type SearchParams = Promise<{
@@ -103,7 +103,7 @@ export default async function AttendanceRecordsPage({
 }: {
   searchParams: SearchParams;
 }) {
-  await requireRole(['Admin']);
+  await requirePermission('attendance.read');
 
   const sp = await searchParams;
   const ym = sp.ym && /^\d{4}-\d{2}$/.test(sp.ym) ? sp.ym : currentMonthYM();

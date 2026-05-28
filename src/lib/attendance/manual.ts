@@ -24,7 +24,7 @@
 import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
 import { auditLog } from '@/lib/audit/log';
-import { requireRole } from '@/lib/auth/require-role';
+import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 
 export type ManualAttendanceType = 'Absent' | 'Late' | 'EarlyLeave';
@@ -78,7 +78,7 @@ function bangkokTodayUtc(): Date {
 export async function createManualAttendance(
   input: CreateManualInput,
 ): Promise<CreateManualResult> {
-  const { user } = await requireRole(['Admin']);
+  const { user } = await requirePermission('attendance.manual-create');
 
   // Validate employee
   const emp = await prisma.employee.findUnique({

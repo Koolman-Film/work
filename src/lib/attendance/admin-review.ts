@@ -28,7 +28,7 @@
 
 import { headers } from 'next/headers';
 import { auditLogTx } from '@/lib/audit/log';
-import { requireRole } from '@/lib/auth/require-role';
+import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { sendNotification } from '@/lib/inngest/events';
 
@@ -43,7 +43,7 @@ type ReviewInput = {
 };
 
 async function review(input: ReviewInput, decision: 'approve' | 'reject'): Promise<ReviewResult> {
-  const { user } = await requireRole(['Admin']);
+  const { user } = await requirePermission('attendance.dispute-resolve');
 
   const trimmedNote = input.note.trim();
   if (trimmedNote.length === 0) {
