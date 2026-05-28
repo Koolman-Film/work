@@ -7,10 +7,11 @@ import { createClient } from '@/lib/supabase/server';
  *
  *   - Unauthenticated   → /login
  *   - Admin             → /admin
- *   - Owner             → /owner
- *   - Employee          → /liff/check-in
- *   - Auth-but-no-User  → /login  (defensive — happens mid-seed only)
- *   - Auth-but-archived → /login  (former employee revoked)
+ *   - Superadmin        → /admin   (full powers; can still navigate to
+ *                                   /owner for the read-only dashboard)
+ *   - Staff             → /liff/check-in
+ *   - Auth-but-no-User  → /login   (defensive — happens mid-seed only)
+ *   - Auth-but-archived → /login   (former employee revoked)
  *
  * Why route from here rather than middleware?
  *   - Middleware only knows "is there a session"; it can't query our User
@@ -18,15 +19,18 @@ import { createClient } from '@/lib/supabase/server';
  *     a DB call on every request, including statics. Cheaper to route once
  *     at "/" and let `requireRole()` in the destination guard the rest.
  *
- * Used to show a scaffold-status landing page; removed 2026-05-28 once
- * the app went live on work.kool-man.com — a dev-status panel is not
- * a useful landing experience for customers.
+ * History: the Owner→Superadmin and Employee→Staff enum rename in
+ * migration 0009 broke this map because the keys were UNQUOTED object
+ * literal keys — the bulk sed (which targeted only single-quoted enum
+ * literals) skipped them. Result: a redirect loop for Superadmin/Staff
+ * users — ROLE_HOMES[user.role] returned undefined → fall through to
+ * /login → proxy bounces back → loop. Fixed 2026-05-28.
  */
 
 const ROLE_HOMES: Record<string, string> = {
   Admin: '/admin',
-  Owner: '/owner',
-  Employee: '/liff/check-in',
+  Superadmin: '/admin',
+  Staff: '/liff/check-in',
 };
 
 export default async function HomePage() {
