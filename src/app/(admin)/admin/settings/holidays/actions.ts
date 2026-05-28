@@ -4,12 +4,21 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { auditLog } from '@/lib/audit/log';
-import { requireRole } from '@/lib/auth/require-role';
+import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { parseInputDate } from '@/lib/leave/working-days';
 
 /**
  * Holiday CRUD actions. Same shape as the other settings CRUDs.
+ *
+ * Authorization (Phase 3.2 — first migrated route):
+ *   - Gated by `requirePermission('settings.holiday.manage')`. No
+ *     branchId is passed because Holiday is a GLOBAL config entity
+ *     (not branch-scoped) — every Holiday applies to every branch.
+ *   - The page-level admin layout still enforces "you're an admin
+ *     SOMEWHERE" via requireRole. This action enforces the finer
+ *     "you can manage holidays" permission. Both layers are intentional
+ *     — defense in depth.
  *
  * Validation notes:
  *   - `date` parsed with the same strict YYYY-MM-DD validator used by the
@@ -58,7 +67,7 @@ function normalize(parsed: z.infer<typeof Schema>): ParsedData | { error: string
 }
 
 export async function createHoliday(formData: FormData) {
-  const { user } = await requireRole(['Admin']);
+  const { user } = await requirePermission('settings.holiday.manage');
 
   const parsed = readForm(formData);
   if (!parsed.success) {
@@ -99,7 +108,7 @@ export async function createHoliday(formData: FormData) {
 }
 
 export async function updateHoliday(id: string, formData: FormData) {
-  const { user } = await requireRole(['Admin']);
+  const { user } = await requirePermission('settings.holiday.manage');
 
   const parsed = readForm(formData);
   if (!parsed.success) {
@@ -150,7 +159,7 @@ export async function updateHoliday(id: string, formData: FormData) {
 }
 
 export async function archiveHoliday(id: string) {
-  const { user } = await requireRole(['Admin']);
+  const { user } = await requirePermission('settings.holiday.manage');
 
   const before = await prisma.holiday.findUnique({ where: { id } });
   if (!before || before.archivedAt) redirect('/admin/settings/holidays');
