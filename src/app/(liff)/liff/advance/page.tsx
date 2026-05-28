@@ -37,7 +37,7 @@ function formatDateTime(d: Date): string {
 }
 
 export default async function LiffAdvanceListPage() {
-  const { employee } = await requireRole(['Employee']);
+  const { employee } = await requireRole(['Staff']);
   if (!employee) throw new Error('requireRole did not return Employee');
 
   // Fetch in parallel: the full list (UI), and the "reserved" subset

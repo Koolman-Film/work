@@ -72,7 +72,7 @@ const EmailSchema = z
 
 const PasswordSchema = z.string().min(8, 'รหัสผ่านอย่างน้อย 8 ตัวอักษร').max(72, 'รหัสผ่านยาวเกินไป');
 
-const RoleSchema = z.enum(['Admin', 'Owner']);
+const RoleSchema = z.enum(['Admin', 'Superadmin']);
 
 const CreateSchema = z.object({
   email: EmailSchema,
@@ -109,7 +109,7 @@ async function readRequestContext() {
  */
 async function countActiveOwners(): Promise<number> {
   return prisma.user.count({
-    where: { role: 'Owner', archivedAt: null },
+    where: { role: 'Superadmin', archivedAt: null },
   });
 }
 
@@ -119,7 +119,7 @@ async function countActiveOwners(): Promise<number> {
  * - Owners can touch anyone.
  */
 function canActOnRole(actorRole: Role, targetRole: Role): boolean {
-  if (actorRole === 'Owner') return true;
+  if (actorRole === 'Superadmin') return true;
   if (actorRole === 'Admin') return targetRole === 'Admin';
   return false;
 }
@@ -127,7 +127,7 @@ function canActOnRole(actorRole: Role, targetRole: Role): boolean {
 // ─── Create ────────────────────────────────────────────────────────────────
 
 export async function createTeamMember(formData: FormData): Promise<void> {
-  const { user: actor } = await requireRole(['Admin', 'Owner']);
+  const { user: actor } = await requireRole(['Admin', 'Superadmin']);
 
   const parsed = CreateSchema.safeParse({
     email: formData.get('email') ?? undefined,
@@ -221,7 +221,7 @@ export async function createTeamMember(formData: FormData): Promise<void> {
 // ─── Update role ───────────────────────────────────────────────────────────
 
 export async function updateTeamMemberRole(id: string, formData: FormData): Promise<void> {
-  const { user: actor } = await requireRole(['Admin', 'Owner']);
+  const { user: actor } = await requireRole(['Admin', 'Superadmin']);
 
   const parsed = UpdateRoleSchema.safeParse({
     role: formData.get('role') ?? undefined,
@@ -239,7 +239,7 @@ export async function updateTeamMemberRole(id: string, formData: FormData): Prom
   if (!target) {
     redirect(`/admin/settings/team?error=${encodeURIComponent('ไม่พบบัญชี')}`);
   }
-  if (target.role === 'Employee') {
+  if (target.role === 'Staff') {
     redirect(`/admin/settings/team?error=${encodeURIComponent('บัญชีนี้ไม่ใช่ผู้ดูแล')}`);
   }
   if (target.archivedAt) {
@@ -259,7 +259,7 @@ export async function updateTeamMemberRole(id: string, formData: FormData): Prom
 
   // Last-Owner guard: demoting the only Owner would lock everyone out
   // of Owner-tier operations.
-  if (target.role === 'Owner' && newRole !== 'Owner') {
+  if (target.role === 'Superadmin' && newRole !== 'Superadmin') {
     const ownerCount = await countActiveOwners();
     if (ownerCount <= 1) {
       redirect(
@@ -295,7 +295,7 @@ export async function updateTeamMemberRole(id: string, formData: FormData): Prom
 // ─── Reset password ────────────────────────────────────────────────────────
 
 export async function resetTeamMemberPassword(id: string, formData: FormData): Promise<void> {
-  const { user: actor } = await requireRole(['Admin', 'Owner']);
+  const { user: actor } = await requireRole(['Admin', 'Superadmin']);
 
   const parsed = ResetPasswordSchema.safeParse({
     password: formData.get('password') ?? undefined,
@@ -309,7 +309,7 @@ export async function resetTeamMemberPassword(id: string, formData: FormData): P
     where: { id },
     select: { id: true, email: true, role: true, authUserId: true, archivedAt: true },
   });
-  if (!target || target.role === 'Employee') {
+  if (!target || target.role === 'Staff') {
     redirect(`/admin/settings/team?error=${encodeURIComponent('ไม่พบบัญชี')}`);
   }
   if (target.archivedAt) {
@@ -359,13 +359,13 @@ export async function resetTeamMemberPassword(id: string, formData: FormData): P
 // ─── Archive ───────────────────────────────────────────────────────────────
 
 export async function archiveTeamMember(id: string): Promise<void> {
-  const { user: actor } = await requireRole(['Admin', 'Owner']);
+  const { user: actor } = await requireRole(['Admin', 'Superadmin']);
 
   const target = await prisma.user.findUnique({
     where: { id },
     select: { id: true, email: true, role: true, archivedAt: true },
   });
-  if (!target || target.role === 'Employee') {
+  if (!target || target.role === 'Staff') {
     redirect(`/admin/settings/team?error=${encodeURIComponent('ไม่พบบัญชี')}`);
   }
   if (target.archivedAt) {
@@ -383,7 +383,7 @@ export async function archiveTeamMember(id: string): Promise<void> {
   }
 
   // Last-Owner guard.
-  if (target.role === 'Owner') {
+  if (target.role === 'Superadmin') {
     const ownerCount = await countActiveOwners();
     if (ownerCount <= 1) {
       redirect(
@@ -454,13 +454,13 @@ export async function archiveTeamMember(id: string): Promise<void> {
  * developer should clean up via the Supabase dashboard.
  */
 export async function deleteTeamMember(id: string): Promise<void> {
-  const { user: actor } = await requireRole(['Admin', 'Owner']);
+  const { user: actor } = await requireRole(['Admin', 'Superadmin']);
 
   const target = await prisma.user.findUnique({
     where: { id },
     select: { id: true, email: true, role: true, authUserId: true },
   });
-  if (!target || target.role === 'Employee') {
+  if (!target || target.role === 'Staff') {
     redirect(`/admin/settings/team?error=${encodeURIComponent('ไม่พบบัญชี')}`);
   }
 
@@ -475,7 +475,7 @@ export async function deleteTeamMember(id: string): Promise<void> {
 
   // Last-Owner guard. Even hard-deleting the only Owner must not happen
   // — system would have no one to manage future admins.
-  if (target.role === 'Owner') {
+  if (target.role === 'Superadmin') {
     const ownerCount = await countActiveOwners();
     if (ownerCount <= 1) {
       redirect(

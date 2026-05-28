@@ -6,7 +6,7 @@
  * `auth.admin.listUsers`, etc). The service-role key in env is the only
  * thing standing between this client and the entire database; treat
  * every call site as a potential privilege escalation and verify the
- * caller has gone through `requireRole(['Admin'])` or `['Owner']` first.
+ * caller has gone through `requireRole(['Admin'])` or `['Superadmin']` first.
  *
  * The client is memoized at module scope — Supabase JS SDK clients are
  * cheap, but holding one open avoids the small TLS-handshake hit on

@@ -120,7 +120,7 @@ export async function createEmployee(formData: FormData) {
   try {
     const result = await prisma.$transaction(async (tx) => {
       const u = await tx.user.create({
-        data: { role: 'Employee' },
+        data: { role: 'Staff' },
       });
       const e = await tx.employee.create({
         data: {

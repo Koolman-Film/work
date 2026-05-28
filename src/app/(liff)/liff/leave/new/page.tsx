@@ -12,7 +12,7 @@ import { prisma } from '@/lib/db/prisma';
 import { LeaveNewForm } from './leave-new-form';
 
 export default async function NewLeavePage() {
-  await requireRole(['Employee']);
+  await requireRole(['Staff']);
 
   const leaveTypes = await prisma.leaveType.findMany({
     where: { archivedAt: null },

@@ -39,7 +39,7 @@ function formatRange(start: Date, end: Date): string {
 }
 
 export default async function LiffLeaveListPage() {
-  const { employee } = await requireRole(['Employee']);
+  const { employee } = await requireRole(['Staff']);
   if (!employee) throw new Error('requireRole did not return Employee');
 
   const rows = await prisma.leaveRequest.findMany({

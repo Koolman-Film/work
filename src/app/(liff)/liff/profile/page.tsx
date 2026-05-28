@@ -51,7 +51,7 @@ function formatDate(d: Date): string {
 }
 
 export default async function LiffProfilePage() {
-  const { employee } = await requireRole(['Employee']);
+  const { employee } = await requireRole(['Staff']);
   if (!employee) throw new Error('requireRole did not return Employee');
 
   // Re-fetch to pick up branch + department names (requireRole only returns

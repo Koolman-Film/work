@@ -45,7 +45,7 @@ function formatDateTime(d: Date): string {
 
 export default async function AdvanceDetailPage({ params }: { params: Params }) {
   const { id } = await params;
-  const { employee } = await requireRole(['Employee']);
+  const { employee } = await requireRole(['Staff']);
   if (!employee) throw new Error('requireRole did not return Employee');
 
   const row = await prisma.cashAdvance.findUnique({

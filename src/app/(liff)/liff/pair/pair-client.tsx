@@ -34,7 +34,7 @@
  * `router.push`:
  *   - We need a full page-load so the proxy's session refresh runs and
  *     the new Supabase cookies are present when the destination page's
- *     `requireRole(['Employee'])` reads them. A client-side router.push
+ *     `requireRole(['Staff'])` reads them. A client-side router.push
  *     would race the cookie write.
  */
 

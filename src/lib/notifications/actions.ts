@@ -29,7 +29,7 @@ export type BellNotification = {
 const RECENT_LIMIT = 20;
 
 export async function fetchRecentNotifications(): Promise<BellNotification[]> {
-  const { user } = await requireRole(['Admin', 'Owner']);
+  const { user } = await requireRole(['Admin', 'Superadmin']);
 
   const rows = await prisma.notification.findMany({
     where: {
@@ -57,7 +57,7 @@ export async function fetchRecentNotifications(): Promise<BellNotification[]> {
 }
 
 export async function markAllNotificationsRead(): Promise<{ updated: number }> {
-  const { user } = await requireRole(['Admin', 'Owner']);
+  const { user } = await requireRole(['Admin', 'Superadmin']);
 
   const result = await prisma.notification.updateMany({
     where: {
@@ -71,7 +71,7 @@ export async function markAllNotificationsRead(): Promise<{ updated: number }> {
 }
 
 export async function markOneNotificationRead(notificationId: string): Promise<{ ok: boolean }> {
-  const { user } = await requireRole(['Admin', 'Owner']);
+  const { user } = await requireRole(['Admin', 'Superadmin']);
 
   // The userId filter is the security gate — without it, an admin
   // could mark someone else's notifications as read. updateMany

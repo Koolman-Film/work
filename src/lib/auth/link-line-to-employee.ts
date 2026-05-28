@@ -18,7 +18,7 @@
  *
  * On success:
  *   - Writes/updates the `User` row keyed by `authUserId` to:
- *       { role: 'Employee', lineUserId, employeeId, displayName }
+ *       { role: 'Staff', lineUserId, employeeId, displayName }
  *   - Nulls `employee.inviteToken` / `inviteExpiresAt` (consume single-use).
  *   - Writes an audit row (`employee.line-link`).
  *
@@ -162,7 +162,7 @@ export async function linkLineToEmployee(input: { pairingToken: string }): Promi
 
       // Update the existing User row that the Employee already points to
       // (seed/CRUD creates it without authUserId/lineUserId). We bind the
-      // identity fields here. Role stays 'Employee' — set at creation.
+      // identity fields here. Role stays 'Staff' — set at creation.
       const updatedUser = await tx.user.update({
         where: { id: emp.user.id },
         data: {

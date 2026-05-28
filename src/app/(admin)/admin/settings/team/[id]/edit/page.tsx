@@ -41,7 +41,7 @@ export default async function EditTeamMemberPage({
 }) {
   const { id } = await params;
   const { error, notice } = await searchParams;
-  const { user: actor } = await requireRole(['Admin', 'Owner']);
+  const { user: actor } = await requireRole(['Admin', 'Superadmin']);
 
   const target = await prisma.user.findUnique({
     where: { id },
@@ -55,11 +55,11 @@ export default async function EditTeamMemberPage({
   });
   if (!target) notFound();
   if (target.archivedAt) notFound();
-  if (target.role === 'Employee') notFound();
+  if (target.role === 'Staff') notFound();
 
   // Admin actor cannot edit Owner — defense in depth on top of the
   // server actions' canActOnRole check.
-  if (actor.role === 'Admin' && target.role === 'Owner') notFound();
+  if (actor.role === 'Admin' && target.role === 'Superadmin') notFound();
 
   const isSelf = target.id === actor.id;
 
@@ -68,8 +68,8 @@ export default async function EditTeamMemberPage({
   // only set role to Admin (no-op), which the server treats as a
   // no-op and bounces out. Keep the dropdown anyway so the UI is
   // consistent — but only with permitted options.
-  const roleOptions: ReadonlyArray<'Admin' | 'Owner'> =
-    actor.role === 'Owner' ? ['Admin', 'Owner'] : ['Admin'];
+  const roleOptions: ReadonlyArray<'Admin' | 'Superadmin'> =
+    actor.role === 'Superadmin' ? ['Admin', 'Superadmin'] : ['Admin'];
 
   const updateRoleBound = updateTeamMemberRole.bind(null, id);
   const resetPasswordBound = resetTeamMemberPassword.bind(null, id);
@@ -109,7 +109,9 @@ export default async function EditTeamMemberPage({
                 className="w-full max-w-xs rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500/30"
               >
                 {roleOptions.includes('Admin') && <option value="Admin">Admin</option>}
-                {roleOptions.includes('Owner') && <option value="Owner">Owner</option>}
+                {roleOptions.includes('Superadmin') && (
+                  <option value="Superadmin">Superadmin</option>
+                )}
               </select>
             </FormField>
             <p className="text-xs text-gray-500">

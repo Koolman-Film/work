@@ -62,7 +62,7 @@ const MAX_AMOUNT = 100_000; // ฿100,000
 type SubmitInput = { amount: number };
 
 export async function submitCashAdvance(input: SubmitInput): Promise<SubmitAdvanceResult> {
-  const { user, employee } = await requireRole(['Employee']);
+  const { user, employee } = await requireRole(['Staff']);
   if (!employee) {
     return { ok: false, code: 'forbidden', message: 'ไม่พบบัญชีพนักงาน' };
   }
@@ -149,7 +149,7 @@ export async function submitCashAdvance(input: SubmitInput): Promise<SubmitAdvan
 }
 
 export async function cancelCashAdvance(id: string): Promise<CancelAdvanceResult> {
-  const { user, employee } = await requireRole(['Employee']);
+  const { user, employee } = await requireRole(['Staff']);
   if (!employee) {
     return { ok: false, code: 'forbidden', message: 'ไม่พบบัญชีพนักงาน' };
   }

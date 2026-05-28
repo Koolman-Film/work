@@ -79,7 +79,7 @@ export async function notifyAdminsInApp(event: AdminBellEvent): Promise<void> {
   try {
     const recipients = await prisma.user.findMany({
       where: {
-        role: { in: ['Admin', 'Owner'] },
+        role: { in: ['Admin', 'Superadmin'] },
         archivedAt: null,
       },
       select: { id: true },
