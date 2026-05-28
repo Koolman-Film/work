@@ -63,7 +63,22 @@ export async function requireRole(roles: readonly Role[]): Promise<RequireRoleRe
   }
 
   if (user.archivedAt !== null) notFound();
-  if (!roles.includes(user.role)) notFound();
+
+  // Role check with Superadmin auto-elevation:
+  //   - If the caller's allowlist includes the user's role exactly, accept.
+  //   - If the user is Superadmin AND the allowlist asks for Admin, ALSO
+  //     accept. Superadmin is by definition a superset of Admin, so
+  //     gating an /admin/* page on ['Admin'] should never block a
+  //     Superadmin. Without this, 37+ callsites would have to be
+  //     manually updated to ['Admin', 'Superadmin'] — high-risk sweep
+  //     that's easy to miss.
+  //   - We do NOT auto-elevate Superadmin into 'Staff' gates, because
+  //     'Staff' gates intentionally check for an Employee row (LIFF
+  //     check-in eligibility, etc.) — a Superadmin without an Employee
+  //     row would hit that downstream check anyway.
+  const allowed =
+    roles.includes(user.role) || (user.role === 'Superadmin' && roles.includes('Admin'));
+  if (!allowed) notFound();
 
   const { employee, ...userOnly } = user;
   return {
