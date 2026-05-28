@@ -18,6 +18,8 @@
  */
 
 import { type NextRequest, NextResponse } from 'next/server';
+import { isLocale, LOCALE_COOKIE_MAX_AGE, LOCALE_COOKIE_NAME } from '@/lib/i18n/config';
+import { resolveLocale } from '@/lib/i18n/resolve';
 import { updateSession } from '@/lib/supabase/middleware';
 
 // Routes that require a logged-in user (any role)
@@ -35,6 +37,27 @@ const AUTH_PREFIXES = ['/login', '/reset-password', '/update-password'];
 export async function proxy(request: NextRequest) {
   const { supabaseResponse, user } = await updateSession(request);
   const { pathname } = request.nextUrl;
+
+  // ─── Locale cookie: set on first visit ─────────────────────────────────
+  // The NEXT_LOCALE cookie is the per-request source of truth for next-intl
+  // (see src/lib/i18n/request.ts). If the request has no cookie yet — or
+  // a value that's no longer a supported locale (e.g., a locale we've
+  // removed) — set it now from the Accept-Language header. We attach the
+  // Set-Cookie to the *response* the supabase middleware already built so
+  // we don't lose its refreshed-session headers.
+  const existingLocale = request.cookies.get(LOCALE_COOKIE_NAME)?.value;
+  if (!isLocale(existingLocale)) {
+    const detected = resolveLocale({
+      cookieValue: null,
+      acceptLanguage: request.headers.get('accept-language'),
+    });
+    supabaseResponse.cookies.set(LOCALE_COOKIE_NAME, detected, {
+      maxAge: LOCALE_COOKIE_MAX_AGE,
+      sameSite: 'lax',
+      path: '/',
+      httpOnly: false,
+    });
+  }
 
   const isProtected =
     PROTECTED_PREFIXES.some((p) => pathname.startsWith(p)) &&

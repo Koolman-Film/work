@@ -1,0 +1,21 @@
+-- Add User.locale for cross-device i18n preference sync.
+--
+-- Nullable on purpose: NULL means "no explicit preference set yet" —
+-- the resolution chain falls back to the NEXT_LOCALE cookie (set from
+-- Accept-Language on first visit). When the user clicks the language
+-- switcher, we write both the cookie AND this column. On subsequent
+-- logins from a different device, login flow can read this column and
+-- rewrite the cookie to match.
+--
+-- We DO NOT default to 'th' here for two reasons:
+--   1. Existing users haven't picked a language; defaulting to 'th'
+--      would falsely claim they have, masking the "use browser-detected
+--      language" code path.
+--   2. NULL is cheaper to index and reason about than a default.
+--
+-- Validation of the locale code happens in app code, not in the DB —
+-- the value set will always be one of LOCALES from src/lib/i18n/config.ts.
+-- If we ever rename a locale code (e.g., 'zh-CN' → 'zh-Hans'), we
+-- handle the rewrite in a data-migration, not a CHECK constraint.
+
+ALTER TABLE "User" ADD COLUMN "locale" TEXT;

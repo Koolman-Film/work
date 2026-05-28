@@ -1,6 +1,8 @@
 import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import type { Metadata } from 'next';
+import { NextIntlClientProvider } from 'next-intl';
+import { getLocale } from 'next-intl/server';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -28,11 +30,23 @@ export const metadata: Metadata = {
  */
 export const preferredRegion = 'sin1';
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // The locale was resolved upstream by next-intl's getRequestConfig
+  // (which reads our NEXT_LOCALE cookie via src/lib/i18n/request.ts).
+  // We just consume it here for two things:
+  //   1. `<html lang>` — proper accessibility + lets the browser pick
+  //      the right hyphenation/font fallback per locale
+  //   2. NextIntlClientProvider — passes locale + messages to client
+  //      components so `useTranslations()` works there.
+  // Messages aren't passed explicitly: the provider reads them from
+  // the request config on the server, and ships them to the client
+  // bundle automatically.
+  const locale = await getLocale();
+
   return (
-    <html lang="th">
+    <html lang={locale}>
       <body className="min-h-dvh bg-white text-gray-900 antialiased">
-        {children}
+        <NextIntlClientProvider>{children}</NextIntlClientProvider>
         <SpeedInsights />
         <Analytics />
       </body>

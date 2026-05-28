@@ -1,0 +1,6 @@
+{
+  "_meta": {
+    "locale": "lo",
+    "note": "Lao translations — pending translator. Falls back to en.json keys at runtime until populated."
+  }
+}
