@@ -19,7 +19,7 @@
 import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
 import { auditLogTx } from '@/lib/audit/log';
-import { requireRole } from '@/lib/auth/require-role';
+import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { sendNotification } from '@/lib/inngest/events';
 
@@ -56,7 +56,7 @@ type RejectInput = {
 };
 
 export async function approveCashAdvance(input: ApproveInput): Promise<ApproveAdvanceResult> {
-  const { user, authUserId } = await requireRole(['Admin']);
+  const { user, authUserId } = await requirePermission('advance.approve');
 
   // Validate receiptUrl shape: if it looks like a Storage key (no http
   // scheme), it MUST start with the admin's own authUserId (because we
@@ -165,7 +165,7 @@ export async function approveCashAdvance(input: ApproveInput): Promise<ApproveAd
 }
 
 export async function rejectCashAdvance(input: RejectInput): Promise<RejectAdvanceResult> {
-  const { user } = await requireRole(['Admin']);
+  const { user } = await requirePermission('advance.approve');
 
   const headerList = await headers();
   const ip =

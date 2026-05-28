@@ -29,7 +29,7 @@
 import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
 import { auditLogTx } from '@/lib/audit/log';
-import { requireRole } from '@/lib/auth/require-role';
+import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { sendNotification } from '@/lib/inngest/events';
 import { expandHolidaysWithSubstitutes, workingDaysIn } from './working-days';
@@ -58,7 +58,7 @@ type Input = {
 };
 
 export async function approveLeaveRequest(input: Input): Promise<ApproveResult> {
-  const { user } = await requireRole(['Admin']);
+  const { user } = await requirePermission('leave.approve');
 
   const note = input.note.trim();
   if (note.length < MIN_NOTE_LENGTH) {
@@ -234,7 +234,7 @@ export async function approveLeaveRequest(input: Input): Promise<ApproveResult> 
 }
 
 export async function rejectLeaveRequest(input: Input): Promise<RejectResult> {
-  const { user } = await requireRole(['Admin']);
+  const { user } = await requirePermission('leave.approve');
 
   const note = input.note.trim();
   if (note.length < MIN_NOTE_LENGTH) {
