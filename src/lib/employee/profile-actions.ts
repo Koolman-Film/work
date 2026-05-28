@@ -8,7 +8,7 @@
  * and read-only here. Name fields (firstName/lastName) are also locked —
  * if an employee's legal name changes they ask HR to update.
  *
- * The only-own-record gate uses `requireRole(['Employee'])` which
+ * The only-own-record gate uses `requireRole(['Staff'])` which
  * eagerly loads the requestor's Employee row; the update targets THAT
  * row's id, ignoring any client-supplied id. So a malicious client
  * can't update someone else's profile by sending a different employeeId
@@ -74,7 +74,7 @@ function normalize(v: string | null | undefined): string | null {
 }
 
 export async function updateOwnProfile(input: UpdateProfileInput): Promise<UpdateProfileResult> {
-  const { user, employee } = await requireRole(['Employee']);
+  const { user, employee } = await requireRole(['Staff']);
   if (!employee) {
     return { ok: false, code: 'forbidden', message: 'ไม่พบบัญชีพนักงาน' };
   }

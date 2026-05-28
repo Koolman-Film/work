@@ -30,6 +30,12 @@ export type AuditAction =
   | 'user.role-change'
   | 'user.password-reset'
   | 'user.password-change'
+  // Granular role/permission management (Phase 1+ — see docs/v2/permissions.md)
+  | 'role.create'
+  | 'role.update'
+  | 'role.archive'
+  | 'roleAssignment.create'
+  | 'roleAssignment.delete'
   // Employee
   | 'employee.create'
   | 'employee.update'
@@ -87,8 +93,12 @@ export type AuditAction =
 
 export type AuditEntityType =
   | 'User'
+  // 'Employee' here is the Prisma Employee MODEL (HR record), NOT the
+  // legacy Role enum value (which was renamed to 'Staff' in 0009).
   | 'Employee'
   | 'Branch'
+  | 'RoleDefinition'
+  | 'UserRoleAssignment'
   | 'Department'
   | 'AccountingGroup'
   | 'WorkSchedule'

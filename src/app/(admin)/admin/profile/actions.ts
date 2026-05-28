@@ -76,7 +76,7 @@ export async function changeMyPassword(input: {
   newPassword: string;
   confirmPassword: string;
 }): Promise<ChangePasswordResult> {
-  const { user } = await requireRole(['Admin', 'Owner']);
+  const { user } = await requireRole(['Admin', 'Superadmin']);
 
   const parsed = Schema.safeParse(input);
   if (!parsed.success) {

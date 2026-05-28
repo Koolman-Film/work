@@ -135,7 +135,7 @@ async function loadCandidateBranches(employeeId: string) {
 
 /** Read-only — fetches today's attendance row (if any) to drive the UI button state. */
 export async function getCheckInState(): Promise<CheckInState> {
-  const { employee } = await requireRole(['Employee']);
+  const { employee } = await requireRole(['Staff']);
   if (!employee) {
     // requireRole would have notFound()'d already; this is just for type narrowing.
     throw new Error('requireRole returned no employee');
@@ -160,7 +160,7 @@ export async function getCheckInState(): Promise<CheckInState> {
 }
 
 export async function submitCheckIn(input: SubmitCheckInInput): Promise<SubmitCheckInResult> {
-  const { user, employee, authUserId } = await requireRole(['Employee']);
+  const { user, employee, authUserId } = await requireRole(['Staff']);
   if (!employee) {
     return { ok: false, code: 'forbidden', message: 'ไม่พบบัญชีพนักงาน' };
   }
@@ -324,7 +324,7 @@ export async function submitCheckOut(): Promise<SubmitCheckInResult> {
   // For now check-out is a simple "set clockOutAt on today's row" — no
   // geofence re-check on the out side. v2 build-plan keeps it minimal in
   // W3b; W3c can layer geofence-out if we decide it's needed.
-  const { user, employee } = await requireRole(['Employee']);
+  const { user, employee } = await requireRole(['Staff']);
   if (!employee) {
     return { ok: false, code: 'forbidden', message: 'ไม่พบบัญชีพนักงาน' };
   }

@@ -21,7 +21,7 @@ import { prisma } from '@/lib/db/prisma';
 import CheckInClient from './check-in-client';
 
 export default async function LiffCheckInPage() {
-  const { employee } = await requireRole(['Employee']);
+  const { employee } = await requireRole(['Staff']);
   if (!employee) {
     throw new Error('requireRole did not return an Employee — should have notFound()');
   }

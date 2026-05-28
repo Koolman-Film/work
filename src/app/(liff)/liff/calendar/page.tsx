@@ -34,7 +34,7 @@ import { CalendarGrid } from './calendar-grid';
 type SearchParams = Promise<{ ym?: string }>;
 
 export default async function LiffCalendarPage({ searchParams }: { searchParams: SearchParams }) {
-  const { employee } = await requireRole(['Employee']);
+  const { employee } = await requireRole(['Staff']);
   if (!employee) throw new Error('requireRole did not return Employee');
 
   const { ym } = await searchParams;

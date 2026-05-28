@@ -36,7 +36,7 @@ import { createClient } from '@/lib/supabase/server';
 
 export type RequireRoleResult = {
   user: User;
-  /** Eagerly loaded when user.role === 'Employee'; undefined otherwise. */
+  /** Eagerly loaded when user.role === 'Staff'; undefined otherwise. */
   employee?: Employee;
   /** Supabase auth.users.id — UUID. Same as user.authUserId, exposed for convenience. */
   authUserId: string;
@@ -75,13 +75,13 @@ export async function requireRole(roles: readonly Role[]): Promise<RequireRoleRe
 
 /**
  * Variant used by LIFF endpoints that need to enforce check-in eligibility
- * on top of just "authenticated employee". Combines requireRole(['Employee'])
+ * on top of just "authenticated employee". Combines requireRole(['Staff'])
  * with status/canCheckIn checks.
  */
 export async function requireCheckInPermission(): Promise<
   RequireRoleResult & { employee: Employee }
 > {
-  const result = await requireRole(['Employee']);
+  const result = await requireRole(['Staff']);
   if (!result.employee) notFound();
   if (result.employee.status === 'Archived') notFound();
   if (!result.employee.canCheckIn) notFound();

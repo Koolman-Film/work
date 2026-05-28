@@ -86,7 +86,7 @@ function todayUtcMidnight(): Date {
 }
 
 export async function submitLeaveRequest(input: SubmitInput): Promise<SubmitLeaveResult> {
-  const { user, employee, authUserId } = await requireRole(['Employee']);
+  const { user, employee, authUserId } = await requireRole(['Staff']);
   if (!employee) {
     return { ok: false, code: 'forbidden', message: 'ไม่พบบัญชีพนักงาน' };
   }
@@ -230,7 +230,7 @@ export async function submitLeaveRequest(input: SubmitInput): Promise<SubmitLeav
 }
 
 export async function cancelLeaveRequest(leaveRequestId: string): Promise<CancelLeaveResult> {
-  const { user, employee } = await requireRole(['Employee']);
+  const { user, employee } = await requireRole(['Staff']);
   if (!employee) {
     return { ok: false, code: 'forbidden', message: 'ไม่พบบัญชีพนักงาน' };
   }

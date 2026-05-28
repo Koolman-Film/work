@@ -14,10 +14,10 @@ import { ChangePasswordForm } from './change-password-form';
  *
  * Employees are NOT routed here. They authenticate via LINE OIDC (no
  * Supabase password), and they already have /liff/profile for contact
- * info. The role gate `['Admin', 'Owner']` enforces this.
+ * info. The role gate `['Admin', 'Superadmin']` enforces this.
  */
 export default async function AdminProfilePage() {
-  const { user } = await requireRole(['Admin', 'Owner']);
+  const { user } = await requireRole(['Admin', 'Superadmin']);
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 px-6 py-8">
@@ -35,7 +35,7 @@ export default async function AdminProfilePage() {
           <Row label="อีเมล" value={user.email ?? '—'} />
           <Row
             label="บทบาท"
-            value={<RoleBadge role={user.role === 'Owner' ? 'Owner' : 'Admin'} />}
+            value={<RoleBadge role={user.role === 'Superadmin' ? 'Superadmin' : 'Admin'} />}
           />
         </CardBody>
       </Card>
@@ -59,8 +59,8 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-function RoleBadge({ role }: { role: 'Admin' | 'Owner' }) {
-  if (role === 'Owner') {
+function RoleBadge({ role }: { role: 'Admin' | 'Superadmin' }) {
+  if (role === 'Superadmin') {
     return (
       <span className="rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-800">
         Owner

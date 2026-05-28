@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input';
  * Role select options are filtered to what the *acting* user is
  * permitted to grant:
  *   - Admin actor → ['Admin'] only
- *   - Owner actor → ['Admin', 'Owner']
+ *   - Owner actor → ['Admin', 'Superadmin']
  *
  * The server re-validates this; the UI filter is just so admins don't
  * see a disabled "Owner" option pointlessly.
@@ -26,7 +26,7 @@ type Props = {
   /** Carried back across redirect so the email field doesn't lose its value. */
   email?: string | null;
   /** Roles the actor is permitted to assign. */
-  availableRoles: ReadonlyArray<'Admin' | 'Owner'>;
+  availableRoles: ReadonlyArray<'Admin' | 'Superadmin'>;
 };
 
 export function TeamCreateForm({ action, error, email, availableRoles }: Props) {
@@ -85,8 +85,8 @@ export function TeamCreateForm({ action, error, email, availableRoles }: Props) 
               {availableRoles.includes('Admin') && (
                 <option value="Admin">Admin — จัดการพนักงาน + การลา + เช็คอิน</option>
               )}
-              {availableRoles.includes('Owner') && (
-                <option value="Owner">Owner — สิทธิ์เต็ม รวมจัดการผู้ดูแล</option>
+              {availableRoles.includes('Superadmin') && (
+                <option value="Superadmin">Superadmin — สิทธิ์เต็ม รวมจัดการผู้ดูแล</option>
               )}
             </select>
           </FormField>

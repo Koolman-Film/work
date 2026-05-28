@@ -13,11 +13,11 @@ import { Topbar } from '@/components/admin/topbar';
 import { requireRole } from '@/lib/auth/require-role';
 
 export default async function OwnerLayout({ children }: { children: React.ReactNode }) {
-  const { user } = await requireRole(['Owner']);
+  const { user } = await requireRole(['Superadmin']);
 
   return (
     <div className="flex min-h-dvh flex-col bg-gray-50">
-      <Topbar userLabel={user.email ?? 'Owner'} userId={user.id} />
+      <Topbar userLabel={user.email ?? 'Superadmin'} userId={user.id} />
       <main className="min-w-0 flex-1">{children}</main>
     </div>
   );

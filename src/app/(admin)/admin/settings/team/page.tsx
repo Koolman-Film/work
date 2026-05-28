@@ -10,12 +10,12 @@ type SearchParams = Promise<{ error?: string; notice?: string }>;
 export default async function TeamListPage({ searchParams }: { searchParams: SearchParams }) {
   // Both roles can land here — but the table & buttons adapt to what
   // the actor is allowed to do. Admin sees Owners as read-only.
-  const { user: actor } = await requireRole(['Admin', 'Owner']);
+  const { user: actor } = await requireRole(['Admin', 'Superadmin']);
   const { error, notice } = await searchParams;
 
   const members = await prisma.user.findMany({
     where: {
-      role: { in: ['Admin', 'Owner'] },
+      role: { in: ['Admin', 'Superadmin'] },
       archivedAt: null,
     },
     orderBy: [{ role: 'asc' }, { email: 'asc' }],
@@ -74,7 +74,7 @@ export default async function TeamListPage({ searchParams }: { searchParams: Sea
                   // Admin actor cannot edit Owner — server enforces; we
                   // gray the link out so the UI doesn't promise something
                   // that won't work.
-                  const canEdit = actor.role === 'Owner' || m.role === 'Admin';
+                  const canEdit = actor.role === 'Superadmin' || m.role === 'Admin';
                   const isSelf = m.id === actor.id;
 
                   return (
@@ -88,7 +88,7 @@ export default async function TeamListPage({ searchParams }: { searchParams: Sea
                         )}
                       </TD>
                       <TD>
-                        <RoleBadge role={m.role as 'Admin' | 'Owner'} />
+                        <RoleBadge role={m.role as 'Admin' | 'Superadmin'} />
                       </TD>
                       <TD className="tabular-nums text-gray-500">
                         {m.createdAt.toLocaleDateString('th-TH', {
@@ -127,8 +127,8 @@ export default async function TeamListPage({ searchParams }: { searchParams: Sea
   );
 }
 
-function RoleBadge({ role }: { role: 'Admin' | 'Owner' }) {
-  if (role === 'Owner') {
+function RoleBadge({ role }: { role: 'Admin' | 'Superadmin' }) {
+  if (role === 'Superadmin') {
     return (
       <span className="rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-800">
         Owner

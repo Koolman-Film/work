@@ -18,10 +18,16 @@ datasource db {
 
 // ─── Enums ─────────────────────────────────────────────────────────────────
 
+/// Coarse user category — used by the legacy `requireRole` gates.
+/// As of the role/permission Phase 1 the canonical authorization
+/// signal is the new `UserRoleAssignment` table + `Role.permissions`;
+/// this enum is kept for backward compat and a fast-path for the
+/// LIFF "is this user a checkin-able employee" check. Future
+/// (Phase 3) may drop the enum entirely.
 enum Role {
-  Employee
+  Staff
   Admin
-  Owner
+  Superadmin
 }
 
 enum AttSource {
@@ -86,13 +92,16 @@ enum NotifChannel {
 // ─── Identity & roles ──────────────────────────────────────────────────────
 
 /// One row per humans-with-app-access. Mirrors the Supabase auth.users row
-/// for each role; Employees get their authUserId populated lazily after their
-/// first LINE sign-in via signInWithIdToken (W3 pairing flow).
+/// for each role; Staff users get their authUserId populated lazily after
+/// their first LINE sign-in via signInWithIdToken (W3 pairing flow).
 model User {
   id         String    @id @default(uuid()) @db.Uuid
   authUserId String?   @unique @db.Uuid // FK to auth.users.id (Supabase-managed; no DB constraint)
-  email      String?   @unique // Admin / Owner only
-  lineUserId String?   @unique // Employee only — set after LIFF link
+  email      String?   @unique // Admin / Superadmin only
+  lineUserId String?   @unique // Staff only — set after LIFF link
+  /// Coarse legacy role — kept for backward-compat checks while we
+  /// migrate to the fine-grained RoleDefinition system. Granular
+  /// permissions live in `roleAssignments`.
   role       Role
   /// Preferred UI language (BCP 47 — 'th', 'en', 'my', 'lo', 'zh-CN').
   /// NULL until the user explicitly picks a language. When non-null,
@@ -104,7 +113,78 @@ model User {
   archivedAt DateTime?
   employee   Employee?
 
-  notifications Notification[]
+  notifications   Notification[]
+  roleAssignments UserRoleAssignment[]
+}
+
+// ─── Granular role / permission system ─────────────────────────────────────
+
+/// A named bundle of permissions. The catalog of permission keys lives
+/// in code (`src/lib/auth/permissions.ts`) — this table just stores which
+/// keys each role grants.
+///
+/// Three system roles ship by default (Superadmin, Admin, Staff) — see
+/// migration 0009 + seed.ts. Admins can create additional custom roles
+/// via the (future) admin UI; those have isSystem=false.
+///
+/// Superadmin uses the `isSuperadmin=true` shortcut — `canDo()` returns
+/// true for any permission regardless of the `permissions[]` contents.
+/// This keeps Superadmin's grant up-to-date as the permission catalog
+/// grows; we never need to re-migrate the role row when adding a
+/// permission key.
+model RoleDefinition {
+  id           String    @id @default(uuid()) @db.Uuid
+  /// Stable identifier ('superadmin', 'admin', 'staff' for system
+  /// roles; admin-chosen slugs for custom roles). Lowercase-kebab.
+  key          String    @unique
+  /// Display name shown in admin UI (localized strings live in code).
+  name         String
+  description  String?
+  /// Permission keys this role grants. Strings from PERMISSIONS in
+  /// src/lib/auth/permissions.ts. Stored as TEXT[] — small lists, no
+  /// need for a join table.
+  permissions  String[]  @default([])
+  /// When true, grants every permission via a runtime shortcut in
+  /// canDo(). Reserved for the 'superadmin' system role. Custom roles
+  /// must have this false.
+  isSuperadmin Boolean   @default(false)
+  /// System roles are protected: can't be deleted, permissions can be
+  /// edited only via migration/seed. Admin-created roles have
+  /// isSystem=false and are fully mutable through the UI.
+  isSystem     Boolean   @default(false)
+  archivedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  assignments UserRoleAssignment[]
+
+  @@index([archivedAt])
+}
+
+/// Assignment of a RoleDefinition to a User, optionally scoped to a
+/// single Branch. `branchId = NULL` means "applies to all branches"
+/// (Superadmin always uses NULL; Admin/Staff are typically per-branch).
+///
+/// A user can have multiple assignments — that's the design intent.
+/// Example: same User holds (Staff @ Branch A) + (Admin @ Branch B).
+///
+/// Phase 1 records branchId but `canDo()` doesn't yet enforce it.
+/// Phase 3 wires up real scope checks. See docs/v2/permissions.md.
+model UserRoleAssignment {
+  id        String          @id @default(uuid()) @db.Uuid
+  userId    String          @db.Uuid
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roleId    String          @db.Uuid
+  role      RoleDefinition  @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  branchId  String?         @db.Uuid
+  branch    Branch?         @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  createdAt DateTime        @default(now())
+
+  /// A user can't have two identical assignments. (Same role, same scope.)
+  @@unique([userId, roleId, branchId])
+  @@index([userId])
+  @@index([roleId])
+  @@index([branchId])
 }
 
 // ─── Organization ──────────────────────────────────────────────────────────
@@ -162,8 +242,9 @@ model Branch {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
-  employees           Employee[]   @relation("HomeBranch")
-  attendanceCheckIns  Attendance[] @relation("CheckInBranch")
+  employees           Employee[]           @relation("HomeBranch")
+  attendanceCheckIns  Attendance[]         @relation("CheckInBranch")
+  roleAssignments     UserRoleAssignment[]
 }
 
 /// A named work-schedule template — different employees / roles can be

@@ -266,8 +266,38 @@ async function main() {
     `  ✓ SSO ${payrollConfig.ssoRate}×base (cap ${payrollConfig.ssoAmountCap}), absent ${payrollConfig.absentDeductionPerDay}/day, late ${payrollConfig.lateDeduction}/event`,
   );
 
-  // 7. Owner + Admin
-  // Supabase auth.users first, then our User row.
+  // 7. System role definitions — idempotent. Mirror the migration 0009 seed.
+  //    Fresh-DB seeds via this script should leave the system in the same
+  //    state as a prod DB that ran migrations.
+  console.log('\nRoleDefinitions:');
+  const { SYSTEM_ROLES } = await import('../src/lib/auth/roles');
+  for (const def of Object.values(SYSTEM_ROLES)) {
+    const row = await prisma.roleDefinition.upsert({
+      where: { key: def.key },
+      create: {
+        key: def.key,
+        name: def.name,
+        description: def.description,
+        permissions: [...def.permissions],
+        isSuperadmin: def.isSuperadmin,
+        isSystem: true,
+      },
+      update: {
+        name: def.name,
+        description: def.description,
+        // Keep the array in sync with code on every seed run. Custom
+        // (non-system) roles are never touched here — we only upsert by
+        // the system keys above.
+        permissions: [...def.permissions],
+        isSuperadmin: def.isSuperadmin,
+      },
+    });
+    console.log(
+      `  ✓ ${row.key}  (${row.permissions.length} perms, superadmin=${row.isSuperadmin})`,
+    );
+  }
+
+  // 8. Superadmin + Admin users
   console.log('\nUsers:');
   const ownerAuthId = await upsertAuthUser(SEED.owner.email, SEED.owner.password);
   const ownerUser = await prisma.user.upsert({
@@ -275,11 +305,11 @@ async function main() {
     create: {
       email: SEED.owner.email,
       authUserId: ownerAuthId,
-      role: 'Owner',
+      role: 'Superadmin',
     },
-    update: { authUserId: ownerAuthId, role: 'Owner' },
+    update: { authUserId: ownerAuthId, role: 'Superadmin' },
   });
-  console.log(`  ✓ Owner User → ${ownerUser.id}  (email ${ownerUser.email})`);
+  console.log(`  ✓ Superadmin User → ${ownerUser.id}  (email ${ownerUser.email})`);
 
   const adminAuthId = await upsertAuthUser(SEED.admin.email, SEED.admin.password);
   const adminUser = await prisma.user.upsert({
@@ -293,10 +323,44 @@ async function main() {
   });
   console.log(`  ✓ Admin User → ${adminUser.id}  (email ${adminUser.email})`);
 
+  // 9. Seed UserRoleAssignment for the two system users.
+  //    Superadmin: branch=NULL (global). Admin: branch=NULL for now
+  //    (Phase 1 keeps existing semantics — global admins; Phase 2 admin
+  //    UI lets per-branch scoping be assigned).
+  console.log('\nUserRoleAssignments:');
+  const superadminRole = await prisma.roleDefinition.findUniqueOrThrow({
+    where: { key: 'superadmin' },
+  });
+  const adminRole = await prisma.roleDefinition.findUniqueOrThrow({ where: { key: 'admin' } });
+  await prisma.userRoleAssignment.upsert({
+    where: {
+      userId_roleId_branchId: {
+        userId: ownerUser.id,
+        roleId: superadminRole.id,
+        branchId: null as unknown as string,
+      },
+    },
+    create: { userId: ownerUser.id, roleId: superadminRole.id, branchId: null },
+    update: {},
+  });
+  console.log(`  ✓ ${ownerUser.email} → superadmin (global)`);
+  await prisma.userRoleAssignment.upsert({
+    where: {
+      userId_roleId_branchId: {
+        userId: adminUser.id,
+        roleId: adminRole.id,
+        branchId: null as unknown as string,
+      },
+    },
+    create: { userId: adminUser.id, roleId: adminRole.id, branchId: null },
+    update: {},
+  });
+  console.log(`  ✓ ${adminUser.email} → admin (global)`);
+
   console.log('\n✅ Seed complete.\n');
   console.log('🔐 Login credentials (CHANGE AFTER FIRST LOGIN):');
-  console.log(`   Owner: ${SEED.owner.email}  /  ${SEED.owner.password}`);
-  console.log(`   Admin: ${SEED.admin.email}  /  ${SEED.admin.password}`);
+  console.log(`   Superadmin: ${SEED.owner.email}  /  ${SEED.owner.password}`);
+  console.log(`   Admin:      ${SEED.admin.email}  /  ${SEED.admin.password}`);
   console.log('');
 }
 

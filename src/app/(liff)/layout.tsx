@@ -9,7 +9,7 @@
  *   - Subtle gray background (#f9fafb) — high contrast with white cards
  *     so check-in CTAs pop on small screens with bright outdoor light.
  *
- * Note: we deliberately do NOT call `requireRole(['Employee'])` here.
+ * Note: we deliberately do NOT call `requireRole(['Staff'])` here.
  * The /liff/pair route is the entry point where the User row gets *bound*
  * to LINE — at that moment the user has a Supabase session but no
  * matching User row yet. requireRole runs per-page on the protected

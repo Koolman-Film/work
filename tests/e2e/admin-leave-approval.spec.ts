@@ -57,7 +57,7 @@ test.describe('Admin leave approval → Attendance(OnLeave) expansion', () => {
     // First create a User row (Employee.userId is required).
     const user = await prisma.user.create({
       data: {
-        role: 'Employee',
+        role: 'Staff',
         // authUserId stays null — no real Supabase auth user. Acceptable
         // since the admin approval flow only reads through the Employee
         // join, never authenticates as this user.
@@ -174,7 +174,7 @@ test.describe('Admin leave approval → Attendance(OnLeave) expansion', () => {
       }));
 
     const branch = await prisma.branch.create({ data: { name: `e2e-Branch-${suffix}` } });
-    const user = await prisma.user.create({ data: { role: 'Employee' } });
+    const user = await prisma.user.create({ data: { role: 'Staff' } });
     const employee = await prisma.employee.create({
       data: {
         userId: user.id,
