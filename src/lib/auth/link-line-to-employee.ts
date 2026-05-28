@@ -29,6 +29,7 @@
  * page without a second round-trip.
  */
 
+import { Prisma } from '@prisma/client';
 import { headers } from 'next/headers';
 import { auditLogTx } from '@/lib/audit/log';
 import { prisma } from '@/lib/db/prisma';
@@ -190,11 +191,63 @@ export async function linkLineToEmployee(input: { pairingToken: string }): Promi
     };
     return { ok: false, code: result.code, message: messages[result.code] };
   } catch (err) {
-    console.error('[link-line-to-employee] tx failed', err);
+    // Diagnostic logging — capture the inputs that led here so the Vercel
+    // log entry is self-contained. The catch fires for any uncaught
+    // exception inside the $transaction; common shapes:
+    //   - Prisma P2002 (unique constraint): a User row already has this
+    //     authUserId or lineUserId. Usually means this LINE account was
+    //     previously paired with a DIFFERENT employee whose row was
+    //     manually deleted leaving an orphan, OR there's a race between
+    //     two concurrent pair attempts (rare).
+    //   - Prisma P2025 (not found): the Employee row vanished between
+    //     the upper checks and the .update call — concurrent delete.
+    //   - Connection pooler quirks: rare, but interactive transactions
+    //     occasionally fail on Supabase Transaction Pooler under load.
+    console.error('[link-line-to-employee] tx failed', {
+      employeeId,
+      authUserId: authUser.id,
+      lineUserId,
+      errorName: err instanceof Error ? err.name : 'unknown',
+      errorMessage: err instanceof Error ? err.message : String(err),
+      ...(err instanceof Prisma.PrismaClientKnownRequestError && {
+        prismaCode: err.code,
+        prismaMeta: err.meta,
+      }),
+    });
+
+    // Decode Prisma's "known" errors into actionable messages.
+    if (err instanceof Prisma.PrismaClientKnownRequestError) {
+      if (err.code === 'P2002') {
+        // Unique constraint violation. The .meta.target tells which field.
+        const target = String(err.meta?.target ?? '').toLowerCase();
+        if (target.includes('lineuserid')) {
+          return {
+            ok: false,
+            code: 'line-account-in-use',
+            message: 'บัญชี LINE นี้ถูกใช้กับพนักงานคนอื่นแล้ว — ติดต่อแอดมินเพื่อตรวจสอบ',
+          };
+        }
+        if (target.includes('authuserid')) {
+          return {
+            ok: false,
+            code: 'line-account-in-use',
+            message: 'บัญชีนี้ถูกใช้กับพนักงานคนอื่นแล้ว — ติดต่อแอดมิน',
+          };
+        }
+      }
+      if (err.code === 'P2025') {
+        return {
+          ok: false,
+          code: 'invalid-token',
+          message: 'ไม่พบบัญชีพนักงาน — ติดต่อแอดมินเพื่อขอลิงก์ใหม่',
+        };
+      }
+    }
+
     return {
       ok: false,
       code: 'invalid-token',
-      message: 'ระบบขัดข้อง กรุณาลองใหม่อีกครั้ง',
+      message: 'ระบบขัดข้อง กรุณาลองใหม่อีกครั้ง หรือติดต่อแอดมิน',
     };
   }
 }
