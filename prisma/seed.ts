@@ -300,14 +300,15 @@ async function main() {
   // 8. Superadmin + Admin users
   console.log('\nUsers:');
   const ownerAuthId = await upsertAuthUser(SEED.owner.email, SEED.owner.password);
+  // Phase 4.6: User row carries only identity. Tier comes from the
+  // UserRoleAssignment rows seeded below.
   const ownerUser = await prisma.user.upsert({
     where: { email: SEED.owner.email },
     create: {
       email: SEED.owner.email,
       authUserId: ownerAuthId,
-      role: 'Superadmin',
     },
-    update: { authUserId: ownerAuthId, role: 'Superadmin' },
+    update: { authUserId: ownerAuthId },
   });
   console.log(`  ✓ Superadmin User → ${ownerUser.id}  (email ${ownerUser.email})`);
 
@@ -317,9 +318,8 @@ async function main() {
     create: {
       email: SEED.admin.email,
       authUserId: adminAuthId,
-      role: 'Admin',
     },
-    update: { authUserId: adminAuthId, role: 'Admin' },
+    update: { authUserId: adminAuthId },
   });
   console.log(`  ✓ Admin User → ${adminUser.id}  (email ${adminUser.email})`);
 

@@ -47,7 +47,7 @@
  *     archived admin still resolve to a real subject_id.
  */
 
-import { Prisma, type Role } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
@@ -179,20 +179,14 @@ export async function createTeamMember(formData: FormData): Promise<void> {
 
   // Step 2: create our User row + the matching RoleAssignment in a
   // single transaction. The assignment is the canonical source of
-  // authorization (Phase 3+); the legacy User.role column is kept
-  // in lockstep via syncLegacyUserRole here. The two writes happen
-  // together so a new admin can use Phase 3 routes immediately
-  // without a separate "remember to add an assignment" step.
-  //
-  // Phase 4.1 added the assignment write — previously this action
-  // only wrote User.role, leaving new admins functionally locked
-  // out of every requirePermission-gated route until someone
-  // manually opened the AssignmentsSection.
+  // authorization — tier is computed from it at read time. The
+  // form-submitted `role` value is used only to decide WHICH
+  // RoleDefinition to assign (admin vs superadmin).
   let newUserId: string;
   try {
     newUserId = await prisma.$transaction(async (tx) => {
       const dbUser = await tx.user.create({
-        data: { authUserId, email, role },
+        data: { authUserId, email },
         select: { id: true },
       });
       // Find the matching system role definition (admin or superadmin).
@@ -571,40 +565,10 @@ export async function deleteTeamMember(id: string): Promise<void> {
 
 // ─── Role assignments (Phase 2b) ───────────────────────────────────────────
 
-/**
- * Sync User.role (legacy enum) to the user's highest-privilege active
- * assignment. Called after add/remove so legacy `requireRole(['Admin'])`
- * gates keep working without admins having to think about two systems.
- *
- * Priority order (highest first):
- *   1. Any 'superadmin' role assignment → User.role = 'Superadmin'
- *   2. Any 'admin' role assignment → User.role = 'Admin'
- *   3. Any 'staff' role assignment → User.role = 'Staff'
- *   4. No active assignments → leave User.role as-is (defensive — we
- *      never end up here in practice because the team UI only manages
- *      Admin/Superadmin users who always have at least one assignment)
- *
- * Custom roles (isSystem=false) don't affect User.role — they're tracked
- * only in UserRoleAssignment. Phase 3 will retire User.role entirely.
- */
-async function syncLegacyUserRole(userId: string): Promise<void> {
-  const assignments = await prisma.userRoleAssignment.findMany({
-    where: { userId },
-    include: { role: { select: { key: true } } },
-  });
-  const keys = new Set(assignments.map((a) => a.role.key));
-
-  let newRole: Role;
-  if (keys.has('superadmin')) newRole = 'Superadmin';
-  else if (keys.has('admin')) newRole = 'Admin';
-  else if (keys.has('staff')) newRole = 'Staff';
-  else return; // No system roles — leave User.role alone.
-
-  await prisma.user.update({
-    where: { id: userId },
-    data: { role: newRole },
-  });
-}
+// syncLegacyUserRole removed in Phase 4.6 alongside the User.role
+// column it kept in sync. Tier is computed from UserRoleAssignment
+// at read time (see src/lib/auth/user-tier.ts); there's nothing to
+// sync anymore.
 
 /**
  * Add a role assignment to a user. Form payload:
@@ -696,7 +660,6 @@ export async function addRoleAssignment(userId: string, formData: FormData): Pro
   }
 
   // Keep legacy User.role in sync with the new highest privilege.
-  await syncLegacyUserRole(userId);
 
   const ctx = await readRequestContext();
   auditLog({
@@ -786,7 +749,6 @@ export async function removeRoleAssignment(assignmentId: string): Promise<void> 
   }
 
   await prisma.userRoleAssignment.delete({ where: { id: assignmentId } });
-  await syncLegacyUserRole(assignment.userId);
 
   const ctx = await readRequestContext();
   auditLog({

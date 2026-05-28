@@ -77,10 +77,19 @@ export type AdminBellEvent =
  */
 export async function notifyAdminsInApp(event: AdminBellEvent): Promise<void> {
   try {
+    // Phase 4.6: "admins" now = "users with any non-Staff system-role
+    // assignment". Same set requireRole gives admin-tier access to.
     const recipients = await prisma.user.findMany({
       where: {
-        role: { in: ['Admin', 'Superadmin'] },
         archivedAt: null,
+        roleAssignments: {
+          some: {
+            role: {
+              archivedAt: null,
+              OR: [{ isSuperadmin: true }, { key: 'admin' }],
+            },
+          },
+        },
       },
       select: { id: true },
     });
