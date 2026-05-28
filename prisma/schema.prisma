@@ -137,6 +137,13 @@ model Branch {
   longitude        Decimal?  @db.Decimal(10, 7)
   radiusMeters     Int       @default(150)
   requireSelfie    Boolean   @default(false)
+  /// When true, LIFF check-ins outside the geofence (or with bad GPS
+  /// accuracy / impossible-travel) are marked `Disputed`. When false,
+  /// the geofence is informational only — GPS is still recorded for
+  /// the admin live board but doesn't gate the check-in.
+  /// Default false: a fresh branch is GPS-optional until admin opts in.
+  /// Existing branches are also set to false by migration 0005.
+  requireGps       Boolean   @default(false)
   attendanceSource AttSource @default(Liff)
   archivedAt       DateTime?
   createdAt        DateTime  @default(now())

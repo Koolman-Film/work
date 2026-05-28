@@ -50,6 +50,15 @@ export type GeofenceCandidate = {
   latitude: number | null;
   longitude: number | null;
   radiusMeters: number;
+  /**
+   * Per-branch policy: when false, this branch accepts check-ins
+   * regardless of distance / GPS accuracy / impossible-travel. The
+   * branch still participates in `findClosestBranch` (so we can record
+   * which branch the employee was nearest), but `evaluateCheckIn` will
+   * not emit a Disputed result on the GPS-derived reasons when the
+   * matched branch is GPS-optional.
+   */
+  requireGps: boolean;
 };
 
 export type GeofenceMatch = {

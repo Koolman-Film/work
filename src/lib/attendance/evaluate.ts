@@ -49,7 +49,12 @@ export type EvaluateCheckInResult =
       status: 'Confirmed';
       branchId: string;
       branchName: string;
-      distanceMeters: number;
+      /**
+       * Distance from the employee's GPS fix to the matched branch.
+       * `null` only when the matched branch has `requireGps=false` AND
+       * no lat/lng configured — we have no coords to measure against.
+       */
+      distanceMeters: number | null;
     }
   | {
       status: 'Disputed';
@@ -69,11 +74,26 @@ export function evaluateCheckIn(input: EvaluateCheckInInput): EvaluateCheckInRes
   // 1. Branch match — distance from the closest configured branch.
   const match = findClosestBranch(input.candidateBranches, input.point);
 
-  // Edge case: employee is assigned to branches with no lat/lng. We treat
-  // this as a config gap, not a fraud signal — admin needs to fill in
-  // coords, but in the meantime the check-in is `Disputed` so it surfaces
-  // in the review inbox rather than silently confirming.
+  // Edge case: employee is assigned to branches with no lat/lng. Two sub-cases:
+  //
+  //   - At least one candidate is GPS-optional (requireGps=false): the
+  //     missing coords are intentional ("we don't enforce geofence here"),
+  //     so Confirm with the first GPS-optional branch as the matched one.
+  //     No distance is available, so we report distanceMeters=null.
+  //
+  //   - Every candidate has null coords AND every candidate requires GPS:
+  //     genuine config gap (admin forgot to set lat/lng). Surface as
+  //     Disputed/no-configured-branch so it lands in the review inbox.
   if (!match) {
+    const gpsOptional = input.candidateBranches.find((b) => !b.requireGps);
+    if (gpsOptional) {
+      return {
+        status: 'Confirmed',
+        branchId: gpsOptional.id,
+        branchName: gpsOptional.name,
+        distanceMeters: null,
+      };
+    }
     return {
       status: 'Disputed',
       branchId: null,
@@ -86,47 +106,56 @@ export function evaluateCheckIn(input: EvaluateCheckInInput): EvaluateCheckInRes
   // 2. Apply the three Disputed triggers in priority order.
   //    Order matters for the `reason` we report — we surface the *most
   //    specific* root cause an admin can act on.
+  //
+  //    Escape hatch: if the matched branch has requireGps=false, NONE
+  //    of the three GPS-derived gates run. The whole point of the flag
+  //    is to declare "this branch doesn't care about GPS"; gating on
+  //    out-of-range / accuracy / impossible-travel would defeat that.
+  //    We still report the matched branch + distance for the audit log
+  //    so admins can see where the employee actually was when they
+  //    checked in (useful diagnostic even when not enforced).
+  if (match.branch.requireGps) {
+    // 2a. Out of range — most common failure mode (wrong branch, parking
+    //     lot 50m off, etc).
+    if (!match.inside) {
+      return {
+        status: 'Disputed',
+        branchId: match.branch.id,
+        branchName: match.branch.name,
+        distanceMeters: match.distanceMeters,
+        reason: 'no-branch-in-range',
+      };
+    }
 
-  // 2a. Out of range — most common failure mode (wrong branch, parking
-  //     lot 50m off, etc).
-  if (!match.inside) {
-    return {
-      status: 'Disputed',
-      branchId: match.branch.id,
-      branchName: match.branch.name,
-      distanceMeters: match.distanceMeters,
-      reason: 'no-branch-in-range',
-    };
-  }
+    // 2b. GPS accuracy too low — even if the centroid is inside the fence,
+    //     a ±200m error radius makes that meaningless.
+    if (input.point.accuracy > ACCURACY_THRESHOLD_M) {
+      return {
+        status: 'Disputed',
+        branchId: match.branch.id,
+        branchName: match.branch.name,
+        distanceMeters: match.distanceMeters,
+        reason: 'gps-too-imprecise',
+      };
+    }
 
-  // 2b. GPS accuracy too low — even if the centroid is inside the fence,
-  //     a ±200m error radius makes that meaningless.
-  if (input.point.accuracy > ACCURACY_THRESHOLD_M) {
-    return {
-      status: 'Disputed',
-      branchId: match.branch.id,
-      branchName: match.branch.name,
-      distanceMeters: match.distanceMeters,
-      reason: 'gps-too-imprecise',
-    };
-  }
-
-  // 2c. Impossible travel — multi-branch employee checking in at branch B
-  //     5 minutes after branch A 100km away.
-  if (
-    isImpossibleTravel({
-      distanceMeters: match.distanceMeters,
-      previousCheckInAt: input.previousCheckInAt,
-      now: input.now,
-    })
-  ) {
-    return {
-      status: 'Disputed',
-      branchId: match.branch.id,
-      branchName: match.branch.name,
-      distanceMeters: match.distanceMeters,
-      reason: 'impossible-travel',
-    };
+    // 2c. Impossible travel — multi-branch employee checking in at branch B
+    //     5 minutes after branch A 100km away.
+    if (
+      isImpossibleTravel({
+        distanceMeters: match.distanceMeters,
+        previousCheckInAt: input.previousCheckInAt,
+        now: input.now,
+      })
+    ) {
+      return {
+        status: 'Disputed',
+        branchId: match.branch.id,
+        branchName: match.branch.name,
+        distanceMeters: match.distanceMeters,
+        reason: 'impossible-travel',
+      };
+    }
   }
 
   // 3. All signals green.
