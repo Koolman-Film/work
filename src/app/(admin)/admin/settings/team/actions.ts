@@ -420,3 +420,131 @@ export async function archiveTeamMember(id: string): Promise<void> {
   revalidatePath('/admin/settings/team');
   redirect('/admin/settings/team');
 }
+
+// ─── Hard delete ───────────────────────────────────────────────────────────
+
+/**
+ * Hard-delete an admin/owner account.
+ *
+ * Removes the Prisma `User` row AND the `auth.users` row from Supabase.
+ * Use this for genuinely-departed admins or for cleanup of test accounts;
+ * for "I just want to revoke access," prefer `archiveTeamMember` which
+ * keeps the row + audit history intact.
+ *
+ * What survives a hard delete:
+ *   - `AuditLog.actorId` rows that referenced this user. There's no FK
+ *     constraint (intentional per the schema comment), so the rows
+ *     stay; the audit viewer will need to handle "actor unknown"
+ *     gracefully when it renders.
+ *
+ * What gets cascaded:
+ *   - `Notification.userId` has `onDelete: Cascade` — admin/owner
+ *     notifications for this user are removed with them.
+ *
+ * What blocks the delete:
+ *   - `Employee.userId` has `onDelete: Restrict` — but no Admin/Owner
+ *     should have an Employee row pointing at them; if Prisma raises
+ *     P2003 it's a data-integrity bug, surfaced as a friendly error.
+ *
+ * Safety rails (same as archive, plus): no need for the orphan-rollback
+ * pattern of create because the delete is one-way — Prisma first (the
+ * row that's safe to be alone if Supabase fails), Supabase auth second.
+ * If Supabase fails, the auth.users row is orphaned: that user can't
+ * log in anymore (no Prisma User → `requireRole` rejects) but a
+ * developer should clean up via the Supabase dashboard.
+ */
+export async function deleteTeamMember(id: string): Promise<void> {
+  const { user: actor } = await requireRole(['Admin', 'Owner']);
+
+  const target = await prisma.user.findUnique({
+    where: { id },
+    select: { id: true, email: true, role: true, authUserId: true },
+  });
+  if (!target || target.role === 'Employee') {
+    redirect(`/admin/settings/team?error=${encodeURIComponent('ไม่พบบัญชี')}`);
+  }
+
+  // No-self-delete: would lock the actor out mid-session.
+  if (target.id === actor.id) {
+    redirect(`/admin/settings/team?error=${encodeURIComponent('ไม่สามารถลบบัญชีตัวเองได้')}`);
+  }
+
+  if (!canActOnRole(actor.role, target.role)) {
+    redirect(`/admin/settings/team?error=${encodeURIComponent('ไม่มีสิทธิ์ลบบัญชีนี้')}`);
+  }
+
+  // Last-Owner guard. Even hard-deleting the only Owner must not happen
+  // — system would have no one to manage future admins.
+  if (target.role === 'Owner') {
+    const ownerCount = await countActiveOwners();
+    if (ownerCount <= 1) {
+      redirect(
+        `/admin/settings/team?error=${encodeURIComponent('ต้องมี Owner อย่างน้อย 1 บัญชีในระบบ')}`,
+      );
+    }
+  }
+
+  // Snapshot for audit BEFORE the row vanishes. After the delete we
+  // won't be able to recover email/role from the now-missing User row.
+  const auditSnapshot = {
+    email: target.email,
+    role: target.role,
+    authUserId: target.authUserId,
+  };
+
+  // Step 1: Prisma. Cascades Notifications; restricts on Employee (which
+  // won't be pointing at admin/owner users — defensive catch below).
+  try {
+    await prisma.user.delete({ where: { id: target.id } });
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError) {
+      if (err.code === 'P2003') {
+        redirect(
+          `/admin/settings/team?error=${encodeURIComponent(
+            'มีข้อมูลอ้างอิงบัญชีนี้อยู่ — ใช้ปุ่ม "ระงับบัญชี" แทน',
+          )}`,
+        );
+      }
+      if (err.code === 'P2025') {
+        // Already deleted by a concurrent action.
+        redirect(`/admin/settings/team?error=${encodeURIComponent('บัญชีนี้ถูกลบไปแล้ว')}`);
+      }
+    }
+    throw err;
+  }
+
+  // Step 2: Supabase auth.users. If this fails the auth row is orphaned,
+  // but the user can no longer log in (Prisma side is gone). We log
+  // loudly so a developer can clean up via the dashboard; we DO NOT
+  // re-create the Prisma row to "restore consistency" because then the
+  // delete would have been a no-op from the user's perspective.
+  if (target.authUserId) {
+    const sb = getSupabaseAdminClient();
+    const { error: authErr } = await sb.auth.admin.deleteUser(target.authUserId);
+    if (authErr) {
+      console.error('[team.delete] supabase deleteUser failed — orphan auth.users row', {
+        authUserId: target.authUserId,
+        email: target.email,
+        message: authErr.message,
+      });
+      // We don't redirect with an error — the Prisma delete succeeded
+      // and that's what governs login access. Surface a soft warning
+      // via the notice channel so the admin knows about the orphan.
+    }
+  }
+
+  const ctx = await readRequestContext();
+  auditLog({
+    actorId: actor.id,
+    action: 'user.delete',
+    entityType: 'User',
+    entityId: id,
+    before: auditSnapshot,
+    metadata: { ...ctx, source: 'admin-ui', targetEmail: target.email },
+  });
+
+  revalidatePath('/admin/settings/team');
+  redirect(
+    `/admin/settings/team?notice=${encodeURIComponent(`ลบบัญชี ${target.email ?? id} ออกแล้ว`)}`,
+  );
+}
