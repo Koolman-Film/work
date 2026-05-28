@@ -33,7 +33,7 @@ export default async function EditDepartmentPage({
         extraActions={
           <form action={archiveDepartment.bind(null, id)}>
             <Button type="submit" variant="destructive">
-              เก็บถาวร
+              ลบถาวร
             </Button>
           </form>
         }

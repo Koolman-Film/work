@@ -56,7 +56,7 @@ export default async function EditBranchPage({
         extraActions={
           <form action={archiveBranch.bind(null, id)}>
             <Button type="submit" variant="destructive">
-              เก็บถาวร
+              ลบถาวร
             </Button>
           </form>
         }
