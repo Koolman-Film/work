@@ -10,12 +10,12 @@
  */
 
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
-import { requireRole } from '@/lib/auth/require-role';
+import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { ManualAttendanceForm } from './manual-form';
 
 export default async function ManualAttendancePage() {
-  await requireRole(['Admin']);
+  await requirePermission('attendance.manual-create');
 
   // Load active employees for the dropdown. We exclude archived + non-
   // active status. ~50 employees max at Phase-1 scale, so no pagination.

@@ -16,7 +16,7 @@
  *     to access logs (via requireRole's existing tracing hook, when wired).
  */
 
-import { requireRole } from '@/lib/auth/require-role';
+import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 
 export type LiveAttendanceRow = {
@@ -36,7 +36,7 @@ function bangkokDateUtcMidnight(d: Date): Date {
 }
 
 export async function getTodayAttendance(): Promise<LiveAttendanceRow[]> {
-  await requireRole(['Admin']);
+  await requirePermission('attendance.live-board');
 
   const today = bangkokDateUtcMidnight(new Date());
 
