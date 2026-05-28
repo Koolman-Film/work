@@ -19,7 +19,7 @@ import { createClient } from '@/lib/supabase/server';
  *     a DB call on every request, including statics. Cheaper to route once
  *     at "/" and let `requireRole()` in the destination guard the rest.
  *
- * History: the Owner→Superadmin and Employee→Staff enum rename in
+ * History: the Superadmin→Superadmin and Employee→Staff enum rename in
  * migration 0009 broke this map because the keys were UNQUOTED object
  * literal keys — the bulk sed (which targeted only single-quoted enum
  * literals) skipped them. Result: a redirect loop for Superadmin/Staff

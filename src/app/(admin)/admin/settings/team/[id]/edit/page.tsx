@@ -21,7 +21,7 @@ import { DangerActions } from './danger-actions';
  * doesn't accidentally cross-pollinate (e.g., tapping "ระงับ" must not
  * also send a half-filled password reset).
  *
- *   1. Change role (Admin ↔ Owner — Admin actor can't see Owner option)
+ *   1. Change role (Admin ↔ Superadmin — Admin actor can't see Superadmin option)
  *   2. Reset password (type new one, submit)
  *   3. Danger zone (archive)
  *
@@ -57,13 +57,13 @@ export default async function EditTeamMemberPage({
   if (target.archivedAt) notFound();
   if (target.role === 'Staff') notFound();
 
-  // Admin actor cannot edit Owner — defense in depth on top of the
+  // Admin actor cannot edit Superadmin — defense in depth on top of the
   // server actions' canActOnRole check.
   if (actor.role === 'Admin' && target.role === 'Superadmin') notFound();
 
   const isSelf = target.id === actor.id;
 
-  // Role options the actor can grant. Owner can also create Owner;
+  // Role options the actor can grant. Superadmin can also create Superadmin;
   // Admin cannot, so they can demote an Admin's role? No, Admin can
   // only set role to Admin (no-op), which the server treats as a
   // no-op and bounces out. Keep the dropdown anyway so the UI is
@@ -115,7 +115,7 @@ export default async function EditTeamMemberPage({
               </select>
             </FormField>
             <p className="text-xs text-gray-500">
-              Admin: จัดการพนักงาน / การลา / เช็คอิน — Owner: สิทธิ์เต็มรวมจัดการผู้ดูแล
+              Admin: จัดการพนักงาน / การลา / เช็คอิน — Superadmin: สิทธิ์เต็มรวมจัดการผู้ดูแล
             </p>
           </CardBody>
           <CardFooter className="flex justify-end">

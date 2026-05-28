@@ -141,7 +141,7 @@ export async function linkLineToEmployee(input: { pairingToken: string }): Promi
       //   (b) The "session leak" case — usually happens during admin
       //       testing. LINE's webview shares cookies with the system
       //       browser for the same domain, so a LIFF page opened while
-      //       you're logged in as Admin/Owner sees YOUR admin Supabase
+      //       you're logged in as Admin/Superadmin sees YOUR admin Supabase
       //       cookie. liffBootstrap's getSession() fast-path returns
       //       that session, skips LINE OIDC, and we end up trying to
       //       bind the Employee's User to the admin's authUserId.

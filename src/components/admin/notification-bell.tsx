@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Topbar in-app bell — Admin/Owner notification dropdown.
+ * Topbar in-app bell — Admin/Superadmin notification dropdown.
  *
  * Lifecycle:
  *   1. Mount → server-fetch the last N notifications via

@@ -1,7 +1,7 @@
 'use server';
 
 /**
- * In-app bell notifications for Admin/Owner.
+ * In-app bell notifications for Admin/Superadmin.
  *
  * Different code path from LINE push:
  *   - LineMessage: Inngest function reads Notification row → pushes to
@@ -11,7 +11,7 @@
  *     insert auto-pushes to all open admin sessions. No Inngest hop.
  *
  * Fan-out at insert time: when an employee submits something, we
- * insert ONE Notification row PER active Admin/Owner. Cheaper to
+ * insert ONE Notification row PER active Admin/Superadmin. Cheaper to
  * denormalize than to maintain a junction table — at Phase-1 scale
  * (≤5 admins), this is at most 5 rows per event.
  *
@@ -71,7 +71,7 @@ export type AdminBellEvent =
     };
 
 /**
- * Insert InAppBell notification rows for every active Admin/Owner.
+ * Insert InAppBell notification rows for every active Admin/Superadmin.
  * Fire-and-forget — failures log but don't propagate. Safe to call
  * from any action's success path.
  */

@@ -1,5 +1,5 @@
 /**
- * Owner read-only dashboard.
+ * Superadmin read-only dashboard.
  *
  * Phase-1 scope per build-plan §W5: "read-only counts + recent activity
  * feed (full owner pages are Phase 3)."
@@ -103,7 +103,7 @@ const ACTION_LABELS: Record<string, string> = {
   'attendance.dispute-reject': 'ปฏิเสธเช็คอินที่ตรวจสอบ',
 };
 
-export default async function OwnerHomePage() {
+export default async function SuperadminHomePage() {
   // Role gate runs in the parent layout; no double-check needed here.
 
   const today = bangkokDateUtcMidnight(new Date());

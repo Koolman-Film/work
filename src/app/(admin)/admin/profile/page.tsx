@@ -3,7 +3,7 @@ import { requireRole } from '@/lib/auth/require-role';
 import { ChangePasswordForm } from './change-password-form';
 
 /**
- * Self-service profile page for Admin / Owner.
+ * Self-service profile page for Admin / Superadmin.
  *
  * V1 scope is intentionally minimal:
  *   - Show who you're logged in as (email + role badge — both readonly
@@ -44,7 +44,7 @@ export default async function AdminProfilePage() {
       <ChangePasswordForm />
 
       <p className="text-xs text-gray-500">
-        ต้องการแก้ไขอีเมลหรือเปลี่ยนบทบาท — ติดต่อ Owner เพื่อจัดการให้ที่ ตั้งค่า → ทีมผู้ดูแล
+        ต้องการแก้ไขอีเมลหรือเปลี่ยนบทบาท — ติดต่อ Superadmin เพื่อจัดการให้ที่ ตั้งค่า → ทีมผู้ดูแล
       </p>
     </div>
   );
@@ -63,7 +63,7 @@ function RoleBadge({ role }: { role: 'Admin' | 'Superadmin' }) {
   if (role === 'Superadmin') {
     return (
       <span className="rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-800">
-        Owner
+        Superadmin
       </span>
     );
   }
