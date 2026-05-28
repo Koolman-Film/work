@@ -109,6 +109,7 @@ export default async function EditEmployeePage({
 
       <PairingCard
         employeeId={id}
+        employeeName={`${emp.firstName} ${emp.lastName}`.trim()}
         inviteToken={emp.inviteToken}
         inviteExpiresAt={emp.inviteExpiresAt}
         lineUserId={emp.user.lineUserId}
