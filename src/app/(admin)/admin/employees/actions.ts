@@ -115,7 +115,12 @@ export async function createEmployee(formData: FormData) {
   const data = parsed.data;
   const assignedBranchIds = normalizeAssigned(data.branchId, data.assignedBranchIds);
 
-  // Create User + Employee atomically.
+  // Create User + Employee + Staff UserRoleAssignment(s) atomically.
+  // Phase 4.1: the assignment writes mirror the home + assignedBranches
+  // structure migration 0009 used for the backfill — one Staff
+  // assignment per branch. This is the canonical authorization
+  // source now; User.role='Staff' is kept in lockstep until Phase 4.6
+  // drops the column.
   let createdEmpId: string;
   try {
     const result = await prisma.$transaction(async (tx) => {
@@ -139,6 +144,25 @@ export async function createEmployee(formData: FormData) {
           canCheckIn: data.canCheckIn,
           hiredAt: data.hiredAt,
         },
+      });
+      // Look up the 'staff' system role definition once.
+      const staffRole = await tx.roleDefinition.findUnique({
+        where: { key: 'staff' },
+        select: { id: true },
+      });
+      if (!staffRole) {
+        throw new Error("System role 'staff' not found — DB seed corrupt?");
+      }
+      // One assignment per branch (home + any extra assignedBranches).
+      // The Set dedupes if home appears in assignedBranchIds (which
+      // normalizeAssigned guarantees, but defense-in-depth).
+      const branchSet = new Set<string>([data.branchId, ...assignedBranchIds]);
+      await tx.userRoleAssignment.createMany({
+        data: Array.from(branchSet).map((branchId) => ({
+          userId: u.id,
+          roleId: staffRole.id,
+          branchId,
+        })),
       });
       return { employee: e, user: u };
     });

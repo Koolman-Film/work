@@ -169,18 +169,43 @@ export async function createTeamMember(formData: FormData): Promise<void> {
 
   const authUserId = created.user.id;
 
-  // Step 2: create our User row pointing at the auth subject.
+  // Step 2: create our User row + the matching RoleAssignment in a
+  // single transaction. The assignment is the canonical source of
+  // authorization (Phase 3+); the legacy User.role column is kept
+  // in lockstep via syncLegacyUserRole here. The two writes happen
+  // together so a new admin can use Phase 3 routes immediately
+  // without a separate "remember to add an assignment" step.
+  //
+  // Phase 4.1 added the assignment write — previously this action
+  // only wrote User.role, leaving new admins functionally locked
+  // out of every requirePermission-gated route until someone
+  // manually opened the AssignmentsSection.
   let newUserId: string;
   try {
-    const dbUser = await prisma.user.create({
-      data: {
-        authUserId,
-        email,
-        role,
-      },
-      select: { id: true },
+    newUserId = await prisma.$transaction(async (tx) => {
+      const dbUser = await tx.user.create({
+        data: { authUserId, email, role },
+        select: { id: true },
+      });
+      // Find the matching system role definition (admin or superadmin).
+      const systemKey = role === 'Superadmin' ? 'superadmin' : 'admin';
+      const roleDef = await tx.roleDefinition.findUnique({
+        where: { key: systemKey },
+        select: { id: true },
+      });
+      if (!roleDef) {
+        // Shouldn't happen — system roles are seeded by migration 0009.
+        // If it does, fail loud rather than create a no-permission user.
+        throw new Error(`System role '${systemKey}' not found — DB seed corrupt?`);
+      }
+      // Global assignment (branchId=NULL) — admins created via this UI
+      // are global by default. Branch-scoped assignments can be added
+      // via the AssignmentsSection on the edit page.
+      await tx.userRoleAssignment.create({
+        data: { userId: dbUser.id, roleId: roleDef.id, branchId: null },
+      });
+      return dbUser.id;
     });
-    newUserId = dbUser.id;
   } catch (err) {
     // If our DB-side write fails after auth created, we have a dangling
     // auth.users row. Roll back the Supabase side to keep state consistent.
