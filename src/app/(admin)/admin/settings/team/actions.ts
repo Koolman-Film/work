@@ -7,29 +7,35 @@
  *   1. `supabase.auth.admin.createUser({ email, password, email_confirm: true })`
  *      using the service-role client. This creates the auth.users row that
  *      the SSR cookie session will eventually map to.
- *   2. `prisma.user.create({ authUserId, email, role })` — our application
- *      User row. `email` is duplicated on both sides because Supabase owns
- *      the credential while our Prisma row carries the role + archive state.
+ *   2. Inside one Prisma transaction:
+ *      a. `prisma.user.create({ authUserId, email })` — application User row.
+ *         `email` is duplicated on both sides because Supabase owns the
+ *         credential while our Prisma row carries the identity + archive state.
+ *      b. `prisma.userRoleAssignment.create(...)` — the assignment that
+ *         confers tier. Without this, the new user can log in but every
+ *         permission check denies them.
  *
- * Role policy (mirrors what the form UI exposes):
+ * Tier policy (mirrors what the form UI exposes):
  *   - Admin can create Admin only.
  *   - Superadmin can create Admin or Superadmin.
  *
  * Edit policy:
  *   - Admin can edit Admin (other Admins, including self with caveats).
- *   - Admin CANNOT edit Superadmin (role check refuses).
+ *   - Admin CANNOT edit Superadmin (canActOnRole refuses).
  *   - Superadmin can edit anyone.
+ *   - Branch-scoped Admin can only edit Admins in their shared branch
+ *     (canActOnUserScope; Phase 3.7).
  *
  * Archive policy:
  *   - Admin can archive Admin (not self, not Superadmin).
  *   - Superadmin can archive Admin or Superadmin (not self, not the last Superadmin).
  *
- * "Last Superadmin" guard:
- *   - Counts active (archivedAt=null) Superadmin rows. If the target is an Superadmin
- *     and removing them (via archive OR via role-change-to-Admin) would
- *     leave zero active Superadmins, the action refuses. Without this guard,
- *     a single mis-click could lock everyone out of high-privilege
- *     operations until a developer re-seeds.
+ * "Last Superadmin" guard (countActiveSuperadmins):
+ *   - Counts distinct active users with any isSuperadmin role assignment.
+ *     If the target is Superadmin and archiving them would leave zero,
+ *     the action refuses. Without this guard, a single mis-click could
+ *     lock everyone out of high-privilege operations until a developer
+ *     re-seeds.
  *
  * Password handling:
  *   - Superadmin types the initial password on create. Min 8 chars (Supabase
@@ -581,8 +587,9 @@ export async function deleteTeamMember(id: string): Promise<void> {
  *     we catch P2002 and surface a friendly message.
  *   - Validates role + branch exist + aren't archived.
  *
- * After the assignment is added, sync User.role to the highest privilege
- * the user now holds.
+ * After the assignment is added, the user's tier (computed by
+ * computeTier from active assignments) reflects the new state on
+ * the next request — no separate sync needed.
  */
 export async function addRoleAssignment(userId: string, formData: FormData): Promise<void> {
   // Initial permission gate — actor holds role.assign SOMEWHERE.
@@ -659,8 +666,6 @@ export async function addRoleAssignment(userId: string, formData: FormData): Pro
     throw err;
   }
 
-  // Keep legacy User.role in sync with the new highest privilege.
-
   const ctx = await readRequestContext();
   auditLog({
     actorId: actor.id,
@@ -685,9 +690,11 @@ export async function addRoleAssignment(userId: string, formData: FormData): Pro
  *   - Permission: Admin can remove non-Superadmin assignments. Only
  *     Superadmin can remove Superadmin assignments.
  *
- * After removal, sync User.role to whatever the user's new highest
- * privilege is. If they no longer have any system-role assignment,
- * User.role stays whatever it was (defensive fallback).
+ * After removal, the user's tier (computed by computeTier) reflects
+ * the new state on the next request. A user with zero active
+ * assignments will return tier=null from requireRole and be treated
+ * as unauthorized — but the last-Superadmin / no-self-demotion
+ * guards above prevent reaching that state for actively-managed users.
  */
 export async function removeRoleAssignment(assignmentId: string): Promise<void> {
   const { user: actor, tier: actorTier } = await requirePermission('role.assign');

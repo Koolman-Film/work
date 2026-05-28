@@ -197,7 +197,7 @@ export async function AssignmentsSection({ userId, actorRole, actorId }: Props) 
         </form>
       </CardBody>
       <CardFooter className="text-xs text-gray-500">
-        บทบาทหลัก (User.role legacy) จะถูกอัปเดตอัตโนมัติให้ตรงกับสิทธิ์สูงสุดที่ผู้ใช้มี
+        บทบาทของผู้ใช้คำนวณอัตโนมัติจากการมอบหมายด้านบน — สิทธิ์สูงสุดจะถูกใช้
       </CardFooter>
     </Card>
   );

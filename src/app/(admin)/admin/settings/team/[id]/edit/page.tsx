@@ -44,9 +44,7 @@ export default async function EditTeamMemberPage({
 }) {
   const { id } = await params;
   const { error, notice } = await searchParams;
-  // tier is computed from the actor's assignments (Phase 4). Same
-  // value the legacy user.role column held while it existed, now
-  // derived from UserRoleAssignment rows.
+  // tier is computed from the actor's assignments by requirePermission.
   const { user: actor, tier: actorTier } = await requirePermission('team.update');
 
   // Fetch target + assignments in one query so we can compute their
