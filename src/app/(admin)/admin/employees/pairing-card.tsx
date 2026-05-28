@@ -1,11 +1,15 @@
 import QRCode from 'qrcode';
 import { Button } from '@/components/ui/button';
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
+import { unlinkLineFromEmployee } from './actions';
 import { CopyButton } from './copy-button';
 import { generatePairingLink, revokePairingLink } from './pairing-actions';
+import { UnlinkLineButton } from './unlink-line-button';
 
 type Props = {
   employeeId: string;
+  /** "firstName lastName" — surfaces in the unlink confirm dialog. */
+  employeeName: string;
   inviteToken: string | null;
   inviteExpiresAt: Date | null;
   lineUserId: string | null;
@@ -19,13 +23,18 @@ type Props = {
  */
 export async function PairingCard({
   employeeId,
+  employeeName,
   inviteToken,
   inviteExpiresAt,
   lineUserId,
   baseUrl,
 }: Props) {
-  // Already linked: show "linked" state with unlink option (W3 will add the
-  // unlink Server Action; for now this state is read-only display).
+  // Already linked: show "linked" state with unlink option.
+  // The unlink button is the recovery path for:
+  //   - Employee got a new phone / new LINE account
+  //   - Wrong LINE account paired by mistake
+  //   - Archive-and-recreate scenarios where the old User row still
+  //     holds the LINE binding (the prod bug we hit 2026-05-28)
   if (lineUserId) {
     return (
       <Card id="pairing">
@@ -39,6 +48,13 @@ export async function PairingCard({
           <p className="text-xs text-gray-500">
             LINE userId: <span className="font-mono">{lineUserId}</span>
           </p>
+          <div className="border-t border-gray-100 pt-3">
+            <p className="mb-2 text-xs text-gray-500">ใช้เมื่อพนักงานเปลี่ยน LINE หรือต้องการรีเซ็ตการเชื่อม</p>
+            <UnlinkLineButton
+              action={unlinkLineFromEmployee.bind(null, employeeId)}
+              employeeName={employeeName}
+            />
+          </div>
         </CardBody>
       </Card>
     );
