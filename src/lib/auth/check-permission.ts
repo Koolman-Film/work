@@ -210,7 +210,12 @@ export function permissionsFromAssignments(
  * (same opaque rejection as requireRole, doesn't leak which routes
  * exist to unauthorized callers).
  *
- *   const { user } = await requirePermission('employee.update', { branchId });
+ *   const { user, authUserId } = await requirePermission('employee.update', { branchId });
+ *
+ * Returns the same shape as `requireRole` (sans `employee`, since
+ * permission checks are for admin-tier callers — Staff gates still
+ * use `requireRole(['Staff'])` directly to get the eagerly-loaded
+ * Employee row).
  *
  * Phase 3 migration note: the legacy `requireRole(['Admin'])` still
  * works fine. Migrate one route at a time as you touch it for other
@@ -220,13 +225,13 @@ export function permissionsFromAssignments(
 export async function requirePermission(
   permission: Permission,
   ctx?: { branchId?: string | null },
-): Promise<{ user: User }> {
+): Promise<{ user: User; authUserId: string }> {
   // We need an authenticated user first; reuse requireRole's session
   // resolution by calling it with the union of all known roles (so it
   // doesn't reject anyone authenticated). The role union is the
   // current enum surface — Phase 3-final can drop it.
-  const { user } = await requireRole(['Staff', 'Admin', 'Superadmin']);
+  const { user, authUserId } = await requireRole(['Staff', 'Admin', 'Superadmin']);
   const ok = await canDo(user, permission, ctx);
   if (!ok) notFound();
-  return { user };
+  return { user, authUserId };
 }
