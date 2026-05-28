@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { auditLog } from '@/lib/audit/log';
-import { requireRole } from '@/lib/auth/require-role';
+import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 
 const Schema = z.object({
@@ -34,7 +34,7 @@ function isUniqueViolation(err: unknown): boolean {
 }
 
 export async function createDepartment(formData: FormData) {
-  const { user } = await requireRole(['Admin']);
+  const { user } = await requirePermission('settings.department.manage');
 
   const parsed = readForm(formData);
   if (!parsed.success) {
@@ -65,7 +65,7 @@ export async function createDepartment(formData: FormData) {
 }
 
 export async function updateDepartment(id: string, formData: FormData) {
-  const { user } = await requireRole(['Admin']);
+  const { user } = await requirePermission('settings.department.manage');
 
   const parsed = readForm(formData);
   if (!parsed.success) {
@@ -102,7 +102,7 @@ export async function updateDepartment(id: string, formData: FormData) {
 }
 
 export async function archiveDepartment(id: string) {
-  const { user } = await requireRole(['Admin']);
+  const { user } = await requirePermission('settings.department.manage');
 
   const before = await prisma.department.findUnique({ where: { id } });
   if (!before || before.archivedAt) redirect('/admin/settings/departments');

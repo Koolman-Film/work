@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { auditLog } from '@/lib/audit/log';
-import { requireRole } from '@/lib/auth/require-role';
+import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 
 const Schema = z.object({
@@ -60,7 +60,7 @@ function normalize(parsed: z.infer<typeof Schema>): ParsedData {
 }
 
 export async function createLeaveType(formData: FormData) {
-  const { user } = await requireRole(['Admin']);
+  const { user } = await requirePermission('settings.leave-type.manage');
 
   const parsed = readForm(formData);
   if (!parsed.success) {
@@ -95,7 +95,7 @@ export async function createLeaveType(formData: FormData) {
 }
 
 export async function updateLeaveType(id: string, formData: FormData) {
-  const { user } = await requireRole(['Admin']);
+  const { user } = await requirePermission('settings.leave-type.manage');
 
   const parsed = readForm(formData);
   if (!parsed.success) {
@@ -134,7 +134,7 @@ export async function updateLeaveType(id: string, formData: FormData) {
 }
 
 export async function archiveLeaveType(id: string) {
-  const { user } = await requireRole(['Admin']);
+  const { user } = await requirePermission('settings.leave-type.manage');
 
   const before = await prisma.leaveType.findUnique({ where: { id } });
   if (!before || before.archivedAt) redirect('/admin/settings/leave-types');

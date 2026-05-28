@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { auditLog } from '@/lib/audit/log';
-import { requireRole } from '@/lib/auth/require-role';
+import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 
 const Schema = z.object({
@@ -48,7 +48,7 @@ function uniqueMessage(err: unknown): string {
 }
 
 export async function createAccountingGroup(formData: FormData) {
-  const { user } = await requireRole(['Admin']);
+  const { user } = await requirePermission('settings.accounting-group.manage');
 
   const parsed = readForm(formData);
   if (!parsed.success) {
@@ -81,7 +81,7 @@ export async function createAccountingGroup(formData: FormData) {
 }
 
 export async function updateAccountingGroup(id: string, formData: FormData) {
-  const { user } = await requireRole(['Admin']);
+  const { user } = await requirePermission('settings.accounting-group.manage');
 
   const parsed = readForm(formData);
   if (!parsed.success) {
@@ -118,7 +118,7 @@ export async function updateAccountingGroup(id: string, formData: FormData) {
 }
 
 export async function archiveAccountingGroup(id: string) {
-  const { user } = await requireRole(['Admin']);
+  const { user } = await requirePermission('settings.accounting-group.manage');
 
   const before = await prisma.accountingGroup.findUnique({ where: { id } });
   if (!before || before.archivedAt) redirect('/admin/settings/accounting-groups');
