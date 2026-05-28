@@ -6,7 +6,13 @@ import { FormField } from '@/components/ui/form-field';
 import { Input } from '@/components/ui/input';
 import { requireRole } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
-import { archiveTeamMember, resetTeamMemberPassword, updateTeamMemberRole } from '../../actions';
+import {
+  archiveTeamMember,
+  deleteTeamMember,
+  resetTeamMemberPassword,
+  updateTeamMemberRole,
+} from '../../actions';
+import { DangerActions } from './danger-actions';
 
 /**
  * Edit page for an admin/owner account.
@@ -68,6 +74,7 @@ export default async function EditTeamMemberPage({
   const updateRoleBound = updateTeamMemberRole.bind(null, id);
   const resetPasswordBound = resetTeamMemberPassword.bind(null, id);
   const archiveBound = archiveTeamMember.bind(null, id);
+  const deleteBound = deleteTeamMember.bind(null, id);
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -155,17 +162,20 @@ export default async function EditTeamMemberPage({
       <div className="rounded-xl border border-red-200 bg-red-50/30 px-5 py-4">
         <p className="text-xs font-semibold uppercase tracking-wide text-red-700">พื้นที่อันตราย</p>
         <p className="mt-1 text-xs text-red-700/80">
-          การระงับจะทำให้บัญชีนี้เข้าระบบไม่ได้ — ข้อมูล Audit จะยังถูกเก็บไว้ตามเดิม
+          <strong>ระงับบัญชี</strong>: ปิดการเข้าใช้งาน — ข้อมูล Audit ยังเก็บไว้ กู้คืนได้ภายหลัง
+          <br />
+          <strong>ลบถาวร</strong>: ลบบัญชีออกจากระบบทั้งหมด (Supabase auth + database) — ย้อนกลับไม่ได้
         </p>
-        <div className="mt-3 flex items-center justify-between">
+        <div className="mt-3 flex items-center justify-between gap-3">
           <p className="text-xs text-gray-600">
-            {isSelf ? 'คุณไม่สามารถระงับบัญชีของตัวเองได้' : `ระงับบัญชี ${target.email}`}
+            {isSelf ? 'คุณไม่สามารถระงับหรือลบบัญชีตัวเองได้' : `จัดการบัญชี ${target.email}`}
           </p>
-          <form action={archiveBound}>
-            <Button type="submit" variant="destructive" disabled={isSelf}>
-              ระงับบัญชี
-            </Button>
-          </form>
+          <DangerActions
+            archiveAction={archiveBound}
+            deleteAction={deleteBound}
+            email={target.email}
+            isSelf={isSelf}
+          />
         </div>
       </div>
 
