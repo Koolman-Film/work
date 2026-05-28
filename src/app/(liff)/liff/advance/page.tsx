@@ -3,8 +3,10 @@
  */
 
 import Link from 'next/link';
+import { calculateAdvanceBalance } from '@/lib/advance/balance';
 import { requireRole } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
+import { BalanceCard } from './balance-card';
 
 const STATUS_LABEL: Record<string, { label: string; cls: string }> = {
   Pending: { label: 'รออนุมัติ', cls: 'bg-amber-100 text-amber-800' },
@@ -38,18 +40,43 @@ export default async function LiffAdvanceListPage() {
   const { employee } = await requireRole(['Employee']);
   if (!employee) throw new Error('requireRole did not return Employee');
 
-  const rows = await prisma.cashAdvance.findMany({
-    where: { employeeId: employee.id },
-    orderBy: { requestedAt: 'desc' },
-    take: 50,
-    select: {
-      id: true,
-      amount: true,
-      status: true,
-      requestedAt: true,
-      approvedAt: true,
-      isDeducted: true,
-    },
+  // Fetch in parallel: the full list (UI), and the "reserved" subset
+  // (balance calc). The balance subset is everything Pending OR
+  // Approved-but-not-deducted — those are the rows that count against
+  // available salary. See src/lib/advance/balance.ts for rationale.
+  const [rows, reservedRows] = await Promise.all([
+    prisma.cashAdvance.findMany({
+      where: { employeeId: employee.id },
+      orderBy: { requestedAt: 'desc' },
+      take: 50,
+      select: {
+        id: true,
+        amount: true,
+        status: true,
+        requestedAt: true,
+        approvedAt: true,
+        isDeducted: true,
+      },
+    }),
+    prisma.cashAdvance.findMany({
+      where: {
+        employeeId: employee.id,
+        OR: [{ status: 'Pending' }, { status: 'Approved', isDeducted: false }],
+      },
+      select: { status: true, amount: true },
+    }),
+  ]);
+
+  const balance = calculateAdvanceBalance({
+    baseSalary: employee.baseSalary,
+    salaryType: employee.salaryType,
+    // Type-cast: Prisma's AdvanceStatus enum includes Rejected/Cancelled
+    // too, but our `where` clause filtered those out. The balance helper
+    // only handles Pending/Approved.
+    reservedAdvances: reservedRows as Array<{
+      status: 'Pending' | 'Approved';
+      amount: (typeof reservedRows)[number]['amount'];
+    }>,
   });
 
   return (
@@ -66,6 +93,14 @@ export default async function LiffAdvanceListPage() {
           + ขอเบิก
         </Link>
       </header>
+
+      {/* Salary balance — the primary signal employees come here to see.
+          Placed ABOVE the request list because "how much do I have left"
+          is the question they're trying to answer, and the list is
+          context. */}
+      <div className="mb-6">
+        <BalanceCard balance={balance} />
+      </div>
 
       {rows.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-12 text-center">
