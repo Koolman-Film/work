@@ -82,10 +82,24 @@ export const SYSTEM_ROLES: Record<
       'settings.leave-type.manage',
       'settings.holiday.manage',
       'settings.work-schedule.manage',
-      // Read-only on team / roles — they can SEE other admins but
-      // can't create/edit them (that's Superadmin territory).
+      // Team management — Admin can manage OTHER ADMINS in the same
+      // branch (enforced by canActOnRole + canActOnUserScope guards in
+      // team/actions.ts). They can't create/edit Superadmins, and a
+      // branch-scoped Admin can't touch admins outside their branch.
+      // Phase 3.7 relaxed this from Superadmin-only (which Phase 3.5
+      // had over-tightened) — the bread-and-butter case is a branch
+      // manager onboarding their own sub-admins, which shouldn't
+      // require Superadmin intervention.
       'team.read',
+      'team.create',
+      'team.update',
+      'team.delete',
+      'team.password-reset',
+      // Roles catalog is still read-only for Admin (Superadmin owns
+      // the catalog), but role.assign is granted so Admins can
+      // attach existing roles to their branch's team members.
       'role.read',
+      'role.assign',
       // Audit + dashboard
       'audit.read',
       'dashboard.read',

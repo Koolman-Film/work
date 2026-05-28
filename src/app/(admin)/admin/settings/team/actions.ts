@@ -53,7 +53,8 @@ import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { auditLog } from '@/lib/audit/log';
-import { requirePermission } from '@/lib/auth/check-permission';
+import { canDo, requirePermission } from '@/lib/auth/check-permission';
+import { canActOnRole, canActOnUserScope } from '@/lib/auth/team-guards';
 import { prisma } from '@/lib/db/prisma';
 import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 
@@ -113,16 +114,9 @@ async function countActiveSuperadmins(): Promise<number> {
   });
 }
 
-/**
- * Encode whether `actor` is permitted to act on a target with `targetRole`.
- * - Admins can only touch other Admins.
- * - Superadmins can touch anyone.
- */
-function canActOnRole(actorRole: Role, targetRole: Role): boolean {
-  if (actorRole === 'Superadmin') return true;
-  if (actorRole === 'Admin') return targetRole === 'Admin';
-  return false;
-}
+// canActOnRole and canActOnUserScope live in src/lib/auth/team-guards.ts
+// so both this server-action module AND the edit page (Server Component)
+// can import them without 'use server' export friction.
 
 // ─── Create ────────────────────────────────────────────────────────────────
 
@@ -246,9 +240,14 @@ export async function updateTeamMemberRole(id: string, formData: FormData): Prom
     redirect(`/admin/settings/team?error=${encodeURIComponent('บัญชีนี้ถูกระงับแล้ว')}`);
   }
 
-  // Permission: Admin cannot touch Superadmin; Superadmin can touch anyone.
+  // Tier guard: Admin cannot touch Superadmin; Superadmin can touch anyone.
   if (!canActOnRole(actor.role, target.role)) {
     redirect(`/admin/settings/team?error=${encodeURIComponent('ไม่มีสิทธิ์แก้ไขบัญชีนี้')}`);
+  }
+  // Branch-jurisdiction guard (Phase 3.7): branch-scoped Admin can only
+  // touch Admins sharing at least one branch with them.
+  if (!(await canActOnUserScope(actor.id, target.id))) {
+    redirect(`/admin/settings/team?error=${encodeURIComponent('บัญชีนี้อยู่นอกขอบเขตสาขาที่คุณดูแล')}`);
   }
   // And the new role must also be allowed (Admin can't promote to Superadmin).
   if (!canActOnRole(actor.role, newRole)) {
@@ -328,6 +327,11 @@ export async function resetTeamMemberPassword(id: string, formData: FormData): P
   if (!canActOnRole(actor.role, target.role)) {
     redirect(`/admin/settings/team/${id}/edit?error=${encodeURIComponent('ไม่มีสิทธิ์แก้ไขบัญชีนี้')}`);
   }
+  if (!(await canActOnUserScope(actor.id, target.id))) {
+    redirect(
+      `/admin/settings/team/${id}/edit?error=${encodeURIComponent('บัญชีนี้อยู่นอกขอบเขตสาขาที่คุณดูแล')}`,
+    );
+  }
 
   const sb = getSupabaseAdminClient();
   const { error } = await sb.auth.admin.updateUserById(target.authUserId, {
@@ -382,6 +386,9 @@ export async function archiveTeamMember(id: string): Promise<void> {
 
   if (!canActOnRole(actor.role, target.role)) {
     redirect(`/admin/settings/team?error=${encodeURIComponent('ไม่มีสิทธิ์ระงับบัญชีนี้')}`);
+  }
+  if (!(await canActOnUserScope(actor.id, target.id))) {
+    redirect(`/admin/settings/team?error=${encodeURIComponent('บัญชีนี้อยู่นอกขอบเขตสาขาที่คุณดูแล')}`);
   }
 
   // Last-Superadmin guard.
@@ -473,6 +480,9 @@ export async function deleteTeamMember(id: string): Promise<void> {
 
   if (!canActOnRole(actor.role, target.role)) {
     redirect(`/admin/settings/team?error=${encodeURIComponent('ไม่มีสิทธิ์ลบบัญชีนี้')}`);
+  }
+  if (!(await canActOnUserScope(actor.id, target.id))) {
+    redirect(`/admin/settings/team?error=${encodeURIComponent('บัญชีนี้อยู่นอกขอบเขตสาขาที่คุณดูแล')}`);
   }
 
   // Last-Superadmin guard. Even hard-deleting the only Superadmin must not happen
@@ -603,6 +613,7 @@ async function syncLegacyUserRole(userId: string): Promise<void> {
  * the user now holds.
  */
 export async function addRoleAssignment(userId: string, formData: FormData): Promise<void> {
+  // Initial permission gate — actor holds role.assign SOMEWHERE.
   const { user: actor } = await requirePermission('role.assign');
 
   const roleId = String(formData.get('roleId') ?? '');
@@ -625,10 +636,35 @@ export async function addRoleAssignment(userId: string, formData: FormData): Pro
     );
   }
 
-  if (branchId) {
+  // Phase 3.7 branch-scope check on the GRANT:
+  //   - Granting a GLOBAL assignment (branchId=null) requires actor have
+  //     global authority (Superadmin or a global role.assign).
+  //   - Granting a BRANCH-scoped assignment requires actor have role.assign
+  //     AT THAT BRANCH (or globally).
+  // Without this, a branch-A Admin could "claim" any user by assigning
+  // them Admin@anyBranch — lateral privilege escalation.
+  if (branchId === null) {
+    if (actor.role !== 'Superadmin') {
+      // canDo with explicit-null ctx is treated as "any scope ok" by
+      // Phase 3.1's compatibility rule (preserving non-migrated callers).
+      // Here we WANT to require global authority, so we ask: does the
+      // actor have a global (or Superadmin) role.assign assignment?
+      // The simplest expression is "Superadmin role" since plain Admins
+      // never hold a global role.assign unless explicitly granted via
+      // a custom role — and even then, the customer can opt in.
+      redirect(
+        `/admin/settings/team/${userId}/edit?error=${encodeURIComponent('ไม่มีสิทธิ์มอบบทบาทระดับทุกสาขา (Global)')}`,
+      );
+    }
+  } else {
     const branch = await prisma.branch.findUnique({ where: { id: branchId } });
     if (!branch || branch.archivedAt) {
       redirect(`/admin/settings/team/${userId}/edit?error=${encodeURIComponent('ไม่พบสาขาที่เลือก')}`);
+    }
+    if (!(await canDo(actor, 'role.assign', { branchId }))) {
+      redirect(
+        `/admin/settings/team/${userId}/edit?error=${encodeURIComponent('ไม่มีสิทธิ์มอบบทบาทในสาขานี้')}`,
+      );
     }
   }
 
@@ -700,6 +736,24 @@ export async function removeRoleAssignment(assignmentId: string): Promise<void> 
   if (assignment.role.isSuperadmin && actor.role !== 'Superadmin') {
     redirect(
       `/admin/settings/team/${assignment.userId}/edit?error=${encodeURIComponent('ต้องเป็น Superadmin เพื่อเอาบทบาท Superadmin ออก')}`,
+    );
+  }
+
+  // Phase 3.7 branch-scope check on the REVOKE:
+  //   - Removing a GLOBAL assignment (branchId=null) requires actor have
+  //     global authority (Superadmin).
+  //   - Removing a BRANCH-scoped assignment requires actor have role.assign
+  //     AT THAT BRANCH (or globally).
+  // Symmetric to addRoleAssignment.
+  if (assignment.branchId === null) {
+    if (actor.role !== 'Superadmin') {
+      redirect(
+        `/admin/settings/team/${assignment.userId}/edit?error=${encodeURIComponent('ไม่มีสิทธิ์เอาบทบาทระดับทุกสาขา (Global) ออก')}`,
+      );
+    }
+  } else if (!(await canDo(actor, 'role.assign', { branchId: assignment.branchId }))) {
+    redirect(
+      `/admin/settings/team/${assignment.userId}/edit?error=${encodeURIComponent('ไม่มีสิทธิ์เอาบทบาทในสาขานี้ออก')}`,
     );
   }
 
