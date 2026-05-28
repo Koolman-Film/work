@@ -88,6 +88,18 @@ const SEED = {
     workDays: [2, 3, 4, 5, 6, 0], // Tue,Wed,Thu,Fri,Sat,Sun (Mon=1 closed)
     lateToleranceMin: 15,
   },
+  // Phase 2 W6 — Thai-labor-law payroll defaults. Admin will edit via
+  // /admin/settings/payroll-config (Phase 3).
+  payrollConfig: {
+    ssoRate: '0.05',
+    ssoSalaryCap: '15000',
+    ssoAmountCap: '750',
+    otMultiplier: '1.5',
+    cutoffDay: 25,
+    absentDeductionPerDay: '500',
+    lateDeduction: '100',
+    earlyLeaveDeduction: '100',
+  },
   // Thai public holidays 2026 — official from Cabinet announcement.
   // Adjust isSubstitute if a date is a substitute day from a Mon-closed shift.
   holidays2026: [
@@ -212,6 +224,22 @@ async function main() {
     });
     console.log(`  ✓ ${row.date.toISOString().slice(0, 10)}  ${row.name}`);
   }
+
+  // 6b. PayrollConfig (singleton — only one row is ever created or
+  // updated). Phase 2 calc engine reads this row to determine SSO rate,
+  // attendance deduction amounts, etc. App treats absence of row as
+  // configuration error; we always seed one.
+  console.log('\nPayrollConfig:');
+  const existingConfig = await prisma.payrollConfig.findFirst();
+  const payrollConfig = existingConfig
+    ? await prisma.payrollConfig.update({
+        where: { id: existingConfig.id },
+        data: SEED.payrollConfig,
+      })
+    : await prisma.payrollConfig.create({ data: SEED.payrollConfig });
+  console.log(
+    `  ✓ SSO ${payrollConfig.ssoRate}×base (cap ${payrollConfig.ssoAmountCap}), absent ${payrollConfig.absentDeductionPerDay}/day, late ${payrollConfig.lateDeduction}/event`,
+  );
 
   // 7. Owner + Admin
   // Supabase auth.users first, then our User row.
