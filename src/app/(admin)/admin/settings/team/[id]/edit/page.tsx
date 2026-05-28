@@ -8,28 +8,28 @@ import { requirePermission } from '@/lib/auth/check-permission';
 import { canActOnRole, canActOnUserScope } from '@/lib/auth/team-guards';
 import { computeTier } from '@/lib/auth/user-tier';
 import { prisma } from '@/lib/db/prisma';
-import {
-  archiveTeamMember,
-  deleteTeamMember,
-  resetTeamMemberPassword,
-  updateTeamMemberRole,
-} from '../../actions';
+import { archiveTeamMember, deleteTeamMember, resetTeamMemberPassword } from '../../actions';
 import { AssignmentsSection } from './assignments-section';
 import { DangerActions } from './danger-actions';
 
 /**
  * Edit page for an admin/owner account.
  *
- * Three sections, each in its own Card / form so a Server Action submit
+ * Two sections, each in its own Card / form so a Server Action submit
  * doesn't accidentally cross-pollinate (e.g., tapping "ระงับ" must not
  * also send a half-filled password reset).
  *
- *   1. Change role (Admin ↔ Superadmin — Admin actor can't see Superadmin option)
+ *   1. AssignmentsSection — add/remove role assignments. This is the
+ *      canonical "what this user can do" surface (Phase 2b).
  *   2. Reset password (type new one, submit)
- *   3. Danger zone (archive)
+ *   3. Danger zone (archive / hard delete)
  *
  * Server-enforced rules surface as redirect ?error= banners (the same
  * pattern as every other settings CRUD).
+ *
+ * Phase 4.5 removed the legacy "บทบาทหลัก" (User.role enum) card —
+ * tier is computed from assignments now, so editing it directly
+ * doesn't make sense.
  */
 
 type Params = Promise<{ id: string }>;
@@ -84,15 +84,6 @@ export default async function EditTeamMemberPage({
 
   const isSelf = target.id === actor.id;
 
-  // Role options the actor can grant. Superadmin can also create Superadmin;
-  // Admin cannot, so they can demote an Admin's role? No, Admin can
-  // only set role to Admin (no-op), which the server treats as a
-  // no-op and bounces out. Keep the dropdown anyway so the UI is
-  // consistent — but only with permitted options.
-  const roleOptions: ReadonlyArray<'Admin' | 'Superadmin'> =
-    actorTier === 'Superadmin' ? ['Admin', 'Superadmin'] : ['Admin'];
-
-  const updateRoleBound = updateTeamMemberRole.bind(null, id);
   const resetPasswordBound = resetTeamMemberPassword.bind(null, id);
   const archiveBound = archiveTeamMember.bind(null, id);
   const deleteBound = deleteTeamMember.bind(null, id);
@@ -124,46 +115,6 @@ export default async function EditTeamMemberPage({
         actorRole={actorTier as 'Admin' | 'Superadmin'}
         actorId={actor.id}
       />
-
-      {/* ─── Legacy role enum ──────────────────────────────────────────
-          The new assignment editor above is the primary model. This
-          card stays for now because some legacy pages still gate on
-          User.role directly (Phase 3 will retire it). The action keeps
-          User.role in sync with the assignments automatically — admins
-          rarely need to touch this card. */}
-      <form action={updateRoleBound}>
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              บทบาทหลัก{' '}
-              <span className="text-xs font-normal text-gray-500">(legacy — sync อัตโนมัติ)</span>
-            </CardTitle>
-          </CardHeader>
-          <CardBody className="space-y-4">
-            <FormField label="บทบาท" htmlFor="role">
-              <select
-                id="role"
-                name="role"
-                defaultValue={targetTier}
-                className="w-full max-w-xs rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500/30"
-              >
-                {roleOptions.includes('Admin') && <option value="Admin">Admin</option>}
-                {roleOptions.includes('Superadmin') && (
-                  <option value="Superadmin">Superadmin</option>
-                )}
-              </select>
-            </FormField>
-            <p className="text-xs text-gray-500">
-              ค่านี้ถูกอัปเดตอัตโนมัติให้ตรงกับสิทธิ์สูงสุดจากการมอบหมายด้านบน ไม่จำเป็นต้องแก้ด้วยมือยกเว้นกรณีพิเศษ
-            </p>
-          </CardBody>
-          <CardFooter className="flex justify-end">
-            <Button type="submit" variant="secondary">
-              บันทึก
-            </Button>
-          </CardFooter>
-        </Card>
-      </form>
 
       {/* ─── Reset password ───────────────────────────────────────────── */}
       <form action={resetPasswordBound}>

@@ -55,6 +55,7 @@ import { z } from 'zod';
 import { auditLog } from '@/lib/audit/log';
 import { canDo, requirePermission } from '@/lib/auth/check-permission';
 import { canActOnRole, canActOnUserScope } from '@/lib/auth/team-guards';
+import { computeTier } from '@/lib/auth/user-tier';
 import { prisma } from '@/lib/db/prisma';
 import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 
@@ -81,10 +82,6 @@ const CreateSchema = z.object({
   role: RoleSchema,
 });
 
-const UpdateRoleSchema = z.object({
-  role: RoleSchema,
-});
-
 const ResetPasswordSchema = z.object({
   password: PasswordSchema,
 });
@@ -102,15 +99,26 @@ async function readRequestContext() {
 }
 
 /**
- * How many active (non-archived) Superadmin accounts exist? Used by the
- * last-Superadmin guard. We always check *just before* the mutation rather
- * than caching, because the lookup is cheap and a TOCTOU race between
- * two concurrent Superadmin archives would otherwise let the system drop
- * to zero Superadmins.
+ * How many active (non-archived) Superadmin-tier users exist? Used by
+ * the last-Superadmin guard. We always check *just before* the
+ * mutation rather than caching, because the lookup is cheap and a
+ * TOCTOU race between two concurrent Superadmin archives would
+ * otherwise let the system drop to zero Superadmins.
+ *
+ * Phase 4 — counts users with at least one active isSuperadmin
+ * assignment (the new authorization source). Pre-Phase-4 this was a
+ * `role: 'Superadmin'` column filter. A user with multiple Superadmin
+ * assignments still counts as one (Prisma's `some` with `count`
+ * deduplicates at the user level).
  */
 async function countActiveSuperadmins(): Promise<number> {
   return prisma.user.count({
-    where: { role: 'Superadmin', archivedAt: null },
+    where: {
+      archivedAt: null,
+      roleAssignments: {
+        some: { role: { isSuperadmin: true, archivedAt: null } },
+      },
+    },
   });
 }
 
@@ -121,7 +129,7 @@ async function countActiveSuperadmins(): Promise<number> {
 // ─── Create ────────────────────────────────────────────────────────────────
 
 export async function createTeamMember(formData: FormData): Promise<void> {
-  const { user: actor } = await requirePermission('team.create');
+  const { user: actor, tier: actorTier } = await requirePermission('team.create');
 
   const parsed = CreateSchema.safeParse({
     email: formData.get('email') ?? undefined,
@@ -136,7 +144,7 @@ export async function createTeamMember(formData: FormData): Promise<void> {
   const { email, password, role } = parsed.data;
 
   // Privilege escalation guard: an Admin cannot create an Superadmin.
-  if (!canActOnRole(actor.role, role)) {
+  if (!canActOnRole(actorTier, role)) {
     redirect(`/admin/settings/team/new?error=${encodeURIComponent('ไม่มีสิทธิ์สร้างบัญชี Superadmin')}`);
   }
 
@@ -237,89 +245,19 @@ export async function createTeamMember(formData: FormData): Promise<void> {
   redirect('/admin/settings/team');
 }
 
-// ─── Update role ───────────────────────────────────────────────────────────
-
-export async function updateTeamMemberRole(id: string, formData: FormData): Promise<void> {
-  const { user: actor } = await requirePermission('team.update');
-
-  const parsed = UpdateRoleSchema.safeParse({
-    role: formData.get('role') ?? undefined,
-  });
-  if (!parsed.success) {
-    const msg = parsed.error.issues[0]?.message ?? 'ข้อมูลไม่ถูกต้อง';
-    redirect(`/admin/settings/team/${id}/edit?error=${encodeURIComponent(msg)}`);
-  }
-  const { role: newRole } = parsed.data;
-
-  const target = await prisma.user.findUnique({
-    where: { id },
-    select: { id: true, email: true, role: true, archivedAt: true },
-  });
-  if (!target) {
-    redirect(`/admin/settings/team?error=${encodeURIComponent('ไม่พบบัญชี')}`);
-  }
-  if (target.role === 'Staff') {
-    redirect(`/admin/settings/team?error=${encodeURIComponent('บัญชีนี้ไม่ใช่ผู้ดูแล')}`);
-  }
-  if (target.archivedAt) {
-    redirect(`/admin/settings/team?error=${encodeURIComponent('บัญชีนี้ถูกระงับแล้ว')}`);
-  }
-
-  // Tier guard: Admin cannot touch Superadmin; Superadmin can touch anyone.
-  if (!canActOnRole(actor.role, target.role)) {
-    redirect(`/admin/settings/team?error=${encodeURIComponent('ไม่มีสิทธิ์แก้ไขบัญชีนี้')}`);
-  }
-  // Branch-jurisdiction guard (Phase 3.7): branch-scoped Admin can only
-  // touch Admins sharing at least one branch with them.
-  if (!(await canActOnUserScope(actor.id, target.id))) {
-    redirect(`/admin/settings/team?error=${encodeURIComponent('บัญชีนี้อยู่นอกขอบเขตสาขาที่คุณดูแล')}`);
-  }
-  // And the new role must also be allowed (Admin can't promote to Superadmin).
-  if (!canActOnRole(actor.role, newRole)) {
-    redirect(
-      `/admin/settings/team/${id}/edit?error=${encodeURIComponent('ไม่มีสิทธิ์ตั้งบทบาทเป็น Superadmin')}`,
-    );
-  }
-
-  // Last-Superadmin guard: demoting the only Superadmin would lock everyone out
-  // of Superadmin-tier operations.
-  if (target.role === 'Superadmin' && newRole !== 'Superadmin') {
-    const ownerCount = await countActiveSuperadmins();
-    if (ownerCount <= 1) {
-      redirect(
-        `/admin/settings/team/${id}/edit?error=${encodeURIComponent(
-          'ต้องมี Superadmin อย่างน้อย 1 บัญชีในระบบ',
-        )}`,
-      );
-    }
-  }
-
-  // No-op? Bail out without an audit row.
-  if (target.role === newRole) {
-    redirect('/admin/settings/team');
-  }
-
-  await prisma.user.update({ where: { id }, data: { role: newRole } });
-
-  const ctx = await readRequestContext();
-  auditLog({
-    actorId: actor.id,
-    action: 'user.role-change',
-    entityType: 'User',
-    entityId: id,
-    before: { role: target.role },
-    after: { role: newRole },
-    metadata: { ...ctx, source: 'admin-ui', targetEmail: target.email },
-  });
-
-  revalidatePath('/admin/settings/team');
-  redirect('/admin/settings/team');
-}
+// updateTeamMemberRole removed in Phase 4.5. The legacy
+// "บทบาทหลัก" card on the edit page that called this action was
+// the last surviving consumer of User.role-as-write; tier is now
+// always derived from UserRoleAssignment. Admins manage tier
+// through the AssignmentsSection (add/remove assignment) instead
+// of via a separate role-set form. The 'user.role-change' audit
+// action is similarly retired — audit logs from roleAssignment
+// create/delete carry the equivalent "tier changed" story.
 
 // ─── Reset password ────────────────────────────────────────────────────────
 
 export async function resetTeamMemberPassword(id: string, formData: FormData): Promise<void> {
-  const { user: actor } = await requirePermission('team.password-reset');
+  const { user: actor, tier: actorTier } = await requirePermission('team.password-reset');
 
   const parsed = ResetPasswordSchema.safeParse({
     password: formData.get('password') ?? undefined,
@@ -329,11 +267,30 @@ export async function resetTeamMemberPassword(id: string, formData: FormData): P
     redirect(`/admin/settings/team/${id}/edit?error=${encodeURIComponent(msg)}`);
   }
 
+  // Fetch target + assignments — we need the assignments to compute
+  // target's tier (Phase 4; replaces the legacy target.role read).
   const target = await prisma.user.findUnique({
     where: { id },
-    select: { id: true, email: true, role: true, authUserId: true, archivedAt: true },
+    select: {
+      id: true,
+      email: true,
+      authUserId: true,
+      archivedAt: true,
+      roleAssignments: {
+        select: {
+          role: { select: { key: true, isSuperadmin: true, archivedAt: true } },
+        },
+      },
+    },
   });
-  if (!target || target.role === 'Staff') {
+  if (!target) {
+    redirect(`/admin/settings/team?error=${encodeURIComponent('ไม่พบบัญชี')}`);
+  }
+  const targetTier = computeTier(target.roleAssignments);
+  // Team management is for Admin / Superadmin only — Staff or
+  // no-tier users get the same "not found" treatment they got from
+  // the old `target.role === 'Staff'` check.
+  if (targetTier !== 'Admin' && targetTier !== 'Superadmin') {
     redirect(`/admin/settings/team?error=${encodeURIComponent('ไม่พบบัญชี')}`);
   }
   if (target.archivedAt) {
@@ -349,7 +306,7 @@ export async function resetTeamMemberPassword(id: string, formData: FormData): P
     );
   }
 
-  if (!canActOnRole(actor.role, target.role)) {
+  if (!canActOnRole(actorTier, targetTier)) {
     redirect(`/admin/settings/team/${id}/edit?error=${encodeURIComponent('ไม่มีสิทธิ์แก้ไขบัญชีนี้')}`);
   }
   if (!(await canActOnUserScope(actor.id, target.id))) {
@@ -390,13 +347,26 @@ export async function resetTeamMemberPassword(id: string, formData: FormData): P
 export async function archiveTeamMember(id: string): Promise<void> {
   // Archive is a reversible state change (soft delete) — treated as
   // an update. team.delete is reserved for hard delete only.
-  const { user: actor } = await requirePermission('team.update');
+  const { user: actor, tier: actorTier } = await requirePermission('team.update');
 
   const target = await prisma.user.findUnique({
     where: { id },
-    select: { id: true, email: true, role: true, archivedAt: true },
+    select: {
+      id: true,
+      email: true,
+      archivedAt: true,
+      roleAssignments: {
+        select: {
+          role: { select: { key: true, isSuperadmin: true, archivedAt: true } },
+        },
+      },
+    },
   });
-  if (!target || target.role === 'Staff') {
+  if (!target) {
+    redirect(`/admin/settings/team?error=${encodeURIComponent('ไม่พบบัญชี')}`);
+  }
+  const targetTier = computeTier(target.roleAssignments);
+  if (targetTier !== 'Admin' && targetTier !== 'Superadmin') {
     redirect(`/admin/settings/team?error=${encodeURIComponent('ไม่พบบัญชี')}`);
   }
   if (target.archivedAt) {
@@ -409,7 +379,7 @@ export async function archiveTeamMember(id: string): Promise<void> {
     redirect(`/admin/settings/team?error=${encodeURIComponent('ไม่สามารถระงับบัญชีตัวเองได้')}`);
   }
 
-  if (!canActOnRole(actor.role, target.role)) {
+  if (!canActOnRole(actorTier, targetTier)) {
     redirect(`/admin/settings/team?error=${encodeURIComponent('ไม่มีสิทธิ์ระงับบัญชีนี้')}`);
   }
   if (!(await canActOnUserScope(actor.id, target.id))) {
@@ -417,7 +387,7 @@ export async function archiveTeamMember(id: string): Promise<void> {
   }
 
   // Last-Superadmin guard.
-  if (target.role === 'Superadmin') {
+  if (targetTier === 'Superadmin') {
     const ownerCount = await countActiveSuperadmins();
     if (ownerCount <= 1) {
       redirect(
@@ -446,7 +416,7 @@ export async function archiveTeamMember(id: string): Promise<void> {
     action: 'user.archive',
     entityType: 'User',
     entityId: id,
-    before: { role: target.role, archivedAt: null },
+    before: { tier: targetTier, archivedAt: null },
     after: { archivedAt: new Date().toISOString() },
     metadata: { ...ctx, source: 'admin-ui', targetEmail: target.email },
   });
@@ -488,13 +458,26 @@ export async function archiveTeamMember(id: string): Promise<void> {
  * developer should clean up via the Supabase dashboard.
  */
 export async function deleteTeamMember(id: string): Promise<void> {
-  const { user: actor } = await requirePermission('team.delete');
+  const { user: actor, tier: actorTier } = await requirePermission('team.delete');
 
   const target = await prisma.user.findUnique({
     where: { id },
-    select: { id: true, email: true, role: true, authUserId: true },
+    select: {
+      id: true,
+      email: true,
+      authUserId: true,
+      roleAssignments: {
+        select: {
+          role: { select: { key: true, isSuperadmin: true, archivedAt: true } },
+        },
+      },
+    },
   });
-  if (!target || target.role === 'Staff') {
+  if (!target) {
+    redirect(`/admin/settings/team?error=${encodeURIComponent('ไม่พบบัญชี')}`);
+  }
+  const targetTier = computeTier(target.roleAssignments);
+  if (targetTier !== 'Admin' && targetTier !== 'Superadmin') {
     redirect(`/admin/settings/team?error=${encodeURIComponent('ไม่พบบัญชี')}`);
   }
 
@@ -503,7 +486,7 @@ export async function deleteTeamMember(id: string): Promise<void> {
     redirect(`/admin/settings/team?error=${encodeURIComponent('ไม่สามารถลบบัญชีตัวเองได้')}`);
   }
 
-  if (!canActOnRole(actor.role, target.role)) {
+  if (!canActOnRole(actorTier, targetTier)) {
     redirect(`/admin/settings/team?error=${encodeURIComponent('ไม่มีสิทธิ์ลบบัญชีนี้')}`);
   }
   if (!(await canActOnUserScope(actor.id, target.id))) {
@@ -512,7 +495,7 @@ export async function deleteTeamMember(id: string): Promise<void> {
 
   // Last-Superadmin guard. Even hard-deleting the only Superadmin must not happen
   // — system would have no one to manage future admins.
-  if (target.role === 'Superadmin') {
+  if (targetTier === 'Superadmin') {
     const ownerCount = await countActiveSuperadmins();
     if (ownerCount <= 1) {
       redirect(
@@ -522,10 +505,10 @@ export async function deleteTeamMember(id: string): Promise<void> {
   }
 
   // Snapshot for audit BEFORE the row vanishes. After the delete we
-  // won't be able to recover email/role from the now-missing User row.
+  // won't be able to recover email/tier from the now-missing User row.
   const auditSnapshot = {
     email: target.email,
-    role: target.role,
+    tier: targetTier,
     authUserId: target.authUserId,
   };
 
@@ -639,7 +622,7 @@ async function syncLegacyUserRole(userId: string): Promise<void> {
  */
 export async function addRoleAssignment(userId: string, formData: FormData): Promise<void> {
   // Initial permission gate — actor holds role.assign SOMEWHERE.
-  const { user: actor } = await requirePermission('role.assign');
+  const { user: actor, tier: actorTier } = await requirePermission('role.assign');
 
   const roleId = String(formData.get('roleId') ?? '');
   const branchValue = String(formData.get('branchId') ?? 'global');
@@ -655,7 +638,7 @@ export async function addRoleAssignment(userId: string, formData: FormData): Pro
   }
 
   // Only Superadmin can grant the Superadmin role. Privilege-escalation guard.
-  if (role.isSuperadmin && actor.role !== 'Superadmin') {
+  if (role.isSuperadmin && actorTier !== 'Superadmin') {
     redirect(
       `/admin/settings/team/${userId}/edit?error=${encodeURIComponent('ต้องเป็น Superadmin เพื่อมอบบทบาท Superadmin')}`,
     );
@@ -669,7 +652,7 @@ export async function addRoleAssignment(userId: string, formData: FormData): Pro
   // Without this, a branch-A Admin could "claim" any user by assigning
   // them Admin@anyBranch — lateral privilege escalation.
   if (branchId === null) {
-    if (actor.role !== 'Superadmin') {
+    if (actorTier !== 'Superadmin') {
       // canDo with explicit-null ctx is treated as "any scope ok" by
       // Phase 3.1's compatibility rule (preserving non-migrated callers).
       // Here we WANT to require global authority, so we ask: does the
@@ -744,7 +727,7 @@ export async function addRoleAssignment(userId: string, formData: FormData): Pro
  * User.role stays whatever it was (defensive fallback).
  */
 export async function removeRoleAssignment(assignmentId: string): Promise<void> {
-  const { user: actor } = await requirePermission('role.assign');
+  const { user: actor, tier: actorTier } = await requirePermission('role.assign');
 
   const assignment = await prisma.userRoleAssignment.findUnique({
     where: { id: assignmentId },
@@ -758,7 +741,7 @@ export async function removeRoleAssignment(assignmentId: string): Promise<void> 
   }
 
   // Permission: Admin can't remove Superadmin assignments.
-  if (assignment.role.isSuperadmin && actor.role !== 'Superadmin') {
+  if (assignment.role.isSuperadmin && actorTier !== 'Superadmin') {
     redirect(
       `/admin/settings/team/${assignment.userId}/edit?error=${encodeURIComponent('ต้องเป็น Superadmin เพื่อเอาบทบาท Superadmin ออก')}`,
     );
@@ -771,7 +754,7 @@ export async function removeRoleAssignment(assignmentId: string): Promise<void> 
   //     AT THAT BRANCH (or globally).
   // Symmetric to addRoleAssignment.
   if (assignment.branchId === null) {
-    if (actor.role !== 'Superadmin') {
+    if (actorTier !== 'Superadmin') {
       redirect(
         `/admin/settings/team/${assignment.userId}/edit?error=${encodeURIComponent('ไม่มีสิทธิ์เอาบทบาทระดับทุกสาขา (Global) ออก')}`,
       );
