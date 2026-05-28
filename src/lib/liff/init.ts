@@ -17,9 +17,17 @@
  *
  * Idempotency:
  *   - We check `supabase.auth.getSession()` first. If there's already a live
- *     Supabase session, we skip the whole LINE handshake and return early.
- *     This matters because LIFF re-runs init on every page nav in the LIFF
- *     stack; without the guard we'd burn quota and confuse the auth state.
+ *     Supabase session with a `custom:line` identity, we skip the whole
+ *     LINE handshake and return early. This matters because LIFF re-runs
+ *     init on every page nav in the LIFF stack; without the guard we'd
+ *     burn quota and confuse the auth state.
+ *   - If the existing session is NOT a `custom:line` one — typically
+ *     because LINE's webview shares cookies with the system browser and
+ *     an Admin/Owner session leaked in — we sign it out locally before
+ *     starting the LINE OIDC flow, so the employee pair can succeed.
+ *     On shared-cookie webviews (iOS WKWebView default) this also
+ *     clears the admin's session in their main browser. That's an
+ *     accepted trade-off vs. requiring manual admin-logout.
  *
  * Failure modes the caller has to handle:
  *   - `liff.init()` rejects: most often because the user opened the URL
@@ -84,19 +92,41 @@ export async function liffBootstrap(): Promise<LiffBootstrapResult> {
 
   const supabase = createClient();
 
-  // Fast path: already signed in to Supabase from a prior LIFF nav.
+  // Existing-session handling. THREE cases:
+  //
+  //   1. No session → proceed to LINE OIDC sign-in below.
+  //   2. Session exists AND has a `custom:line` identity → genuine LIFF
+  //      session from a prior LIFF nav. Fast-path: reuse it.
+  //   3. Session exists but has NO `custom:line` identity → this is an
+  //      Admin/Owner session that leaked into the LIFF webview through
+  //      shared cookies with the system browser. Sign it out and proceed
+  //      to LINE OIDC, so the employee can still pair without manually
+  //      logging out of the admin web on their device.
+  //
+  // Trade-off for case (3): on platforms where LIFF + system browser DO
+  // share cookies (iOS WKWebView default), the signOut also clears the
+  // admin session on the device. That's an acceptable cost — the
+  // alternative was a hard failure with a confusing P2002 from the
+  // server. Documented this in the docstring at the top of the file.
   const { data: existing } = await supabase.auth.getSession();
   if (existing.session) {
-    const lineUserId = (existing.session.user.identities ?? []).find(
+    const lineIdentity = (existing.session.user.identities ?? []).find(
       (i) => i.provider === 'custom:line',
-    )?.id;
-    return {
-      supabase,
-      session: existing.session,
-      // Fall back to user.id if the identities array isn't populated (some
-      // Supabase responses omit it on token refresh).
-      lineUserId: lineUserId ?? existing.session.user.id,
-    };
+    );
+    if (lineIdentity) {
+      // Case 2: a real LIFF session. Fast-path return.
+      return {
+        supabase,
+        session: existing.session,
+        lineUserId: lineIdentity.id ?? existing.session.user.id,
+      };
+    }
+    // Case 3: leaked admin/owner session. Clear it locally so the LINE
+    // OIDC sign-in below has a clean slate. `scope: 'local'` only flushes
+    // this device's tokens — doesn't kill the user's sessions on other
+    // devices. (On shared-cookie webviews, this WILL also clear the
+    // admin's session in the system browser. See docstring + docs.)
+    await supabase.auth.signOut({ scope: 'local' });
   }
 
   // Need a fresh Supabase session. Demand a LINE ID token first.
