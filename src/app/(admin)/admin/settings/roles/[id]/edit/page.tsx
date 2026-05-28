@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { requireRole } from '@/lib/auth/require-role';
+import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { archiveRole, updateRole } from '../../actions';
 import { RoleForm } from '../../role-form';
@@ -15,7 +15,7 @@ export default async function EditRolePage({
   params: Params;
   searchParams: SearchParams;
 }) {
-  await requireRole(['Superadmin']);
+  await requirePermission('role.manage');
   const { id } = await params;
   const { error } = await searchParams;
 

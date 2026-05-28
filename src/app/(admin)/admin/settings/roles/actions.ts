@@ -31,8 +31,8 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { auditLog } from '@/lib/audit/log';
+import { requirePermission } from '@/lib/auth/check-permission';
 import { isPermission, type Permission } from '@/lib/auth/permissions';
-import { requireRole } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
 
 // ─── Validation ────────────────────────────────────────────────────────────
@@ -71,7 +71,7 @@ function slugify(name: string): string {
 // ─── Create ────────────────────────────────────────────────────────────────
 
 export async function createRole(formData: FormData): Promise<void> {
-  const { user } = await requireRole(['Superadmin']);
+  const { user } = await requirePermission('role.manage');
 
   const nameResult = NameSchema.safeParse(formData.get('name'));
   if (!nameResult.success) {
@@ -134,7 +134,7 @@ export async function createRole(formData: FormData): Promise<void> {
 // ─── Update ────────────────────────────────────────────────────────────────
 
 export async function updateRole(id: string, formData: FormData): Promise<void> {
-  const { user } = await requireRole(['Superadmin']);
+  const { user } = await requirePermission('role.manage');
 
   const before = await prisma.roleDefinition.findUnique({ where: { id } });
   if (!before) {
@@ -198,7 +198,7 @@ export async function updateRole(id: string, formData: FormData): Promise<void> 
 // ─── Archive ───────────────────────────────────────────────────────────────
 
 export async function archiveRole(id: string): Promise<void> {
-  const { user } = await requireRole(['Superadmin']);
+  const { user } = await requirePermission('role.manage');
 
   const before = await prisma.roleDefinition.findUnique({ where: { id } });
   if (!before) {

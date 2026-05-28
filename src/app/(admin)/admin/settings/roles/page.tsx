@@ -2,15 +2,17 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/table';
+import { requirePermission } from '@/lib/auth/check-permission';
 import { PERMISSIONS } from '@/lib/auth/permissions';
-import { requireRole } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
 
 type SearchParams = Promise<{ error?: string }>;
 
 export default async function RoleListPage({ searchParams }: { searchParams: SearchParams }) {
-  // Only Superadmin can see / manage roles.
-  await requireRole(['Superadmin']);
+  // role.read is in every Admin's default perm list — Superadmin
+  // gets it via the isSuperadmin shortcut. Page is view-only; the
+  // edit/new pages and the actions gate on role.manage (Superadmin only).
+  await requirePermission('role.read');
   const { error } = await searchParams;
 
   const totalPermCount = Object.keys(PERMISSIONS).length;

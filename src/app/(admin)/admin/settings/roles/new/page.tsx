@@ -1,11 +1,11 @@
-import { requireRole } from '@/lib/auth/require-role';
+import { requirePermission } from '@/lib/auth/check-permission';
 import { createRole } from '../actions';
 import { RoleForm } from '../role-form';
 
 type SearchParams = Promise<{ error?: string }>;
 
 export default async function NewRolePage({ searchParams }: { searchParams: SearchParams }) {
-  await requireRole(['Superadmin']);
+  await requirePermission('role.manage');
   const { error } = await searchParams;
 
   return (
