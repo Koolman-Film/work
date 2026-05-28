@@ -29,6 +29,7 @@ export type AuditAction =
   | 'user.delete'
   | 'user.role-change'
   | 'user.password-reset'
+  | 'user.password-change'
   // Employee
   | 'employee.create'
   | 'employee.update'

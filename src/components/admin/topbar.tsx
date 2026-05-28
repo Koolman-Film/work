@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronDown, LogOut, Menu } from 'lucide-react';
+import { ChevronDown, LogOut, Menu, UserCog } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
@@ -125,7 +125,16 @@ function UserMenu({ userLabel }: { userLabel: string }) {
             <p className="text-xs text-gray-500">เข้าสู่ระบบในนาม</p>
             <p className="truncate text-sm font-medium text-gray-900">{userLabel}</p>
           </div>
-          <form action="/logout" method="post">
+          <Link
+            href="/admin/profile"
+            role="menuitem"
+            onClick={() => setOpen(false)}
+            className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 transition hover:bg-gray-50"
+          >
+            <UserCog size={16} aria-hidden="true" />
+            <span>โปรไฟล์ของฉัน</span>
+          </Link>
+          <form action="/logout" method="post" className="border-t border-gray-100">
             <button
               type="submit"
               className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 transition hover:bg-gray-50"
@@ -155,6 +164,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   attendance: 'ลงเวลา',
   payroll: 'เงินเดือน',
   audit: 'Audit log',
+  profile: 'โปรไฟล์',
   new: 'สร้างใหม่',
   edit: 'แก้ไข',
 };
