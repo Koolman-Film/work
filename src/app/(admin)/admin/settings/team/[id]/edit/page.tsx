@@ -6,6 +6,7 @@ import { FormField } from '@/components/ui/form-field';
 import { Input } from '@/components/ui/input';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { canActOnRole, canActOnUserScope } from '@/lib/auth/team-guards';
+import { computeTier } from '@/lib/auth/user-tier';
 import { prisma } from '@/lib/db/prisma';
 import {
   archiveTeamMember,
@@ -43,25 +44,34 @@ export default async function EditTeamMemberPage({
 }) {
   const { id } = await params;
   const { error, notice } = await searchParams;
-  // team.update is held only by Superadmin (Phase 3.5 tightening).
-  // The page is the entry point for role/password/archive edits — any
-  // of those would fail at the action layer for non-Superadmins, so
-  // we gate the whole page on the same permission.
-  const { user: actor } = await requirePermission('team.update');
+  // tier is computed from the actor's assignments (Phase 4). Same
+  // value the legacy user.role column held while it existed, now
+  // derived from UserRoleAssignment rows.
+  const { user: actor, tier: actorTier } = await requirePermission('team.update');
 
+  // Fetch target + assignments in one query so we can compute their
+  // tier the same way (Phase 4 — used to read target.role enum).
   const target = await prisma.user.findUnique({
     where: { id },
     select: {
       id: true,
       email: true,
-      role: true,
       createdAt: true,
       archivedAt: true,
+      roleAssignments: {
+        select: {
+          role: { select: { key: true, isSuperadmin: true, archivedAt: true } },
+        },
+      },
     },
   });
   if (!target) notFound();
   if (target.archivedAt) notFound();
-  if (target.role === 'Staff') notFound();
+
+  const targetTier = computeTier(target.roleAssignments);
+  // Team list is Admin + Superadmin only — Staff or no-tier users
+  // don't belong on this page.
+  if (targetTier !== 'Admin' && targetTier !== 'Superadmin') notFound();
 
   // Defense-in-depth UX shortcut. The action layer enforces these
   // same rules; we do them here too so the user gets a 404 instead of
@@ -69,7 +79,7 @@ export default async function EditTeamMemberPage({
   //   - Tier: Admin cannot edit Superadmin.
   //   - Branch: branch-scoped Admin cannot edit Admins outside their
   //     shared branch (Phase 3.7).
-  if (!canActOnRole(actor.role, target.role)) notFound();
+  if (!canActOnRole(actorTier, targetTier)) notFound();
   if (!(await canActOnUserScope(actor.id, target.id))) notFound();
 
   const isSelf = target.id === actor.id;
@@ -80,7 +90,7 @@ export default async function EditTeamMemberPage({
   // no-op and bounces out. Keep the dropdown anyway so the UI is
   // consistent — but only with permitted options.
   const roleOptions: ReadonlyArray<'Admin' | 'Superadmin'> =
-    actor.role === 'Superadmin' ? ['Admin', 'Superadmin'] : ['Admin'];
+    actorTier === 'Superadmin' ? ['Admin', 'Superadmin'] : ['Admin'];
 
   const updateRoleBound = updateTeamMemberRole.bind(null, id);
   const resetPasswordBound = resetTeamMemberPassword.bind(null, id);
@@ -106,9 +116,12 @@ export default async function EditTeamMemberPage({
       )}
 
       {/* ─── Role assignments (Phase 2b — new model) ──────────────────── */}
+      {/* actorTier is 'Admin' | 'Superadmin' here because team.update is
+          not in Staff's default perms — but TS can't narrow that, so an
+          explicit cast keeps the AssignmentsSection prop type strict. */}
       <AssignmentsSection
         userId={id}
-        actorRole={actor.role as 'Admin' | 'Superadmin'}
+        actorRole={actorTier as 'Admin' | 'Superadmin'}
         actorId={actor.id}
       />
 
@@ -131,7 +144,7 @@ export default async function EditTeamMemberPage({
               <select
                 id="role"
                 name="role"
-                defaultValue={target.role}
+                defaultValue={targetTier}
                 className="w-full max-w-xs rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500/30"
               >
                 {roleOptions.includes('Admin') && <option value="Admin">Admin</option>}

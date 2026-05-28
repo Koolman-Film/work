@@ -5,18 +5,17 @@ import { TeamCreateForm } from '../team-form';
 type SearchParams = Promise<{ error?: string; email?: string }>;
 
 export default async function NewTeamMemberPage({ searchParams }: { searchParams: SearchParams }) {
-  // team.create is held only by Superadmin (via isSuperadmin shortcut).
-  // Phase 3.5 design decision: Admin can READ the team list but cannot
-  // create/edit other team members — they have to escalate to a
-  // Superadmin. The actor returned here is always a Superadmin.
-  const { user: actor } = await requirePermission('team.create');
+  // team.create is granted to Admin + Superadmin (Phase 3.7 relaxed
+  // team management to "Admin can create/manage other Admins in the
+  // same branch"). The role dropdown adapts to the actor's tier:
+  //   - Superadmin can create either Admin OR Superadmin.
+  //   - Admin can only create Admin (privilege-escalation guard;
+  //     server-side canActOnRole in createTeamMember re-checks).
+  const { tier: actorTier } = await requirePermission('team.create');
   const { error, email } = await searchParams;
 
-  // Both options are available because only Superadmin reaches this
-  // point; the filter is retained as defensive future-proofing in case
-  // we ever grant team.create to a non-Superadmin role.
   const availableRoles: ReadonlyArray<'Admin' | 'Superadmin'> =
-    actor.role === 'Superadmin' ? ['Admin', 'Superadmin'] : ['Admin'];
+    actorTier === 'Superadmin' ? ['Admin', 'Superadmin'] : ['Admin'];
 
   return (
     <div className="max-w-2xl">

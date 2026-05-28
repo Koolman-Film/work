@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/table';
 import { requirePermission } from '@/lib/auth/check-permission';
+import { computeTier } from '@/lib/auth/user-tier';
 import { prisma } from '@/lib/db/prisma';
 
 type SearchParams = Promise<{ error?: string; notice?: string }>;
@@ -12,22 +13,58 @@ export default async function TeamListPage({ searchParams }: { searchParams: Sea
   // "who can I escalate to?"). Write actions below all gate on
   // team.create / team.update / team.delete which Admin doesn't hold,
   // so the edit/+เพิ่ม buttons become read-only signals.
-  const { user: actor } = await requirePermission('team.read');
+  // tier is computed from assignments by requireRole / requirePermission
+  // (Phase 4). We use it for the per-row canEdit check below.
+  const { user: actor, tier: actorTier } = await requirePermission('team.read');
   const { error, notice } = await searchParams;
 
-  const members = await prisma.user.findMany({
+  // Phase 4: query "users with at least one active admin-tier role
+  // assignment" — i.e. anyone who'd land in /admin. Pre-Phase 4 this
+  // was `where: { role: { in: ['Admin', 'Superadmin'] } }` against
+  // the legacy column.
+  const rawMembers = await prisma.user.findMany({
     where: {
-      role: { in: ['Admin', 'Superadmin'] },
       archivedAt: null,
+      roleAssignments: {
+        some: {
+          role: {
+            archivedAt: null,
+            OR: [{ isSuperadmin: true }, { key: 'admin' }],
+          },
+        },
+      },
     },
-    orderBy: [{ role: 'asc' }, { email: 'asc' }],
     select: {
       id: true,
       email: true,
-      role: true,
       createdAt: true,
+      roleAssignments: {
+        select: {
+          role: { select: { key: true, isSuperadmin: true, archivedAt: true } },
+        },
+      },
     },
   });
+
+  // Compute tier per row + sort. Old sort was `role asc, email asc`
+  // which interleaved Admins then Superadmins; the tier comparator
+  // here preserves that intent (Admin < Superadmin alphabetically →
+  // same ordering). Falls back to email asc within a tier.
+  type Member = { id: string; email: string | null; createdAt: Date; tier: 'Admin' | 'Superadmin' };
+  const members: Member[] = rawMembers
+    .map((m) => {
+      const t = computeTier(m.roleAssignments);
+      // We queried for admin-tier users; tier should never be null or
+      // Staff for these rows. Defensive coercion.
+      return t === 'Admin' || t === 'Superadmin'
+        ? { id: m.id, email: m.email, createdAt: m.createdAt, tier: t }
+        : null;
+    })
+    .filter((m): m is Member => m !== null)
+    .sort((a, b) => {
+      if (a.tier !== b.tier) return a.tier < b.tier ? -1 : 1;
+      return (a.email ?? '').localeCompare(b.email ?? '');
+    });
 
   return (
     <div>
@@ -75,8 +112,9 @@ export default async function TeamListPage({ searchParams }: { searchParams: Sea
                 {members.map((m) => {
                   // Admin actor cannot edit Superadmin — server enforces; we
                   // gray the link out so the UI doesn't promise something
-                  // that won't work.
-                  const canEdit = actor.role === 'Superadmin' || m.role === 'Admin';
+                  // that won't work. tier is computed per-row from the
+                  // member's role assignments (Phase 4).
+                  const canEdit = actorTier === 'Superadmin' || m.tier === 'Admin';
                   const isSelf = m.id === actor.id;
 
                   return (
@@ -90,7 +128,7 @@ export default async function TeamListPage({ searchParams }: { searchParams: Sea
                         )}
                       </TD>
                       <TD>
-                        <RoleBadge role={m.role as 'Admin' | 'Superadmin'} />
+                        <RoleBadge role={m.tier} />
                       </TD>
                       <TD className="tabular-nums text-gray-500">
                         {m.createdAt.toLocaleDateString('th-TH', {
