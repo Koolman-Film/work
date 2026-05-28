@@ -12,6 +12,7 @@ import {
   resetTeamMemberPassword,
   updateTeamMemberRole,
 } from '../../actions';
+import { AssignmentsSection } from './assignments-section';
 import { DangerActions } from './danger-actions';
 
 /**
@@ -94,11 +95,26 @@ export default async function EditTeamMemberPage({
         </div>
       )}
 
-      {/* ─── Role ──────────────────────────────────────────────────────── */}
+      {/* ─── Role assignments (Phase 2b — new model) ──────────────────── */}
+      <AssignmentsSection
+        userId={id}
+        actorRole={actor.role as 'Admin' | 'Superadmin'}
+        actorId={actor.id}
+      />
+
+      {/* ─── Legacy role enum ──────────────────────────────────────────
+          The new assignment editor above is the primary model. This
+          card stays for now because some legacy pages still gate on
+          User.role directly (Phase 3 will retire it). The action keeps
+          User.role in sync with the assignments automatically — admins
+          rarely need to touch this card. */}
       <form action={updateRoleBound}>
         <Card>
           <CardHeader>
-            <CardTitle>บทบาท</CardTitle>
+            <CardTitle>
+              บทบาทหลัก{' '}
+              <span className="text-xs font-normal text-gray-500">(legacy — sync อัตโนมัติ)</span>
+            </CardTitle>
           </CardHeader>
           <CardBody className="space-y-4">
             <FormField label="บทบาท" htmlFor="role">
@@ -115,11 +131,13 @@ export default async function EditTeamMemberPage({
               </select>
             </FormField>
             <p className="text-xs text-gray-500">
-              Admin: จัดการพนักงาน / การลา / เช็คอิน — Superadmin: สิทธิ์เต็มรวมจัดการผู้ดูแล
+              ค่านี้ถูกอัปเดตอัตโนมัติให้ตรงกับสิทธิ์สูงสุดจากการมอบหมายด้านบน ไม่จำเป็นต้องแก้ด้วยมือยกเว้นกรณีพิเศษ
             </p>
           </CardBody>
           <CardFooter className="flex justify-end">
-            <Button type="submit">บันทึก</Button>
+            <Button type="submit" variant="secondary">
+              บันทึก
+            </Button>
           </CardFooter>
         </Card>
       </form>

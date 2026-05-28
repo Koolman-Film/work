@@ -548,3 +548,198 @@ export async function deleteTeamMember(id: string): Promise<void> {
     `/admin/settings/team?notice=${encodeURIComponent(`ลบบัญชี ${target.email ?? id} ออกแล้ว`)}`,
   );
 }
+
+// ─── Role assignments (Phase 2b) ───────────────────────────────────────────
+
+/**
+ * Sync User.role (legacy enum) to the user's highest-privilege active
+ * assignment. Called after add/remove so legacy `requireRole(['Admin'])`
+ * gates keep working without admins having to think about two systems.
+ *
+ * Priority order (highest first):
+ *   1. Any 'superadmin' role assignment → User.role = 'Superadmin'
+ *   2. Any 'admin' role assignment → User.role = 'Admin'
+ *   3. Any 'staff' role assignment → User.role = 'Staff'
+ *   4. No active assignments → leave User.role as-is (defensive — we
+ *      never end up here in practice because the team UI only manages
+ *      Admin/Superadmin users who always have at least one assignment)
+ *
+ * Custom roles (isSystem=false) don't affect User.role — they're tracked
+ * only in UserRoleAssignment. Phase 3 will retire User.role entirely.
+ */
+async function syncLegacyUserRole(userId: string): Promise<void> {
+  const assignments = await prisma.userRoleAssignment.findMany({
+    where: { userId },
+    include: { role: { select: { key: true } } },
+  });
+  const keys = new Set(assignments.map((a) => a.role.key));
+
+  let newRole: Role;
+  if (keys.has('superadmin')) newRole = 'Superadmin';
+  else if (keys.has('admin')) newRole = 'Admin';
+  else if (keys.has('staff')) newRole = 'Staff';
+  else return; // No system roles — leave User.role alone.
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { role: newRole },
+  });
+}
+
+/**
+ * Add a role assignment to a user. Form payload:
+ *   - roleId: RoleDefinition.id (UUID)
+ *   - branchId: 'global' literal (= NULL) or Branch.id (UUID)
+ *
+ * Safety:
+ *   - Only Superadmin can grant the 'superadmin' role.
+ *   - DB unique constraint on (userId, roleId, branchId) prevents dupes;
+ *     we catch P2002 and surface a friendly message.
+ *   - Validates role + branch exist + aren't archived.
+ *
+ * After the assignment is added, sync User.role to the highest privilege
+ * the user now holds.
+ */
+export async function addRoleAssignment(userId: string, formData: FormData): Promise<void> {
+  const { user: actor } = await requireRole(['Admin', 'Superadmin']);
+
+  const roleId = String(formData.get('roleId') ?? '');
+  const branchValue = String(formData.get('branchId') ?? 'global');
+  const branchId = branchValue === 'global' ? null : branchValue;
+
+  if (!roleId) {
+    redirect(`/admin/settings/team/${userId}/edit?error=${encodeURIComponent('กรุณาเลือกบทบาท')}`);
+  }
+
+  const role = await prisma.roleDefinition.findUnique({ where: { id: roleId } });
+  if (!role || role.archivedAt) {
+    redirect(`/admin/settings/team/${userId}/edit?error=${encodeURIComponent('ไม่พบบทบาทที่เลือก')}`);
+  }
+
+  // Only Superadmin can grant the Superadmin role. Privilege-escalation guard.
+  if (role.isSuperadmin && actor.role !== 'Superadmin') {
+    redirect(
+      `/admin/settings/team/${userId}/edit?error=${encodeURIComponent('ต้องเป็น Superadmin เพื่อมอบบทบาท Superadmin')}`,
+    );
+  }
+
+  if (branchId) {
+    const branch = await prisma.branch.findUnique({ where: { id: branchId } });
+    if (!branch || branch.archivedAt) {
+      redirect(`/admin/settings/team/${userId}/edit?error=${encodeURIComponent('ไม่พบสาขาที่เลือก')}`);
+    }
+  }
+
+  // The target user must exist.
+  const target = await prisma.user.findUnique({ where: { id: userId } });
+  if (!target) {
+    redirect(`/admin/settings/team?error=${encodeURIComponent('ไม่พบบัญชี')}`);
+  }
+
+  try {
+    await prisma.userRoleAssignment.create({
+      data: { userId, roleId, branchId },
+    });
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+      redirect(
+        `/admin/settings/team/${userId}/edit?error=${encodeURIComponent('ผู้ใช้นี้มีบทบาทนี้ในสาขาดังกล่าวอยู่แล้ว')}`,
+      );
+    }
+    throw err;
+  }
+
+  // Keep legacy User.role in sync with the new highest privilege.
+  await syncLegacyUserRole(userId);
+
+  const ctx = await readRequestContext();
+  auditLog({
+    actorId: actor.id,
+    action: 'roleAssignment.create',
+    entityType: 'UserRoleAssignment',
+    entityId: userId, // we don't know the assignment.id without a re-fetch
+    after: { userId, roleId, roleKey: role.key, branchId },
+    metadata: { ...ctx, source: 'admin-ui', targetEmail: target.email },
+  });
+
+  revalidatePath(`/admin/settings/team/${userId}/edit`);
+  redirect(`/admin/settings/team/${userId}/edit?notice=${encodeURIComponent('เพิ่มบทบาทเรียบร้อย')}`);
+}
+
+/**
+ * Remove a role assignment by its id. Safety:
+ *   - Refuses if it would remove the only global 'superadmin' assignment
+ *     across the whole system (last-Superadmin guard, system-wide).
+ *   - Refuses if the actor is the target AND they only have one
+ *     'superadmin' assignment (no self-demotion via this UI; they'd
+ *     have to get another Superadmin to do it).
+ *   - Permission: Admin can remove non-Superadmin assignments. Only
+ *     Superadmin can remove Superadmin assignments.
+ *
+ * After removal, sync User.role to whatever the user's new highest
+ * privilege is. If they no longer have any system-role assignment,
+ * User.role stays whatever it was (defensive fallback).
+ */
+export async function removeRoleAssignment(assignmentId: string): Promise<void> {
+  const { user: actor } = await requireRole(['Admin', 'Superadmin']);
+
+  const assignment = await prisma.userRoleAssignment.findUnique({
+    where: { id: assignmentId },
+    include: {
+      role: { select: { key: true, isSuperadmin: true, name: true } },
+      user: { select: { id: true, email: true } },
+    },
+  });
+  if (!assignment) {
+    redirect(`/admin/settings/team?error=${encodeURIComponent('ไม่พบรายการมอบหมาย')}`);
+  }
+
+  // Permission: Admin can't remove Superadmin assignments.
+  if (assignment.role.isSuperadmin && actor.role !== 'Superadmin') {
+    redirect(
+      `/admin/settings/team/${assignment.userId}/edit?error=${encodeURIComponent('ต้องเป็น Superadmin เพื่อเอาบทบาท Superadmin ออก')}`,
+    );
+  }
+
+  // Last-Superadmin guard: if this is the only global Superadmin assignment
+  // in the entire system, refuse — otherwise nobody could manage admins.
+  if (assignment.role.isSuperadmin && assignment.branchId === null) {
+    const totalGlobalSuperadmins = await prisma.userRoleAssignment.count({
+      where: { role: { isSuperadmin: true }, branchId: null },
+    });
+    if (totalGlobalSuperadmins <= 1) {
+      redirect(
+        `/admin/settings/team/${assignment.userId}/edit?error=${encodeURIComponent('ต้องมี Superadmin (ทุกสาขา) อย่างน้อย 1 รายการในระบบ')}`,
+      );
+    }
+  }
+
+  // No-self-demotion: actor can't remove their own Superadmin assignment.
+  if (assignment.userId === actor.id && assignment.role.isSuperadmin) {
+    redirect(
+      `/admin/settings/team/${assignment.userId}/edit?error=${encodeURIComponent('ไม่สามารถถอดบทบาท Superadmin ของตัวเองได้ — ขอให้ Superadmin คนอื่นช่วย')}`,
+    );
+  }
+
+  await prisma.userRoleAssignment.delete({ where: { id: assignmentId } });
+  await syncLegacyUserRole(assignment.userId);
+
+  const ctx = await readRequestContext();
+  auditLog({
+    actorId: actor.id,
+    action: 'roleAssignment.delete',
+    entityType: 'UserRoleAssignment',
+    entityId: assignmentId,
+    before: {
+      userId: assignment.userId,
+      roleKey: assignment.role.key,
+      branchId: assignment.branchId,
+    },
+    metadata: { ...ctx, source: 'admin-ui', targetEmail: assignment.user.email },
+  });
+
+  revalidatePath(`/admin/settings/team/${assignment.userId}/edit`);
+  redirect(
+    `/admin/settings/team/${assignment.userId}/edit?notice=${encodeURIComponent('เอาบทบาทออกเรียบร้อย')}`,
+  );
+}
