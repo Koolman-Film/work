@@ -18,6 +18,10 @@
  * No notification is emitted — this is silent housekeeping. Admins who
  * want to see what changed can filter /admin/attendance by source=Liff
  * or look at the audit log.
+ *
+ * Testability: the date helpers below are exported (rather than file-
+ * private as in sibling cron files) so the inngest-smoke test can pin
+ * down the 22:00-BKK derivation as a pure function.
  */
 
 import { auditLog } from '@/lib/audit/log';
@@ -25,13 +29,13 @@ import { prisma } from '@/lib/db/prisma';
 import { inngest } from '../client';
 
 /** Today at UTC midnight, in Bangkok terms — matches @db.Date semantics. */
-function bangkokTodayUtcMidnight(): Date {
-  const ymd = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
+export function bangkokTodayUtcMidnight(now: Date = new Date()): Date {
+  const ymd = now.toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
   return new Date(`${ymd}T00:00:00.000Z`);
 }
 
 /** 22:00 Bangkok time on a given UTC-midnight calendar date. */
-function bangkok22Hour(date: Date): Date {
+export function bangkok22Hour(date: Date): Date {
   // 22:00 BKK = 15:00 UTC same day. The calendar date in BKK is the UTC
   // midnight Date passed in (which represents the BKK calendar day).
   return new Date(date.getTime() + 15 * 60 * 60 * 1000);
