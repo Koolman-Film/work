@@ -8,6 +8,7 @@ import {
   CalendarOff,
   Clock,
   FolderTree,
+  KeyRound,
   ShieldCheck,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -78,8 +79,15 @@ const TABS: ReadonlyArray<SettingsTab> = [
   {
     href: '/admin/settings/team',
     label: 'ทีมผู้ดูแล',
-    description: 'บัญชี Admin + Owner',
+    description: 'บัญชี Admin + Superadmin',
     Icon: ShieldCheck,
+    enabled: true,
+  },
+  {
+    href: '/admin/settings/roles',
+    label: 'บทบาทและสิทธิ์',
+    description: 'จัดการบทบาท + สิทธิ์การใช้งาน',
+    Icon: KeyRound,
     enabled: true,
   },
   // ดีเฟอร์: Payroll config
