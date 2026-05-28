@@ -11,7 +11,7 @@ import { requireRole } from '@/lib/auth/require-role';
  * render at all without an authenticated Admin/Superadmin session.
  *
  * History: this used to accept only `['Admin']`. After the Phase 1 role
- * rename, Superadmin (formerly Owner) was supposed to be routed to /admin
+ * rename, Superadmin (formerly Superadmin) was supposed to be routed to /admin
  * by the home-page router — but THIS gate still only let Admins through,
  * so Superadmins got 404'd at the shell. Fixed 2026-05-28.
  *

@@ -2,7 +2,7 @@
  * Append-only audit log writer.
  *
  * Every mutation that touches business data should log through here. The
- * audit table is read by Owner and Admin in Phase 3; for now we just write
+ * audit table is read by Superadmin and Admin in Phase 3; for now we just write
  * faithfully and worry about the UI later.
  *
  * Design choices:

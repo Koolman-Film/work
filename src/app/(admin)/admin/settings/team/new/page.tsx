@@ -5,9 +5,9 @@ import { TeamCreateForm } from '../team-form';
 type SearchParams = Promise<{ error?: string; email?: string }>;
 
 export default async function NewTeamMemberPage({ searchParams }: { searchParams: SearchParams }) {
-  // Permission filtering: Admin actor can only create Admins; Owner
+  // Permission filtering: Admin actor can only create Admins; Superadmin
   // can create either. The server re-checks; this trims the role dropdown
-  // so admins don't see a useless "Owner" option that would 403 them.
+  // so admins don't see a useless "Superadmin" option that would 403 them.
   const { user: actor } = await requireRole(['Admin', 'Superadmin']);
   const { error, email } = await searchParams;
 

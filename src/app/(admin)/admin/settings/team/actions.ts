@@ -13,26 +13,26 @@
  *
  * Role policy (mirrors what the form UI exposes):
  *   - Admin can create Admin only.
- *   - Owner can create Admin or Owner.
+ *   - Superadmin can create Admin or Superadmin.
  *
  * Edit policy:
  *   - Admin can edit Admin (other Admins, including self with caveats).
- *   - Admin CANNOT edit Owner (role check refuses).
- *   - Owner can edit anyone.
+ *   - Admin CANNOT edit Superadmin (role check refuses).
+ *   - Superadmin can edit anyone.
  *
  * Archive policy:
- *   - Admin can archive Admin (not self, not Owner).
- *   - Owner can archive Admin or Owner (not self, not the last Owner).
+ *   - Admin can archive Admin (not self, not Superadmin).
+ *   - Superadmin can archive Admin or Superadmin (not self, not the last Superadmin).
  *
- * "Last Owner" guard:
- *   - Counts active (archivedAt=null) Owner rows. If the target is an Owner
+ * "Last Superadmin" guard:
+ *   - Counts active (archivedAt=null) Superadmin rows. If the target is an Superadmin
  *     and removing them (via archive OR via role-change-to-Admin) would
- *     leave zero active Owners, the action refuses. Without this guard,
+ *     leave zero active Superadmins, the action refuses. Without this guard,
  *     a single mis-click could lock everyone out of high-privilege
  *     operations until a developer re-seeds.
  *
  * Password handling:
- *   - Owner types the initial password on create. Min 8 chars (Supabase
+ *   - Superadmin types the initial password on create. Min 8 chars (Supabase
  *     enforces this too; we surface the friendly Thai message).
  *   - `resetAdminPassword` calls `auth.admin.updateUserById(authUserId,
  *     { password })`. There's no "send-reset-link" flow — that requires
@@ -101,13 +101,13 @@ async function readRequestContext() {
 }
 
 /**
- * How many active (non-archived) Owner accounts exist? Used by the
- * last-Owner guard. We always check *just before* the mutation rather
+ * How many active (non-archived) Superadmin accounts exist? Used by the
+ * last-Superadmin guard. We always check *just before* the mutation rather
  * than caching, because the lookup is cheap and a TOCTOU race between
- * two concurrent Owner archives would otherwise let the system drop
- * to zero Owners.
+ * two concurrent Superadmin archives would otherwise let the system drop
+ * to zero Superadmins.
  */
-async function countActiveOwners(): Promise<number> {
+async function countActiveSuperadmins(): Promise<number> {
   return prisma.user.count({
     where: { role: 'Superadmin', archivedAt: null },
   });
@@ -116,7 +116,7 @@ async function countActiveOwners(): Promise<number> {
 /**
  * Encode whether `actor` is permitted to act on a target with `targetRole`.
  * - Admins can only touch other Admins.
- * - Owners can touch anyone.
+ * - Superadmins can touch anyone.
  */
 function canActOnRole(actorRole: Role, targetRole: Role): boolean {
   if (actorRole === 'Superadmin') return true;
@@ -141,9 +141,9 @@ export async function createTeamMember(formData: FormData): Promise<void> {
 
   const { email, password, role } = parsed.data;
 
-  // Privilege escalation guard: an Admin cannot create an Owner.
+  // Privilege escalation guard: an Admin cannot create an Superadmin.
   if (!canActOnRole(actor.role, role)) {
-    redirect(`/admin/settings/team/new?error=${encodeURIComponent('ไม่มีสิทธิ์สร้างบัญชี Owner')}`);
+    redirect(`/admin/settings/team/new?error=${encodeURIComponent('ไม่มีสิทธิ์สร้างบัญชี Superadmin')}`);
   }
 
   // Pre-check email uniqueness in our User table. (Supabase auth.users
@@ -246,25 +246,25 @@ export async function updateTeamMemberRole(id: string, formData: FormData): Prom
     redirect(`/admin/settings/team?error=${encodeURIComponent('บัญชีนี้ถูกระงับแล้ว')}`);
   }
 
-  // Permission: Admin cannot touch Owner; Owner can touch anyone.
+  // Permission: Admin cannot touch Superadmin; Superadmin can touch anyone.
   if (!canActOnRole(actor.role, target.role)) {
     redirect(`/admin/settings/team?error=${encodeURIComponent('ไม่มีสิทธิ์แก้ไขบัญชีนี้')}`);
   }
-  // And the new role must also be allowed (Admin can't promote to Owner).
+  // And the new role must also be allowed (Admin can't promote to Superadmin).
   if (!canActOnRole(actor.role, newRole)) {
     redirect(
-      `/admin/settings/team/${id}/edit?error=${encodeURIComponent('ไม่มีสิทธิ์ตั้งบทบาทเป็น Owner')}`,
+      `/admin/settings/team/${id}/edit?error=${encodeURIComponent('ไม่มีสิทธิ์ตั้งบทบาทเป็น Superadmin')}`,
     );
   }
 
-  // Last-Owner guard: demoting the only Owner would lock everyone out
-  // of Owner-tier operations.
+  // Last-Superadmin guard: demoting the only Superadmin would lock everyone out
+  // of Superadmin-tier operations.
   if (target.role === 'Superadmin' && newRole !== 'Superadmin') {
-    const ownerCount = await countActiveOwners();
+    const ownerCount = await countActiveSuperadmins();
     if (ownerCount <= 1) {
       redirect(
         `/admin/settings/team/${id}/edit?error=${encodeURIComponent(
-          'ต้องมี Owner อย่างน้อย 1 บัญชีในระบบ',
+          'ต้องมี Superadmin อย่างน้อย 1 บัญชีในระบบ',
         )}`,
       );
     }
@@ -316,7 +316,7 @@ export async function resetTeamMemberPassword(id: string, formData: FormData): P
     redirect(`/admin/settings/team/${id}/edit?error=${encodeURIComponent('บัญชีนี้ถูกระงับแล้ว')}`);
   }
   if (!target.authUserId) {
-    // Admin/Owner accounts should always have authUserId — they're
+    // Admin/Superadmin accounts should always have authUserId — they're
     // created via the same flow we wrote earlier. Bail loudly if not.
     redirect(
       `/admin/settings/team/${id}/edit?error=${encodeURIComponent(
@@ -382,12 +382,12 @@ export async function archiveTeamMember(id: string): Promise<void> {
     redirect(`/admin/settings/team?error=${encodeURIComponent('ไม่มีสิทธิ์ระงับบัญชีนี้')}`);
   }
 
-  // Last-Owner guard.
+  // Last-Superadmin guard.
   if (target.role === 'Superadmin') {
-    const ownerCount = await countActiveOwners();
+    const ownerCount = await countActiveSuperadmins();
     if (ownerCount <= 1) {
       redirect(
-        `/admin/settings/team?error=${encodeURIComponent('ต้องมี Owner อย่างน้อย 1 บัญชีในระบบ')}`,
+        `/admin/settings/team?error=${encodeURIComponent('ต้องมี Superadmin อย่างน้อย 1 บัญชีในระบบ')}`,
       );
     }
   }
@@ -399,7 +399,7 @@ export async function archiveTeamMember(id: string): Promise<void> {
     });
   } catch (err) {
     // Foreign-key violation surface — if this User has Employee rows
-    // pointing at them (shouldn't happen for Admin/Owner; defensive).
+    // pointing at them (shouldn't happen for Admin/Superadmin; defensive).
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2003') {
       redirect(`/admin/settings/team?error=${encodeURIComponent('มีข้อมูลอ้างอิงบัญชีนี้อยู่ — ติดต่อทีมพัฒนา')}`);
     }
@@ -442,7 +442,7 @@ export async function archiveTeamMember(id: string): Promise<void> {
  *     notifications for this user are removed with them.
  *
  * What blocks the delete:
- *   - `Employee.userId` has `onDelete: Restrict` — but no Admin/Owner
+ *   - `Employee.userId` has `onDelete: Restrict` — but no Admin/Superadmin
  *     should have an Employee row pointing at them; if Prisma raises
  *     P2003 it's a data-integrity bug, surfaced as a friendly error.
  *
@@ -473,13 +473,13 @@ export async function deleteTeamMember(id: string): Promise<void> {
     redirect(`/admin/settings/team?error=${encodeURIComponent('ไม่มีสิทธิ์ลบบัญชีนี้')}`);
   }
 
-  // Last-Owner guard. Even hard-deleting the only Owner must not happen
+  // Last-Superadmin guard. Even hard-deleting the only Superadmin must not happen
   // — system would have no one to manage future admins.
   if (target.role === 'Superadmin') {
-    const ownerCount = await countActiveOwners();
+    const ownerCount = await countActiveSuperadmins();
     if (ownerCount <= 1) {
       redirect(
-        `/admin/settings/team?error=${encodeURIComponent('ต้องมี Owner อย่างน้อย 1 บัญชีในระบบ')}`,
+        `/admin/settings/team?error=${encodeURIComponent('ต้องมี Superadmin อย่างน้อย 1 บัญชีในระบบ')}`,
       );
     }
   }

@@ -9,7 +9,7 @@ type SearchParams = Promise<{ error?: string; notice?: string }>;
 
 export default async function TeamListPage({ searchParams }: { searchParams: SearchParams }) {
   // Both roles can land here — but the table & buttons adapt to what
-  // the actor is allowed to do. Admin sees Owners as read-only.
+  // the actor is allowed to do. Admin sees Superadmins as read-only.
   const { user: actor } = await requireRole(['Admin', 'Superadmin']);
   const { error, notice } = await searchParams;
 
@@ -32,7 +32,7 @@ export default async function TeamListPage({ searchParams }: { searchParams: Sea
       <div className="mb-6 flex items-baseline justify-between">
         <div>
           <h2 className="text-lg font-semibold text-gray-900">ทีมผู้ดูแล</h2>
-          <p className="mt-0.5 text-sm text-gray-500">บัญชี Admin / Owner ที่เข้าใช้แผงควบคุมได้</p>
+          <p className="mt-0.5 text-sm text-gray-500">บัญชี Admin / Superadmin ที่เข้าใช้แผงควบคุมได้</p>
         </div>
         <Link href="/admin/settings/team/new">
           <Button>+ เพิ่มผู้ดูแล</Button>
@@ -71,7 +71,7 @@ export default async function TeamListPage({ searchParams }: { searchParams: Sea
               </THead>
               <TBody>
                 {members.map((m) => {
-                  // Admin actor cannot edit Owner — server enforces; we
+                  // Admin actor cannot edit Superadmin — server enforces; we
                   // gray the link out so the UI doesn't promise something
                   // that won't work.
                   const canEdit = actor.role === 'Superadmin' || m.role === 'Admin';
@@ -106,7 +106,7 @@ export default async function TeamListPage({ searchParams }: { searchParams: Sea
                             แก้ไข
                           </Link>
                         ) : (
-                          <span className="text-sm text-gray-400" title="ต้องเป็น Owner">
+                          <span className="text-sm text-gray-400" title="ต้องเป็น Superadmin">
                             อ่านอย่างเดียว
                           </span>
                         )}
@@ -121,7 +121,7 @@ export default async function TeamListPage({ searchParams }: { searchParams: Sea
       </Card>
 
       <p className="mt-3 text-xs text-gray-500">
-        บัญชีที่ระงับแล้ว (archive) จะถูกซ่อนจากรายการนี้ — ติดต่อ Owner เพื่อกู้คืน
+        บัญชีที่ระงับแล้ว (archive) จะถูกซ่อนจากรายการนี้ — ติดต่อ Superadmin เพื่อกู้คืน
       </p>
     </div>
   );
@@ -131,7 +131,7 @@ function RoleBadge({ role }: { role: 'Admin' | 'Superadmin' }) {
   if (role === 'Superadmin') {
     return (
       <span className="rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-800">
-        Owner
+        Superadmin
       </span>
     );
   }

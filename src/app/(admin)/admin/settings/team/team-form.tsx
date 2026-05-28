@@ -14,10 +14,10 @@ import { Input } from '@/components/ui/input';
  * Role select options are filtered to what the *acting* user is
  * permitted to grant:
  *   - Admin actor → ['Admin'] only
- *   - Owner actor → ['Admin', 'Superadmin']
+ *   - Superadmin actor → ['Admin', 'Superadmin']
  *
  * The server re-validates this; the UI filter is just so admins don't
- * see a disabled "Owner" option pointlessly.
+ * see a disabled "Superadmin" option pointlessly.
  */
 
 type Props = {

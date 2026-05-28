@@ -208,7 +208,7 @@ export async function submitLeaveRequest(input: SubmitInput): Promise<SubmitLeav
       metadata: { ip, userAgent, source: 'liff' },
     });
 
-    // Fan-out in-app bell to all active Admin/Owner. Fire-and-forget; if
+    // Fan-out in-app bell to all active Admin/Superadmin. Fire-and-forget; if
     // this throws inside notifyAdminsInApp it's logged but doesn't fail
     // the submission — the employee shouldn't see "ระบบขัดข้อง" because
     // a notification write hiccuped.

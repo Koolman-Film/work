@@ -1,18 +1,18 @@
 /**
- * Owner shell — topbar + content, no sidebar.
+ * Superadmin shell — topbar + content, no sidebar.
  *
- * Phase-1 Owner has exactly one page (/owner), so a sidebar would be
+ * Phase-1 Superadmin has exactly one page (/owner), so a sidebar would be
  * empty chrome. We re-use the admin Topbar (`userLabel`-driven, no
  * admin-only logic in it) for visual consistency.
  *
  * The role gate runs in this layout — any future /owner/* page picks it
- * up automatically. Non-Owners (including Admins) get notFound().
+ * up automatically. Non-Superadmins (including Admins) get notFound().
  */
 
 import { Topbar } from '@/components/admin/topbar';
 import { requireRole } from '@/lib/auth/require-role';
 
-export default async function OwnerLayout({ children }: { children: React.ReactNode }) {
+export default async function SuperadminLayout({ children }: { children: React.ReactNode }) {
   const { user } = await requireRole(['Superadmin']);
 
   return (

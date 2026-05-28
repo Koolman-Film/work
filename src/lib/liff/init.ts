@@ -23,7 +23,7 @@
  *     burn quota and confuse the auth state.
  *   - If the existing session is NOT a `custom:line` one — typically
  *     because LINE's webview shares cookies with the system browser and
- *     an Admin/Owner session leaked in — we sign it out locally before
+ *     an Admin/Superadmin session leaked in — we sign it out locally before
  *     starting the LINE OIDC flow, so the employee pair can succeed.
  *     On shared-cookie webviews (iOS WKWebView default) this also
  *     clears the admin's session in their main browser. That's an
@@ -98,7 +98,7 @@ export async function liffBootstrap(): Promise<LiffBootstrapResult> {
   //   2. Session exists AND has a `custom:line` identity → genuine LIFF
   //      session from a prior LIFF nav. Fast-path: reuse it.
   //   3. Session exists but has NO `custom:line` identity → this is an
-  //      Admin/Owner session that leaked into the LIFF webview through
+  //      Admin/Superadmin session that leaked into the LIFF webview through
   //      shared cookies with the system browser. Sign it out and proceed
   //      to LINE OIDC, so the employee can still pair without manually
   //      logging out of the admin web on their device.

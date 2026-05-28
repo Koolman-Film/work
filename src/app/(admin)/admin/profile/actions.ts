@@ -1,7 +1,7 @@
 'use server';
 
 /**
- * Self-service password change for the logged-in Admin / Owner.
+ * Self-service password change for the logged-in Admin / Superadmin.
  *
  * Why this exists as a third password-change path (on top of /update-password
  * and the admin team-edit reset):
@@ -97,7 +97,7 @@ export async function changeMyPassword(input: {
   }
 
   if (!user.email) {
-    // Admin/Owner accounts always have an email (it's how they log in).
+    // Admin/Superadmin accounts always have an email (it's how they log in).
     // Defensive — if somehow null, we can't re-auth.
     return {
       ok: false,

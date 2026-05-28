@@ -36,11 +36,11 @@ export function Topbar({ userLabel, userId }: Props) {
   return (
     <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-2 border-b border-gray-200 bg-white/80 px-3 backdrop-blur sm:px-5">
       <div className="flex min-w-0 items-center gap-2">
-        {/* Hamburger — mobile-only. The Owner shell doesn't have a sidebar,
+        {/* Hamburger — mobile-only. The Superadmin shell doesn't have a sidebar,
             but the button is harmless there (toggles a store nobody reads).
             We could conditionally render based on whether the sidebar is
             mounted, but that requires layout-level coordination that isn't
-            worth it for one stray button on the Owner page. */}
+            worth it for one stray button on the Superadmin page. */}
         <button
           type="button"
           onClick={toggleMobileNav}
