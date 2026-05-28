@@ -22,24 +22,9 @@
  * requireRole(['Admin']).
  */
 
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 
 const URL_TTL_SECONDS = 60 * 10; // 10 minutes — enough for a review session
-
-let adminClient: ReturnType<typeof createClient> | null = null;
-
-function getAdminClient() {
-  if (adminClient) return adminClient;
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SECRET_KEY;
-  if (!url || !serviceKey) {
-    throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SECRET_KEY');
-  }
-  adminClient = createClient(url, serviceKey, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
-  return adminClient;
-}
 
 /**
  * Generate signed URLs for an array of storage keys in one batched call.
@@ -60,7 +45,7 @@ export async function signAttendancePhotoUrls(
   const unique = Array.from(new Set(keys.filter((k) => k && k.length > 0)));
   if (unique.length === 0) return out;
 
-  const client = getAdminClient();
+  const client = getSupabaseAdminClient();
   const { data, error } = await client.storage
     .from('attendance-photos')
     .createSignedUrls(unique, URL_TTL_SECONDS);
