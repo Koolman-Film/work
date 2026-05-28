@@ -274,6 +274,98 @@ export async function archiveEmployee(id: string) {
   redirect('/admin/employees');
 }
 
+/**
+ * Hard-delete an employee from the database. Only works for employees
+ * with NO related records (attendances, leave, advance, payroll, etc.).
+ *
+ * Why not cascade-delete the related rows too:
+ *   - Thai labor law requires HR records be retained for the longer of
+ *     (a) the employment duration + 2 years, or (b) any open dispute.
+ *   - Cascade-deleting attendance/payroll would destroy that history.
+ *   - For employees who DO have records, the right answer is Archive
+ *     (soft delete) — preserves data, hides from active views.
+ *
+ * So this action is mostly useful for cleaning up mistakes:
+ *   - Test employees from UAT
+ *   - Duplicates created in error before any check-in/leave was logged
+ *   - New hires who quit before their first day
+ *
+ * For populated employees, the action returns with `?error=...` rather
+ * than throwing — the UI can render the message inline.
+ *
+ * The associated User row is also deleted (cascading via Prisma since
+ * Employee.userId is the FK direction; we delete Employee first then User).
+ * The Supabase auth.users row is NOT deleted — this is a Phase-2 polish
+ * since calling supabase.auth.admin.deleteUser requires service-role and
+ * the orphaned auth row doesn't hurt anything (no Supabase session is
+ * possible without a matching User row).
+ */
+export async function deleteEmployee(id: string) {
+  const { user } = await requireRole(['Admin']);
+
+  const emp = await prisma.employee.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      userId: true,
+      firstName: true,
+      lastName: true,
+      _count: {
+        select: {
+          attendances: true,
+          leaveRequests: true,
+          cashAdvances: true,
+          payrolls: true,
+          recurringDeductions: true,
+        },
+      },
+    },
+  });
+  if (!emp) redirect('/admin/employees');
+
+  // Refuse if any related data exists — admin should use Archive instead.
+  const counts = emp._count;
+  const totalRelated =
+    counts.attendances +
+    counts.leaveRequests +
+    counts.cashAdvances +
+    counts.payrolls +
+    counts.recurringDeductions;
+
+  if (totalRelated > 0) {
+    const parts = [
+      counts.attendances > 0 && `${counts.attendances} รายการลงเวลา`,
+      counts.leaveRequests > 0 && `${counts.leaveRequests} คำขอลา`,
+      counts.cashAdvances > 0 && `${counts.cashAdvances} คำขอเบิก`,
+      counts.payrolls > 0 && `${counts.payrolls} รายการเงินเดือน`,
+      counts.recurringDeductions > 0 && `${counts.recurringDeductions} รายการหักประจำ`,
+    ].filter(Boolean) as string[];
+    const message = `ไม่สามารถลบได้ — พนักงานคนนี้มี ${parts.join(', ')} ในระบบ กรุณาใช้ "พ้นสภาพ" แทน`;
+    redirect(`/admin/employees/${id}/edit?error=${encodeURIComponent(message)}`);
+  }
+
+  // Safe to delete. Audit-log BEFORE deletion so we capture identity.
+  auditLog({
+    actorId: user.id,
+    action: 'employee.delete',
+    entityType: 'Employee',
+    entityId: id,
+    before: { firstName: emp.firstName, lastName: emp.lastName, userId: emp.userId },
+    metadata: { source: 'admin-ui', reason: 'hard-delete-no-related-records' },
+  });
+
+  // Transaction: delete Employee row, then the parent User row.
+  // Notification rows referencing the User cascade via the schema's
+  // onDelete behavior (Cascade for Notification.userId).
+  await prisma.$transaction(async (tx) => {
+    await tx.employee.delete({ where: { id } });
+    await tx.user.delete({ where: { id: emp.userId } });
+  });
+
+  revalidatePath('/admin/employees');
+  redirect('/admin/employees');
+}
+
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
 function serializableEmployee(e: {

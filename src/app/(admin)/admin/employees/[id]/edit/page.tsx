@@ -1,11 +1,11 @@
 import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
-import { Button } from '@/components/ui/button';
 import { prisma } from '@/lib/db/prisma';
 import { loadEmployeeFormOptions } from '../../_load-options';
-import { archiveEmployee, updateEmployee } from '../../actions';
+import { archiveEmployee, deleteEmployee, updateEmployee } from '../../actions';
 import { EmployeeForm } from '../../employee-form';
 import { PairingCard } from '../../pairing-card';
+import { DangerActions } from './danger-actions';
 
 type Params = Promise<{ id: string }>;
 type SearchParams = Promise<{ error?: string; ok?: string }>;
@@ -91,12 +91,18 @@ export default async function EditEmployeePage({
           hiredAt: emp.hiredAt.toISOString().slice(0, 10),
         }}
         extraActions={
+          // Both Archive + Delete use `formAction` on the button itself
+          // rather than wrapping each in a separate <form>. EmployeeForm
+          // already renders a <form>; nesting another inside it triggers
+          // React 19's "form was unexpectedly submitted" guard. With
+          // formAction= on the button, one form can route to multiple
+          // server actions cleanly.
           emp.archivedAt ? null : (
-            <form action={archiveEmployee.bind(null, id)}>
-              <Button type="submit" variant="destructive">
-                พ้นสภาพ
-              </Button>
-            </form>
+            <DangerActions
+              archiveAction={archiveEmployee.bind(null, id)}
+              deleteAction={deleteEmployee.bind(null, id)}
+              employeeName={`${emp.firstName} ${emp.lastName}`.trim()}
+            />
           )
         }
       />
