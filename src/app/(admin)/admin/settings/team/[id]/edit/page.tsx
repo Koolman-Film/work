@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardBody, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { FormField } from '@/components/ui/form-field';
 import { Input } from '@/components/ui/input';
-import { requireRole } from '@/lib/auth/require-role';
+import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import {
   archiveTeamMember,
@@ -42,7 +42,11 @@ export default async function EditTeamMemberPage({
 }) {
   const { id } = await params;
   const { error, notice } = await searchParams;
-  const { user: actor } = await requireRole(['Admin', 'Superadmin']);
+  // team.update is held only by Superadmin (Phase 3.5 tightening).
+  // The page is the entry point for role/password/archive edits — any
+  // of those would fail at the action layer for non-Superadmins, so
+  // we gate the whole page on the same permission.
+  const { user: actor } = await requirePermission('team.update');
 
   const target = await prisma.user.findUnique({
     where: { id },

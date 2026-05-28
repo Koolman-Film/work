@@ -2,15 +2,17 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/table';
-import { requireRole } from '@/lib/auth/require-role';
+import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 
 type SearchParams = Promise<{ error?: string; notice?: string }>;
 
 export default async function TeamListPage({ searchParams }: { searchParams: SearchParams }) {
-  // Both roles can land here — but the table & buttons adapt to what
-  // the actor is allowed to do. Admin sees Superadmins as read-only.
-  const { user: actor } = await requireRole(['Admin', 'Superadmin']);
+  // Admin holds team.read so they can SEE the team list (helpful for
+  // "who can I escalate to?"). Write actions below all gate on
+  // team.create / team.update / team.delete which Admin doesn't hold,
+  // so the edit/+เพิ่ม buttons become read-only signals.
+  const { user: actor } = await requirePermission('team.read');
   const { error, notice } = await searchParams;
 
   const members = await prisma.user.findMany({

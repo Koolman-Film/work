@@ -53,7 +53,7 @@ import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { auditLog } from '@/lib/audit/log';
-import { requireRole } from '@/lib/auth/require-role';
+import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 
@@ -127,7 +127,7 @@ function canActOnRole(actorRole: Role, targetRole: Role): boolean {
 // ─── Create ────────────────────────────────────────────────────────────────
 
 export async function createTeamMember(formData: FormData): Promise<void> {
-  const { user: actor } = await requireRole(['Admin', 'Superadmin']);
+  const { user: actor } = await requirePermission('team.create');
 
   const parsed = CreateSchema.safeParse({
     email: formData.get('email') ?? undefined,
@@ -221,7 +221,7 @@ export async function createTeamMember(formData: FormData): Promise<void> {
 // ─── Update role ───────────────────────────────────────────────────────────
 
 export async function updateTeamMemberRole(id: string, formData: FormData): Promise<void> {
-  const { user: actor } = await requireRole(['Admin', 'Superadmin']);
+  const { user: actor } = await requirePermission('team.update');
 
   const parsed = UpdateRoleSchema.safeParse({
     role: formData.get('role') ?? undefined,
@@ -295,7 +295,7 @@ export async function updateTeamMemberRole(id: string, formData: FormData): Prom
 // ─── Reset password ────────────────────────────────────────────────────────
 
 export async function resetTeamMemberPassword(id: string, formData: FormData): Promise<void> {
-  const { user: actor } = await requireRole(['Admin', 'Superadmin']);
+  const { user: actor } = await requirePermission('team.password-reset');
 
   const parsed = ResetPasswordSchema.safeParse({
     password: formData.get('password') ?? undefined,
@@ -359,7 +359,9 @@ export async function resetTeamMemberPassword(id: string, formData: FormData): P
 // ─── Archive ───────────────────────────────────────────────────────────────
 
 export async function archiveTeamMember(id: string): Promise<void> {
-  const { user: actor } = await requireRole(['Admin', 'Superadmin']);
+  // Archive is a reversible state change (soft delete) — treated as
+  // an update. team.delete is reserved for hard delete only.
+  const { user: actor } = await requirePermission('team.update');
 
   const target = await prisma.user.findUnique({
     where: { id },
@@ -454,7 +456,7 @@ export async function archiveTeamMember(id: string): Promise<void> {
  * developer should clean up via the Supabase dashboard.
  */
 export async function deleteTeamMember(id: string): Promise<void> {
-  const { user: actor } = await requireRole(['Admin', 'Superadmin']);
+  const { user: actor } = await requirePermission('team.delete');
 
   const target = await prisma.user.findUnique({
     where: { id },
@@ -601,7 +603,7 @@ async function syncLegacyUserRole(userId: string): Promise<void> {
  * the user now holds.
  */
 export async function addRoleAssignment(userId: string, formData: FormData): Promise<void> {
-  const { user: actor } = await requireRole(['Admin', 'Superadmin']);
+  const { user: actor } = await requirePermission('role.assign');
 
   const roleId = String(formData.get('roleId') ?? '');
   const branchValue = String(formData.get('branchId') ?? 'global');
@@ -681,7 +683,7 @@ export async function addRoleAssignment(userId: string, formData: FormData): Pro
  * User.role stays whatever it was (defensive fallback).
  */
 export async function removeRoleAssignment(assignmentId: string): Promise<void> {
-  const { user: actor } = await requireRole(['Admin', 'Superadmin']);
+  const { user: actor } = await requirePermission('role.assign');
 
   const assignment = await prisma.userRoleAssignment.findUnique({
     where: { id: assignmentId },
