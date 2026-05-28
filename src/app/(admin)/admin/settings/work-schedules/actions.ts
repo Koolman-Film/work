@@ -35,7 +35,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { auditLog } from '@/lib/audit/log';
-import { requireRole } from '@/lib/auth/require-role';
+import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 
 // ─── Validation ────────────────────────────────────────────────────────────
@@ -129,7 +129,7 @@ function daysCreatePayload(
 // ─── Create ────────────────────────────────────────────────────────────────
 
 export async function createWorkSchedule(formData: FormData) {
-  const { user } = await requireRole(['Admin']);
+  const { user } = await requirePermission('settings.work-schedule.manage');
 
   const parsed = readForm(formData);
   if (!parsed.success) {
@@ -167,7 +167,7 @@ export async function createWorkSchedule(formData: FormData) {
 // ─── Update ────────────────────────────────────────────────────────────────
 
 export async function updateWorkSchedule(id: string, formData: FormData) {
-  const { user } = await requireRole(['Admin']);
+  const { user } = await requirePermission('settings.work-schedule.manage');
 
   const parsed = readForm(formData);
   if (!parsed.success) {
@@ -226,7 +226,7 @@ export async function updateWorkSchedule(id: string, formData: FormData) {
 // ─── Archive ───────────────────────────────────────────────────────────────
 
 export async function archiveWorkSchedule(id: string) {
-  const { user } = await requireRole(['Admin']);
+  const { user } = await requirePermission('settings.work-schedule.manage');
 
   const before = await prisma.workSchedule.findUnique({ where: { id } });
   if (!before) {

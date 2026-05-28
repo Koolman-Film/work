@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { auditLog } from '@/lib/audit/log';
-import { requireRole } from '@/lib/auth/require-role';
+import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 
 /**
@@ -12,7 +12,7 @@ import { prisma } from '@/lib/db/prisma';
  *
  * Conventions used here that we'll mirror in Department + AccountingGroup:
  *   - Zod schema for input validation at the top
- *   - `requireRole(['Admin'])` first thing in every mutation
+ *   - `requirePermission('settings.branch.manage')` first thing in every mutation
  *   - On validation failure → redirect back with `?error=...` (server actions
  *     can't return rich state to plain HTML forms; query param is the
  *     simplest progressive-enhancement-friendly approach)
@@ -101,7 +101,7 @@ function readForm(formData: FormData) {
 }
 
 export async function createBranch(formData: FormData) {
-  const { user } = await requireRole(['Admin']);
+  const { user } = await requirePermission('settings.branch.manage');
 
   const parsed = readForm(formData);
   if (!parsed.success) {
@@ -131,7 +131,7 @@ export async function createBranch(formData: FormData) {
 }
 
 export async function updateBranch(id: string, formData: FormData) {
-  const { user } = await requireRole(['Admin']);
+  const { user } = await requirePermission('settings.branch.manage');
 
   const parsed = readForm(formData);
   if (!parsed.success) {
@@ -167,7 +167,7 @@ export async function updateBranch(id: string, formData: FormData) {
 }
 
 export async function archiveBranch(id: string) {
-  const { user } = await requireRole(['Admin']);
+  const { user } = await requirePermission('settings.branch.manage');
 
   const before = await prisma.branch.findUnique({ where: { id } });
   if (!before) {
