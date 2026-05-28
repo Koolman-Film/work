@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { auditLog } from '@/lib/audit/log';
-import { requireRole } from '@/lib/auth/require-role';
+import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { mintPairingToken } from '@/lib/pairing/token';
 
@@ -20,7 +20,9 @@ import { mintPairingToken } from '@/lib/pairing/token';
  * is shown.
  */
 export async function generatePairingLink(employeeId: string) {
-  const { user } = await requireRole(['Admin']);
+  // Pairing-link generation/revocation modifies the employee's
+  // inviteToken/lineUserId state — semantically an employee.update.
+  const { user } = await requirePermission('employee.update');
 
   const emp = await prisma.employee.findUnique({
     where: { id: employeeId },
@@ -67,7 +69,9 @@ export async function generatePairingLink(employeeId: string) {
  * Doesn't affect an already-linked LINE account (separate flow).
  */
 export async function revokePairingLink(employeeId: string) {
-  const { user } = await requireRole(['Admin']);
+  // Pairing-link generation/revocation modifies the employee's
+  // inviteToken/lineUserId state — semantically an employee.update.
+  const { user } = await requirePermission('employee.update');
 
   const emp = await prisma.employee.findUnique({
     where: { id: employeeId },
