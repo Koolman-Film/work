@@ -1,0 +1,24 @@
+-- Per-branch optional check-out prompt.
+--
+-- A Branch can now opt in to requiring employees to tap "เช็คเอาท์" at
+-- the end of their work day. When `requireCheckOut=false` (the default),
+-- the LIFF widget completes its flow at the check-in step and shows
+-- "เสร็จสิ้นวันนี้" directly — no end-of-day prompt is shown.
+--
+-- Default `false` is intentional: check-out tracking is opt-in. Existing
+-- branches inherit `false` from the column default, matching the explicit
+-- migration requirement that existing branches do NOT require check-out
+-- until admin opts in via the branch edit form.
+--
+-- Note: this flag does NOT affect the `attendance-force-checkout-eod`
+-- cron, which still runs nightly at 22:00 BKK to clock out any row with
+-- a null clockOutAt. That cron's job is database hygiene (so the live
+-- board doesn't show stale "still on shift" rows the next morning) and
+-- is orthogonal to whether the employee was prompted.
+--
+-- Also note: motivated employees can still log their actual exit time
+-- via an optional "เช็คเอาท์ (ถ้าต้องการ)" link the LIFF renders in the
+-- done state when requireCheckOut=false. The flag controls the prompt
+-- prominence, not the ability to check out.
+
+ALTER TABLE "Branch" ADD COLUMN "requireCheckOut" BOOLEAN NOT NULL DEFAULT false;

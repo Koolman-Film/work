@@ -70,6 +70,10 @@ const BranchSchema = z
       .string()
       .optional()
       .transform((s) => s === 'on'),
+    requireCheckOut: z
+      .string()
+      .optional()
+      .transform((s) => s === 'on'),
   })
   .refine((d) => (d.latitude == null) === (d.longitude == null), {
     message: 'ต้องระบุพิกัดทั้ง lat และ lng หรือทั้งคู่ว่าง',
@@ -92,6 +96,7 @@ function readForm(formData: FormData) {
     radiusMeters: get('radiusMeters'),
     requireSelfie: get('requireSelfie'),
     requireGps: get('requireGps'),
+    requireCheckOut: get('requireCheckOut'),
   });
 }
 
@@ -211,6 +216,7 @@ function serializableBranch(b: {
   radiusMeters: number;
   requireSelfie: boolean;
   requireGps: boolean;
+  requireCheckOut: boolean;
   latitude: unknown;
   longitude: unknown;
 }) {
@@ -220,6 +226,7 @@ function serializableBranch(b: {
     radiusMeters: b.radiusMeters,
     requireSelfie: b.requireSelfie,
     requireGps: b.requireGps,
+    requireCheckOut: b.requireCheckOut,
     // Decimal → string (or null)
     latitude: b.latitude ? String(b.latitude) : null,
     longitude: b.longitude ? String(b.longitude) : null,

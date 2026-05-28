@@ -55,6 +55,13 @@ type Props = {
   branches: readonly Branch[];
   /** Server-computed: ANY assigned branch has requireSelfie=true. */
   selfieRequired: boolean;
+  /**
+   * Server-computed: ANY assigned branch has requireCheckOut=true.
+   * When false, after check-in the employee jumps straight to "done"
+   * (with an optional secondary check-out link). When true, the
+   * end-of-day check-out button is the prominent next step.
+   */
+  checkOutRequired: boolean;
   initialState: CheckInState;
   dateLine: string;
 };
@@ -92,6 +99,7 @@ export default function CheckInClient({
   employeeLastName,
   branches,
   selfieRequired,
+  checkOutRequired,
   initialState,
   dateLine,
 }: Props) {
@@ -203,15 +211,29 @@ export default function CheckInClient({
     }
   }
 
-  // Which action to surface? Three cases.
-  //   - Has not checked in yet today → Check-in button.
-  //   - Checked in, not yet out      → Check-out button.
-  //   - Already out                  → Disabled "เสร็จสิ้นวันนี้" card.
+  // Which action to surface? Four cases.
+  //   - Has not checked in yet today        → 'check-in' (primary button).
+  //   - Checked in, not out, branch requires
+  //     check-out                           → 'check-out' (primary button).
+  //   - Checked in, not out, branch does
+  //     NOT require check-out               → 'done' (success card) +
+  //                                           optional "เช็คเอาท์" link.
+  //   - Already out (any branch policy)     → 'done' (success card only).
+  //
+  // The "checkOutRequired=false" branch is the new path: we treat the
+  // post-check-in state as terminal for the employee's UX. The Attendance
+  // row stays open until the force-checkout cron closes it at 22:00 BKK
+  // (or the employee taps the optional secondary link below).
   const mode: 'check-in' | 'check-out' | 'done' = !state.hasCheckedIn
     ? 'check-in'
-    : !state.hasCheckedOut
+    : !state.hasCheckedOut && checkOutRequired
       ? 'check-out'
       : 'done';
+
+  // When in 'done' state but no actual clockOut was recorded yet, expose
+  // a quieter check-out link so motivated employees can still log their
+  // exit time. Hidden when the row is fully closed.
+  const showOptionalCheckOut = mode === 'done' && state.hasCheckedIn && !state.hasCheckedOut;
 
   const isBusy =
     phase.kind === 'capturing-selfie' ||
@@ -279,9 +301,26 @@ export default function CheckInClient({
             />
           )}
           {mode === 'done' && (
-            <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-4 text-center text-sm text-green-800">
-              ✓ เสร็จสิ้นวันนี้แล้ว ขอบคุณค่ะ
-            </div>
+            <>
+              <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-4 text-center text-sm text-green-800">
+                ✓ เสร็จสิ้นวันนี้แล้ว ขอบคุณค่ะ
+              </div>
+              {/* Optional check-out — for branches where requireCheckOut=false,
+                  the day "ends" at check-in, but motivated employees can still
+                  log their exit time if they want. Hidden when the row already
+                  has clockOutAt (either user tapped this earlier, or the EOD
+                  force-checkout cron closed it). */}
+              {showOptionalCheckOut && (
+                <button
+                  type="button"
+                  onClick={onCheckOut}
+                  disabled={isBusy}
+                  className="mt-3 w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-600 transition hover:border-gray-300 hover:text-gray-800 disabled:opacity-60"
+                >
+                  {isBusy ? '...' : 'เช็คเอาท์ออกจากงาน (ถ้าต้องการ)'}
+                </button>
+              )}
+            </>
           )}
 
           {/* Live phase feedback under the button */}

@@ -13,6 +13,7 @@ type Initial = {
   radiusMeters: number;
   requireSelfie: boolean;
   requireGps: boolean;
+  requireCheckOut: boolean;
 };
 
 type Mode =
@@ -124,6 +125,22 @@ export function BranchForm({ mode, action, initial, error, extraActions }: Props
               </label>
               <p className="ml-6 mt-0.5 text-xs text-gray-500">
                 เพิ่มความน่าเชื่อถือ — ป้องกันการให้คนอื่นเช็คอินแทน
+              </p>
+            </div>
+
+            <div>
+              <label className="flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  name="requireCheckOut"
+                  defaultChecked={initial?.requireCheckOut ?? false}
+                  className="size-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500/30"
+                />
+                <span>ต้องเช็คเอาท์ตอนเลิกงาน</span>
+              </label>
+              <p className="ml-6 mt-0.5 text-xs text-gray-500">
+                เปิดเพื่อบังคับให้พนักงานเช็คเอาท์เมื่อเลิกงาน — ปิดเพื่อให้เช็คอินอย่างเดียวก็พอ
+                (ระบบจะปิดเวลาออกอัตโนมัติให้ตอน 22:00)
               </p>
             </div>
           </CardBody>
