@@ -10,10 +10,19 @@ generator client {
 
 datasource db {
   provider  = "postgresql"
+  // Runtime queries — uses the Supabase pgbouncer pooler in prod
+  // (port 6543, transaction pooling). Cheap and stateless, ideal for
+  // Vercel Functions' short-lived connections.
   url       = env("DATABASE_URL")
-  // For production: also set DATABASE_POOLER_URL (Supavisor) and switch `url`
-  // to it; keep `directUrl` pointing at the direct connection for migrations.
-  // For local dev a single DATABASE_URL works for both.
+  // Schema migrations — uses a direct (session-level) connection
+  // because Prisma's `migrate deploy` takes advisory locks and runs
+  // multi-statement transactions that pgbouncer transaction-pooling
+  // breaks (the lock either fails or hangs forever, as we hit in
+  // build dpl_9edoaGi93c4gSqHJvKq6oTm8RsSJ on 2026-05-28). Point
+  // DIRECT_URL at port 5432 of the same DB host.
+  // For local dev a single DATABASE_URL works for both — set
+  // DIRECT_URL to the same value (Prisma falls back if absent).
+  directUrl = env("DIRECT_URL")
 }
 
 // ─── Enums ─────────────────────────────────────────────────────────────────
