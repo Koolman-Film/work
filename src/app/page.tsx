@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { computeTier } from '@/lib/auth/user-tier';
 import { prisma } from '@/lib/db/prisma';
 import { createClient } from '@/lib/supabase/server';
 
@@ -19,15 +20,19 @@ import { createClient } from '@/lib/supabase/server';
  *     a DB call on every request, including statics. Cheaper to route once
  *     at "/" and let `requireRole()` in the destination guard the rest.
  *
- * History: the Superadmin→Superadmin and Employee→Staff enum rename in
+ * History: the Owner→Superadmin and Employee→Staff enum rename in
  * migration 0009 broke this map because the keys were UNQUOTED object
  * literal keys — the bulk sed (which targeted only single-quoted enum
  * literals) skipped them. Result: a redirect loop for Superadmin/Staff
  * users — ROLE_HOMES[user.role] returned undefined → fall through to
  * /login → proxy bounces back → loop. Fixed 2026-05-28.
+ *
+ * Phase 4: tier is now computed from role assignments (not the legacy
+ * User.role enum). The map keys are the tier strings returned by
+ * computeTier(). Same shape, computed-not-read.
  */
 
-const ROLE_HOMES: Record<string, string> = {
+const TIER_HOMES: Record<string, string> = {
   Admin: '/admin',
   Superadmin: '/admin',
   Staff: '/liff/check-in',
@@ -40,17 +45,30 @@ export default async function HomePage() {
   } = await supabase.auth.getUser();
 
   if (authUser) {
+    // Fetch User + active assignments in one query — same pattern as
+    // requireRole (lib/auth/require-role.ts). We need the assignments
+    // to compute tier; we keep the include narrow (just the
+    // tier-relevant role fields).
     const user = await prisma.user.findUnique({
       where: { authUserId: authUser.id },
-      select: { role: true, archivedAt: true },
+      select: {
+        archivedAt: true,
+        roleAssignments: {
+          select: {
+            role: { select: { key: true, isSuperadmin: true, archivedAt: true } },
+          },
+        },
+      },
     });
     if (user && !user.archivedAt) {
-      const home = ROLE_HOMES[user.role];
+      const tier = computeTier(user.roleAssignments);
+      const home = tier ? TIER_HOMES[tier] : null;
       if (home) redirect(home);
     }
-    // User row missing or archived → fall through to /login. Returning
-    // them to login (rather than 404) gives a recoverable path: they can
-    // try a different account or contact admin.
+    // User row missing, archived, or no active assignments → fall
+    // through to /login. Returning them to login (rather than 404)
+    // gives a recoverable path: they can try a different account
+    // or contact admin.
   }
 
   redirect('/login');

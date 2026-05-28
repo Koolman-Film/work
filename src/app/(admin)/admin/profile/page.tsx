@@ -17,7 +17,10 @@ import { ChangePasswordForm } from './change-password-form';
  * info. The role gate `['Admin', 'Superadmin']` enforces this.
  */
 export default async function AdminProfilePage() {
-  const { user } = await requireRole(['Admin', 'Superadmin']);
+  // tier is computed from assignments by requireRole (Phase 4); we
+  // use it directly here rather than re-reading user.role (legacy
+  // column that's about to go away in Phase 4.6).
+  const { user, tier } = await requireRole(['Admin', 'Superadmin']);
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 px-6 py-8">
@@ -35,7 +38,7 @@ export default async function AdminProfilePage() {
           <Row label="อีเมล" value={user.email ?? '—'} />
           <Row
             label="บทบาท"
-            value={<RoleBadge role={user.role === 'Superadmin' ? 'Superadmin' : 'Admin'} />}
+            value={<RoleBadge role={tier === 'Superadmin' ? 'Superadmin' : 'Admin'} />}
           />
         </CardBody>
       </Card>

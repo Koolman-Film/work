@@ -29,7 +29,7 @@
  *     regressions (commits 577328e, 7793322).
  */
 
-import type { User } from '@prisma/client';
+import type { Role, User } from '@prisma/client';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/db/prisma';
 import { ALL_PERMISSIONS, type Permission } from './permissions';
@@ -225,13 +225,14 @@ export function permissionsFromAssignments(
 export async function requirePermission(
   permission: Permission,
   ctx?: { branchId?: string | null },
-): Promise<{ user: User; authUserId: string }> {
+): Promise<{ user: User; authUserId: string; tier: Role }> {
   // We need an authenticated user first; reuse requireRole's session
   // resolution by calling it with the union of all known roles (so it
-  // doesn't reject anyone authenticated). The role union is the
-  // current enum surface — Phase 3-final can drop it.
-  const { user, authUserId } = await requireRole(['Staff', 'Admin', 'Superadmin']);
+  // doesn't reject anyone authenticated). Forwards `tier` (Phase 4 —
+  // computed from active assignments) so callers don't need to
+  // re-fetch.
+  const { user, authUserId, tier } = await requireRole(['Staff', 'Admin', 'Superadmin']);
   const ok = await canDo(user, permission, ctx);
   if (!ok) notFound();
-  return { user, authUserId };
+  return { user, authUserId, tier };
 }
