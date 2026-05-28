@@ -55,14 +55,10 @@ test.describe('Admin leave approval → Attendance(OnLeave) expansion', () => {
 
     // User + Employee — minimal viable Employee for the relation.
     // First create a User row (Employee.userId is required).
-    const user = await prisma.user.create({
-      data: {
-        role: 'Staff',
-        // authUserId stays null — no real Supabase auth user. Acceptable
-        // since the admin approval flow only reads through the Employee
-        // join, never authenticates as this user.
-      },
-    });
+    // authUserId stays null — no real Supabase auth user. Acceptable
+    // since the admin approval flow only reads through the Employee
+    // join, never authenticates as this user.
+    const user = await prisma.user.create({ data: {} });
     const employee = await prisma.employee.create({
       data: {
         userId: user.id,
@@ -174,7 +170,7 @@ test.describe('Admin leave approval → Attendance(OnLeave) expansion', () => {
       }));
 
     const branch = await prisma.branch.create({ data: { name: `e2e-Branch-${suffix}` } });
-    const user = await prisma.user.create({ data: { role: 'Staff' } });
+    const user = await prisma.user.create({ data: {} });
     const employee = await prisma.employee.create({
       data: {
         userId: user.id,

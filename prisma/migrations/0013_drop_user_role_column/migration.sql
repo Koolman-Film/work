@@ -1,0 +1,45 @@
+-- ─── 0013 — Drop User.role column ─────────────────────────────────────────
+--
+-- Phase 4.6: tier is now derived entirely from UserRoleAssignment via
+-- computeTier() at read time. The User.role enum column was a shadow-
+-- synced copy maintained by syncLegacyUserRole() — useful as a
+-- migration scaffold during Phases 1-3, vestigial after Phase 4.5.
+--
+-- This commit:
+--   * Removes the last code that wrote to it (createEmployee,
+--     createTeamMember, syncLegacyUserRole — see Phase 4.6 git diff).
+--   * Drops the column itself here.
+--
+-- The `Role` enum (Staff | Admin | Superadmin) stays defined in
+-- prisma/schema.prisma even after this migration. No column uses it
+-- anymore, but the generated TypeScript type is still imported across
+-- ~30 callsites (requireRole's allowlist, canActOnRole, computeTier's
+-- return, the `tier` field forwarded through requirePermission).
+-- Prisma allows enums without referencing columns.
+--
+-- Deploy sequencing note: the Vercel build pipeline auto-applies this
+-- migration via `prisma migrate deploy` (the build script change from
+-- commit fc960fb). Atomic swap means:
+--   1. New build runs migration (drops column)
+--   2. New deployment is live
+--   3. Vercel swaps traffic — old deployment retires
+-- A small window exists between (1) and (3) where the OLD deployment
+-- is still serving but the column is gone. Old code's read paths
+-- already do NOT reference User.role (cleaned up in Phases 4.3-4.5);
+-- old write paths in createEmployee/createTeamMember would throw, but
+-- production has low write traffic in that 30-60 second window.
+--
+-- Reversibility: NOT REVERSIBLE. The column data is destroyed. If you
+-- need to restore role to a user post-migration, query their highest
+-- active assignment via computeTier()-equivalent SQL:
+--   SELECT CASE
+--     WHEN bool_or(rd."isSuperadmin") FILTER (WHERE rd."archivedAt" IS NULL) THEN 'Superadmin'
+--     WHEN bool_or(rd."key"='admin')  FILTER (WHERE rd."archivedAt" IS NULL) THEN 'Admin'
+--     WHEN bool_or(rd."key"='staff')  FILTER (WHERE rd."archivedAt" IS NULL) THEN 'Staff'
+--     ELSE NULL
+--   END AS tier
+--   FROM "UserRoleAssignment" a
+--   JOIN "RoleDefinition" rd ON rd.id = a."roleId"
+--   WHERE a."userId" = '...';
+
+ALTER TABLE "User" DROP COLUMN "role";

@@ -28,7 +28,7 @@ test.describe('Admin cash-advance approval', () => {
    */
   async function seedPendingAdvance(suffix: string, amount: number) {
     const branch = await prisma.branch.create({ data: { name: `e2e-Branch-${suffix}` } });
-    const user = await prisma.user.create({ data: { role: 'Staff' } });
+    const user = await prisma.user.create({ data: {} });
     const employee = await prisma.employee.create({
       data: {
         userId: user.id,

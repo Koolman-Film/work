@@ -18,12 +18,17 @@ datasource db {
 
 // ─── Enums ─────────────────────────────────────────────────────────────────
 
-/// Coarse user category — used by the legacy `requireRole` gates.
-/// As of the role/permission Phase 1 the canonical authorization
-/// signal is the new `UserRoleAssignment` table + `Role.permissions`;
-/// this enum is kept for backward compat and a fast-path for the
-/// LIFF "is this user a checkin-able employee" check. Future
-/// (Phase 3) may drop the enum entirely.
+/// Coarse user category — historically a column on User, dropped in
+/// Phase 4.6 (the column had become a shadow-synced copy of "highest
+/// active role assignment" and added no value beyond what
+/// `computeTier()` derives from UserRoleAssignment at read time).
+///
+/// The enum survives as a TS-only type — it's still imported across
+/// the codebase (requireRole's allowlist parameter, canActOnRole,
+/// computeTier's return value, the tier field forwarded through
+/// requirePermission). Defining it here keeps `import type { Role }
+/// from '@prisma/client'` working everywhere without forcing every
+/// callsite to learn a new symbol.
 enum Role {
   Staff
   Admin
@@ -99,10 +104,6 @@ model User {
   authUserId String?   @unique @db.Uuid // FK to auth.users.id (Supabase-managed; no DB constraint)
   email      String?   @unique // Admin / Superadmin only
   lineUserId String?   @unique // Staff only — set after LIFF link
-  /// Coarse legacy role — kept for backward-compat checks while we
-  /// migrate to the fine-grained RoleDefinition system. Granular
-  /// permissions live in `roleAssignments`.
-  role       Role
   /// Preferred UI language (BCP 47 — 'th', 'en', 'my', 'lo', 'zh-CN').
   /// NULL until the user explicitly picks a language. When non-null,
   /// overrides the NEXT_LOCALE cookie on next login so the preference

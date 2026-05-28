@@ -116,16 +116,18 @@ export async function createEmployee(formData: FormData) {
   const assignedBranchIds = normalizeAssigned(data.branchId, data.assignedBranchIds);
 
   // Create User + Employee + Staff UserRoleAssignment(s) atomically.
-  // Phase 4.1: the assignment writes mirror the home + assignedBranches
-  // structure migration 0009 used for the backfill — one Staff
-  // assignment per branch. This is the canonical authorization
-  // source now; User.role='Staff' is kept in lockstep until Phase 4.6
-  // drops the column.
+  // Phase 4.6 dropped the legacy User.role column — the User row now
+  // carries only identity (authUserId / lineUserId / email bind
+  // later when the employee links their LINE). Tier is derived from
+  // the role assignments created below.
   let createdEmpId: string;
   try {
     const result = await prisma.$transaction(async (tx) => {
       const u = await tx.user.create({
-        data: { role: 'Staff' },
+        // No required fields besides the auto-defaulted id — the
+        // identity bindings (lineUserId, authUserId) populate at
+        // link-line time. Role is no longer a column on User.
+        data: {},
       });
       const e = await tx.employee.create({
         data: {
