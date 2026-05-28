@@ -127,19 +127,36 @@ export async function linkLineToEmployee(input: { pairingToken: string }): Promi
         return { kind: 'err' as const, code: 'already-linked' as const };
       }
 
-      // Cross-row check: is this LINE auth user already bound to a
-      // DIFFERENT User row? If so, refuse — a LINE account should map to
-      // at most one User (and therefore at most one Employee).
+      // Cross-row check: is this Supabase authUserId already bound to a
+      // DIFFERENT User row? If so, refuse — `authUserId` is @unique and
+      // attempting to write it on this Employee's User would trigger
+      // Prisma P2002 with a confusing user-facing message.
       //
-      // The schema relation is Employee.userId → User.id, and User has
-      // a back-relation `employee Employee?`. So we look up by authUserId
-      // and inspect the joined Employee.
+      // Two flavors of collision both surface here:
+      //
+      //   (a) The most common — same LINE account previously paired with
+      //       another Employee. existingForAuthUser.employee is that other
+      //       Employee row.
+      //
+      //   (b) The "session leak" case — usually happens during admin
+      //       testing. LINE's webview shares cookies with the system
+      //       browser for the same domain, so a LIFF page opened while
+      //       you're logged in as Admin/Owner sees YOUR admin Supabase
+      //       cookie. liffBootstrap's getSession() fast-path returns
+      //       that session, skips LINE OIDC, and we end up trying to
+      //       bind the Employee's User to the admin's authUserId.
+      //       existingForAuthUser exists but has no Employee back-relation
+      //       (admins / owners have role≠Employee + no Employee row).
+      //
+      // Either way, refuse. The user-facing message hints at the fix:
+      // "log out of admin / use a different browser / use a different
+      // LINE account."
       const existingForAuthUser = await tx.user.findUnique({
         where: { authUserId: authUser.id },
         select: { id: true, employee: { select: { id: true } } },
       });
 
-      if (existingForAuthUser?.employee && existingForAuthUser.employee.id !== emp.id) {
+      if (existingForAuthUser && existingForAuthUser.id !== emp.user.id) {
         return { kind: 'err' as const, code: 'line-account-in-use' as const };
       }
 
@@ -187,7 +204,8 @@ export async function linkLineToEmployee(input: { pairingToken: string }): Promi
       expired: 'ลิงก์หมดอายุ ติดต่อแอดมินเพื่อขอลิงก์ใหม่',
       'employee-archived': 'บัญชีพนักงานนี้พ้นสภาพแล้ว',
       'already-linked': 'บัญชีนี้เชื่อม LINE เรียบร้อยแล้ว',
-      'line-account-in-use': 'บัญชี LINE นี้ถูกใช้กับพนักงานคนอื่นแล้ว',
+      'line-account-in-use':
+        'บัญชีนี้ถูกผูกกับผู้ใช้คนอื่นแล้ว — หากคุณกำลังล็อกอินเป็นแอดมินอยู่ ให้ออกจากระบบก่อนแล้วลองใหม่',
     };
     return { ok: false, code: result.code, message: messages[result.code] };
   } catch (err) {
