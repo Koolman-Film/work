@@ -13,8 +13,8 @@ export default async function TeamListPage({ searchParams }: { searchParams: Sea
   // "who can I escalate to?"). Write actions below all gate on
   // team.create / team.update / team.delete which Admin doesn't hold,
   // so the edit/+เพิ่ม buttons become read-only signals.
-  // tier is computed from assignments by requireRole / requirePermission
-  // (Phase 4). We use it for the per-row canEdit check below.
+  // tier is computed from assignments by requirePermission. We use it
+  // for the per-row canEdit check below.
   const { user: actor, tier: actorTier } = await requirePermission('team.read');
   const { error, notice } = await searchParams;
 

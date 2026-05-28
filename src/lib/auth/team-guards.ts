@@ -24,16 +24,15 @@ import type { Role } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 
 /**
- * Tier guard — does the actor's role-tier allow acting on the target's
- * role-tier at all? Uses the legacy `User.role` enum.
+ * Tier guard — does the actor's tier allow acting on the target's tier
+ * at all? Takes computed tier values (see computeTier in user-tier.ts).
  *
  *   - Superadmin can touch anyone (incl. other Superadmins, per the
  *     Phase 3.7 product decision).
  *   - Admin can touch Admin only (never Superadmin, never Staff).
  *   - Staff can never use team management.
  *
- * Pure / synchronous because the legacy User.role enum is on the
- * authenticated user object we already have in hand.
+ * Pure / synchronous because the caller already has both tiers in hand.
  */
 export function canActOnRole(actorRole: Role, targetRole: Role): boolean {
   if (actorRole === 'Superadmin') return true;
