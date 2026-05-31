@@ -343,6 +343,11 @@ export async function deleteEmployee(id: string) {
       firstName: true,
       lastName: true,
       user: { select: { authUserId: true, lineUserId: true } },
+      // NOTE: this _count intentionally counts ALL related rows, including
+      // soft-deleted (voided) ones. Voided rows still hold an onDelete:Restrict
+      // FK to this employee, so a hard `employee.delete` is still blocked by
+      // them — the guard must see them or it would lie ("0 related → safe") and
+      // then the delete would throw a raw FK violation. Do NOT add deletedAt:null.
       _count: {
         select: {
           attendances: true,
