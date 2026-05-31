@@ -102,18 +102,29 @@ export async function restoreAttendance(id: string): Promise<VoidResult> {
   }
 
   const meta = await reqMeta();
-  await prisma.$transaction(async (tx) => {
-    await tx.attendance.update({
-      where: { id },
-      data: { deletedAt: null, deletedById: null, deleteReason: null },
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.attendance.update({
+        where: { id },
+        data: { deletedAt: null, deletedById: null, deleteReason: null },
+      });
+      await auditLogTx(tx, {
+        actorId: user.id,
+        action: 'attendance.restore',
+        entityType: 'Attendance',
+        entityId: id,
+        metadata: { ...meta, source: 'admin-ui' },
+      });
     });
-    await auditLogTx(tx, {
-      actorId: user.id,
-      action: 'attendance.restore',
-      entityType: 'Attendance',
-      entityId: id,
-      metadata: { ...meta, source: 'admin-ui' },
-    });
-  });
-  return { ok: true };
+    return { ok: true };
+  } catch (err) {
+    // Covers the TOCTOU race: a concurrent insert could fill the slot between
+    // the pre-check above and this commit, tripping the partial unique index.
+    console.error('[restoreAttendance] failed', err);
+    return {
+      ok: false,
+      code: 'error',
+      message: 'กู้คืนไม่ได้ — มีรายการที่ถูกต้องสำหรับวันและประเภทนี้อยู่แล้ว',
+    };
+  }
 }
