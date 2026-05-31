@@ -6,12 +6,14 @@
  */
 
 import Link from 'next/link';
+import { RestoreButton, VoidDialog } from '@/components/admin/void-dialog';
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
-import { prisma } from '@/lib/db/prisma';
+import { restoreCashAdvance, voidCashAdvance } from '@/lib/advance/void';
+import { prisma, prismaRaw } from '@/lib/db/prisma';
 import { signAttendancePhotoUrls } from '@/lib/storage/signed-urls';
 import { AdvanceReviewPanel } from './advance-review-panel';
 
-type SearchParams = Promise<{ status?: string }>;
+type SearchParams = Promise<{ status?: string; trash?: string }>;
 
 const STATUS_LABEL: Record<string, { label: string; cls: string }> = {
   Pending: { label: 'รออนุมัติ', cls: 'bg-amber-100 text-amber-800' },
@@ -52,7 +54,8 @@ export default async function AdminAdvanceInboxPage({
 }: {
   searchParams: SearchParams;
 }) {
-  const { status } = await searchParams;
+  const { status, trash } = await searchParams;
+  const isTrash = trash === '1';
 
   const where = (() => {
     if (status === 'all') return {};
@@ -61,28 +64,39 @@ export default async function AdminAdvanceInboxPage({
     return { status: 'Pending' as const };
   })();
 
-  const rows = await prisma.cashAdvance.findMany({
-    where,
-    orderBy: { requestedAt: 'desc' },
-    take: 100,
-    select: {
-      id: true,
-      amount: true,
-      status: true,
-      requestedAt: true,
-      approvedAt: true,
-      receiptUrl: true,
-      employee: {
-        select: {
-          firstName: true,
-          lastName: true,
-          nickname: true,
-          branch: { select: { name: true } },
-          department: { select: { name: true } },
-        },
+  const advanceSelect = {
+    id: true,
+    amount: true,
+    status: true,
+    requestedAt: true,
+    approvedAt: true,
+    receiptUrl: true,
+    deletedAt: true,
+    deleteReason: true,
+    employee: {
+      select: {
+        firstName: true,
+        lastName: true,
+        nickname: true,
+        branch: { select: { name: true } },
+        department: { select: { name: true } },
       },
     },
-  });
+  } as const;
+
+  const rows = isTrash
+    ? await prismaRaw.cashAdvance.findMany({
+        where: { deletedAt: { not: null } },
+        orderBy: { deletedAt: 'desc' },
+        take: 100,
+        select: advanceSelect,
+      })
+    : await prisma.cashAdvance.findMany({
+        where,
+        orderBy: { requestedAt: 'desc' },
+        take: 100,
+        select: advanceSelect,
+      });
 
   // Batch-sign any receipt storage keys in one round-trip. Old rows
   // (or any admin-pasted Drive URLs from before A2) get pass-through.
@@ -106,9 +120,9 @@ export default async function AdminAdvanceInboxPage({
         <p className="mt-1 text-sm text-gray-500">ตรวจสอบและอนุมัติคำขอเบิกเงินล่วงหน้า</p>
       </div>
 
-      <div className="mb-4 flex flex-wrap gap-2">
+      <div className="mb-4 flex flex-wrap items-center gap-2">
         {FILTER_OPTIONS.map((opt) => {
-          const active = (opt.value === '' && !status) || opt.value === status;
+          const active = !isTrash && ((opt.value === '' && !status) || opt.value === status);
           return (
             <Link
               key={opt.value || 'pending'}
@@ -123,6 +137,17 @@ export default async function AdminAdvanceInboxPage({
             </Link>
           );
         })}
+        <span className="mx-1 h-4 w-px bg-gray-200" aria-hidden="true" />
+        <Link
+          href="/admin/advance?trash=1"
+          className={
+            isTrash
+              ? 'rounded-full bg-primary-600 px-3 py-1 text-xs font-medium text-white'
+              : 'rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50'
+          }
+        >
+          🗑️ ถังขยะ
+        </Link>
       </div>
 
       <Card>
@@ -135,7 +160,11 @@ export default async function AdminAdvanceInboxPage({
           {rows.length === 0 ? (
             <div className="px-6 py-12 text-center">
               <p className="text-sm text-gray-500">
-                {!status || status === 'pending' ? 'ไม่มีคำขอเบิกที่รออนุมัติ ✨' : 'ไม่มีรายการในตัวกรองนี้'}
+                {isTrash
+                  ? 'ถังขยะว่าง — ไม่มีคำขอเบิกที่ถูกลบ'
+                  : !status || status === 'pending'
+                    ? 'ไม่มีคำขอเบิกที่รออนุมัติ ✨'
+                    : 'ไม่มีรายการในตัวกรองนี้'}
               </p>
             </div>
           ) : (
@@ -177,21 +206,57 @@ export default async function AdminAdvanceInboxPage({
                       </div>
                     </div>
 
-                    {r.status === 'Pending' && (
-                      <AdvanceReviewPanel
-                        cashAdvanceId={r.id}
-                        amountDisplay={formatMoney(r.amount)}
-                      />
-                    )}
-                    {r.status === 'Approved' && resolveReceipt(r.receiptUrl) && (
-                      <a
-                        href={resolveReceipt(r.receiptUrl) ?? '#'}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="mt-3 inline-block text-xs text-primary-700 underline hover:text-primary-800"
-                      >
-                        ดูใบเสร็จ →
-                      </a>
+                    {isTrash ? (
+                      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-md bg-gray-50 px-3 py-2 text-xs text-gray-600">
+                        <span>
+                          {r.deleteReason && (
+                            <>
+                              <strong className="text-gray-900">เหตุผลที่ลบ:</strong> {r.deleteReason}
+                            </>
+                          )}
+                          {r.deletedAt && (
+                            <span className="ml-2 text-gray-400">
+                              ({formatDateTime(r.deletedAt)})
+                            </span>
+                          )}
+                        </span>
+                        <RestoreButton
+                          action={async () => {
+                            'use server';
+                            return restoreCashAdvance(r.id);
+                          }}
+                        />
+                      </div>
+                    ) : (
+                      <>
+                        {r.status === 'Pending' && (
+                          <AdvanceReviewPanel
+                            cashAdvanceId={r.id}
+                            amountDisplay={formatMoney(r.amount)}
+                          />
+                        )}
+                        {r.status === 'Approved' && resolveReceipt(r.receiptUrl) && (
+                          <a
+                            href={resolveReceipt(r.receiptUrl) ?? '#'}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="mt-3 inline-block text-xs text-primary-700 underline hover:text-primary-800"
+                          >
+                            ดูใบเสร็จ →
+                          </a>
+                        )}
+                        <div className="mt-2 flex justify-end">
+                          <VoidDialog
+                            triggerLabel="ลบ"
+                            title="ลบคำขอเบิก"
+                            description="คำขอนี้จะถูกย้ายไปถังขยะ และกู้คืนได้ภายหลัง"
+                            action={async (reason) => {
+                              'use server';
+                              return voidCashAdvance(r.id, reason);
+                            }}
+                          />
+                        </div>
+                      </>
                     )}
                   </li>
                 );

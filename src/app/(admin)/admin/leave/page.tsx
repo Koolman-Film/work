@@ -12,13 +12,15 @@
  */
 
 import Link from 'next/link';
+import { RestoreButton, VoidDialog } from '@/components/admin/void-dialog';
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
-import { prisma } from '@/lib/db/prisma';
+import { prisma, prismaRaw } from '@/lib/db/prisma';
+import { restoreLeaveRequest, voidLeaveRequest } from '@/lib/leave/void';
 import { expandHolidaysWithSubstitutes, workingDaysIn } from '@/lib/leave/working-days';
 import { signAttendancePhotoUrls } from '@/lib/storage/signed-urls';
 import { LeaveReviewPanel } from './leave-review-panel';
 
-type SearchParams = Promise<{ status?: string }>;
+type SearchParams = Promise<{ status?: string; trash?: string }>;
 
 const STATUS_LABEL: Record<string, { label: string; cls: string }> = {
   Pending: { label: 'รออนุมัติ', cls: 'bg-amber-100 text-amber-800' },
@@ -67,9 +69,11 @@ export default async function AdminLeaveInboxPage({
 }: {
   searchParams: SearchParams;
 }) {
-  const { status } = await searchParams;
+  const { status, trash } = await searchParams;
+  const isTrash = trash === '1';
 
-  // Map URL filter to Prisma where clause.
+  // Map URL filter to Prisma where clause. In the trash view the status filter
+  // doesn't apply (we want every recently-deleted request) — only deletedAt.
   const where = (() => {
     if (status === 'all') return {};
     if (status === 'approved') return { status: 'Approved' as const };
@@ -81,33 +85,44 @@ export default async function AdminLeaveInboxPage({
   // header can show "= 5 วันทำงาน" without a second pass. This requires
   // pulling holidays in the relevant date range; for simplicity we pull
   // all non-archived holidays (≤ ~30 rows per year, trivial).
-  const [rows, holidays] = await Promise.all([
-    prisma.leaveRequest.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-      take: 100,
+  const leaveSelect = {
+    id: true,
+    startDate: true,
+    endDate: true,
+    reason: true,
+    status: true,
+    reviewNote: true,
+    reviewedAt: true,
+    createdAt: true,
+    attachmentUrl: true,
+    deletedAt: true,
+    deleteReason: true,
+    leaveType: { select: { name: true, isPaid: true } },
+    employee: {
       select: {
-        id: true,
-        startDate: true,
-        endDate: true,
-        reason: true,
-        status: true,
-        reviewNote: true,
-        reviewedAt: true,
-        createdAt: true,
-        attachmentUrl: true,
-        leaveType: { select: { name: true, isPaid: true } },
-        employee: {
-          select: {
-            firstName: true,
-            lastName: true,
-            nickname: true,
-            branch: { select: { name: true } },
-            department: { select: { name: true } },
-          },
-        },
+        firstName: true,
+        lastName: true,
+        nickname: true,
+        branch: { select: { name: true } },
+        department: { select: { name: true } },
       },
-    }),
+    },
+  } as const;
+
+  const [rows, holidays] = await Promise.all([
+    isTrash
+      ? prismaRaw.leaveRequest.findMany({
+          where: { deletedAt: { not: null } },
+          orderBy: { deletedAt: 'desc' },
+          take: 100,
+          select: leaveSelect,
+        })
+      : prisma.leaveRequest.findMany({
+          where,
+          orderBy: { createdAt: 'desc' },
+          take: 100,
+          select: leaveSelect,
+        }),
     prisma.holiday.findMany({
       where: { archivedAt: null },
       select: { date: true, name: true },
@@ -134,10 +149,10 @@ export default async function AdminLeaveInboxPage({
         <p className="mt-1 text-sm text-gray-500">ตรวจสอบและอนุมัติคำขอลาของพนักงาน</p>
       </div>
 
-      {/* Filter chips */}
-      <div className="mb-4 flex flex-wrap gap-2">
+      {/* Filter chips + trash toggle */}
+      <div className="mb-4 flex flex-wrap items-center gap-2">
         {FILTER_OPTIONS.map((opt) => {
-          const active = (opt.value === '' && !status) || opt.value === status;
+          const active = !isTrash && ((opt.value === '' && !status) || opt.value === status);
           return (
             <Link
               key={opt.value || 'pending'}
@@ -152,6 +167,17 @@ export default async function AdminLeaveInboxPage({
             </Link>
           );
         })}
+        <span className="mx-1 h-4 w-px bg-gray-200" aria-hidden="true" />
+        <Link
+          href="/admin/leave?trash=1"
+          className={
+            isTrash
+              ? 'rounded-full bg-primary-600 px-3 py-1 text-xs font-medium text-white'
+              : 'rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50'
+          }
+        >
+          🗑️ ถังขยะ
+        </Link>
       </div>
 
       <Card>
@@ -164,7 +190,11 @@ export default async function AdminLeaveInboxPage({
           {rows.length === 0 ? (
             <div className="px-6 py-12 text-center">
               <p className="text-sm text-gray-500">
-                {!status || status === 'pending' ? 'ไม่มีคำขอลาที่รออนุมัติ ✨' : 'ไม่มีรายการในตัวกรองนี้'}
+                {isTrash
+                  ? 'ถังขยะว่าง — ไม่มีคำขอลาที่ถูกลบ'
+                  : !status || status === 'pending'
+                    ? 'ไม่มีคำขอลาที่รออนุมัติ ✨'
+                    : 'ไม่มีรายการในตัวกรองนี้'}
               </p>
             </div>
           ) : (
@@ -244,31 +274,68 @@ export default async function AdminLeaveInboxPage({
                         </a>
                       )}
 
-                      {r.status === 'Pending' ? (
-                        <LeaveReviewPanel
-                          leaveRequestId={r.id}
-                          workingDays={wd.map((d) => d.toISOString().slice(0, 10))}
-                          holidayNames={holidays
-                            .filter(
-                              (h) =>
-                                h.date.getTime() >= r.startDate.getTime() &&
-                                h.date.getTime() <= r.endDate.getTime(),
-                            )
-                            .map((h) => ({
-                              date: h.date.toISOString().slice(0, 10),
-                              name: h.name,
-                            }))}
-                        />
-                      ) : r.reviewNote ? (
-                        <div className="mt-3 rounded-md bg-gray-50 px-3 py-2 text-xs text-gray-700">
-                          <strong className="text-gray-900">หมายเหตุ:</strong> {r.reviewNote}
-                          {r.reviewedAt && (
-                            <span className="ml-2 text-gray-400">
-                              ({formatDateTime(r.reviewedAt)})
-                            </span>
-                          )}
+                      {isTrash ? (
+                        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-md bg-gray-50 px-3 py-2 text-xs text-gray-600">
+                          <span>
+                            {r.deleteReason && (
+                              <>
+                                <strong className="text-gray-900">เหตุผลที่ลบ:</strong>{' '}
+                                {r.deleteReason}
+                              </>
+                            )}
+                            {r.deletedAt && (
+                              <span className="ml-2 text-gray-400">
+                                ({formatDateTime(r.deletedAt)})
+                              </span>
+                            )}
+                          </span>
+                          <RestoreButton
+                            action={async () => {
+                              'use server';
+                              return restoreLeaveRequest(r.id);
+                            }}
+                          />
                         </div>
-                      ) : null}
+                      ) : (
+                        <>
+                          {r.status === 'Pending' ? (
+                            <LeaveReviewPanel
+                              leaveRequestId={r.id}
+                              workingDays={wd.map((d) => d.toISOString().slice(0, 10))}
+                              holidayNames={holidays
+                                .filter(
+                                  (h) =>
+                                    h.date.getTime() >= r.startDate.getTime() &&
+                                    h.date.getTime() <= r.endDate.getTime(),
+                                )
+                                .map((h) => ({
+                                  date: h.date.toISOString().slice(0, 10),
+                                  name: h.name,
+                                }))}
+                            />
+                          ) : r.reviewNote ? (
+                            <div className="mt-3 rounded-md bg-gray-50 px-3 py-2 text-xs text-gray-700">
+                              <strong className="text-gray-900">หมายเหตุ:</strong> {r.reviewNote}
+                              {r.reviewedAt && (
+                                <span className="ml-2 text-gray-400">
+                                  ({formatDateTime(r.reviewedAt)})
+                                </span>
+                              )}
+                            </div>
+                          ) : null}
+                          <div className="mt-2 flex justify-end">
+                            <VoidDialog
+                              triggerLabel="ลบ"
+                              title="ลบคำขอลา"
+                              description="คำขอลานี้และรายการลงเวลา (OnLeave) ที่สร้างขึ้นจะถูกลบทั้งหมด — กู้คืนได้ภายหลัง"
+                              action={async (reason) => {
+                                'use server';
+                                return voidLeaveRequest(r.id, reason);
+                              }}
+                            />
+                          </div>
+                        </>
+                      )}
                     </li>
                   );
                 });
