@@ -93,18 +93,23 @@ export async function restoreCashAdvance(id: string): Promise<VoidResult> {
 
   const { user } = await requirePermission('advance.void', { branchId: row.employee.branchId });
   const meta = await reqMeta();
-  await prisma.$transaction(async (tx) => {
-    await tx.cashAdvance.update({
-      where: { id },
-      data: { deletedAt: null, deletedById: null, deleteReason: null },
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.cashAdvance.update({
+        where: { id },
+        data: { deletedAt: null, deletedById: null, deleteReason: null },
+      });
+      await auditLogTx(tx, {
+        actorId: user.id,
+        action: 'advance.restore',
+        entityType: 'CashAdvance',
+        entityId: id,
+        metadata: { ...meta, source: 'admin-ui' },
+      });
     });
-    await auditLogTx(tx, {
-      actorId: user.id,
-      action: 'advance.restore',
-      entityType: 'CashAdvance',
-      entityId: id,
-      metadata: { ...meta, source: 'admin-ui' },
-    });
-  });
-  return { ok: true };
+    return { ok: true };
+  } catch (err) {
+    console.error('[restoreCashAdvance] failed', err);
+    return { ok: false, code: 'error', message: 'ระบบขัดข้อง กรุณาลองใหม่' };
+  }
 }
