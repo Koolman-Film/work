@@ -388,15 +388,23 @@ model Attendance {
   isOverridden      Boolean   @default(false)
   overrideNote      String?
 
+  deletedAt         DateTime?
+  deletedById       String?   @db.Uuid
+  deleteReason      String?
+
   createdAt         DateTime  @default(now())
   /// User.id of whoever recorded this — employee for LIFF, admin for manual,
   /// system for cron (e.g., force-checkout-eod). Not a FK; users are soft-deleted.
   createdById       String    @db.Uuid
 
-  @@unique([employeeId, date, type])
+  // NOTE: the (employeeId, date, type) uniqueness is enforced by a PARTIAL
+  // unique index `WHERE "deletedAt" IS NULL` created in migration 0014.
+  // Prisma's schema DSL cannot express partial-unique, so it lives in raw
+  // SQL. Do not re-add @@unique here — it would conflict with the partial index.
   @@index([date])
   @@index([employeeId, date])
   @@index([checkInStatus])
+  @@index([deletedAt])
 }
 
 // ─── Leave & Cash Advance ──────────────────────────────────────────────────
@@ -426,10 +434,14 @@ model LeaveRequest {
   reviewNote    String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+  deletedById   String?   @db.Uuid
+  deleteReason  String?
   attendances   Attendance[]
 
   @@index([employeeId, status])
   @@index([status])
+  @@index([deletedAt])
 }
 
 model CashAdvance {
@@ -447,10 +459,14 @@ model CashAdvance {
   deductedInPayrollId String?   @db.Uuid
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
+  deletedAt           DateTime?
+  deletedById         String?   @db.Uuid
+  deleteReason        String?
 
   @@index([employeeId, status])
   @@index([status])
   @@index([isDeducted])
+  @@index([deletedAt])
 }
 
 // ─── Payroll (Phase 2) ─────────────────────────────────────────────────────
