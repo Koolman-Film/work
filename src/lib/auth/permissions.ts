@@ -46,14 +46,17 @@ export const PERMISSIONS = {
   'attendance.manual-create': 'สร้างการลงเวลาด้วยมือ',
   'attendance.dispute-resolve': 'อนุมัติ/ปฏิเสธรายการตรวจสอบ',
   'attendance.live-board': 'ดูสถานะการลงเวลาแบบเรียลไทม์',
+  'attendance.void': 'ลบ/ยกเลิกรายการลงเวลา',
 
   // ─── Leave ───────────────────────────────────────────────────────────
   'leave.read': 'ดูคำขอลา',
   'leave.approve': 'อนุมัติ/ปฏิเสธคำขอลา',
+  'leave.void': 'ลบ/ยกเลิกคำขอลา (รวมรายการลงเวลาที่สร้างอัตโนมัติ)',
 
   // ─── Cash advance ────────────────────────────────────────────────────
   'advance.read': 'ดูคำขอเบิก',
   'advance.approve': 'อนุมัติ/ปฏิเสธคำขอเบิก',
+  'advance.void': 'ลบ/ยกเลิกคำขอเบิก',
 
   // ─── Org settings (config entities) ──────────────────────────────────
   'settings.branch.manage': 'จัดการสาขา',
@@ -138,17 +141,18 @@ export const PERMISSION_GROUPS: ReadonlyArray<{
       'attendance.live-board',
       'attendance.manual-create',
       'attendance.dispute-resolve',
+      'attendance.void',
     ],
   },
   {
     key: 'leave',
     label: 'การลา',
-    permissions: ['leave.read', 'leave.approve'],
+    permissions: ['leave.read', 'leave.approve', 'leave.void'],
   },
   {
     key: 'advance',
     label: 'การเบิก',
-    permissions: ['advance.read', 'advance.approve'],
+    permissions: ['advance.read', 'advance.approve', 'advance.void'],
   },
   {
     key: 'settings',
