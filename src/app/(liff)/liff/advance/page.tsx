@@ -46,7 +46,10 @@ export default async function LiffAdvanceListPage() {
   // available salary. See src/lib/advance/balance.ts for rationale.
   const [rows, reservedRows] = await Promise.all([
     prisma.cashAdvance.findMany({
-      where: { employeeId: employee.id },
+      // `deletedAt: null` is explicit defence-in-depth: the soft-delete client
+      // extension already filters top-level reads, but the balance/history of
+      // someone's salary is load-bearing enough to state the intent here too.
+      where: { employeeId: employee.id, deletedAt: null },
       orderBy: { requestedAt: 'desc' },
       take: 50,
       select: {
@@ -61,6 +64,7 @@ export default async function LiffAdvanceListPage() {
     prisma.cashAdvance.findMany({
       where: {
         employeeId: employee.id,
+        deletedAt: null, // exclude voided advances from reserved-balance calc
         OR: [{ status: 'Pending' }, { status: 'Approved', isDeducted: false }],
       },
       select: { status: true, amount: true },

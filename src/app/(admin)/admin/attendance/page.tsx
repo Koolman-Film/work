@@ -21,14 +21,17 @@
 
 import type { AttType } from '@prisma/client';
 import Link from 'next/link';
+import { RestoreButton, VoidDialog } from '@/components/admin/void-dialog';
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
+import { restoreAttendance, voidAttendance } from '@/lib/attendance/void';
 import { requirePermission } from '@/lib/auth/check-permission';
-import { prisma } from '@/lib/db/prisma';
+import { prisma, prismaRaw } from '@/lib/db/prisma';
 
 type SearchParams = Promise<{
   ym?: string; // YYYY-MM, default current month
   employeeId?: string; // 'all' or empty = no filter
   type?: string; // attendance type or 'all'
+  trash?: string; // '1' = show recently-deleted (void) rows
 }>;
 
 const TYPE_LABELS: Record<string, { label: string; cls: string }> = {
@@ -114,37 +117,53 @@ export default async function AttendanceRecordsPage({
   const employeeFilter = sp.employeeId && sp.employeeId !== 'all' ? sp.employeeId : null;
   const typeFilter: AttType | null =
     sp.type && sp.type !== 'all' && sp.type in TYPE_LABELS ? (sp.type as AttType) : null;
+  const isTrash = sp.trash === '1';
+
+  // Shared where: same month + filters for both live and trash views. The
+  // trash view adds `deletedAt: { not: null }` and reads via prismaRaw (which
+  // sees voided rows); the live view uses `prisma` (voided rows hidden).
+  const baseWhere = {
+    date: { gte: month.start, lte: month.end },
+    ...(employeeFilter ? { employeeId: employeeFilter } : {}),
+    ...(typeFilter ? { type: typeFilter } : {}),
+  };
+  const rowSelect = {
+    id: true,
+    date: true,
+    type: true,
+    source: true,
+    durationMinutes: true,
+    clockInAt: true,
+    clockOutAt: true,
+    checkInStatus: true,
+    disputeReason: true,
+    deletedAt: true,
+    deleteReason: true,
+    employee: {
+      select: {
+        firstName: true,
+        lastName: true,
+        nickname: true,
+      },
+    },
+    checkInBranch: { select: { name: true } },
+  } as const;
 
   // Pull rows + employee list for filter dropdown in parallel.
   const [rows, employees] = await Promise.all([
-    prisma.attendance.findMany({
-      where: {
-        date: { gte: month.start, lte: month.end },
-        ...(employeeFilter ? { employeeId: employeeFilter } : {}),
-        ...(typeFilter ? { type: typeFilter } : {}),
-      },
-      orderBy: [{ date: 'desc' }, { clockInAt: 'desc' }],
-      take: 200,
-      select: {
-        id: true,
-        date: true,
-        type: true,
-        source: true,
-        durationMinutes: true,
-        clockInAt: true,
-        clockOutAt: true,
-        checkInStatus: true,
-        disputeReason: true,
-        employee: {
-          select: {
-            firstName: true,
-            lastName: true,
-            nickname: true,
-          },
-        },
-        checkInBranch: { select: { name: true } },
-      },
-    }),
+    isTrash
+      ? prismaRaw.attendance.findMany({
+          where: { ...baseWhere, deletedAt: { not: null } },
+          orderBy: { deletedAt: 'desc' },
+          take: 200,
+          select: rowSelect,
+        })
+      : prisma.attendance.findMany({
+          where: baseWhere,
+          orderBy: [{ date: 'desc' }, { clockInAt: 'desc' }],
+          take: 200,
+          select: rowSelect,
+        }),
     prisma.employee.findMany({
       where: { archivedAt: null },
       orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }],
@@ -160,10 +179,11 @@ export default async function AttendanceRecordsPage({
   // Build URL helpers preserving other filters when changing one.
   function urlWith(updates: Record<string, string | null>) {
     const params = new URLSearchParams();
-    const merged = {
+    const merged: Record<string, string | null> = {
       ym,
       employeeId: employeeFilter ?? 'all',
       type: typeFilter ?? 'all',
+      trash: isTrash ? '1' : null,
       ...updates,
     };
     for (const [k, v] of Object.entries(merged)) {
@@ -192,6 +212,26 @@ export default async function AttendanceRecordsPage({
             className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
           >
             + คีย์มือ
+          </Link>
+          <Link
+            href={urlWith({ trash: null })}
+            className={
+              isTrash
+                ? 'rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50'
+                : 'rounded-md border border-primary-600 bg-primary-600 px-3 py-1.5 text-xs font-medium text-white'
+            }
+          >
+            รายการปัจจุบัน
+          </Link>
+          <Link
+            href={urlWith({ trash: '1' })}
+            className={
+              isTrash
+                ? 'rounded-md border border-primary-600 bg-primary-600 px-3 py-1.5 text-xs font-medium text-white'
+                : 'rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50'
+            }
+          >
+            🗑️ ถังขยะ
           </Link>
           <Link
             href="/admin/attendance/live"
@@ -265,7 +305,9 @@ export default async function AttendanceRecordsPage({
         <CardBody className="!p-0">
           {rows.length === 0 ? (
             <div className="px-6 py-12 text-center">
-              <p className="text-sm text-gray-500">ไม่พบรายการในเดือน + ตัวกรองนี้</p>
+              <p className="text-sm text-gray-500">
+                {isTrash ? 'ถังขยะว่าง — ไม่มีรายการที่ถูกลบในเดือนนี้' : 'ไม่พบรายการในเดือน + ตัวกรองนี้'}
+              </p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -279,6 +321,7 @@ export default async function AttendanceRecordsPage({
                     <th className="px-4 py-3 text-left font-medium">Duration</th>
                     <th className="px-4 py-3 text-left font-medium">ที่มา</th>
                     <th className="px-4 py-3 text-left font-medium">หมายเหตุ</th>
+                    <th className="px-4 py-3 text-right font-medium">จัดการ</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -331,6 +374,38 @@ export default async function AttendanceRecordsPage({
                         </td>
                         <td className="max-w-xs truncate px-4 py-3 text-xs text-gray-500">
                           {r.disputeReason ?? '—'}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 text-right">
+                          {isTrash ? (
+                            <div className="flex flex-col items-end gap-0.5">
+                              <RestoreButton
+                                action={async () => {
+                                  'use server';
+                                  return restoreAttendance(r.id);
+                                }}
+                              />
+                              {r.deleteReason && (
+                                <span className="max-w-[12rem] truncate text-[10px] text-gray-400">
+                                  {r.deleteReason}
+                                </span>
+                              )}
+                              {r.deletedAt && (
+                                <span className="text-[10px] text-gray-400">
+                                  {formatDate(r.deletedAt)}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <VoidDialog
+                              triggerLabel="ลบ"
+                              title="ลบรายการลงเวลา"
+                              description="รายการนี้จะถูกย้ายไปถังขยะ และกู้คืนได้ภายหลัง"
+                              action={async (reason) => {
+                                'use server';
+                                return voidAttendance(r.id, reason);
+                              }}
+                            />
+                          )}
                         </td>
                       </tr>
                     );

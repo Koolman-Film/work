@@ -20,7 +20,20 @@
  */
 
 import { Prisma } from '@prisma/client';
-import { prisma } from '@/lib/db/prisma';
+import { prisma, type prismaRaw } from '@/lib/db/prisma';
+
+/**
+ * Transaction client accepted by {@link auditLogTx}.
+ *
+ * `prisma` is `$extends`-ed (soft-delete filter), so the `tx` handed to a
+ * `prisma.$transaction` callback is the EXTENDED transaction-client type — not
+ * the plain `Prisma.TransactionClient`. We derive the type from both clients so
+ * callers can pass either the extended `tx` (normal mutations) or the raw `tx`
+ * (void/restore actions via `prismaRaw.$transaction`).
+ */
+type ExtendedTx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
+type RawTx = Parameters<Parameters<typeof prismaRaw.$transaction>[0]>[0];
+type AuditTransactionClient = ExtendedTx | RawTx;
 
 export type AuditAction =
   // Identity
@@ -72,15 +85,21 @@ export type AuditAction =
   | 'attendance.dispute-approve'
   | 'attendance.dispute-reject'
   | 'attendance.force-checkout'
+  | 'attendance.void'
+  | 'attendance.restore'
   // Leave & advance
   | 'leave.submit'
   | 'leave.approve'
   | 'leave.reject'
   | 'leave.cancel'
+  | 'leave.void'
+  | 'leave.restore'
   | 'advance.submit'
   | 'advance.approve'
   | 'advance.reject'
   | 'advance.cancel'
+  | 'advance.void'
+  | 'advance.restore'
   // Payroll
   | 'payroll.run'
   | 'payroll.override'
@@ -166,7 +185,7 @@ export function auditLog(params: AuditLogParams): void {
  * we don't want a "leave.approve" audit row claiming it happened.
  */
 export async function auditLogTx(
-  tx: Prisma.TransactionClient,
+  tx: AuditTransactionClient,
   params: AuditLogParams,
 ): Promise<void> {
   await tx.auditLog.create({

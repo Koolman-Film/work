@@ -69,11 +69,14 @@ export const SYSTEM_ROLES: Record<
       'attendance.live-board',
       'attendance.manual-create',
       'attendance.dispute-resolve',
+      'attendance.void',
       // Approval workflows
       'leave.read',
       'leave.approve',
+      'leave.void',
       'advance.read',
       'advance.approve',
+      'advance.void',
       // Org config — they manage their branch's config but the perms
       // are listed flat; Phase 3.7 will restrict by branch scope.
       'settings.branch.manage',
