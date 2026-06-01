@@ -34,8 +34,18 @@ export default defineConfig({
   },
   projects: [
     {
+      // Desktop: runs every spec EXCEPT ones tagged @mobile (those assume a
+      // phone viewport and would fail full-width).
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
+      grepInvert: /@mobile/,
+    },
+    {
+      // Mobile: runs ONLY @mobile-tagged tests, at a phone viewport. Existing
+      // untagged specs are skipped here so they keep their desktop assumptions.
+      name: 'mobile',
+      use: { ...devices['Pixel 7'] },
+      grep: /@mobile/,
     },
   ],
   webServer: {
