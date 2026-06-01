@@ -1,9 +1,30 @@
 import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import type { Metadata } from 'next';
+import { IBM_Plex_Mono, IBM_Plex_Sans_Thai, Inter } from 'next/font/google';
 import { NextIntlClientProvider } from 'next-intl';
 import { getLocale } from 'next-intl/server';
 import './globals.css';
+
+/**
+ * Fonts (Sapphire Editorial): Inter for display/KPI numerics, IBM Plex Sans
+ * Thai for body Thai script, IBM Plex Mono for code/IDs. Loaded via next/font
+ * (self-hosted, zero layout shift). Each exposes a CSS variable that the
+ * `@theme` `--font-*` stacks in globals.css resolve to.
+ */
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' });
+const plexThai = IBM_Plex_Sans_Thai({
+  subsets: ['thai', 'latin'],
+  weight: ['300', '400', '500', '600', '700'],
+  variable: '--font-plex-thai',
+  display: 'swap',
+});
+const plexMono = IBM_Plex_Mono({
+  subsets: ['latin'],
+  weight: ['400', '500'],
+  variable: '--font-plex-mono',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   title: 'Koolman Work',
@@ -44,7 +65,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const locale = await getLocale();
 
   return (
-    <html lang={locale}>
+    <html lang={locale} className={`${inter.variable} ${plexThai.variable} ${plexMono.variable}`}>
       <body className="min-h-dvh bg-white text-gray-900 antialiased">
         <NextIntlClientProvider>{children}</NextIntlClientProvider>
         <SpeedInsights />
