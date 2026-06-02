@@ -1,6 +1,12 @@
 import type { ReactNode } from 'react';
 
-/** Consistent "no data" panel inside a surface card. */
+/**
+ * Consistent "no data" content — centered icon/title/hint/action.
+ *
+ * Plain by design (no card chrome) so it drops cleanly into a Card body or a
+ * list container without double-boxing. For a standalone boxed empty state,
+ * wrap it in a `Card`/`.surface` at the call site.
+ */
 export function EmptyState({
   icon,
   title,
@@ -13,7 +19,7 @@ export function EmptyState({
   action?: ReactNode;
 }) {
   return (
-    <div className="surface flex flex-col items-center justify-center gap-2 px-6 py-12 text-center">
+    <div className="flex flex-col items-center justify-center gap-1.5 px-6 py-12 text-center">
       {icon && <div className="text-ink-4">{icon}</div>}
       <p className="font-display text-sm font-semibold text-ink-1">{title}</p>
       {hint && <p className="max-w-sm text-xs text-ink-3">{hint}</p>}
