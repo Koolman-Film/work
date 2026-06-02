@@ -117,6 +117,32 @@ complexity of nesting our `fixed inset-0` `Dialog` inside itself.
 - **Void dialog** primitive (`VoidDialog`/`ConfirmDialog` with reason) is reused
   inside the modal footer — not rebuilt.
 
+## Consistency with existing dialogs (audit result)
+
+`ReviewModal` composes `Dialog`, so the panel (`rounded-2xl bg-white p-5
+shadow-hero sm:max-w-md`), overlay (`bg-ink-1/40`, bottom-sheet < sm), title
+(`h3 · h-page · text-lg · text-ink-1`), and close ✕ are **identical to
+ConfirmDialog by construction**. The only drift is in the body, so it must match
+ConfirmDialog's conventions:
+
+- **Footer buttons use `size="sm"`** (ConfirmDialog's size) — not the default md.
+- **No footer divider** — ConfirmDialog separates the action bar with spacing
+  (`mt-5`), not a `border-t`. Same here. The ReviewModal footer is
+  `justify-between` only because of the left-aligned `ลบรายการ`; ConfirmDialog's
+  is `justify-end`.
+- **Note/reason field matches ConfirmDialog exactly**:
+  `rounded-lg border border-gray-300 p-2 text-sm focus:border-primary-400
+  focus:outline-none focus:ring-2 focus:ring-primary-100`.
+- **Shadow layering is intentional, leave it:** modals use `shadow-hero`; the
+  avatar menu (`shadow-card`) and notification popover (`shadow-brand`) are
+  lighter on purpose (popover < modal). The mobile drawer already shares the
+  `bg-ink-1/40` overlay.
+
+**Refactor to enforce it structurally:** extract a shared `DialogFooter` (a
+right-aligned `sm`-button action bar with an optional `leading` slot for a
+left-aligned destructive link). `ConfirmDialog` and `ReviewModal` both render it,
+so button size/spacing can't drift between them.
+
 ## Accessibility / mobile
 
 - Each row is a `<button>` with an aria-label (e.g. "ตรวจสอบคำขอลาของ <name>").
