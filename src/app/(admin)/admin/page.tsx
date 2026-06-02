@@ -12,9 +12,13 @@
  * into the action they need to take.
  */
 
-import { Calendar, CheckCircle2, Coins, UserX } from 'lucide-react';
 import Link from 'next/link';
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
+import { EmptyState } from '@/components/ui/empty-state';
+import { KpiHero } from '@/components/ui/kpi-hero';
+import { PageHeader } from '@/components/ui/page-header';
+import { Pill } from '@/components/ui/pill';
+import { StatCard } from '@/components/ui/stat-card';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 
@@ -203,58 +207,74 @@ export default async function AdminHomePage() {
     .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
     .slice(0, 5);
 
-  return (
-    <div className="mx-auto max-w-6xl px-6 py-8">
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-gray-900">ภาพรวม</h1>
-        <p className="mt-1 text-sm text-gray-500">คำขอ การลงเวลา และเงินเดือน — ดูทั้งหมดในที่เดียว</p>
-      </div>
+  const todayLabel = new Date().toLocaleDateString('th-TH', {
+    timeZone: 'Asia/Bangkok',
+    weekday: 'long',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
 
-      {/* KPI strip */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <KpiCard
-          label="คำขอลา รออนุมัติ"
-          value={pendingLeaveCount}
-          Icon={Calendar}
-          href="/admin/leave"
-          accent="amber"
-        />
-        <KpiCard
-          label="คำขอเบิก รออนุมัติ"
-          value={pendingAdvanceCount}
-          Icon={Coins}
-          href="/admin/advance"
-          accent="amber"
-        />
-        <KpiCard
-          label="เช็คอินวันนี้"
-          value={checkedInTodayCount}
-          Icon={CheckCircle2}
-          href="/admin/attendance/live"
-          accent="green"
-          hint={
-            todayHoliday ? `วันหยุด: ${todayHoliday.name}` : todayIsSunday ? 'วันอาทิตย์' : undefined
-          }
-        />
-        <KpiCard
-          label="ยังไม่เช็คอินวันนี้"
-          value={notCheckedInCount}
-          Icon={UserX}
-          href="/admin/attendance/live"
-          accent={notCheckedInCount > 0 ? 'red' : 'gray'}
-          hint={isClosedDay ? 'วันหยุดประจำสัปดาห์' : undefined}
-        />
+  return (
+    <div className="px-4 py-6 sm:px-6 lg:px-8">
+      <PageHeader
+        breadcrumb="ภาพรวม"
+        title="ภาพรวม"
+        subtitle={`${todayLabel} · ภาพรวมทุกสาขา`}
+        actions={
+          isClosedDay ? (
+            <Pill variant="neutral">
+              {todayHoliday ? `วันหยุด: ${todayHoliday.name}` : 'วันอาทิตย์'}
+            </Pill>
+          ) : (
+            <Pill variant="approved">● ระบบปกติ</Pill>
+          )
+        }
+      />
+
+      {/* Attendance hero + pending-count stats */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <KpiHero
+            checkedIn={checkedInTodayCount}
+            notCheckedIn={notCheckedInCount}
+            total={activeEmployeeCount}
+            leave={onLeaveTodayCount}
+          />
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
+          <Link
+            href="/admin/leave"
+            className="block rounded-xl transition hover:-translate-y-0.5 hover:shadow-cta"
+          >
+            <StatCard
+              label="คำขอลา รออนุมัติ"
+              value={pendingLeaveCount}
+              hint={<span className="font-medium text-primary-700">ไปจัดการ →</span>}
+            />
+          </Link>
+          <Link
+            href="/admin/advance"
+            className="block rounded-xl transition hover:-translate-y-0.5 hover:shadow-cta"
+          >
+            <StatCard
+              label="คำขอเบิก รออนุมัติ"
+              value={pendingAdvanceCount}
+              hint={<span className="font-medium text-primary-700">ไปจัดการ →</span>}
+            />
+          </Link>
+        </div>
       </div>
 
       {/* Two-column action panels */}
-      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader className="flex items-center justify-between">
             <CardTitle>คำขอที่รอดำเนินการ</CardTitle>
             {pendingLeaveCount + pendingAdvanceCount > pendingRows.length && (
               <Link
                 href="/admin/leave"
-                className="text-xs font-medium text-primary-600 hover:text-primary-700"
+                className="text-xs font-medium text-primary-700 hover:text-primary-800"
               >
                 ดูทั้งหมด →
               </Link>
@@ -262,7 +282,7 @@ export default async function AdminHomePage() {
           </CardHeader>
           <CardBody className="!p-0">
             {pendingRows.length === 0 ? (
-              <EmptyState text="ไม่มีคำขอที่รอดำเนินการ ✨" hint="ทุกคำขอได้รับการตัดสินใจแล้ว" />
+              <EmptyState title="ไม่มีคำขอที่รอดำเนินการ ✨" hint="ทุกคำขอได้รับการตัดสินใจแล้ว" />
             ) : (
               <ul className="divide-y divide-gray-100">
                 {pendingRows.map((r) => (
@@ -273,12 +293,14 @@ export default async function AdminHomePage() {
                     >
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <KindBadge kind={r.kind} />
-                          <p className="truncate text-sm font-medium text-gray-900">{r.title}</p>
+                          <Pill variant={r.kind === 'leave' ? 'leave' : 'pending'}>
+                            {r.kind === 'leave' ? 'ลา' : 'เบิก'}
+                          </Pill>
+                          <p className="truncate text-sm font-medium text-ink-1">{r.title}</p>
                         </div>
-                        <p className="mt-0.5 text-xs text-gray-500">{r.subtitle}</p>
+                        <p className="mt-0.5 text-xs text-ink-3">{r.subtitle}</p>
                       </div>
-                      <p className="shrink-0 text-[10px] text-gray-400">
+                      <p className="shrink-0 text-[10px] text-ink-4">
                         {formatDateTimeShort(r.createdAt)}
                       </p>
                     </Link>
@@ -292,13 +314,13 @@ export default async function AdminHomePage() {
         <Card>
           <CardHeader>
             <CardTitle>
-              ลาวันนี้ <span className="tabular-nums text-gray-500">({onLeaveToday.length})</span>
+              ลาวันนี้ <span className="tabular text-ink-3">({onLeaveToday.length})</span>
             </CardTitle>
           </CardHeader>
           <CardBody className="!p-0">
             {onLeaveToday.length === 0 ? (
               <EmptyState
-                text="ไม่มีพนักงานลาวันนี้"
+                title="ไม่มีพนักงานลาวันนี้"
                 hint={
                   isClosedDay
                     ? todayHoliday
@@ -312,13 +334,13 @@ export default async function AdminHomePage() {
                 {onLeaveToday.map((a) => (
                   <li key={a.id} className="flex items-start justify-between gap-3 px-5 py-3">
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-gray-900">
+                      <p className="truncate text-sm font-medium text-ink-1">
                         {a.employee.firstName} {a.employee.lastName}
                         {a.employee.nickname && (
-                          <span className="text-gray-500"> ({a.employee.nickname})</span>
+                          <span className="text-ink-3"> ({a.employee.nickname})</span>
                         )}
                       </p>
-                      <p className="mt-0.5 text-xs text-gray-500">
+                      <p className="mt-0.5 text-xs text-ink-3">
                         {a.leaveRequest?.leaveType.name ?? 'ลา'}
                         {a.leaveRequest && (
                           <>
@@ -336,73 +358,5 @@ export default async function AdminHomePage() {
         </Card>
       </div>
     </div>
-  );
-}
-
-// ─── KPI card ──────────────────────────────────────────────────────────────
-
-type KpiCardProps = {
-  label: string;
-  value: number | string;
-  Icon: React.ComponentType<{ size?: number; className?: string }>;
-  href: string;
-  /** Subtle accent applied to the value when it's actionable (e.g. red
-   *  for "missing employees", amber for pending work). */
-  accent?: 'amber' | 'red' | 'green' | 'gray';
-  hint?: string;
-};
-
-const ACCENT_CLASSES: Record<NonNullable<KpiCardProps['accent']>, string> = {
-  amber: 'text-amber-700',
-  red: 'text-red-700',
-  green: 'text-green-700',
-  gray: 'text-gray-900',
-};
-
-function KpiCard({ label, value, Icon, href, accent = 'gray', hint }: KpiCardProps) {
-  const valueColor =
-    typeof value === 'number' && value === 0 ? 'text-gray-300' : ACCENT_CLASSES[accent];
-
-  return (
-    <Link
-      href={href}
-      className="block rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition hover:border-primary-300 hover:shadow-brand"
-    >
-      <div className="flex items-start justify-between">
-        <Icon size={20} className="text-primary-500" />
-        {hint && (
-          <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-500">
-            {hint}
-          </span>
-        )}
-      </div>
-      <p className="mt-3 text-xs font-medium uppercase tracking-wider text-gray-500">{label}</p>
-      <p className={`mt-1 text-2xl font-semibold tabular-nums ${valueColor}`}>{value}</p>
-    </Link>
-  );
-}
-
-// ─── Empty state ───────────────────────────────────────────────────────────
-
-function EmptyState({ text, hint }: { text: string; hint: string }) {
-  return (
-    <div className="flex flex-col items-center justify-center px-6 py-10 text-center">
-      <p className="text-sm font-medium text-gray-600">{text}</p>
-      <p className="mt-1 text-xs text-gray-400">{hint}</p>
-    </div>
-  );
-}
-
-// ─── Kind badge ────────────────────────────────────────────────────────────
-
-function KindBadge({ kind }: { kind: 'leave' | 'advance' }) {
-  return kind === 'leave' ? (
-    <span className="shrink-0 rounded-full bg-primary-100 px-2 py-0.5 text-[10px] font-medium text-primary-800">
-      ลา
-    </span>
-  ) : (
-    <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800">
-      เบิก
-    </span>
   );
 }
