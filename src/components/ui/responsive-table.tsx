@@ -33,8 +33,8 @@ export function ResponsiveTable<T>({
 
   return (
     <>
-      {/* Desktop: real table */}
-      <div className="hidden overflow-hidden rounded-xl border border-[var(--border-color)] md:block">
+      {/* Desktop: real table (white surface, matching Card/.surface elsewhere) */}
+      <div className="hidden overflow-hidden rounded-xl border border-[var(--border-color)] bg-white shadow-card md:block">
         <table className="w-full text-sm">
           <thead className="bg-gray-50/60 text-left font-display text-xs font-semibold text-ink-3">
             <tr>

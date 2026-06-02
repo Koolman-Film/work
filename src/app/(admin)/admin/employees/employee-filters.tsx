@@ -80,7 +80,7 @@ export function EmployeeFilters({ initial, branches, departments, matchedCount }
             name="q"
             placeholder="ค้นหา ชื่อ / นามสกุล / ชื่อเล่น"
             defaultValue={initial.q}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100"
           />
         </div>
 
@@ -108,7 +108,7 @@ export function EmployeeFilters({ initial, branches, departments, matchedCount }
           aria-label="กรองตามสถานะ"
           defaultValue={initial.status}
           onChange={() => formRef.current?.requestSubmit()}
-          className="rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+          className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100"
         >
           {STATUS_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>
@@ -120,15 +120,15 @@ export function EmployeeFilters({ initial, branches, departments, matchedCount }
 
       {/* Result count + clear button — only render the clear link when
           something is actually filtered, to avoid visual noise. */}
-      <div className="flex items-center justify-between text-xs text-gray-500">
+      <div className="flex items-center justify-between text-xs text-ink-3">
         <span>
-          พบ <strong className="font-semibold text-gray-700 tabular-nums">{matchedCount}</strong> คน
+          พบ <strong className="font-semibold text-ink-1 tabular-nums">{matchedCount}</strong> คน
           {hasAnyFilter && ' (กรองแล้ว)'}
         </span>
         {hasAnyFilter && (
           <Link
             href="/admin/employees"
-            className="font-medium text-primary-600 hover:text-primary-700"
+            className="font-medium text-primary-700 hover:text-primary-800"
           >
             ✕ ล้างทั้งหมด
           </Link>
@@ -157,7 +157,7 @@ function FilterSelect({
       aria-label={ariaLabel}
       defaultValue={defaultValue}
       onChange={onChange}
-      className="max-w-[200px] rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+      className="max-w-[200px] rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100"
     >
       {options.map((opt) => (
         <option key={opt.id || 'all'} value={opt.id}>
