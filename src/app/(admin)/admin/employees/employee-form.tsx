@@ -73,7 +73,9 @@ export function EmployeeForm({ mode, action, initial, error, options, extraActio
         </p>
       )}
 
-      <div className="grid gap-6 xl:grid-cols-2 xl:items-start">
+      {/* No items-start: let the grid stretch both columns to equal height, so
+          the single สังกัด card matches the stacked identity+employment column. */}
+      <div className="grid gap-6 xl:grid-cols-2">
         {/* Left column: identity + employment terms */}
         <div className="space-y-6">
           {/* Identity */}
