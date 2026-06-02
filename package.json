@@ -25,6 +25,7 @@
     "db:deploy": "dotenv -e .env.local -- prisma migrate deploy",
     "db:studio": "dotenv -e .env.local -- prisma studio",
     "db:seed": "dotenv -e .env.local -- tsx prisma/seed.ts",
+    "db:seed:employees": "dotenv -e .env.local -- tsx prisma/seed-employees.ts",
     "db:reset": "dotenv -e .env.local -- prisma migrate reset --skip-seed",
     "prepare": "simple-git-hooks",
     "postinstall": "prisma generate"
