@@ -2,15 +2,17 @@ import { expect, test } from '@playwright/test';
 
 /**
  * Smoke — the cheapest possible verification that the server boots, the
- * landing page renders, and /login is reachable. If this fails, every
+ * home router redirects, and /login is reachable. If this fails, every
  * other spec will also fail; running this first surfaces "server didn't
  * start" cleanly.
  */
 
 test.describe('smoke', () => {
-  test('home page renders the scaffold-status block', async ({ page }) => {
+  test('home page redirects unauthenticated visitors to /login', async ({ page }) => {
+    // `/` is a pure auth-router (src/app/page.tsx): unauthenticated → /login.
     await page.goto('/');
-    await expect(page.getByRole('heading', { name: /Koolman HR/i })).toBeVisible();
+    await page.waitForURL(/\/login/, { timeout: 5_000 });
+    await expect(page.getByRole('button', { name: /เข้าสู่ระบบ|sign in|login/i })).toBeVisible();
   });
 
   test('/login renders the login form', async ({ page }) => {
