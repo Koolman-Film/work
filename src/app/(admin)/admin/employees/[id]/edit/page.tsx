@@ -1,5 +1,6 @@
 import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
+import { PageHeader } from '@/components/ui/page-header';
 import { prisma } from '@/lib/db/prisma';
 import { loadEmployeeFormOptions } from '../../_load-options';
 import { archiveEmployee, deleteEmployee, updateEmployee } from '../../actions';
@@ -56,16 +57,18 @@ export default async function EditEmployeePage({
   const baseUrl = `${proto}://${host}`;
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-8 space-y-6">
-      <div className="mb-6 flex items-baseline justify-between">
-        <h1 className="text-2xl font-semibold text-gray-900">
-          แก้ไข: {emp.firstName} {emp.lastName}
-        </h1>
-        <LineStatus lineUserId={emp.user.lineUserId} authUserId={emp.user.authUserId} />
-      </div>
+    <div className="mx-auto max-w-3xl space-y-6 px-4 py-6 sm:px-6">
+      <PageHeader
+        breadcrumb="พนักงาน"
+        title={`แก้ไข: ${emp.firstName} ${emp.lastName}`}
+        actions={<LineStatus lineUserId={emp.user.lineUserId} authUserId={emp.user.authUserId} />}
+      />
 
       {ok === '1' && (
-        <div role="status" className="mb-4 rounded-md bg-green-50 px-4 py-3 text-sm text-green-800">
+        <div
+          role="status"
+          className="rounded-lg bg-success-soft px-4 py-3 text-sm text-success-deep"
+        >
           บันทึกเรียบร้อย
         </div>
       )}
@@ -128,7 +131,7 @@ function LineStatus({
 }) {
   if (lineUserId) {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1 text-xs font-medium text-green-700">
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-success-soft px-3 py-1 text-xs font-medium text-success-deep">
         <span aria-hidden="true">✅</span>
         LINE เชื่อมแล้ว
       </span>
@@ -136,14 +139,14 @@ function LineStatus({
   }
   if (authUserId) {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-yellow-50 px-3 py-1 text-xs font-medium text-yellow-700">
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-accent-400/20 px-3 py-1 text-xs font-medium text-accent-600">
         <span aria-hidden="true">⏳</span>
         รอเชื่อม LINE
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600">
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-ink-3">
       <span aria-hidden="true">📩</span>
       ยังไม่ได้ส่งลิงก์
     </span>

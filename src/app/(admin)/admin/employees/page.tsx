@@ -1,9 +1,10 @@
 import type { Prisma } from '@prisma/client';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Card, CardBody } from '@/components/ui/card';
+import { EmptyState } from '@/components/ui/empty-state';
+import { PageHeader } from '@/components/ui/page-header';
+import { type Column, ResponsiveTable } from '@/components/ui/responsive-table';
 import { StatusBadge, type StatusKey } from '@/components/ui/status-badge';
-import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/table';
 import { prisma } from '@/lib/db/prisma';
 import { EmployeeFilters } from './employee-filters';
 
@@ -115,94 +116,110 @@ export default async function EmployeeListPage({ searchParams }: { searchParams:
     }),
   ]);
 
+  type Emp = (typeof employees)[number];
+  const noFilters = !q && !branchId && !departmentId && status !== 'archived';
+
+  const columns: Column<Emp>[] = [
+    {
+      key: 'name',
+      header: 'ชื่อ',
+      cell: (e) => (
+        <div>
+          <div className="font-medium text-ink-1">
+            {e.firstName} {e.lastName}
+          </div>
+          {e.nickname && <div className="text-xs text-ink-3">({e.nickname})</div>}
+        </div>
+      ),
+    },
+    { key: 'branch', header: 'สาขา', cell: (e) => e.branch.name },
+    { key: 'department', header: 'แผนก', cell: (e) => e.department?.name ?? '—' },
+    {
+      key: 'salary',
+      header: 'เงินเดือน',
+      cell: (e) => (
+        <span className="tabular">
+          {fmtMoney(e.baseSalary)}
+          <span className="ml-1 text-xs text-ink-4">/{e.salaryType.toLowerCase()}</span>
+        </span>
+      ),
+    },
+    {
+      key: 'status',
+      header: 'สถานะ',
+      cell: (e) => (
+        <StatusBadge status={STATUS_KIND[e.status] ?? 'neutral'}>
+          {STATUS_LABEL[e.status] ?? e.status}
+        </StatusBadge>
+      ),
+    },
+  ];
+
   return (
-    <div className="mx-auto max-w-6xl px-6 py-8">
-      <div className="mb-6 flex items-baseline justify-between">
-        <h1 className="text-2xl font-semibold text-gray-900">พนักงาน</h1>
-        <Link href="/admin/employees/new">
-          <Button>+ เพิ่มพนักงาน</Button>
-        </Link>
-      </div>
+    <div className="px-4 py-6 sm:px-6 lg:px-8">
+      <PageHeader
+        breadcrumb="พนักงาน"
+        title="พนักงาน"
+        subtitle="จัดการบัญชี สิทธิ์ และการมอบหมายสาขาของพนักงานทุกคน"
+        actions={
+          <Link href="/admin/employees/new">
+            <Button>+ เพิ่มพนักงาน</Button>
+          </Link>
+        }
+      />
 
       {error && (
-        <div role="alert" className="mb-4 rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div
+          role="alert"
+          className="mb-4 rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger-deep"
+        >
           {decodeURIComponent(error)}
         </div>
       )}
 
-      <EmployeeFilters
-        initial={{ q, branchId, departmentId, status }}
-        branches={branches}
-        departments={departments}
-        matchedCount={employees.length}
-      />
+      <div className="mb-4">
+        <EmployeeFilters
+          initial={{ q, branchId, departmentId, status }}
+          branches={branches}
+          departments={departments}
+          matchedCount={employees.length}
+        />
+      </div>
 
-      <Card>
-        <CardBody className="!p-0">
-          {employees.length === 0 ? (
-            <div className="px-6 py-12 text-center">
-              <p className="text-sm text-gray-500">
-                {status === 'archived'
+      <ResponsiveTable
+        columns={columns}
+        rows={employees}
+        rowKey={(e) => e.id}
+        actions={(e) => (
+          <Link
+            href={`/admin/employees/${e.id}/edit`}
+            className="text-sm font-medium text-primary-700 hover:text-primary-800"
+          >
+            แก้ไข
+          </Link>
+        )}
+        empty={
+          <div className="surface">
+            <EmptyState
+              title={
+                status === 'archived'
                   ? 'ยังไม่มีพนักงานพ้นสภาพ'
                   : q || branchId || departmentId
                     ? 'ไม่พบพนักงานที่ตรงกับตัวกรอง'
-                    : 'ยังไม่มีพนักงาน'}
-              </p>
-              {!q && !branchId && !departmentId && status !== 'archived' && (
-                <Link href="/admin/employees/new" className="mt-3 inline-block">
-                  <Button variant="secondary">+ เพิ่มพนักงานคนแรก</Button>
-                </Link>
-              )}
-            </div>
-          ) : (
-            <Table>
-              <THead>
-                <TR>
-                  <TH>ชื่อ</TH>
-                  <TH>สาขา</TH>
-                  <TH>แผนก</TH>
-                  <TH>เงินเดือน</TH>
-                  <TH>สถานะ</TH>
-                  <TH className="text-right">การจัดการ</TH>
-                </TR>
-              </THead>
-              <TBody>
-                {employees.map((e) => (
-                  <TR key={e.id}>
-                    <TD>
-                      <div className="font-medium text-gray-900">
-                        {e.firstName} {e.lastName}
-                      </div>
-                      {e.nickname && <div className="text-xs text-gray-500">({e.nickname})</div>}
-                    </TD>
-                    <TD>{e.branch.name}</TD>
-                    <TD className="text-gray-500">{e.department?.name ?? '—'}</TD>
-                    <TD className="tabular-nums">
-                      {fmtMoney(e.baseSalary)}
-                      <span className="ml-1 text-xs text-gray-400">
-                        /{e.salaryType.toLowerCase()}
-                      </span>
-                    </TD>
-                    <TD>
-                      <StatusBadge status={STATUS_KIND[e.status] ?? 'neutral'}>
-                        {STATUS_LABEL[e.status] ?? e.status}
-                      </StatusBadge>
-                    </TD>
-                    <TD className="text-right">
-                      <Link
-                        href={`/admin/employees/${e.id}/edit`}
-                        className="text-sm font-medium text-primary-600 hover:text-primary-700"
-                      >
-                        แก้ไข
-                      </Link>
-                    </TD>
-                  </TR>
-                ))}
-              </TBody>
-            </Table>
-          )}
-        </CardBody>
-      </Card>
+                    : 'ยังไม่มีพนักงาน'
+              }
+              hint={noFilters ? 'เริ่มต้นด้วยการเพิ่มพนักงานคนแรก' : undefined}
+              action={
+                noFilters ? (
+                  <Link href="/admin/employees/new">
+                    <Button variant="secondary">+ เพิ่มพนักงานคนแรก</Button>
+                  </Link>
+                ) : undefined
+              }
+            />
+          </div>
+        }
+      />
     </div>
   );
 }
