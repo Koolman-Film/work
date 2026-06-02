@@ -1,22 +1,16 @@
 'use client';
 
 /**
- * "ปลดล็อก LINE" button — Client Component wrapper around the
- * `unlinkLineFromEmployee` Server Action so we can show a confirm
- * dialog before submitting.
- *
- * The dialog spells out the consequences (employee will need a new QR,
- * the Supabase auth.users row will be deleted) because this is
- * destructive enough to warrant an extra click of certainty.
- *
- * Visual weight: outlined-on-white red, matching the "ลบถาวร" style
- * we use for irreversible-but-not-immediately-catastrophic actions.
- * Avoids the solid red used for true "อันตราย" actions like archive
- * + delete — unlink is recoverable (admin can issue a fresh QR and
- * re-pair).
+ * "ปลดล็อก LINE" control — wraps `unlinkLineFromEmployee` in the shared styled
+ * ConfirmDialog. Unlink is destructive but recoverable (admin can issue a fresh
+ * QR and re-pair), so it uses the quieter outlined-red treatment, and the
+ * dialog spells out the consequences before confirming. The action takes only
+ * the bound id (no form data) and revalidates, so on success the dialog
+ * refreshes the page to reflect the now-unlinked state.
  */
 
 import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 type Props = {
   /** Pre-bound Server Action: `unlinkLineFromEmployee.bind(null, id)` */
@@ -26,24 +20,27 @@ type Props = {
 };
 
 export function UnlinkLineButton({ action, employeeName }: Props) {
-  function confirmUnlink(e: React.MouseEvent<HTMLButtonElement>) {
-    const ok = window.confirm(
-      `ปลดล็อก LINE จาก "${employeeName}"?\n\nผลที่จะเกิด:\n  • บัญชี LINE ที่เคยจับคู่จะถูกตัดออกจากระบบ\n  • Supabase auth user ของบัญชีนี้จะถูกลบ\n  • QR เดิม (ถ้ามี) จะใช้ไม่ได้\n  • ต้องสร้าง QR ใหม่ให้พนักงานสแกนเพื่อเชื่อมใหม่\n\nใช้เมื่อ: พนักงานได้โทรศัพท์/บัญชี LINE ใหม่, จับคู่กับ LINE ผิดบัญชี, หรือต้องการรีเซ็ตการเชื่อม`,
-    );
-    if (!ok) e.preventDefault();
-  }
-
   return (
-    <form action={action}>
-      <Button
-        type="submit"
-        variant="destructive"
-        size="sm"
-        onClick={confirmUnlink}
-        className="!bg-white !text-red-700 hover:!bg-red-50 border border-red-300"
-      >
-        ปลดล็อก LINE
-      </Button>
-    </form>
+    <ConfirmDialog
+      title={`ปลดล็อก LINE จาก "${employeeName}"?`}
+      description="บัญชี LINE ที่จับคู่จะถูกตัดออกจากระบบ และ Supabase auth user จะถูกลบ — QR เดิมจะใช้ไม่ได้ ต้องสร้าง QR ใหม่ให้พนักงานสแกนเพื่อเชื่อมใหม่"
+      confirmLabel="ปลดล็อก LINE"
+      tone="danger"
+      action={async () => {
+        await action();
+        return { ok: true as const };
+      }}
+      trigger={(open) => (
+        <Button
+          type="button"
+          variant="reject"
+          size="sm"
+          onClick={open}
+          className="border-red-300 !text-red-700 hover:!bg-red-50"
+        >
+          ปลดล็อก LINE
+        </Button>
+      )}
+    />
   );
 }
