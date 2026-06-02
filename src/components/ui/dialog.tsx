@@ -60,12 +60,36 @@ export function Dialog({ open, onClose, title, children, dismissable = true, cla
         role="dialog"
         aria-modal="true"
         className={cn(
-          'w-full rounded-t-2xl bg-white p-5 shadow-hero sm:max-w-md sm:rounded-2xl',
+          'relative w-full rounded-t-2xl bg-white p-5 shadow-hero sm:max-w-md sm:rounded-2xl',
           className,
         )}
       >
-        {title && <h3 className="h-page text-lg text-ink-1">{title}</h3>}
+        {title && <h3 className="h-page pr-8 text-lg text-ink-1">{title}</h3>}
         {children}
+        {/* Close button — rendered last so focus-on-open still lands on the
+            first meaningful control, not the X. Hidden while non-dismissable
+            (e.g. a mutation is pending), matching Esc/backdrop behavior. */}
+        {dismissable && (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="ปิด"
+            className="absolute right-3 top-3 inline-flex size-8 items-center justify-center rounded-lg text-ink-4 transition hover:bg-gray-100 hover:text-ink-2"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              aria-hidden="true"
+            >
+              <path d="M6 6l12 12M18 6 6 18" />
+            </svg>
+          </button>
+        )}
       </div>
     </div>
   );
