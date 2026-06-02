@@ -16,7 +16,6 @@
  *     change — we just start passing receiptUrl reliably.
  */
 
-import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
 import { auditLogTx } from '@/lib/audit/log';
 import { requirePermission } from '@/lib/auth/check-permission';
@@ -156,7 +155,10 @@ export async function approveCashAdvance(input: ApproveInput): Promise<ApproveAd
       });
     }
 
-    revalidatePath('/admin/advance');
+    // No revalidatePath('/admin/advance'): the page is dynamic (awaits
+    // searchParams), so there is no cache to clear — revalidating would only
+    // trigger an in-transition RSC refresh that drops the just-settled row and
+    // unmounts the review panel's confirmation. The panel owns post-action UX.
     return result;
   } catch (err) {
     console.error('[approveCashAdvance] tx failed', err);
@@ -233,7 +235,8 @@ export async function rejectCashAdvance(input: RejectInput): Promise<RejectAdvan
       });
     }
 
-    revalidatePath('/admin/advance');
+    // See approveCashAdvance: no revalidatePath — page is dynamic and the
+    // panel owns the post-action "settled" confirmation + manual refresh.
     return result;
   } catch (err) {
     console.error('[rejectCashAdvance] tx failed', err);
