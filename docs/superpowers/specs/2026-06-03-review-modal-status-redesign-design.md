@@ -120,8 +120,14 @@ complexity of nesting our `fixed inset-0` `Dialog` inside itself.
 ## Accessibility / mobile
 
 - Each row is a `<button>` with an aria-label (e.g. "ตรวจสอบคำขอลาของ <name>").
-- `Dialog` already renders centered on desktop and as a bottom-sheet < md, with
-  focus-trap, Esc-to-close, and scroll-lock — inherited for free.
+- `Dialog` renders centered on desktop and as a bottom-sheet < md, with
+  Esc-to-close, click-backdrop-to-close, scroll-lock, and focus moved into the
+  panel on open — inherited for free.
+- **Close button:** an explicit top-right `✕` (aria-label "ปิด") now lives on the
+  shared `Dialog` primitive, so every modal (ConfirmDialog, FilterBar sheet,
+  ReviewModal) gets a consistent close affordance. It's rendered last in the DOM
+  (so focus-on-open still lands on the first meaningful control) and hidden while
+  the dialog is non-dismissable (a mutation is pending).
 - Touch targets: the whole row + ≥44px footer buttons.
 
 ## Testing
