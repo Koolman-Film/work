@@ -26,7 +26,6 @@
  *     thread).
  */
 
-import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
 import { auditLogTx } from '@/lib/audit/log';
 import { requirePermission } from '@/lib/auth/check-permission';
@@ -225,7 +224,11 @@ export async function approveLeaveRequest(input: Input): Promise<ApproveResult> 
       });
     }
 
-    revalidatePath('/admin/leave');
+    // Intentionally NOT revalidatePath('/admin/leave') here: the page is
+    // dynamic (it awaits searchParams), so there is no cache to clear — the
+    // only effect would be an in-transition RSC refresh that unmounts the
+    // review panel's "settled" confirmation before the admin can read it.
+    // The panel owns the post-action UX and prompts a manual refresh.
     return result;
   } catch (err) {
     console.error('[approveLeaveRequest] tx failed', err);
@@ -326,7 +329,8 @@ export async function rejectLeaveRequest(input: Input): Promise<RejectResult> {
       });
     }
 
-    revalidatePath('/admin/leave');
+    // See approveLeaveRequest: no revalidatePath — page is dynamic and the
+    // panel owns the post-action "settled" confirmation + manual refresh.
     return result;
   } catch (err) {
     console.error('[rejectLeaveRequest] tx failed', err);

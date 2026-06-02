@@ -72,13 +72,13 @@ export function LeaveReviewPanel({ leaveRequestId, workingDays, holidayNames }: 
 
   if (local.kind === 'settled') {
     return (
-      <div className="mt-3 rounded-md bg-gray-50 px-3 py-2 text-xs">
+      <div className="mt-3 rounded-lg bg-gray-50 px-3 py-2 text-xs">
         {local.outcome === 'Approved' ? (
-          <p className="text-green-700">
+          <p className="text-success-deep">
             ✓ อนุมัติเรียบร้อย — สร้างบันทึก {local.attendanceCount ?? '?'} วัน รีเฟรชเพื่อดูรายการที่เหลือ
           </p>
         ) : (
-          <p className="text-gray-700">✕ ปฏิเสธเรียบร้อย — รีเฟรชเพื่อดูรายการที่เหลือ</p>
+          <p className="text-ink-2">✕ ปฏิเสธเรียบร้อย — รีเฟรชเพื่อดูรายการที่เหลือ</p>
         )}
       </div>
     );
@@ -88,32 +88,27 @@ export function LeaveReviewPanel({ leaveRequestId, workingDays, holidayNames }: 
     <div className="mt-3 space-y-3 rounded-xl border border-gray-200 bg-gray-50/40 p-4">
       {/* Working days breakdown */}
       <div>
-        <p className="text-xs font-medium text-gray-700">
-          วันทำงานที่จะถูกบันทึก ({workingDays.length} วัน)
-        </p>
+        <p className="text-xs font-medium text-ink-2">วันทำงานที่จะถูกบันทึก ({workingDays.length} วัน)</p>
         {workingDays.length === 0 ? (
           <p className="mt-1 text-xs text-amber-700">
             ⚠ ไม่มีวันทำงานในช่วงที่ขอ (ทั้งหมดเป็นวันอาทิตย์/วันหยุด) — การอนุมัติจะไม่สร้างบันทึกใดๆ
           </p>
         ) : (
-          <p className="mt-1 break-all text-[10px] font-mono text-gray-600">
+          <p className="mt-1 break-words text-[10px] font-mono text-ink-3">
             {workingDays.join(', ')}
           </p>
         )}
         {holidayNames.length > 0 && (
           <p className="mt-2 text-[11px] text-amber-700">
             วันหยุดในช่วงนี้: {holidayNames.map((h) => `${h.date} (${h.name})`).join(', ')} —{' '}
-            <span className="text-gray-500">ถูกตัดออกจากการคิดเป็นวันลา</span>
+            <span className="text-ink-3">ถูกตัดออกจากการคิดเป็นวันลา</span>
           </p>
         )}
       </div>
 
       {/* Note */}
       <div className="space-y-2">
-        <label
-          htmlFor={`note-${leaveRequestId}`}
-          className="block text-xs font-medium text-gray-700"
-        >
+        <label htmlFor={`note-${leaveRequestId}`} className="block text-xs font-medium text-ink-2">
           หมายเหตุ <span className="text-red-600">*</span>
         </label>
         <textarea
@@ -123,7 +118,7 @@ export function LeaveReviewPanel({ leaveRequestId, workingDays, holidayNames }: 
           rows={2}
           maxLength={500}
           placeholder="เช่น: อนุมัติตามขอ / ปฏิเสธ — ไม่มีเอกสารแนบ"
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100"
         />
         {local.kind === 'error' && <p className="text-xs text-red-700">{local.message}</p>}
       </div>
@@ -133,14 +128,14 @@ export function LeaveReviewPanel({ leaveRequestId, workingDays, holidayNames }: 
           type="button"
           onClick={() => setLocal({ kind: 'closed' })}
           disabled={pending}
-          className="text-xs text-gray-500 hover:text-gray-700"
+          className="text-xs text-ink-3 hover:text-ink-2"
         >
           ยกเลิก
         </button>
         <div className="flex gap-2">
           <Button
             type="button"
-            variant="secondary"
+            variant="reject"
             onClick={() => act('reject')}
             disabled={pending || note.trim().length === 0}
           >
@@ -148,7 +143,7 @@ export function LeaveReviewPanel({ leaveRequestId, workingDays, holidayNames }: 
           </Button>
           <Button
             type="button"
-            variant="primary"
+            variant="approve"
             onClick={() => act('approve')}
             disabled={pending || note.trim().length === 0}
           >
