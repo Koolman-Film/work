@@ -16,7 +16,7 @@ export default async function SuperadminLayout({ children }: { children: React.R
   const { user } = await requireRole(['Superadmin']);
 
   return (
-    <div className="flex min-h-dvh flex-col bg-gray-50">
+    <div className="flex min-h-dvh flex-col bg-canvas">
       <Topbar userLabel={user.email ?? 'Superadmin'} userId={user.id} />
       <main className="min-w-0 flex-1">{children}</main>
     </div>

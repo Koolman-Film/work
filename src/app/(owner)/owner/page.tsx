@@ -13,8 +13,11 @@
  *     for navigation
  */
 
-import { Calendar, CheckCircle2, Coins, Users } from 'lucide-react';
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
+import { EmptyState } from '@/components/ui/empty-state';
+import { PageHeader } from '@/components/ui/page-header';
+import { Pill } from '@/components/ui/pill';
+import { StatCard } from '@/components/ui/stat-card';
 import { prisma } from '@/lib/db/prisma';
 
 function bangkokDateUtcMidnight(d: Date): Date {
@@ -196,44 +199,40 @@ export default async function SuperadminHomePage() {
   const isClosedDay = todayIsSunday || todayHoliday !== null;
 
   return (
-    <div className="mx-auto max-w-6xl px-6 py-8">
-      <div className="mb-6 flex items-baseline justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-gray-900">แดชบอร์ดเจ้าของ</h1>
-          <p className="mt-1 text-sm text-gray-500">ภาพรวมการดำเนินงาน — ดูได้อย่างเดียว</p>
-        </div>
-        <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600">
-          อ่านอย่างเดียว
-        </span>
-      </div>
+    <div className="px-4 py-6 sm:px-6 lg:px-8">
+      <PageHeader
+        breadcrumb="เจ้าของ"
+        title="แดชบอร์ดเจ้าของ"
+        subtitle="ภาพรวมการดำเนินงาน — ดูได้อย่างเดียว"
+        actions={<Pill variant="neutral">อ่านอย่างเดียว</Pill>}
+      />
 
       {/* KPI strip — static, no links (read-only by design) */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <KpiCard label="พนักงานทั้งหมด" value={activeEmployeeCount} Icon={Users} />
-        <KpiCard
+        <StatCard label="พนักงานทั้งหมด" value={activeEmployeeCount} />
+        <StatCard
           label="เช็คอินวันนี้"
           value={checkedInTodayCount}
-          Icon={CheckCircle2}
           hint={
             todayHoliday ? `วันหยุด: ${todayHoliday.name}` : todayIsSunday ? 'วันอาทิตย์' : undefined
           }
         />
-        <KpiCard label="คำขอลาเดือนนี้" value={leaveRequestsThisMonth} Icon={Calendar} />
-        <KpiCard label="ยอดเบิกเดือนนี้" value={formatMoney(totalAdvanceThisMonth)} Icon={Coins} />
+        <StatCard label="คำขอลาเดือนนี้" value={leaveRequestsThisMonth} />
+        <StatCard label="ยอดเบิกเดือนนี้" value={formatMoney(totalAdvanceThisMonth)} />
       </div>
 
       {/* Two-column panels */}
-      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>
-              ลาวันนี้ <span className="tabular-nums text-gray-500">({onLeaveToday.length})</span>
+              ลาวันนี้ <span className="tabular text-ink-3">({onLeaveToday.length})</span>
             </CardTitle>
           </CardHeader>
           <CardBody className="!p-0">
             {onLeaveToday.length === 0 ? (
               <EmptyState
-                text="ไม่มีพนักงานลาวันนี้"
+                title="ไม่มีพนักงานลาวันนี้"
                 hint={
                   isClosedDay
                     ? todayHoliday
@@ -246,13 +245,13 @@ export default async function SuperadminHomePage() {
               <ul className="divide-y divide-gray-100">
                 {onLeaveToday.map((a) => (
                   <li key={a.id} className="px-5 py-3">
-                    <p className="truncate text-sm font-medium text-gray-900">
+                    <p className="truncate text-sm font-medium text-ink-1">
                       {a.employee.firstName} {a.employee.lastName}
                       {a.employee.nickname && (
-                        <span className="text-gray-500"> ({a.employee.nickname})</span>
+                        <span className="text-ink-3"> ({a.employee.nickname})</span>
                       )}
                     </p>
-                    <p className="mt-0.5 text-xs text-gray-500">
+                    <p className="mt-0.5 text-xs text-ink-3">
                       {a.leaveRequest?.leaveType.name ?? 'ลา'}
                       {a.leaveRequest && (
                         <> • {formatRangeShort(a.leaveRequest.startDate, a.leaveRequest.endDate)}</>
@@ -271,22 +270,22 @@ export default async function SuperadminHomePage() {
           </CardHeader>
           <CardBody className="!p-0">
             {recentAudit.length === 0 ? (
-              <EmptyState text="ยังไม่มีกิจกรรม" hint="กิจกรรมจะปรากฏที่นี่เมื่อมีการเปลี่ยนแปลง" />
+              <EmptyState title="ยังไม่มีกิจกรรม" hint="กิจกรรมจะปรากฏที่นี่เมื่อมีการเปลี่ยนแปลง" />
             ) : (
               <ul className="divide-y divide-gray-100">
                 {recentAudit.map((a) => (
                   <li key={a.id} className="px-5 py-3">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-medium text-gray-900">
+                        <p className="truncate text-sm font-medium text-ink-1">
                           {actionLabel(a.action)}
                         </p>
-                        <p className="mt-0.5 text-xs text-gray-500">
+                        <p className="mt-0.5 text-xs text-ink-3">
                           โดย{' '}
                           {a.actorId ? (actorById.get(a.actorId) ?? a.actorId.slice(0, 8)) : 'ระบบ'}
                         </p>
                       </div>
-                      <p className="shrink-0 text-[10px] text-gray-400">
+                      <p className="shrink-0 text-[10px] text-ink-4">
                         {formatDateTime(a.createdAt)}
                       </p>
                     </div>
@@ -297,46 +296,6 @@ export default async function SuperadminHomePage() {
           </CardBody>
         </Card>
       </div>
-    </div>
-  );
-}
-
-// ─── KPI card (static, no-link variant) ────────────────────────────────────
-
-function KpiCard({
-  label,
-  value,
-  Icon,
-  hint,
-}: {
-  label: string;
-  value: number | string;
-  Icon: React.ComponentType<{ size?: number; className?: string }>;
-  hint?: string;
-}) {
-  return (
-    <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-      <div className="flex items-start justify-between">
-        <Icon size={20} className="text-primary-500" />
-        {hint && (
-          <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-500">
-            {hint}
-          </span>
-        )}
-      </div>
-      <p className="mt-3 text-xs font-medium uppercase tracking-wider text-gray-500">{label}</p>
-      <p className="mt-1 text-2xl font-semibold tabular-nums text-gray-900">{value}</p>
-    </div>
-  );
-}
-
-// ─── Empty state ───────────────────────────────────────────────────────────
-
-function EmptyState({ text, hint }: { text: string; hint: string }) {
-  return (
-    <div className="flex flex-col items-center justify-center px-6 py-10 text-center">
-      <p className="text-sm font-medium text-gray-600">{text}</p>
-      <p className="mt-1 text-xs text-gray-400">{hint}</p>
     </div>
   );
 }
