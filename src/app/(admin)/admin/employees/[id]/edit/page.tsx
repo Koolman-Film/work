@@ -94,12 +94,9 @@ export default async function EditEmployeePage({
           hiredAt: emp.hiredAt.toISOString().slice(0, 10),
         }}
         extraActions={
-          // Both Archive + Delete use `formAction` on the button itself
-          // rather than wrapping each in a separate <form>. EmployeeForm
-          // already renders a <form>; nesting another inside it triggers
-          // React 19's "form was unexpectedly submitted" guard. With
-          // formAction= on the button, one form can route to multiple
-          // server actions cleanly.
+          // Archive + Delete are ConfirmDialog triggers (type="button") in the
+          // action bar — they call their bound server actions directly, so
+          // there is no nested form.
           emp.archivedAt ? null : (
             <DangerActions
               archiveAction={archiveEmployee.bind(null, id)}
@@ -108,15 +105,16 @@ export default async function EditEmployeePage({
             />
           )
         }
-      />
-
-      <PairingCard
-        employeeId={id}
-        employeeName={`${emp.firstName} ${emp.lastName}`.trim()}
-        inviteToken={emp.inviteToken}
-        inviteExpiresAt={emp.inviteExpiresAt}
-        lineUserId={emp.user.lineUserId}
-        baseUrl={baseUrl}
+        belowForm={
+          <PairingCard
+            employeeId={id}
+            employeeName={`${emp.firstName} ${emp.lastName}`.trim()}
+            inviteToken={emp.inviteToken}
+            inviteExpiresAt={emp.inviteExpiresAt}
+            lineUserId={emp.user.lineUserId}
+            baseUrl={baseUrl}
+          />
+        }
       />
     </div>
   );
