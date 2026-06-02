@@ -162,6 +162,23 @@ async function upsertAuthUser(email: string, password: string) {
   return data.user.id;
 }
 
+/**
+ * Idempotently assign a global (branchId = null) role to a user.
+ *
+ * Can't `upsert` on the compound unique `userId_roleId_branchId` for a global
+ * assignment: Prisma rejects a null part of a compound-unique `where`, and in
+ * Postgres NULLs are distinct so the unique wouldn't dedupe anyway. So we guard
+ * with findFirst + create — safe to run on every seed.
+ */
+async function ensureGlobalRole(userId: string, roleId: string) {
+  const existing = await prisma.userRoleAssignment.findFirst({
+    where: { userId, roleId, branchId: null },
+  });
+  if (!existing) {
+    await prisma.userRoleAssignment.create({ data: { userId, roleId, branchId: null } });
+  }
+}
+
 // ─── Seed runner ───────────────────────────────────────────────────────────
 
 async function main() {
@@ -332,29 +349,13 @@ async function main() {
     where: { key: 'superadmin' },
   });
   const adminRole = await prisma.roleDefinition.findUniqueOrThrow({ where: { key: 'admin' } });
-  await prisma.userRoleAssignment.upsert({
-    where: {
-      userId_roleId_branchId: {
-        userId: ownerUser.id,
-        roleId: superadminRole.id,
-        branchId: null as unknown as string,
-      },
-    },
-    create: { userId: ownerUser.id, roleId: superadminRole.id, branchId: null },
-    update: {},
-  });
+  // Idempotent global (branchId=null) assignment. We can't `upsert` on the
+  // compound unique `userId_roleId_branchId` here: Prisma rejects a null part
+  // of a compound-unique `where`. NULLs are also distinct in Postgres uniques,
+  // so we guard with findFirst + create instead.
+  await ensureGlobalRole(ownerUser.id, superadminRole.id);
   console.log(`  ✓ ${ownerUser.email} → superadmin (global)`);
-  await prisma.userRoleAssignment.upsert({
-    where: {
-      userId_roleId_branchId: {
-        userId: adminUser.id,
-        roleId: adminRole.id,
-        branchId: null as unknown as string,
-      },
-    },
-    create: { userId: adminUser.id, roleId: adminRole.id, branchId: null },
-    update: {},
-  });
+  await ensureGlobalRole(adminUser.id, adminRole.id);
   console.log(`  ✓ ${adminUser.email} → admin (global)`);
 
   console.log('\n✅ Seed complete.\n');
