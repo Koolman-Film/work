@@ -1,7 +1,7 @@
 import type { ButtonHTMLAttributes } from 'react';
 import { cn } from '@/lib/utils';
 
-type Variant = 'primary' | 'secondary' | 'destructive' | 'ghost';
+type Variant = 'primary' | 'secondary' | 'destructive' | 'ghost' | 'approve' | 'reject';
 type Size = 'sm' | 'md' | 'lg';
 
 const variantClasses: Record<Variant, string> = {
@@ -11,6 +11,12 @@ const variantClasses: Record<Variant, string> = {
     'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 focus-visible:ring-primary-500/30',
   destructive: 'bg-red-600 text-white shadow-sm hover:bg-red-700 focus-visible:ring-red-500/50',
   ghost: 'text-gray-700 hover:bg-gray-100 focus-visible:ring-primary-500/30',
+  // Approve = positive/confirming action (green gradient CTA, per mockups).
+  approve:
+    'bg-gradient-to-b from-success to-success-deep text-white shadow-cta hover:brightness-105 focus-visible:ring-success/40',
+  // Reject = neutral-bordered (the dangerous part is confirmed in the dialog).
+  reject:
+    'border border-gray-300 bg-white text-ink-2 hover:bg-gray-50 focus-visible:ring-primary-500/30',
 };
 
 const sizeClasses: Record<Size, string> = {
