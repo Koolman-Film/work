@@ -20,24 +20,18 @@ import { cn } from '@/lib/utils';
 import { useMobileNav } from './use-mobile-nav';
 
 /**
- * Admin sidebar nav.
+ * Admin sidebar nav (Sapphire Editorial).
  *
  * Two display modes from the same component:
- *   - **Desktop (≥lg)**: always visible, static side rail (`lg:block`).
- *   - **Mobile (<lg)**: hidden by default; slides in from the left as a
- *     drawer when `useMobileNav.open === true` (triggered by the
- *     hamburger button in the Topbar). Backdrop + close button +
- *     Escape-key + auto-close-on-navigation.
+ *   - **Desktop (≥lg)**: a floating rounded card on the canvas (sticky, layered
+ *     shadow, hairline border) — matching the mockups.
+ *   - **Mobile (<lg)**: hidden by default; slides in from the left as a drawer
+ *     when `useMobileNav.open === true` (hamburger in the Topbar). Backdrop +
+ *     close button + Escape + scroll-lock + auto-close-on-navigation.
  *
- * Item order matches docs/v1/screens/navigation.md:163-172 exactly.
- * Items whose pages don't exist yet are rendered disabled (gray +
- * cursor-not-allowed) with a "เร็วๆ นี้" pill — preserves the IA so
- * admins see the full menu shape from day one.
- *
- * Active-item detection: `/admin` matches exactly; everything else
- * matches by pathname prefix (so /admin/employees/new still highlights
- * "พนักงาน"). Active items get a 2px primary-600 left accent rail
- * per spec.
+ * Items are grouped into "เมนูหลัก" and "ระบบ" sections. Items whose pages don't
+ * exist yet render disabled (gray + "เร็วๆ นี้") to preserve the IA. Active item
+ * gets a primary-50 fill + a 2px brand left-accent rail.
  */
 
 type NavItem = {
@@ -47,16 +41,26 @@ type NavItem = {
   enabled?: boolean;
 };
 
-const NAV: ReadonlyArray<NavItem> = [
-  { href: '/admin', label: 'หน้าหลัก', Icon: Home, enabled: true },
-  { href: '/admin/employees', label: 'พนักงาน', Icon: Users, enabled: true },
-  { href: '/admin/leave', label: 'คำขอลา', Icon: Calendar, enabled: true }, // W4c
-  { href: '/admin/advance', label: 'คำขอเบิก', Icon: Banknote, enabled: true }, // W4d
-  { href: '/admin/attendance', label: 'ลงเวลา', Icon: Clock, enabled: true }, // W3c-1: disputed inbox live; Live + Manual tabs pending
-  { href: '/admin/payroll', label: 'เงินเดือน', Icon: FileText }, // Phase 2
-  { href: '/admin/accounting', label: 'บัญชี', Icon: Calculator }, // Phase 3
-  { href: '/admin/audit', label: 'Audit log', Icon: History }, // Phase 3
-  { href: '/admin/settings', label: 'ตั้งค่า', Icon: Settings, enabled: true },
+const SECTIONS: ReadonlyArray<{ label: string; items: ReadonlyArray<NavItem> }> = [
+  {
+    label: 'เมนูหลัก',
+    items: [
+      { href: '/admin', label: 'หน้าหลัก', Icon: Home, enabled: true },
+      { href: '/admin/employees', label: 'พนักงาน', Icon: Users, enabled: true },
+      { href: '/admin/leave', label: 'คำขอลา', Icon: Calendar, enabled: true },
+      { href: '/admin/advance', label: 'คำขอเบิก', Icon: Banknote, enabled: true },
+      { href: '/admin/attendance', label: 'ลงเวลา', Icon: Clock, enabled: true },
+    ],
+  },
+  {
+    label: 'ระบบ',
+    items: [
+      { href: '/admin/payroll', label: 'เงินเดือน', Icon: FileText },
+      { href: '/admin/accounting', label: 'บัญชี', Icon: Calculator },
+      { href: '/admin/audit', label: 'Audit log', Icon: History },
+      { href: '/admin/settings', label: 'ตั้งค่า', Icon: Settings, enabled: true },
+    ],
+  },
 ];
 
 export function Sidebar() {
@@ -67,15 +71,13 @@ export function Sidebar() {
   const isActive = (href: string) =>
     href === '/admin' ? pathname === '/admin' : pathname.startsWith(href);
 
-  // Auto-close on route change. Without this, tapping a link inside the
-  // drawer leaves it open over the new page — deeply annoying UX.
+  // Auto-close on route change (tapping a drawer link shouldn't leave it open).
   // biome-ignore lint/correctness/useExhaustiveDependencies: close is stable from zustand
   useEffect(() => {
     if (open) close();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
-  // Close on Escape key.
+  // Close on Escape.
   useEffect(() => {
     if (!open) return;
     function onKey(e: KeyboardEvent) {
@@ -85,8 +87,7 @@ export function Sidebar() {
     return () => window.removeEventListener('keydown', onKey);
   }, [open, close]);
 
-  // Lock body scroll while the drawer is open (mobile only — desktop's
-  // static sidebar wouldn't trigger this).
+  // Lock body scroll while the drawer is open (mobile only).
   useEffect(() => {
     if (!open) return;
     const previous = document.body.style.overflow;
@@ -98,106 +99,134 @@ export function Sidebar() {
 
   return (
     <>
-      {/* Backdrop — mobile-only, fades in when drawer opens.
-          aria-hidden because the drawer panel itself owns the interactive
-          state; the backdrop is a decorative click target. */}
+      {/* Backdrop — mobile-only, fades in when drawer opens. */}
       <div
         aria-hidden="true"
         onClick={close}
         className={cn(
-          'fixed inset-0 z-30 bg-gray-900/40 transition-opacity duration-200 lg:hidden',
+          'fixed inset-0 z-30 bg-ink-1/40 transition-opacity duration-200 lg:hidden',
           open ? 'opacity-100' : 'pointer-events-none opacity-0',
         )}
       />
 
-      {/* The aside is positioned `fixed` on mobile (slides via transform)
-          and `lg:static` on desktop. One element, two layouts. */}
+      {/* One element, two layouts: fixed drawer on mobile, floating card on desktop. */}
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-40 w-60 border-r border-gray-200 bg-white transition-transform duration-200',
-          // Mobile: slide in/out from the left
+          'fixed inset-y-0 left-0 z-40 w-60 bg-white transition-transform duration-200',
+          // Mobile: slide in/out
           open ? 'translate-x-0 shadow-xl' : '-translate-x-full',
-          // Desktop: ignore transform, always visible, static positioning
-          'lg:static lg:block lg:translate-x-0 lg:shadow-none',
+          // Desktop: floating rounded card on the canvas, sticky
+          'lg:sticky lg:top-4 lg:m-4 lg:h-[calc(100dvh-2rem)] lg:translate-x-0 lg:rounded-2xl lg:border lg:border-[var(--border-color)] lg:shadow-card',
         )}
         aria-label="แผงควบคุมผู้ดูแล"
       >
-        <div className="sticky top-0 flex h-dvh flex-col">
+        <div className="flex h-full flex-col">
           {/* Logo block */}
-          <div className="flex items-center justify-between gap-3 border-b border-gray-100 px-5 py-4">
+          <div className="flex items-center justify-between gap-3 px-4 py-4">
             <Link href="/admin" className="flex items-center gap-2.5">
-              <span className="grid size-9 place-items-center rounded-lg bg-primary-600 text-sm font-bold text-white shadow-brand">
-                KM
+              <span
+                className="grid size-10 place-items-center rounded-xl text-white shadow-cta"
+                style={{
+                  background:
+                    'linear-gradient(135deg, var(--color-primary-600), var(--color-primary-800))',
+                }}
+              >
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.4"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M3 7l9-4 9 4-9 4-9-4z" />
+                  <path d="M3 12l9 4 9-4" />
+                  <path d="M3 17l9 4 9-4" />
+                </svg>
               </span>
-              <div>
-                <p className="text-sm font-semibold leading-tight text-gray-900">Koolman Work</p>
-                <p className="text-xs text-gray-500">แผงควบคุมผู้ดูแล</p>
-              </div>
+              <span>
+                <span className="block font-display text-base font-extrabold leading-none tracking-tight text-ink-1">
+                  Koolman
+                </span>
+                <span className="mt-1 block font-display text-[10px] font-semibold tracking-[0.08em] text-ink-3">
+                  WORK · ADMIN
+                </span>
+              </span>
             </Link>
 
-            {/* Close button — mobile-only. Desktop sidebar is permanently
-                pinned; close button would be confusing chrome there. */}
+            {/* Close button — mobile-only. */}
             <button
               type="button"
               onClick={close}
               aria-label="ปิดเมนู"
-              className="grid size-8 place-items-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-700 lg:hidden"
+              className="grid size-8 place-items-center rounded-md text-ink-3 hover:bg-gray-100 hover:text-ink-1 lg:hidden"
             >
               <X size={18} strokeWidth={2} aria-hidden="true" />
             </button>
           </div>
 
-          {/* Nav */}
-          <nav className="flex-1 overflow-y-auto px-3 py-4">
-            <ul className="space-y-0.5">
-              {NAV.map((item) => {
-                const active = isActive(item.href);
-                const disabled = !item.enabled;
-                const Icon = item.Icon;
+          {/* Nav (grouped sections) */}
+          <nav className="flex-1 overflow-y-auto px-3 pb-4">
+            {SECTIONS.map((section) => (
+              <div key={section.label} className="mb-1">
+                <p className="px-2 pb-1.5 pt-3 font-display text-[10.5px] font-bold uppercase tracking-[0.09em] text-ink-4">
+                  {section.label}
+                </p>
+                <ul className="space-y-0.5">
+                  {section.items.map((item) => {
+                    const active = isActive(item.href);
+                    const Icon = item.Icon;
 
-                if (disabled) {
-                  return (
-                    <li key={item.href}>
-                      <span
-                        className="flex cursor-not-allowed items-center justify-between rounded-md px-3 py-2 text-sm text-gray-400"
-                        title="เร็วๆ นี้"
-                      >
-                        <span className="flex items-center gap-2.5">
-                          <Icon size={18} strokeWidth={2} aria-hidden="true" />
+                    if (!item.enabled) {
+                      return (
+                        <li key={item.href}>
+                          <span
+                            className="flex cursor-not-allowed items-center justify-between rounded-lg px-3 py-2 text-sm text-ink-5"
+                            title="เร็วๆ นี้"
+                          >
+                            <span className="flex items-center gap-2.5">
+                              <Icon size={18} strokeWidth={2} aria-hidden="true" />
+                              <span>{item.label}</span>
+                            </span>
+                            <span className="font-display text-[9.5px] font-semibold text-ink-4">
+                              เร็วๆ นี้
+                            </span>
+                          </span>
+                        </li>
+                      );
+                    }
+
+                    return (
+                      <li key={item.href}>
+                        <Link
+                          href={item.href}
+                          aria-current={active ? 'page' : undefined}
+                          className={cn(
+                            'relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition',
+                            active
+                              ? 'bg-primary-50 font-medium text-primary-700 before:absolute before:bottom-1.5 before:left-0 before:top-1.5 before:w-0.5 before:rounded-full before:bg-primary-600'
+                              : 'text-ink-2 hover:bg-gray-50',
+                          )}
+                        >
+                          <Icon size={18} strokeWidth={active ? 2.5 : 2} aria-hidden="true" />
                           <span>{item.label}</span>
-                        </span>
-                        <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-500">
-                          soon
-                        </span>
-                      </span>
-                    </li>
-                  );
-                }
-
-                return (
-                  <li key={item.href}>
-                    <Link
-                      href={item.href}
-                      aria-current={active ? 'page' : undefined}
-                      className={cn(
-                        'relative flex items-center gap-2.5 rounded-md px-3 py-2 text-sm transition',
-                        active
-                          ? 'bg-primary-50 font-medium text-primary-700 before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-0.5 before:rounded-full before:bg-primary-600'
-                          : 'text-gray-700 hover:bg-gray-50',
-                      )}
-                    >
-                      <Icon size={18} strokeWidth={active ? 2.5 : 2} aria-hidden="true" />
-                      <span>{item.label}</span>
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ))}
           </nav>
 
-          {/* Footer: brand mark only (sign-out moved to topbar dropdown) */}
-          <div className="border-t border-gray-100 px-5 py-3">
-            <p className="text-[11px] uppercase tracking-wider text-gray-400">Koolman Work · V1</p>
+          {/* Footer brand mark (the functional user menu lives in the Topbar). */}
+          <div className="border-t border-gray-100 px-4 py-3">
+            <p className="font-display text-[11px] uppercase tracking-wider text-ink-4">
+              Koolman Work · V1
+            </p>
           </div>
         </div>
       </aside>
