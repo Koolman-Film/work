@@ -30,7 +30,7 @@ export default async function NewEmployeePage({ searchParams }: { searchParams: 
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6">
+    <div className="px-4 py-6 sm:px-6 lg:px-8">
       <PageHeader breadcrumb="พนักงาน" title="เพิ่มพนักงาน" />
       <EmployeeForm
         mode="create"
