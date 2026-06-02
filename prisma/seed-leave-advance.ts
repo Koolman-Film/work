@@ -255,6 +255,7 @@ async function main() {
   for (const s of LEAVE_SEEDS) {
     const emp = employees[s.empIndex % employees.length];
     const type = leaveTypes[s.typeIndex % leaveTypes.length];
+    if (!emp || !type) continue; // unreachable (lengths checked above) — narrows for TS
     const startDate = d(s.start);
 
     const existing = await prisma.leaveRequest.findFirst({
@@ -289,6 +290,7 @@ async function main() {
   let advSkipped = 0;
   for (const s of ADVANCE_SEEDS) {
     const emp = employees[s.empIndex % employees.length];
+    if (!emp) continue; // unreachable (length checked above) — narrows for TS
     const amount = new Prisma.Decimal(s.amount);
     const requestedAt = ts(`${s.requested}T10:00:00`);
 
