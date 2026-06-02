@@ -2,12 +2,17 @@
  * /admin/advance — cash-advance request inbox.
  *
  * Same shape as /admin/leave but without the date-range / working-day
- * expansion. Default filter is Pending.
+ * expansion. Default filter is Pending. Ported to the shared Sapphire
+ * Editorial system (PageHeader, tab-style filter chips, StatusBadge,
+ * EmptyState, Card) so it reads identically to the leave inbox.
  */
 
 import Link from 'next/link';
 import { RestoreButton, VoidDialog } from '@/components/admin/void-dialog';
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
+import { EmptyState } from '@/components/ui/empty-state';
+import { PageHeader } from '@/components/ui/page-header';
+import { StatusBadge, type StatusKey } from '@/components/ui/status-badge';
 import { restoreCashAdvance, voidCashAdvance } from '@/lib/advance/void';
 import { prisma, prismaRaw } from '@/lib/db/prisma';
 import { signAttendancePhotoUrls } from '@/lib/storage/signed-urls';
@@ -15,11 +20,11 @@ import { AdvanceReviewPanel } from './advance-review-panel';
 
 type SearchParams = Promise<{ status?: string; trash?: string }>;
 
-const STATUS_LABEL: Record<string, { label: string; cls: string }> = {
-  Pending: { label: 'รออนุมัติ', cls: 'bg-amber-100 text-amber-800' },
-  Approved: { label: 'อนุมัติแล้ว', cls: 'bg-green-100 text-green-800' },
-  Rejected: { label: 'ไม่อนุมัติ', cls: 'bg-red-100 text-red-800' },
-  Cancelled: { label: 'ยกเลิก', cls: 'bg-gray-100 text-gray-700' },
+const STATUS_INFO: Record<string, { label: string; key: StatusKey }> = {
+  Pending: { label: 'รออนุมัติ', key: 'pending' },
+  Approved: { label: 'อนุมัติแล้ว', key: 'approved' },
+  Rejected: { label: 'ไม่อนุมัติ', key: 'rejected' },
+  Cancelled: { label: 'ยกเลิก', key: 'cancelled' },
 };
 
 const FILTER_OPTIONS = [
@@ -114,12 +119,14 @@ export default async function AdminAdvanceInboxPage({
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-8">
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-gray-900">คำขอเบิก</h1>
-        <p className="mt-1 text-sm text-gray-500">ตรวจสอบและอนุมัติคำขอเบิกเงินล่วงหน้า</p>
-      </div>
+    <div className="px-4 py-6 sm:px-6 lg:px-8">
+      <PageHeader
+        breadcrumb="คำขอเบิก"
+        title="คำขอเบิก"
+        subtitle="ตรวจสอบและอนุมัติคำขอเบิกเงินล่วงหน้า — อนุมัติแล้วระบบจะบันทึกผู้อนุมัติและเวลาโดยอัตโนมัติ"
+      />
 
+      {/* Filter chips + trash toggle */}
       <div className="mb-4 flex flex-wrap items-center gap-2">
         {FILTER_OPTIONS.map((opt) => {
           const active = !isTrash && ((opt.value === '' && !status) || opt.value === status);
@@ -129,8 +136,8 @@ export default async function AdminAdvanceInboxPage({
               href={opt.value ? `/admin/advance?status=${opt.value}` : '/admin/advance'}
               className={
                 active
-                  ? 'rounded-full bg-primary-600 px-3 py-1 text-xs font-medium text-white'
-                  : 'rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50'
+                  ? 'rounded-lg bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-700 ring-1 ring-primary-200'
+                  : 'rounded-lg px-3 py-1.5 text-xs font-semibold text-ink-4 hover:bg-gray-50 hover:text-ink-2'
               }
             >
               {opt.label}
@@ -142,8 +149,8 @@ export default async function AdminAdvanceInboxPage({
           href="/admin/advance?trash=1"
           className={
             isTrash
-              ? 'rounded-full bg-primary-600 px-3 py-1 text-xs font-medium text-white'
-              : 'rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50'
+              ? 'rounded-lg bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-700 ring-1 ring-primary-200'
+              : 'rounded-lg px-3 py-1.5 text-xs font-semibold text-ink-4 hover:bg-gray-50 hover:text-ink-2'
           }
         >
           🗑️ ถังขยะ
@@ -153,71 +160,67 @@ export default async function AdminAdvanceInboxPage({
       <Card>
         <CardHeader>
           <CardTitle>
-            ทั้งหมด <span className="tabular-nums text-gray-500">({rows.length})</span>
+            ทั้งหมด <span className="tabular-nums text-ink-3">({rows.length})</span>
           </CardTitle>
         </CardHeader>
         <CardBody className="!p-0">
           {rows.length === 0 ? (
-            <div className="px-6 py-12 text-center">
-              <p className="text-sm text-gray-500">
-                {isTrash
-                  ? 'ถังขยะว่าง — ไม่มีคำขอเบิกที่ถูกลบ'
+            <EmptyState
+              title={
+                isTrash
+                  ? 'ถังขยะว่าง'
                   : !status || status === 'pending'
                     ? 'ไม่มีคำขอเบิกที่รออนุมัติ ✨'
-                    : 'ไม่มีรายการในตัวกรองนี้'}
-              </p>
-            </div>
+                    : 'ไม่มีรายการในตัวกรองนี้'
+              }
+              hint={isTrash ? 'ไม่มีคำขอเบิกที่ถูกลบ' : undefined}
+            />
           ) : (
             <ul className="divide-y divide-gray-100">
               {rows.map((r) => {
-                const badge = STATUS_LABEL[r.status] ?? STATUS_LABEL.Pending;
+                const info = STATUS_INFO[r.status] ?? {
+                  label: r.status,
+                  key: 'neutral' as StatusKey,
+                };
                 return (
                   <li key={r.id} className="px-5 py-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          {badge && (
-                            <span
-                              className={`rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${badge.cls}`}
-                            >
-                              {badge.label}
-                            </span>
-                          )}
-                          <p className="truncate text-sm font-medium text-gray-900">
+                          <StatusBadge status={info.key}>{info.label}</StatusBadge>
+                          <p className="truncate text-sm font-medium text-ink-1">
                             {r.employee.firstName} {r.employee.lastName}
                             {r.employee.nickname && (
-                              <span className="text-gray-500"> ({r.employee.nickname})</span>
+                              <span className="text-ink-3"> ({r.employee.nickname})</span>
                             )}
                           </p>
                         </div>
-                        <p className="mt-1 text-xs text-gray-500">
+                        <p className="mt-1 text-xs text-ink-3">
                           {r.employee.branch.name}
                           {r.employee.department ? ` • ${r.employee.department.name}` : ''}
                         </p>
-                        <p className="mt-0.5 text-[10px] text-gray-400">
+                        <p className="mt-0.5 text-[10px] text-ink-4">
                           ส่งเมื่อ {formatDateTime(r.requestedAt)}
                           {r.approvedAt && ` • ตัดสินใจเมื่อ ${formatDateTime(r.approvedAt)}`}
                         </p>
                       </div>
                       <div className="text-left sm:text-right">
-                        <p className="text-xl font-semibold tabular-nums text-gray-900">
+                        <p className="display text-2xl font-semibold tabular-nums text-ink-1">
                           {formatMoney(r.amount)}
                         </p>
                       </div>
                     </div>
 
                     {isTrash ? (
-                      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-md bg-gray-50 px-3 py-2 text-xs text-gray-600">
+                      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-gray-50 px-3 py-2 text-xs text-ink-3">
                         <span>
                           {r.deleteReason && (
                             <>
-                              <strong className="text-gray-900">เหตุผลที่ลบ:</strong> {r.deleteReason}
+                              <strong className="text-ink-1">เหตุผลที่ลบ:</strong> {r.deleteReason}
                             </>
                           )}
                           {r.deletedAt && (
-                            <span className="ml-2 text-gray-400">
-                              ({formatDateTime(r.deletedAt)})
-                            </span>
+                            <span className="ml-2 text-ink-4">({formatDateTime(r.deletedAt)})</span>
                           )}
                         </span>
                         <RestoreButton
@@ -240,7 +243,7 @@ export default async function AdminAdvanceInboxPage({
                             href={resolveReceipt(r.receiptUrl) ?? '#'}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="mt-3 inline-block text-xs text-primary-700 underline hover:text-primary-800"
+                            className="mt-3 inline-block text-xs font-medium text-primary-700 underline hover:text-primary-800"
                           >
                             ดูใบเสร็จ →
                           </a>
