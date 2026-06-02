@@ -4,10 +4,7 @@ import { cn } from '@/lib/utils';
 export function Card({ className, ...rest }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn(
-        'rounded-xl border border-[var(--border-color)] bg-white shadow-card',
-        className,
-      )}
+      className={cn('rounded-xl border border-gray-200 bg-white shadow-sm', className)}
       {...rest}
     />
   );
@@ -17,7 +14,7 @@ export function CardHeader({ className, ...rest }: HTMLAttributes<HTMLDivElement
   return (
     <div
       className={cn(
-        'flex items-center justify-between border-b border-[var(--border-color)] px-6 py-4',
+        'flex items-center justify-between border-b border-gray-100 px-6 py-4',
         className,
       )}
       {...rest}
@@ -38,7 +35,5 @@ export function CardBody({ className, ...rest }: HTMLAttributes<HTMLDivElement>)
 }
 
 export function CardFooter({ className, ...rest }: HTMLAttributes<HTMLDivElement>) {
-  return (
-    <div className={cn('border-t border-[var(--border-color)] px-6 py-4', className)} {...rest} />
-  );
+  return <div className={cn('border-t border-gray-100 px-6 py-4', className)} {...rest} />;
 }

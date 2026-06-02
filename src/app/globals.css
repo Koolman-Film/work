@@ -106,12 +106,11 @@ body {
 .h-page  { font-family: var(--font-display); font-weight: 700; letter-spacing: -0.025em; }
 .mono    { font-family: var(--font-mono); }
 
-/* Canonical surface card — layered shadow + hairline border (Sapphire Editorial) */
+/* Canonical surface card — crisp light-gray border + subtle shadow.
+   Defined via @apply so it matches the `Card` component exactly; this is the
+   single source of truth for card surfaces (StatCard, list cards, etc.). */
 .surface {
-  background: #fff;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card);
+  @apply rounded-xl border border-gray-200 bg-white shadow-sm;
 }
 .shadow-cta  { box-shadow: var(--shadow-cta); }
 .shadow-hero { box-shadow: var(--shadow-hero); }
