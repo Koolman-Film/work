@@ -23,7 +23,7 @@ export function KpiHero({
   const pct = percent ?? (total > 0 ? Math.round((checkedIn / total) * 100) : 0);
   return (
     <div
-      className="relative overflow-hidden rounded-2xl p-5 text-white shadow-hero"
+      className="relative flex h-full flex-col overflow-hidden rounded-2xl p-5 text-white shadow-hero"
       style={{
         background: 'linear-gradient(135deg, var(--color-primary-700), var(--color-primary-900))',
       }}
@@ -58,19 +58,24 @@ export function KpiHero({
         </div>
       </div>
 
-      <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-white/20">
-        <div
-          className="h-full rounded-full"
-          style={{
-            width: `${pct}%`,
-            background: 'linear-gradient(90deg, var(--color-accent-400), #f59e0b)',
-          }}
-        />
-      </div>
-      <div className="mt-2.5 flex items-center gap-4 text-[11.5px] opacity-80">
-        <span>เข้าแล้ว {pct}%</span>
-        {late != null && <span>● สาย {late}</span>}
-        {leave != null && <span>● ลา {leave}</span>}
+      {/* mt-auto anchors the bar + sub-stats to the bottom so the hero fills
+          its grid column's height (no canvas gap when the sibling column is
+          taller, e.g. two stacked stat cards). */}
+      <div className="mt-auto pt-4">
+        <div className="h-1.5 overflow-hidden rounded-full bg-white/20">
+          <div
+            className="h-full rounded-full"
+            style={{
+              width: `${pct}%`,
+              background: 'linear-gradient(90deg, var(--color-accent-400), #f59e0b)',
+            }}
+          />
+        </div>
+        <div className="mt-2.5 flex items-center gap-4 text-[11.5px] opacity-80">
+          <span>เข้าแล้ว {pct}%</span>
+          {late != null && <span>● สาย {late}</span>}
+          {leave != null && <span>● ลา {leave}</span>}
+        </div>
       </div>
     </div>
   );
