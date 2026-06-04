@@ -73,7 +73,7 @@ export function LiveBoardClient({ initial }: { initial: LiveBoardData }) {
   const present = rows.length;
   const late = rows.filter((r) => isLate(r.clockInAt)).length;
   const out = rows.filter((r) => r.clockOutAt).length;
-  const notYet = Math.max(0, activeCount - present);
+  const notYet = Math.max(0, activeCount - present - onLeaveCount);
   const pct = activeCount > 0 ? Math.round((present / activeCount) * 100) : 0;
   const groups = groupByBranch(rows);
 
