@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import { PageHeader } from '@/components/ui/page-header';
 import { prisma } from '@/lib/db/prisma';
 import { archiveHoliday, updateHoliday } from '../../actions';
 import { HolidayForm } from '../../holiday-form';
@@ -34,24 +35,29 @@ export default async function EditHolidayPage({
   };
 
   return (
-    <HolidayForm
-      mode="edit"
-      action={update}
-      initial={{
-        // Pre-format as YYYY-MM-DD so the date input doesn't re-shift the
-        // calendar day across timezones.
-        date: row.date.toISOString().slice(0, 10),
-        name: row.name,
-        isSubstitute: row.isSubstitute,
-      }}
-      error={error ? decodeURIComponent(error) : null}
-      extraActions={
-        <form action={archive}>
-          <Button type="submit" variant="destructive">
-            ลบถาวร
-          </Button>
-        </form>
-      }
-    />
+    <div className="px-4 py-6 sm:px-6 lg:px-8">
+      <PageHeader breadcrumb="ตั้งค่า · วันหยุด" title="แก้ไขวันหยุด" />
+      <div className="max-w-2xl">
+        <HolidayForm
+          mode="edit"
+          action={update}
+          initial={{
+            // Pre-format as YYYY-MM-DD so the date input doesn't re-shift the
+            // calendar day across timezones.
+            date: row.date.toISOString().slice(0, 10),
+            name: row.name,
+            isSubstitute: row.isSubstitute,
+          }}
+          error={error ? decodeURIComponent(error) : null}
+          extraActions={
+            <form action={archive}>
+              <Button type="submit" variant="destructive">
+                ลบถาวร
+              </Button>
+            </form>
+          }
+        />
+      </div>
+    </div>
   );
 }

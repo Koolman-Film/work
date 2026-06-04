@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/table';
+import { EmptyState } from '@/components/ui/empty-state';
+import { PageHeader } from '@/components/ui/page-header';
+import { type Column, ResponsiveTable } from '@/components/ui/responsive-table';
 import { prisma } from '@/lib/db/prisma';
 
 type SearchParams = Promise<{ error?: string }>;
@@ -27,85 +28,95 @@ export default async function BranchListPage({ searchParams }: { searchParams: S
     },
   });
 
+  const columns: Column<(typeof branches)[number]>[] = [
+    {
+      key: 'name',
+      header: 'ชื่อ',
+      cell: (b) => <span className="font-medium text-ink-1">{b.name}</span>,
+    },
+    {
+      key: 'address',
+      header: 'ที่อยู่',
+      cell: (b) => <span className="text-ink-3">{b.address ?? '—'}</span>,
+    },
+    {
+      key: 'geofence',
+      header: 'Geofence',
+      cell: (b) => (
+        <span className="tabular-nums text-ink-2">
+          {b.latitude && b.longitude ? `${b.radiusMeters}m` : '— (ยังไม่ตั้งค่า)'}
+        </span>
+      ),
+    },
+    {
+      key: 'gps',
+      header: 'GPS',
+      cell: (b) => <span>{b.requireGps ? '✅' : '—'}</span>,
+    },
+    {
+      key: 'selfie',
+      header: 'Selfie',
+      cell: (b) => <span>{b.requireSelfie ? '✅' : '—'}</span>,
+    },
+    {
+      key: 'checkout',
+      header: 'เช็คเอาท์',
+      cell: (b) => <span>{b.requireCheckOut ? '✅' : '—'}</span>,
+    },
+    {
+      key: 'employees',
+      header: 'พนักงาน',
+      cell: (b) => <span className="tabular-nums text-ink-2">{b._count.employees}</span>,
+    },
+  ];
+
   return (
-    <div>
-      <div className="mb-6 flex items-baseline justify-between">
-        <div>
-          <h2 className="text-lg font-semibold text-gray-900">สาขา</h2>
-          <p className="mt-0.5 text-sm text-gray-500">ตำแหน่ง + geofence — ใช้กับ LIFF check-in</p>
-        </div>
-        <Link href="/admin/settings/branches/new">
-          <Button>+ เพิ่มสาขา</Button>
-        </Link>
-      </div>
+    <div className="px-4 py-6 sm:px-6 lg:px-8">
+      <PageHeader
+        breadcrumb="ตั้งค่า"
+        title="สาขา"
+        subtitle="ตำแหน่ง + geofence — ใช้กับ LIFF check-in"
+        actions={
+          <Link href="/admin/settings/branches/new">
+            <Button>+ เพิ่มสาขา</Button>
+          </Link>
+        }
+      />
 
       {error && (
-        <div role="alert" className="mb-4 rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div
+          role="alert"
+          className="mb-4 rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger-deep"
+        >
           {decodeURIComponent(error)}
         </div>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            ทั้งหมด <span className="tabular-nums text-gray-500">({branches.length})</span>
-          </CardTitle>
-        </CardHeader>
-        <CardBody className="!p-0">
-          {branches.length === 0 ? (
-            <EmptyState />
-          ) : (
-            <Table>
-              <THead>
-                <TR>
-                  <TH>ชื่อ</TH>
-                  <TH>ที่อยู่</TH>
-                  <TH>Geofence</TH>
-                  <TH>GPS</TH>
-                  <TH>Selfie</TH>
-                  <TH>เช็คเอาท์</TH>
-                  <TH>พนักงาน</TH>
-                  <TH className="text-right">การจัดการ</TH>
-                </TR>
-              </THead>
-              <TBody>
-                {branches.map((b) => (
-                  <TR key={b.id}>
-                    <TD className="font-medium text-gray-900">{b.name}</TD>
-                    <TD className="max-w-xs truncate text-gray-500">{b.address ?? '—'}</TD>
-                    <TD className="tabular-nums">
-                      {b.latitude && b.longitude ? `${b.radiusMeters}m` : '— (ยังไม่ตั้งค่า)'}
-                    </TD>
-                    <TD>{b.requireGps ? '✅' : '—'}</TD>
-                    <TD>{b.requireSelfie ? '✅' : '—'}</TD>
-                    <TD>{b.requireCheckOut ? '✅' : '—'}</TD>
-                    <TD className="tabular-nums">{b._count.employees}</TD>
-                    <TD className="text-right">
-                      <Link
-                        href={`/admin/settings/branches/${b.id}/edit`}
-                        className="text-sm font-medium text-primary-600 hover:text-primary-700"
-                      >
-                        แก้ไข
-                      </Link>
-                    </TD>
-                  </TR>
-                ))}
-              </TBody>
-            </Table>
-          )}
-        </CardBody>
-      </Card>
-    </div>
-  );
-}
-
-function EmptyState() {
-  return (
-    <div className="px-6 py-12 text-center">
-      <p className="text-sm text-gray-500">ยังไม่มีสาขา</p>
-      <Link href="/admin/settings/branches/new" className="mt-3 inline-block">
-        <Button variant="secondary">+ เพิ่มสาขาแรก</Button>
-      </Link>
+      <ResponsiveTable
+        columns={columns}
+        rows={branches}
+        rowKey={(b) => b.id}
+        actions={(b) => (
+          <Link
+            href={`/admin/settings/branches/${b.id}/edit`}
+            className="text-sm font-medium text-primary-700 hover:text-primary-800"
+          >
+            แก้ไข
+          </Link>
+        )}
+        empty={
+          <div className="surface">
+            <EmptyState
+              title="ยังไม่มีสาขา"
+              action={
+                <Link href="/admin/settings/branches/new">
+                  <Button variant="secondary">+ เพิ่มสาขาแรก</Button>
+                </Link>
+              }
+            />
+          </div>
+        }
+      />
     </div>
   );
 }
