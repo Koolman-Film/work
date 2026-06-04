@@ -888,7 +888,7 @@ Per the plan, the foundation (PR-0, PR-1) should be executed first and reviewed 
 - ✅ **PR-5** Advance admin `/admin/advance` — same restyle; **unified approve/reject onto shared ConfirmDialog** (approve confirm shows ฿amount; receipt via shared Dropzone); same revalidate-race fix. Rewrote stale advance-approval spec (was driving a removed receipt-URL textbox) + added `confirm-dialog.spec.ts` (amount shown / cancel aborts / confirm mutates).
   - ⏸️ Deferred: "post-balance in approve confirm" — on approve an advance flips Pending→Approved but stays reserved-not-deducted, so available balance doesn't change; the line would be misleading. The ฿amount is the real safety gate. Revisit if a true available-balance/overdraw warning is wanted.
 - ✅ **PR-6** Attendance (records/disputed/live/manual) — DONE (master-detail disputed + GPS map, KPI/chip live board, ResponsiveTable records)
-- ⬜ **PR-7** Settings CRUDs · ⬜ **PR-8** roles+team · ⬜ **PR-9** profile · ⬜ **PR-10** auth · ⬜ **PR-11** LIFF · ⬜ **PR-12** consistency+a11y sweep + doc screenshots
+- ✅ **PR-7** Settings CRUDs (entity-card hub + 6 entities → PageHeader+ResponsiveTable; forms incl. branch geofence kept) · ⬜ **PR-8** roles+team · ⬜ **PR-9** profile · ⬜ **PR-10** auth · ⬜ **PR-11** LIFF · ⬜ **PR-12** consistency+a11y sweep + doc screenshots
 
 **Known local-env limitations (not regressions):** the `*-void` e2e specs can't run locally (`Cannot find module next/headers` during Playwright collection of `src/lib/*/void.ts`); the advance receipt-upload e2e path needs a Storage bucket (none in local stack).
 
