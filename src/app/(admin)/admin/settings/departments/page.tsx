@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/table';
+import { EmptyState } from '@/components/ui/empty-state';
+import { PageHeader } from '@/components/ui/page-header';
+import { type Column, ResponsiveTable } from '@/components/ui/responsive-table';
 import { prisma } from '@/lib/db/prisma';
 
 type SearchParams = Promise<{ error?: string }>;
@@ -20,69 +21,71 @@ export default async function DepartmentListPage({ searchParams }: { searchParam
     },
   });
 
+  const columns: Column<(typeof rows)[number]>[] = [
+    {
+      key: 'name',
+      header: 'ชื่อ',
+      cell: (d) => <span className="font-medium text-ink-1">{d.name}</span>,
+    },
+    {
+      key: 'desc',
+      header: 'คำอธิบาย',
+      cell: (d) => <span className="text-ink-3">{d.description ?? '—'}</span>,
+    },
+    {
+      key: 'employees',
+      header: 'พนักงาน',
+      cell: (d) => <span className="tabular-nums text-ink-2">{d._count.employees}</span>,
+    },
+  ];
+
   return (
-    <div>
-      <div className="mb-6 flex items-baseline justify-between">
-        <div>
-          <h2 className="text-lg font-semibold text-gray-900">แผนก</h2>
-          <p className="mt-0.5 text-sm text-gray-500">จัดกลุ่มพนักงานตามหน้าที่</p>
-        </div>
-        <Link href="/admin/settings/departments/new">
-          <Button>+ เพิ่มแผนก</Button>
-        </Link>
-      </div>
+    <div className="px-4 py-6 sm:px-6 lg:px-8">
+      <PageHeader
+        breadcrumb="ตั้งค่า"
+        title="แผนก"
+        subtitle="จัดกลุ่มพนักงานตามหน้าที่"
+        actions={
+          <Link href="/admin/settings/departments/new">
+            <Button>+ เพิ่มแผนก</Button>
+          </Link>
+        }
+      />
 
       {error && (
-        <div role="alert" className="mb-4 rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div
+          role="alert"
+          className="mb-4 rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger-deep"
+        >
           {decodeURIComponent(error)}
         </div>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            ทั้งหมด <span className="tabular-nums text-gray-500">({rows.length})</span>
-          </CardTitle>
-        </CardHeader>
-        <CardBody className="!p-0">
-          {rows.length === 0 ? (
-            <div className="px-6 py-12 text-center">
-              <p className="text-sm text-gray-500">ยังไม่มีแผนก</p>
-              <Link href="/admin/settings/departments/new" className="mt-3 inline-block">
-                <Button variant="secondary">+ เพิ่มแผนกแรก</Button>
-              </Link>
-            </div>
-          ) : (
-            <Table>
-              <THead>
-                <TR>
-                  <TH>ชื่อ</TH>
-                  <TH>คำอธิบาย</TH>
-                  <TH>พนักงาน</TH>
-                  <TH className="text-right">การจัดการ</TH>
-                </TR>
-              </THead>
-              <TBody>
-                {rows.map((d) => (
-                  <TR key={d.id}>
-                    <TD className="font-medium text-gray-900">{d.name}</TD>
-                    <TD className="max-w-md truncate text-gray-500">{d.description ?? '—'}</TD>
-                    <TD className="tabular-nums">{d._count.employees}</TD>
-                    <TD className="text-right">
-                      <Link
-                        href={`/admin/settings/departments/${d.id}/edit`}
-                        className="text-sm font-medium text-primary-600 hover:text-primary-700"
-                      >
-                        แก้ไข
-                      </Link>
-                    </TD>
-                  </TR>
-                ))}
-              </TBody>
-            </Table>
-          )}
-        </CardBody>
-      </Card>
+      <ResponsiveTable
+        columns={columns}
+        rows={rows}
+        rowKey={(d) => d.id}
+        actions={(d) => (
+          <Link
+            href={`/admin/settings/departments/${d.id}/edit`}
+            className="text-sm font-medium text-primary-700 hover:text-primary-800"
+          >
+            แก้ไข
+          </Link>
+        )}
+        empty={
+          <div className="surface">
+            <EmptyState
+              title="ยังไม่มีแผนก"
+              action={
+                <Link href="/admin/settings/departments/new">
+                  <Button variant="secondary">+ เพิ่มแผนกแรก</Button>
+                </Link>
+              }
+            />
+          </div>
+        }
+      />
     </div>
   );
 }
