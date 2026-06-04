@@ -29,7 +29,8 @@
     "db:seed:leave-advance": "dotenv -e .env.local -- tsx prisma/seed-leave-advance.ts",
     "db:reset": "dotenv -e .env.local -- prisma migrate reset --skip-seed",
     "prepare": "simple-git-hooks",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "db:seed:attendance": "dotenv -e .env.local -- tsx prisma/seed-attendance.ts"
   },
   "simple-git-hooks": {
     "pre-commit": "pnpm lint-staged"
