@@ -22,10 +22,13 @@
 import type { AttType } from '@prisma/client';
 import Link from 'next/link';
 import { RestoreButton, VoidDialog } from '@/components/admin/void-dialog';
-import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
+import { EmptyState } from '@/components/ui/empty-state';
+import { PageHeader } from '@/components/ui/page-header';
+import { type Column, ResponsiveTable } from '@/components/ui/responsive-table';
 import { restoreAttendance, voidAttendance } from '@/lib/attendance/void';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma, prismaRaw } from '@/lib/db/prisma';
+import { AttendanceTabs } from './attendance-tabs';
 
 type SearchParams = Promise<{
   ym?: string; // YYYY-MM, default current month
@@ -149,8 +152,8 @@ export default async function AttendanceRecordsPage({
     checkInBranch: { select: { name: true } },
   } as const;
 
-  // Pull rows + employee list for filter dropdown in parallel.
-  const [rows, employees] = await Promise.all([
+  // Pull rows + employee list + disputed count in parallel.
+  const [rows, employees, disputedCount] = await Promise.all([
     isTrash
       ? prismaRaw.attendance.findMany({
           where: { ...baseWhere, deletedAt: { not: null } },
@@ -173,6 +176,9 @@ export default async function AttendanceRecordsPage({
         lastName: true,
         nickname: true,
       },
+    }),
+    prisma.attendance.count({
+      where: { type: 'CheckIn', checkInStatus: 'Disputed', deletedAt: null },
     }),
   ]);
 
@@ -199,223 +205,193 @@ export default async function AttendanceRecordsPage({
     year: 'numeric',
   });
 
-  return (
-    <div className="mx-auto max-w-6xl px-6 py-8">
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold text-gray-900">ประวัติการลงเวลา</h1>
-          <p className="mt-1 text-sm text-gray-500">ดูข้อมูลการเช็คอิน/ลา/ขาด/สาย ของพนักงาน</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Link
-            href="/admin/attendance/manual"
-            className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
-          >
-            + คีย์มือ
-          </Link>
-          <Link
-            href={urlWith({ trash: null })}
-            className={
-              isTrash
-                ? 'rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50'
-                : 'rounded-md border border-primary-600 bg-primary-600 px-3 py-1.5 text-xs font-medium text-white'
-            }
-          >
-            รายการปัจจุบัน
-          </Link>
-          <Link
-            href={urlWith({ trash: '1' })}
-            className={
-              isTrash
-                ? 'rounded-md border border-primary-600 bg-primary-600 px-3 py-1.5 text-xs font-medium text-white'
-                : 'rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50'
-            }
-          >
-            🗑️ ถังขยะ
-          </Link>
-          <Link
-            href="/admin/attendance/live"
-            className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
-          >
-            🔴 วันนี้ (live)
-          </Link>
-          <Link
-            href="/admin/attendance/disputed"
-            className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
-          >
-            ⚠️ ต้องตรวจสอบ
-          </Link>
-        </div>
-      </div>
+  const columns: Column<(typeof rows)[number]>[] = [
+    { key: 'date', header: 'วันที่', cell: (r) => formatDate(r.date) },
+    {
+      key: 'employee',
+      header: 'พนักงาน',
+      cell: (r) => (
+        <span className="font-medium text-ink-1">
+          {r.employee.firstName} {r.employee.lastName}
+          {r.employee.nickname && <span className="text-ink-3"> ({r.employee.nickname})</span>}
+        </span>
+      ),
+    },
+    {
+      key: 'type',
+      header: 'ประเภท',
+      cell: (r) => {
+        const m = TYPE_LABELS[r.type] ?? { label: r.type, cls: 'bg-gray-100 text-gray-700' };
+        return (
+          <span className="inline-flex items-center gap-1">
+            <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${m.cls}`}>
+              {m.label}
+            </span>
+            {r.checkInStatus === 'Disputed' && (
+              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800">
+                ⚠ ตรวจสอบ
+              </span>
+            )}
+          </span>
+        );
+      },
+    },
+    {
+      key: 'time',
+      header: 'เวลา',
+      cell: (r) =>
+        r.type === 'CheckIn' || r.type === 'CheckOut' ? (
+          <span className="mono text-xs text-ink-2">
+            {formatTime(r.clockInAt)}
+            {r.clockOutAt && ` – ${formatTime(r.clockOutAt)}`}
+          </span>
+        ) : (
+          '—'
+        ),
+    },
+    { key: 'duration', header: 'ระยะเวลา', cell: (r) => formatDuration(r.durationMinutes) },
+    {
+      key: 'source',
+      header: 'ที่มา',
+      cell: (r) => (
+        <span className="text-xs text-ink-3">
+          {SOURCE_LABELS[r.source] ?? r.source}
+          {r.checkInBranch && <span className="text-ink-4"> • {r.checkInBranch.name}</span>}
+        </span>
+      ),
+    },
+    {
+      key: 'note',
+      header: 'หมายเหตุ',
+      cell: (r) => (
+        <span className="text-xs text-ink-3">
+          {(isTrash ? r.deleteReason : r.disputeReason) ?? '—'}
+        </span>
+      ),
+    },
+  ];
 
-      {/* Filters row */}
-      <div className="mb-4 flex flex-wrap items-center gap-3">
+  return (
+    <div className="px-4 py-6 sm:px-6 lg:px-8">
+      <PageHeader
+        breadcrumb="ลงเวลา"
+        title="ประวัติการลงเวลา"
+        subtitle="ดูข้อมูลการเช็คอิน/ลา/ขาด/สาย ของพนักงาน"
+      />
+      <AttendanceTabs current="records" disputedCount={disputedCount} />
+
+      {/* Filters */}
+      <div className="mb-4 flex flex-wrap items-center gap-2">
         {/* Month nav */}
-        <div className="inline-flex items-center rounded-md border border-gray-200 bg-white">
+        <div className="inline-flex items-center rounded-lg border border-gray-200 bg-white">
           <Link
             href={urlWith({ ym: shiftMonth(ym, -1) })}
-            className="px-2 py-1.5 text-sm text-gray-500 hover:bg-gray-50 hover:text-gray-900"
+            className="px-2 py-1.5 text-sm text-ink-3 transition hover:bg-gray-50 hover:text-ink-1"
             aria-label="เดือนก่อน"
           >
             ‹
           </Link>
-          <span className="border-x border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-900">
+          <span className="border-x border-gray-200 px-3 py-1.5 text-xs font-semibold text-ink-1">
             {monthLabel}
           </span>
           <Link
             href={urlWith({ ym: shiftMonth(ym, 1) })}
-            className="px-2 py-1.5 text-sm text-gray-500 hover:bg-gray-50 hover:text-gray-900"
+            className="px-2 py-1.5 text-sm text-ink-3 transition hover:bg-gray-50 hover:text-ink-1"
             aria-label="เดือนถัดไป"
           >
             ›
           </Link>
         </div>
 
-        {/* Employee filter */}
         <EmployeeSelect
           employees={employees}
           selectedId={employeeFilter}
           urlFor={(id) => urlWith({ employeeId: id })}
         />
-
-        {/* Type filter */}
         <TypeSelect selectedType={typeFilter} urlFor={(t) => urlWith({ type: t })} />
 
         {(employeeFilter || typeFilter) && (
           <Link
             href={urlWith({ employeeId: 'all', type: 'all' })}
-            className="text-xs text-gray-500 underline hover:text-gray-700"
+            className="text-xs text-ink-4 underline hover:text-ink-2"
           >
             ล้างตัวกรอง
           </Link>
         )}
+
+        <span className="mx-1 h-4 w-px bg-gray-200" aria-hidden="true" />
+        <Link
+          href={urlWith({ trash: null })}
+          className={
+            !isTrash
+              ? 'rounded-lg bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-700 ring-1 ring-primary-200'
+              : 'rounded-lg px-3 py-1.5 text-xs font-semibold text-ink-4 hover:bg-gray-50 hover:text-ink-2'
+          }
+        >
+          รายการปัจจุบัน
+        </Link>
+        <Link
+          href={urlWith({ trash: '1' })}
+          className={
+            isTrash
+              ? 'rounded-lg bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-700 ring-1 ring-primary-200'
+              : 'rounded-lg px-3 py-1.5 text-xs font-semibold text-ink-4 hover:bg-gray-50 hover:text-ink-2'
+          }
+        >
+          🗑️ ถังขยะ
+        </Link>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            ผลลัพธ์ <span className="tabular-nums text-gray-500">({rows.length})</span>
-            {rows.length === 200 && (
-              <span className="ml-2 text-xs font-normal text-gray-400">
-                (แสดง 200 รายการแรก — ใช้ตัวกรองเพื่อแคบลง)
-              </span>
-            )}
-          </CardTitle>
-        </CardHeader>
-        <CardBody className="!p-0">
-          {rows.length === 0 ? (
-            <div className="px-6 py-12 text-center">
-              <p className="text-sm text-gray-500">
-                {isTrash ? 'ถังขยะว่าง — ไม่มีรายการที่ถูกลบในเดือนนี้' : 'ไม่พบรายการในเดือน + ตัวกรองนี้'}
-              </p>
+      <div className="mb-2 text-xs text-ink-3">
+        ผลลัพธ์ <span className="tabular-nums">({rows.length})</span>
+        {rows.length === 200 && (
+          <span className="ml-2 text-ink-4">(แสดง 200 รายการแรก — ใช้ตัวกรองเพื่อแคบลง)</span>
+        )}
+      </div>
+
+      <ResponsiveTable
+        columns={columns}
+        rows={rows}
+        rowKey={(r) => r.id}
+        actions={(r) =>
+          isTrash ? (
+            <div className="flex flex-col items-end gap-0.5">
+              <RestoreButton
+                action={async () => {
+                  'use server';
+                  return restoreAttendance(r.id);
+                }}
+              />
+              {r.deleteReason && (
+                <span className="max-w-[12rem] truncate text-[10px] text-ink-4">
+                  {r.deleteReason}
+                </span>
+              )}
+              {r.deletedAt && (
+                <span className="text-[10px] text-ink-4">{formatDate(r.deletedAt)}</span>
+              )}
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
-                  <tr>
-                    <th className="px-4 py-3 text-left font-medium">วันที่</th>
-                    <th className="px-4 py-3 text-left font-medium">พนักงาน</th>
-                    <th className="px-4 py-3 text-left font-medium">ประเภท</th>
-                    <th className="px-4 py-3 text-left font-medium">เวลา</th>
-                    <th className="px-4 py-3 text-left font-medium">Duration</th>
-                    <th className="px-4 py-3 text-left font-medium">ที่มา</th>
-                    <th className="px-4 py-3 text-left font-medium">หมายเหตุ</th>
-                    <th className="px-4 py-3 text-right font-medium">จัดการ</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {rows.map((r) => {
-                    const typeMeta = TYPE_LABELS[r.type] ?? {
-                      label: r.type,
-                      cls: 'bg-gray-100 text-gray-700',
-                    };
-                    return (
-                      <tr key={r.id} className="hover:bg-gray-50">
-                        <td className="whitespace-nowrap px-4 py-3 text-gray-900">
-                          {formatDate(r.date)}
-                        </td>
-                        <td className="px-4 py-3 text-gray-900">
-                          {r.employee.firstName} {r.employee.lastName}
-                          {r.employee.nickname && (
-                            <span className="text-gray-500"> ({r.employee.nickname})</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span
-                            className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${typeMeta.cls}`}
-                          >
-                            {typeMeta.label}
-                          </span>
-                          {r.checkInStatus === 'Disputed' && (
-                            <span className="ml-1 rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-medium text-orange-800">
-                              ⚠️ ตรวจสอบ
-                            </span>
-                          )}
-                        </td>
-                        <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-gray-700">
-                          {r.type === 'CheckIn' || r.type === 'CheckOut' ? (
-                            <>
-                              {formatTime(r.clockInAt)}
-                              {r.clockOutAt && ` – ${formatTime(r.clockOutAt)}`}
-                            </>
-                          ) : (
-                            '—'
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-gray-700">
-                          {formatDuration(r.durationMinutes)}
-                        </td>
-                        <td className="px-4 py-3 text-xs text-gray-500">
-                          {SOURCE_LABELS[r.source] ?? r.source}
-                          {r.checkInBranch && (
-                            <span className="ml-1 text-gray-400">• {r.checkInBranch.name}</span>
-                          )}
-                        </td>
-                        <td className="max-w-xs truncate px-4 py-3 text-xs text-gray-500">
-                          {r.disputeReason ?? '—'}
-                        </td>
-                        <td className="whitespace-nowrap px-4 py-3 text-right">
-                          {isTrash ? (
-                            <div className="flex flex-col items-end gap-0.5">
-                              <RestoreButton
-                                action={async () => {
-                                  'use server';
-                                  return restoreAttendance(r.id);
-                                }}
-                              />
-                              {r.deleteReason && (
-                                <span className="max-w-[12rem] truncate text-[10px] text-gray-400">
-                                  {r.deleteReason}
-                                </span>
-                              )}
-                              {r.deletedAt && (
-                                <span className="text-[10px] text-gray-400">
-                                  {formatDate(r.deletedAt)}
-                                </span>
-                              )}
-                            </div>
-                          ) : (
-                            <VoidDialog
-                              triggerLabel="ลบ"
-                              title="ลบรายการลงเวลา"
-                              description="รายการนี้จะถูกย้ายไปถังขยะ และกู้คืนได้ภายหลัง"
-                              action={async (reason) => {
-                                'use server';
-                                return voidAttendance(r.id, reason);
-                              }}
-                            />
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardBody>
-      </Card>
+            <VoidDialog
+              triggerLabel="ลบ"
+              title="ลบรายการลงเวลา"
+              description="รายการนี้จะถูกย้ายไปถังขยะ และกู้คืนได้ภายหลัง"
+              action={async (reason) => {
+                'use server';
+                return voidAttendance(r.id, reason);
+              }}
+            />
+          )
+        }
+        empty={
+          <div className="surface">
+            <EmptyState
+              title={isTrash ? 'ถังขยะว่าง' : 'ไม่พบรายการในเดือน + ตัวกรองนี้'}
+              hint={isTrash ? 'ไม่มีรายการที่ถูกลบในเดือนนี้' : undefined}
+            />
+          </div>
+        }
+      />
     </div>
   );
 }
@@ -435,15 +411,15 @@ function EmployeeSelect({
   const label = selected ? `${selected.firstName} ${selected.lastName}` : 'ทั้งหมด';
   return (
     <details className="relative inline-block">
-      <summary className="flex cursor-pointer items-center gap-1.5 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 [&::-webkit-details-marker]:hidden">
+      <summary className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-ink-2 hover:bg-gray-50 [&::-webkit-details-marker]:hidden">
         พนักงาน:
-        <span className="font-medium text-gray-900">{label}</span>
-        <span className="text-gray-400">▾</span>
+        <span className="font-medium text-ink-1">{label}</span>
+        <span className="text-ink-4">▾</span>
       </summary>
-      <div className="absolute left-0 z-20 mt-1 max-h-[60vh] w-64 overflow-y-auto rounded-md border border-gray-200 bg-white py-1 shadow-lg">
+      <div className="absolute left-0 z-20 mt-1 max-h-[60vh] w-64 overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-card">
         <Link
           href={urlFor('all')}
-          className="block px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100"
+          className="block px-3 py-1.5 text-sm text-ink-2 hover:bg-gray-50"
         >
           ทั้งหมด
         </Link>
@@ -451,10 +427,10 @@ function EmployeeSelect({
           <Link
             key={e.id}
             href={urlFor(e.id)}
-            className="block px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100"
+            className="block px-3 py-1.5 text-sm text-ink-2 hover:bg-gray-50"
           >
             {e.firstName} {e.lastName}
-            {e.nickname && <span className="text-gray-500"> ({e.nickname})</span>}
+            {e.nickname && <span className="text-ink-3"> ({e.nickname})</span>}
           </Link>
         ))}
       </div>
@@ -471,17 +447,17 @@ function TypeSelect({
 }) {
   return (
     <details className="relative inline-block">
-      <summary className="flex cursor-pointer items-center gap-1.5 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 [&::-webkit-details-marker]:hidden">
+      <summary className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-ink-2 hover:bg-gray-50 [&::-webkit-details-marker]:hidden">
         ประเภท:
-        <span className="font-medium text-gray-900">
+        <span className="font-medium text-ink-1">
           {selectedType ? TYPE_LABELS[selectedType]?.label : 'ทั้งหมด'}
         </span>
-        <span className="text-gray-400">▾</span>
+        <span className="text-ink-4">▾</span>
       </summary>
-      <div className="absolute left-0 z-20 mt-1 w-44 rounded-md border border-gray-200 bg-white py-1 shadow-lg">
+      <div className="absolute left-0 z-20 mt-1 w-44 rounded-lg border border-gray-200 bg-white py-1 shadow-card">
         <Link
           href={urlFor('all')}
-          className="block px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100"
+          className="block px-3 py-1.5 text-sm text-ink-2 hover:bg-gray-50"
         >
           ทั้งหมด
         </Link>
@@ -489,7 +465,7 @@ function TypeSelect({
           <Link
             key={k}
             href={urlFor(k)}
-            className="block px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100"
+            className="block px-3 py-1.5 text-sm text-ink-2 hover:bg-gray-50"
           >
             {v.label}
           </Link>
