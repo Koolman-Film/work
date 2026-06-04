@@ -64,7 +64,7 @@ test.describe('Admin Department CRUD', () => {
     // Wait for the Danger Zone block to render. Per the nested-forms-bug
     // fix, the archive form is a sibling of the update form (not nested),
     // styled as a "พื้นที่อันตราย" block below the main card.
-    const archiveButton = page.getByRole('button', { name: 'เก็บถาวร', exact: true });
+    const archiveButton = page.getByRole('button', { name: 'ลบถาวร', exact: true });
     await expect(archiveButton).toBeVisible({ timeout: 5_000 });
     await archiveButton.click();
     // Archive is a Server Action with a redirect + revalidatePath, which
