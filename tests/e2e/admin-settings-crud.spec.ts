@@ -179,7 +179,7 @@ for (const cfg of CRUDS) {
       await expect(page.getByText(originalName).first()).not.toBeVisible();
 
       // ── Archive (THE point of this test) ────────────────────────────
-      // After the nested-forms-bug fix, "เก็บถาวร" lives in a sibling
+      // After the nested-forms-bug fix, "ลบถาวร" lives in a sibling
       // <form> outside the update form (the "พื้นที่อันตราย" block).
       // Pre-fix, clicking it would have submitted the update form. We
       // confirm it actually archives.
@@ -190,7 +190,7 @@ for (const cfg of CRUDS) {
       await editLinkAfter.click();
       await page.waitForURL(new RegExp(`${cfg.baseUrl}/[^/]+/edit`));
 
-      const archiveButton = page.getByRole('button', { name: 'เก็บถาวร', exact: true });
+      const archiveButton = page.getByRole('button', { name: 'ลบถาวร', exact: true });
       await expect(archiveButton).toBeVisible({ timeout: 5_000 });
       await archiveButton.click();
       await page.waitForURL(new RegExp(`${cfg.baseUrl}$`), { timeout: 10_000 });
