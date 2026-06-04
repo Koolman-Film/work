@@ -1,27 +1,27 @@
 /**
- * /admin/leave — pending leave-request inbox.
+ * /admin/leave — leave-request inbox.
  *
  * Default view: only Pending requests, newest-submitted first. Status
- * filter chips (?status=Approved|Rejected|All) let admins look at
- * history.
+ * filter chips (?status=Approved|Rejected|All) let admins look at history;
+ * ?trash=1 shows recently soft-deleted requests with a Restore action.
  *
- * Each row expands inline into a review panel showing the requested
- * range + working-day breakdown (Sundays + Holidays excluded) + a
- * required note + Approve / Reject buttons. Same UX as the disputed-
- * attendance inbox — consistent muscle memory for admins.
+ * Each row is a button that opens a focused review modal (ReviewModal):
+ * facts + the employee's reason + medical-cert attachment + a required note
+ * + Approve / Reject (and a void action). Approving runs the $transaction
+ * that expands the request into Attendance(OnLeave) rows.
  */
 
 import Link from 'next/link';
-import { RestoreButton, VoidDialog } from '@/components/admin/void-dialog';
+import { RestoreButton } from '@/components/admin/void-dialog';
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageHeader } from '@/components/ui/page-header';
 import { StatusBadge, type StatusKey } from '@/components/ui/status-badge';
 import { prisma, prismaRaw } from '@/lib/db/prisma';
-import { restoreLeaveRequest, voidLeaveRequest } from '@/lib/leave/void';
+import { restoreLeaveRequest } from '@/lib/leave/void';
 import { expandHolidaysWithSubstitutes, workingDaysIn } from '@/lib/leave/working-days';
 import { signAttendancePhotoUrls } from '@/lib/storage/signed-urls';
-import { LeaveReviewPanel } from './leave-review-panel';
+import { LeaveInbox, type LeaveRowVM } from './leave-inbox';
 
 type SearchParams = Promise<{ status?: string; trash?: string }>;
 
@@ -33,7 +33,7 @@ const STATUS_INFO: Record<string, { label: string; key: StatusKey }> = {
 };
 
 const FILTER_OPTIONS = [
-  { value: '', label: 'รออนุมัติ' }, // default
+  { value: '', label: 'รออนุมัติ' },
   { value: 'all', label: 'ทั้งหมด' },
   { value: 'approved', label: 'อนุมัติแล้ว' },
   { value: 'rejected', label: 'ไม่อนุมัติ' },
@@ -75,8 +75,6 @@ export default async function AdminLeaveInboxPage({
   const { status, trash } = await searchParams;
   const isTrash = trash === '1';
 
-  // Map URL filter to Prisma where clause. In the trash view the status filter
-  // doesn't apply (we want every recently-deleted request) — only deletedAt.
   const where = (() => {
     if (status === 'all') return {};
     if (status === 'approved') return { status: 'Approved' as const };
@@ -84,10 +82,6 @@ export default async function AdminLeaveInboxPage({
     return { status: 'Pending' as const };
   })();
 
-  // We compute the working-day count up-front for each row so the row
-  // header can show "= 5 วันทำงาน" without a second pass. This requires
-  // pulling holidays in the relevant date range; for simplicity we pull
-  // all non-archived holidays (≤ ~30 rows per year, trivial).
   const leaveSelect = {
     id: true,
     startDate: true,
@@ -132,9 +126,6 @@ export default async function AdminLeaveInboxPage({
     }),
   ]);
 
-  // Bulk-sign attachment storage keys so the admin sees medical-cert
-  // thumbnails inline while reviewing. Legacy URL strings (pre-A3,
-  // shouldn't exist yet) pass through untouched.
   const attachmentKeys = rows
     .map((r) => r.attachmentUrl)
     .filter((v): v is string => !!v && v.length > 0 && !/^https?:\/\//i.test(v));
@@ -144,6 +135,39 @@ export default async function AdminLeaveInboxPage({
     if (/^https?:\/\//i.test(value)) return value;
     return signedAttachmentUrls.get(value) ?? null;
   }
+
+  // View-model for the interactive (non-trash) list. The client LeaveInbox
+  // renders each row as a button that opens the review modal.
+  const expandedHolidays = expandHolidaysWithSubstitutes(holidays.map((h) => h.date));
+  const vm: LeaveRowVM[] = isTrash
+    ? []
+    : rows.map((r) => {
+        const info = STATUS_INFO[r.status] ?? { label: r.status, key: 'neutral' as StatusKey };
+        const wd = workingDaysIn({
+          startDate: r.startDate,
+          endDate: r.endDate,
+          holidays: expandedHolidays,
+        });
+        return {
+          id: r.id,
+          status: r.status,
+          statusKey: info.key,
+          statusLabel: info.label,
+          name: `${r.employee.firstName} ${r.employee.lastName}`,
+          nickname: r.employee.nickname,
+          branch: r.employee.branch.name,
+          department: r.employee.department?.name ?? null,
+          leaveType: r.leaveType.name,
+          isPaid: r.leaveType.isPaid,
+          range: formatRange(r.startDate, r.endDate),
+          workingDays: wd.length,
+          submitted: formatDateTime(r.createdAt),
+          reason: r.reason,
+          reviewNote: r.reviewNote ?? null,
+          reviewedAt: r.reviewedAt ? formatDateTime(r.reviewedAt) : null,
+          attachmentUrl: resolveAttachment(r.attachmentUrl),
+        };
+      });
 
   return (
     <div className="px-4 py-6 sm:px-6 lg:px-8">
@@ -202,142 +226,91 @@ export default async function AdminLeaveInboxPage({
               }
               hint={isTrash ? 'ไม่มีคำขอลาที่ถูกลบ' : undefined}
             />
-          ) : (
+          ) : isTrash ? (
             <ul className="divide-y divide-gray-100">
-              {(() => {
-                // Pre-expand holidays once (auto-add Sun→Mon substitutes).
-                // Computed once outside the per-row loop since the full
-                // holiday list doesn't depend on the row.
-                const expandedHolidays = expandHolidaysWithSubstitutes(holidays.map((h) => h.date));
-                return rows.map((r) => {
-                  const info = STATUS_INFO[r.status] ?? {
-                    label: r.status,
-                    key: 'neutral' as StatusKey,
-                  };
-                  const wd = workingDaysIn({
-                    startDate: r.startDate,
-                    endDate: r.endDate,
-                    holidays: expandedHolidays,
-                  });
-                  return (
-                    <li key={r.id} className="px-5 py-4">
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <StatusBadge status={info.key}>{info.label}</StatusBadge>
-                            <p className="truncate text-sm font-medium text-ink-1">
-                              {r.employee.firstName} {r.employee.lastName}
-                              {r.employee.nickname && (
-                                <span className="text-ink-3"> ({r.employee.nickname})</span>
-                              )}
-                            </p>
-                          </div>
-                          <p className="mt-1 text-xs text-ink-3">
-                            {r.employee.branch.name}
-                            {r.employee.department ? ` • ${r.employee.department.name}` : ''}
-                          </p>
-                        </div>
-                        <div className="text-left text-xs text-ink-2 sm:max-w-[300px] sm:text-right">
-                          <p>
-                            <strong>{r.leaveType.name}</strong>{' '}
-                            {r.leaveType.isPaid ? '' : <span className="text-ink-3">(ไม่จ่าย)</span>}
-                          </p>
-                          <p className="mt-0.5 text-ink-3">
-                            {formatRange(r.startDate, r.endDate)} • {wd.length} วันทำงาน
-                          </p>
-                          <p className="mt-0.5 text-[10px] text-ink-4">
-                            ส่งเมื่อ {formatDateTime(r.createdAt)}
-                          </p>
-                        </div>
-                      </div>
-
-                      <p className="mt-3 line-clamp-3 whitespace-pre-wrap text-sm text-ink-2">
-                        {r.reason}
-                      </p>
-
-                      {resolveAttachment(r.attachmentUrl) && (
-                        <a
-                          href={resolveAttachment(r.attachmentUrl) ?? '#'}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="mt-2 inline-block overflow-hidden rounded-lg border border-gray-200 transition hover:opacity-90"
-                        >
-                          {/* biome-ignore lint/performance/noImgElement: signed-URL preview */}
-                          <img
-                            src={resolveAttachment(r.attachmentUrl) ?? ''}
-                            alt="ไฟล์แนบ"
-                            className="block h-24 w-24 object-cover"
-                            loading="lazy"
-                          />
-                        </a>
-                      )}
-
-                      {isTrash ? (
-                        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-gray-50 px-3 py-2 text-xs text-ink-3">
-                          <span>
-                            {r.deleteReason && (
-                              <>
-                                <strong className="text-ink-1">เหตุผลที่ลบ:</strong> {r.deleteReason}
-                              </>
-                            )}
-                            {r.deletedAt && (
-                              <span className="ml-2 text-ink-4">
-                                ({formatDateTime(r.deletedAt)})
-                              </span>
-                            )}
-                          </span>
-                          <RestoreButton
-                            action={async () => {
-                              'use server';
-                              return restoreLeaveRequest(r.id);
-                            }}
-                          />
-                        </div>
-                      ) : (
-                        <>
-                          {r.status === 'Pending' ? (
-                            <LeaveReviewPanel
-                              leaveRequestId={r.id}
-                              workingDays={wd.map((d) => d.toISOString().slice(0, 10))}
-                              holidayNames={holidays
-                                .filter(
-                                  (h) =>
-                                    h.date.getTime() >= r.startDate.getTime() &&
-                                    h.date.getTime() <= r.endDate.getTime(),
-                                )
-                                .map((h) => ({
-                                  date: h.date.toISOString().slice(0, 10),
-                                  name: h.name,
-                                }))}
-                            />
-                          ) : r.reviewNote ? (
-                            <div className="mt-3 rounded-lg bg-gray-50 px-3 py-2 text-xs text-ink-2">
-                              <strong className="text-ink-1">หมายเหตุ:</strong> {r.reviewNote}
-                              {r.reviewedAt && (
-                                <span className="ml-2 text-ink-4">
-                                  ({formatDateTime(r.reviewedAt)})
-                                </span>
-                              )}
-                            </div>
-                          ) : null}
-                          <div className="mt-2 flex justify-end">
-                            <VoidDialog
-                              triggerLabel="ลบ"
-                              title="ลบคำขอลา"
-                              description="คำขอลานี้และรายการลงเวลา (OnLeave) ที่สร้างขึ้นจะถูกลบทั้งหมด — กู้คืนได้ภายหลัง"
-                              action={async (reason) => {
-                                'use server';
-                                return voidLeaveRequest(r.id, reason);
-                              }}
-                            />
-                          </div>
-                        </>
-                      )}
-                    </li>
-                  );
+              {rows.map((r) => {
+                const info = STATUS_INFO[r.status] ?? {
+                  label: r.status,
+                  key: 'neutral' as StatusKey,
+                };
+                const wd = workingDaysIn({
+                  startDate: r.startDate,
+                  endDate: r.endDate,
+                  holidays: expandedHolidays,
                 });
-              })()}
+                const attachment = resolveAttachment(r.attachmentUrl);
+                return (
+                  <li key={r.id} className="px-5 py-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <StatusBadge status={info.key}>{info.label}</StatusBadge>
+                          <p className="truncate text-sm font-medium text-ink-1">
+                            {r.employee.firstName} {r.employee.lastName}
+                            {r.employee.nickname && (
+                              <span className="text-ink-3"> ({r.employee.nickname})</span>
+                            )}
+                          </p>
+                        </div>
+                        <p className="mt-1 text-xs text-ink-3">
+                          {r.employee.branch.name}
+                          {r.employee.department ? ` • ${r.employee.department.name}` : ''}
+                        </p>
+                      </div>
+                      <div className="text-left text-xs text-ink-2 sm:max-w-[300px] sm:text-right">
+                        <p>
+                          <strong>{r.leaveType.name}</strong>{' '}
+                          {r.leaveType.isPaid ? '' : <span className="text-ink-3">(ไม่จ่าย)</span>}
+                        </p>
+                        <p className="mt-0.5 text-ink-3">
+                          {formatRange(r.startDate, r.endDate)} • {wd.length} วันทำงาน
+                        </p>
+                        <p className="mt-0.5 text-[10px] text-ink-4">
+                          ส่งเมื่อ {formatDateTime(r.createdAt)}
+                        </p>
+                      </div>
+                    </div>
+                    <p className="mt-2 line-clamp-2 text-xs text-ink-3">{r.reason}</p>
+                    {attachment && (
+                      <a
+                        href={attachment}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-2 inline-block overflow-hidden rounded-lg border border-gray-200 transition hover:opacity-90"
+                      >
+                        {/* biome-ignore lint/performance/noImgElement: signed-URL preview */}
+                        <img
+                          src={attachment}
+                          alt="ไฟล์แนบ"
+                          className="block h-20 w-20 object-cover"
+                          loading="lazy"
+                        />
+                      </a>
+                    )}
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-gray-50 px-3 py-2 text-xs text-ink-3">
+                      <span>
+                        {r.deleteReason && (
+                          <>
+                            <strong className="text-ink-1">เหตุผลที่ลบ:</strong> {r.deleteReason}
+                          </>
+                        )}
+                        {r.deletedAt && (
+                          <span className="ml-2 text-ink-4">({formatDateTime(r.deletedAt)})</span>
+                        )}
+                      </span>
+                      <RestoreButton
+                        action={async () => {
+                          'use server';
+                          return restoreLeaveRequest(r.id);
+                        }}
+                      />
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
+          ) : (
+            <LeaveInbox rows={vm} />
           )}
         </CardBody>
       </Card>

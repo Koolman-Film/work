@@ -118,21 +118,20 @@ test.describe('Admin leave approval → Attendance(OnLeave) expansion', () => {
     await page.goto('/admin/leave');
     await expect(page.getByRole('heading', { name: 'คำขอลา' })).toBeVisible();
 
-    // Locate our pending request — the reason text we seeded with e2e-
-    // suffix is unique enough to identify the row.
-    const row = page
-      .locator('li')
-      .filter({ hasText: `e2e-reason-${suffix}` })
-      .first();
-    await expect(row).toBeVisible({ timeout: 5_000 });
+    // Locate our pending request by the seeded employee name (the e2e suffix
+    // is unique). The whole row is a button that opens the review modal.
+    const rowButton = page.getByRole('button', {
+      name: new RegExp(`ตรวจสอบคำขอลาของ.*${suffix}`),
+    });
+    await expect(rowButton).toBeVisible({ timeout: 5_000 });
+    await rowButton.click();
 
-    await row.getByRole('button', { name: /ตรวจสอบ/ }).click();
-    // Wait for the review panel's textarea to appear.
-    await row.getByRole('textbox').fill('e2e — approved by Playwright');
-    await row.getByRole('button', { name: /^อนุมัติ/ }).click();
+    const dialog = page.getByRole('dialog');
+    await dialog.getByRole('textbox').fill('e2e — approved by Playwright');
+    await dialog.getByRole('button', { name: /^อนุมัติ/ }).click();
 
-    // Wait for the "settled" state.
-    await expect(row.getByText(/อนุมัติเรียบร้อย/)).toBeVisible({ timeout: 5_000 });
+    // On success the modal closes and the list refreshes.
+    await expect(dialog).toBeHidden({ timeout: 5_000 });
 
     // ── Assert DB state ─────────────────────────────────────────────
     const refreshed = await prisma.leaveRequest.findUnique({
@@ -200,15 +199,17 @@ test.describe('Admin leave approval → Attendance(OnLeave) expansion', () => {
     await loginAsAdmin(page);
     await page.goto('/admin/leave');
 
-    const row = page
-      .locator('li')
-      .filter({ hasText: `e2e-reason-${suffix}` })
-      .first();
-    await row.getByRole('button', { name: /ตรวจสอบ/ }).click();
-    await row.getByRole('textbox').fill('e2e — rejected');
-    await row.getByRole('button', { name: /^ปฏิเสธ/ }).click();
+    const rowButton = page.getByRole('button', {
+      name: new RegExp(`ตรวจสอบคำขอลาของ.*${suffix}`),
+    });
+    await expect(rowButton).toBeVisible({ timeout: 5_000 });
+    await rowButton.click();
 
-    await expect(row.getByText(/ปฏิเสธเรียบร้อย/)).toBeVisible({ timeout: 5_000 });
+    const dialog = page.getByRole('dialog');
+    await dialog.getByRole('textbox').fill('e2e — rejected');
+    await dialog.getByRole('button', { name: /^ปฏิเสธ/ }).click();
+
+    await expect(dialog).toBeHidden({ timeout: 5_000 });
 
     const refreshed = await prisma.leaveRequest.findUnique({
       where: { id: leaveRequest.id },
