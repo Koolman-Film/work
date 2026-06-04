@@ -1,16 +1,35 @@
 /**
  * /admin/attendance/live — today's check-in board.
  *
- * Server Component does the initial fetch (so the page is useful even
- * before client JS hydrates / Realtime connects). The Client child
- * subscribes to Supabase Realtime for live updates and falls back to
- * 30-second polling if the WebSocket dies.
+ * Server Component does the initial fetch (useful before client JS / Realtime
+ * connects); the Client child subscribes to Supabase Realtime + 30s polling.
  */
 
+import { PageHeader } from '@/components/ui/page-header';
 import { getTodayAttendance } from '@/lib/attendance/live';
+import { requirePermission } from '@/lib/auth/check-permission';
+import { prisma } from '@/lib/db/prisma';
+import { AttendanceTabs } from '../attendance-tabs';
 import { LiveBoardClient } from './live-client';
 
 export default async function LiveBoardPage() {
-  const initial = await getTodayAttendance();
-  return <LiveBoardClient initialRows={initial} />;
+  await requirePermission('attendance.live-board');
+  const [initial, disputedCount] = await Promise.all([
+    getTodayAttendance(),
+    prisma.attendance.count({
+      where: { type: 'CheckIn', checkInStatus: 'Disputed', deletedAt: null },
+    }),
+  ]);
+
+  return (
+    <div className="px-4 py-6 sm:px-6 lg:px-8">
+      <PageHeader
+        breadcrumb="ลงเวลา"
+        title="การลงเวลาสด"
+        subtitle="อัปเดตอัตโนมัติทุก 30 วินาที — เรียลไทม์ผ่าน Supabase channel"
+      />
+      <AttendanceTabs current="live" disputedCount={disputedCount} />
+      <LiveBoardClient initial={initial} />
+    </div>
+  );
 }
