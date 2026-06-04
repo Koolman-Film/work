@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import { PageHeader } from '@/components/ui/page-header';
 import { prisma } from '@/lib/db/prisma';
 import { archiveWorkSchedule, updateWorkSchedule } from '../../actions';
 import { WorkScheduleForm } from '../../work-schedule-form';
@@ -38,24 +39,27 @@ export default async function EditWorkSchedulePage({
   const updateBound = updateWorkSchedule.bind(null, id);
 
   return (
-    <div className="max-w-2xl">
-      <WorkScheduleForm
-        mode="edit"
-        action={updateBound}
-        initial={{
-          name: schedule.name,
-          lateToleranceMin: schedule.lateToleranceMin,
-          days,
-        }}
-        error={error ? decodeURIComponent(error) : null}
-        extraActions={
-          <form action={archiveWorkSchedule.bind(null, id)}>
-            <Button type="submit" variant="destructive">
-              ลบถาวร
-            </Button>
-          </form>
-        }
-      />
+    <div className="px-4 py-6 sm:px-6 lg:px-8">
+      <PageHeader breadcrumb="ตั้งค่า · ตารางงาน" title="แก้ไขตารางงาน" />
+      <div className="max-w-2xl">
+        <WorkScheduleForm
+          mode="edit"
+          action={updateBound}
+          initial={{
+            name: schedule.name,
+            lateToleranceMin: schedule.lateToleranceMin,
+            days,
+          }}
+          error={error ? decodeURIComponent(error) : null}
+          extraActions={
+            <form action={archiveWorkSchedule.bind(null, id)}>
+              <Button type="submit" variant="destructive">
+                ลบถาวร
+              </Button>
+            </form>
+          }
+        />
+      </div>
     </div>
   );
 }

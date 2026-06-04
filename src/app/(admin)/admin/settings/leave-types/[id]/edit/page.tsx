@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import { PageHeader } from '@/components/ui/page-header';
 import { prisma } from '@/lib/db/prisma';
 import { archiveLeaveType, updateLeaveType } from '../../actions';
 import { LeaveTypeForm } from '../../leave-type-form';
@@ -34,18 +35,23 @@ export default async function EditLeaveTypePage({
   };
 
   return (
-    <LeaveTypeForm
-      mode="edit"
-      action={update}
-      initial={{ name: row.name, isPaid: row.isPaid, annualQuota: row.annualQuota }}
-      error={error ? decodeURIComponent(error) : null}
-      extraActions={
-        <form action={archive}>
-          <Button type="submit" variant="destructive">
-            ลบถาวร
-          </Button>
-        </form>
-      }
-    />
+    <div className="px-4 py-6 sm:px-6 lg:px-8">
+      <PageHeader breadcrumb="ตั้งค่า · ประเภทการลา" title="แก้ไขประเภทการลา" />
+      <div className="max-w-2xl">
+        <LeaveTypeForm
+          mode="edit"
+          action={update}
+          initial={{ name: row.name, isPaid: row.isPaid, annualQuota: row.annualQuota }}
+          error={error ? decodeURIComponent(error) : null}
+          extraActions={
+            <form action={archive}>
+              <Button type="submit" variant="destructive">
+                ลบถาวร
+              </Button>
+            </form>
+          }
+        />
+      </div>
+    </div>
   );
 }
