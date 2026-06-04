@@ -16,6 +16,7 @@ import { useRouter } from 'next/navigation';
 import { type ReactNode, useId, useState, useTransition } from 'react';
 import { Button } from './button';
 import { Dialog } from './dialog';
+import { DialogFooter } from './dialog-footer';
 
 export type ActionResult = { ok: true } | { ok: false; message: string };
 
@@ -102,7 +103,7 @@ export function ConfirmDialog({
             {error}
           </p>
         )}
-        <div className="mt-5 flex justify-end gap-2">
+        <DialogFooter>
           <Button variant="secondary" size="sm" onClick={close} disabled={pending}>
             {cancelLabel}
           </Button>
@@ -114,7 +115,7 @@ export function ConfirmDialog({
           >
             {pending ? 'กำลังดำเนินการ…' : confirmLabel}
           </Button>
-        </div>
+        </DialogFooter>
       </Dialog>
     </>
   );
