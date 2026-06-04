@@ -59,3 +59,17 @@
 - **`admin-attendance-void` e2e** can't run locally if it imports `src/lib/attendance/void.ts` via a `*-void` collection path (the known `next/headers` limitation). Confirm which attendance e2e specs are locally runnable; for those that aren't, rely on the records-list interaction via a runnable spec + manual verification.
 - **Leaflet SSR** — must use the dynamic-import (`ssr:false`) wrapper pattern from `geofence-picker-dynamic.tsx`.
 - **Mobile** — records (stacked cards), live (chips wrap), disputed (list→detail) all need a phone-width screenshot pass.
+
+---
+
+## Status: DONE (2026-06-05)
+
+All 5 sub-parts shipped + verified:
+- 6-1 AttendanceTabs sub-nav + Manual page · 6-2 Records list (ResponsiveTable) ·
+  6-3 Live board (KPI strip + branch chips, realtime preserved) · 6-4 Disputed
+  master-detail (Leaflet GPS map) · 6-5 cleanup.
+- Live "ยังไม่มา" KPI: extended `getTodayAttendance` → `{rows, activeCount, onLeaveCount}`.
+- Tests: `admin-attendance-disputed.spec.ts` (approve→Confirmed / reject→Rejected) passes 3×.
+  `admin-attendance-void` unchanged (records void still uses VoidDialog→voidAttendance;
+  spec is the known not-locally-runnable `*-void` type — CI runs it).
+- Dev seed: `db:seed:attendance` (branch coords + today's board + June history).
