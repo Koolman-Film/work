@@ -1,29 +1,18 @@
 /**
  * /admin/attendance/disputed — review inbox for Disputed check-ins.
  *
- * Lists every Attendance row of type=CheckIn with checkInStatus=Disputed
- * (newest first), grouped visually by date. Each row expands into a
- * client-side panel with the GPS reading, the would-have-matched branch,
- * the system's dispute reason in Thai, and Approve/Reject buttons that
- * call the review server actions.
- *
- * Why inline expansion instead of a drawer or modal:
- *   - Dataset is small (≤20 employees × occasional disputes); a list of
- *     5–10 items with inline-expand panels is faster to scan than a list
- *     where every detail requires a click-out-click-in.
- *   - Avoids the "where did the row I just approved go?" disorientation
- *     that drawers create when their parent list re-fetches.
- *
- * Read-only fetch is a Server Component, action UI is a child Client
- * Component.
+ * Master-detail: a scrollable list (left) + a detail pane (right) with the
+ * selfie, a Leaflet map of the check-in position vs the branch geofence, the
+ * computed distance, the system reason, and Approve/Reject. Read-only fetch is
+ * a Server Component; the interactive surface is the DisputedClient.
  */
 
-import Link from 'next/link';
+import { EmptyState } from '@/components/ui/empty-state';
+import { PageHeader } from '@/components/ui/page-header';
 import { prisma } from '@/lib/db/prisma';
 import { signAttendancePhotoUrls } from '@/lib/storage/signed-urls';
-import { DisputedReviewPanel } from './disputed-review-panel';
-
-const STATUS_FILTER = ['Disputed'] as const;
+import { AttendanceTabs } from '../attendance-tabs';
+import { DisputedClient, type DisputedVM } from './disputed-client';
 
 function formatBkk(d: Date): string {
   return d.toLocaleString('th-TH', {
@@ -35,31 +24,35 @@ function formatBkk(d: Date): string {
   });
 }
 
+/** Great-circle distance in metres (rounded). */
+function haversineMeters(aLat: number, aLng: number, bLat: number, bLng: number): number {
+  const R = 6_371_000;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(bLat - aLat);
+  const dLng = toRad(bLng - aLng);
+  const lat1 = toRad(aLat);
+  const lat2 = toRad(bLat);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return Math.round(2 * R * Math.asin(Math.sqrt(h)));
+}
+
 export default async function DisputedInboxPage() {
-  // Fetch up to 50 disputed rows, newest first. UI shows "more" prompt if
-  // we hit the cap.
   const rows = await prisma.attendance.findMany({
-    where: {
-      type: 'CheckIn',
-      checkInStatus: { in: [...STATUS_FILTER] },
-    },
+    where: { type: 'CheckIn', checkInStatus: { in: ['Disputed'] } },
     orderBy: { clockInAt: 'desc' },
     take: 50,
     select: {
       id: true,
-      date: true,
       clockInAt: true,
       checkInLat: true,
       checkInLng: true,
-      checkInStatus: true,
       disputeReason: true,
       checkInSelfieUrl: true,
       checkInBranch: {
-        select: { id: true, name: true, latitude: true, longitude: true, radiusMeters: true },
+        select: { name: true, latitude: true, longitude: true, radiusMeters: true },
       },
       employee: {
         select: {
-          id: true,
           firstName: true,
           lastName: true,
           nickname: true,
@@ -70,94 +63,61 @@ export default async function DisputedInboxPage() {
     },
   });
 
-  // Batch-sign any selfie URLs in one round-trip. Map<storageKey, signedUrl>;
-  // keys whose signing failed (deleted file, permission glitch) won't appear
-  // in the map → the panel falls back to "no selfie" UI.
   const selfieKeys = rows
     .map((r) => r.checkInSelfieUrl)
     .filter((k): k is string => !!k && k.length > 0);
   const signedSelfieUrls = await signAttendancePhotoUrls(selfieKeys);
 
-  if (rows.length === 0) {
-    return (
-      <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-12 text-center">
-        <p className="text-sm text-gray-500">ไม่มีรายการที่ต้องตรวจสอบ ✨</p>
-        <p className="mt-1 text-xs text-gray-400">
-          การเช็คอินทั้งหมดผ่านการตรวจอัตโนมัติ — ไม่มีอะไรต้องตัดสินใจ
-        </p>
-      </div>
-    );
-  }
+  const vm: DisputedVM[] = rows.map((r) => {
+    const empLat = r.checkInLat != null ? Number(r.checkInLat) : null;
+    const empLng = r.checkInLng != null ? Number(r.checkInLng) : null;
+    const branch =
+      r.checkInBranch?.latitude != null && r.checkInBranch.longitude != null
+        ? {
+            name: r.checkInBranch.name,
+            lat: Number(r.checkInBranch.latitude),
+            lng: Number(r.checkInBranch.longitude),
+            radiusMeters: r.checkInBranch.radiusMeters,
+          }
+        : null;
+    const distanceMeters =
+      empLat != null && empLng != null && branch
+        ? haversineMeters(empLat, empLng, branch.lat, branch.lng)
+        : null;
+    return {
+      id: r.id,
+      name: `${r.employee.firstName} ${r.employee.lastName}`,
+      nickname: r.employee.nickname,
+      branchLabel: `${r.employee.branch.name}${r.employee.department ? ` • ${r.employee.department.name}` : ''}`,
+      clockInLabel: r.clockInAt ? formatBkk(r.clockInAt) : '—',
+      reason: r.disputeReason ?? 'ไม่ระบุ',
+      selfieUrl: r.checkInSelfieUrl ? (signedSelfieUrls.get(r.checkInSelfieUrl) ?? null) : null,
+      empLat,
+      empLng,
+      branch,
+      distanceMeters,
+    };
+  });
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-gray-500">
-          <strong className="font-semibold text-gray-700">{rows.length}</strong> รายการ
-          {rows.length === 50 ? ' (แสดง 50 รายการล่าสุด)' : ''}
-        </p>
-      </div>
+    <div className="px-4 py-6 sm:px-6 lg:px-8">
+      <PageHeader
+        breadcrumb="ลงเวลา"
+        title="ต้องตรวจสอบ"
+        subtitle="เช็คอินที่อยู่นอกรัศมีสาขา — ตรวจหลักฐาน (เซลฟี่ + ตำแหน่ง) แล้วอนุมัติหรือปฏิเสธ"
+      />
+      <AttendanceTabs current="disputed" disputedCount={vm.length} />
 
-      <ul className="space-y-2">
-        {rows.map((r) => (
-          <li key={r.id} className="rounded-xl border border-amber-200 bg-amber-50/40">
-            <div className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-800">
-                    Disputed
-                  </span>
-                  <p className="truncate text-sm font-medium text-gray-900">
-                    {r.employee.firstName} {r.employee.lastName}
-                    {r.employee.nickname ? (
-                      <span className="text-gray-500"> ({r.employee.nickname})</span>
-                    ) : null}
-                  </p>
-                </div>
-                <p className="mt-1 text-xs text-gray-500">
-                  {r.employee.branch.name}
-                  {r.employee.department ? ` • ${r.employee.department.name}` : ''}
-                </p>
-                <p className="mt-1 text-xs text-gray-500">
-                  เช็คอินเมื่อ {r.clockInAt ? formatBkk(r.clockInAt) : '—'}
-                </p>
-              </div>
-              <div className="text-left text-xs text-amber-900 sm:max-w-[260px] sm:text-right">
-                <span className="font-medium">เหตุผล:</span> {r.disputeReason ?? 'ไม่ระบุ'}
-              </div>
-            </div>
-
-            <DisputedReviewPanel
-              attendanceId={r.id}
-              employeeName={`${r.employee.firstName} ${r.employee.lastName}`}
-              clockInAtIso={r.clockInAt ? r.clockInAt.toISOString() : null}
-              latitude={r.checkInLat ? Number(r.checkInLat) : null}
-              longitude={r.checkInLng ? Number(r.checkInLng) : null}
-              selfieSignedUrl={
-                r.checkInSelfieUrl ? (signedSelfieUrls.get(r.checkInSelfieUrl) ?? null) : null
-              }
-              candidateBranch={
-                r.checkInBranch?.latitude && r.checkInBranch.longitude
-                  ? {
-                      id: r.checkInBranch.id,
-                      name: r.checkInBranch.name,
-                      latitude: Number(r.checkInBranch.latitude),
-                      longitude: Number(r.checkInBranch.longitude),
-                      radiusMeters: r.checkInBranch.radiusMeters,
-                    }
-                  : null
-              }
-            />
-          </li>
-        ))}
-      </ul>
-
-      <p className="pt-2 text-center text-xs text-gray-400">
-        แสดงเฉพาะรายการที่ยังไม่ได้ตัดสินใจ — เมื่อตัดสินใจแล้วจะหายไปจากรายการนี้.{' '}
-        <Link href="/admin/audit" className="underline">
-          ดูประวัติทั้งหมด
-        </Link>
-      </p>
+      {vm.length === 0 ? (
+        <div className="surface">
+          <EmptyState
+            title="ไม่มีรายการที่ต้องตรวจสอบ ✨"
+            hint="การเช็คอินทั้งหมดผ่านการตรวจอัตโนมัติ — ไม่มีอะไรต้องตัดสินใจ"
+          />
+        </div>
+      ) : (
+        <DisputedClient rows={vm} />
+      )}
     </div>
   );
 }
