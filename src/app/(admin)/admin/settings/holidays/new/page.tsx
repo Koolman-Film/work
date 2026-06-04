@@ -1,3 +1,4 @@
+import { PageHeader } from '@/components/ui/page-header';
 import { createHoliday } from '../actions';
 import { HolidayForm } from '../holiday-form';
 
@@ -7,10 +8,15 @@ export default async function NewHolidayPage({ searchParams }: { searchParams: S
   const { error } = await searchParams;
 
   return (
-    <HolidayForm
-      mode="create"
-      action={createHoliday}
-      error={error ? decodeURIComponent(error) : null}
-    />
+    <div className="px-4 py-6 sm:px-6 lg:px-8">
+      <PageHeader breadcrumb="ตั้งค่า · วันหยุด" title="เพิ่มวันหยุด" />
+      <div className="max-w-2xl">
+        <HolidayForm
+          mode="create"
+          action={createHoliday}
+          error={error ? decodeURIComponent(error) : null}
+        />
+      </div>
+    </div>
   );
 }

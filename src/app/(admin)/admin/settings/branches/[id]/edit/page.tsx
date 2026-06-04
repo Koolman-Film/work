@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import { PageHeader } from '@/components/ui/page-header';
 import { prisma } from '@/lib/db/prisma';
 import { archiveBranch, updateBranch } from '../../actions';
 import { BranchForm } from '../../branch-form';
@@ -38,29 +39,32 @@ export default async function EditBranchPage({
   const updateBound = updateBranch.bind(null, id);
 
   return (
-    <div className="max-w-2xl">
-      <BranchForm
-        mode="edit"
-        action={updateBound}
-        initial={{
-          name: branch.name,
-          address: branch.address,
-          latitude: branch.latitude ? Number(branch.latitude) : null,
-          longitude: branch.longitude ? Number(branch.longitude) : null,
-          radiusMeters: branch.radiusMeters,
-          requireSelfie: branch.requireSelfie,
-          requireGps: branch.requireGps,
-          requireCheckOut: branch.requireCheckOut,
-        }}
-        error={error ? decodeURIComponent(error) : null}
-        extraActions={
-          <form action={archiveBranch.bind(null, id)}>
-            <Button type="submit" variant="destructive">
-              ลบถาวร
-            </Button>
-          </form>
-        }
-      />
+    <div className="px-4 py-6 sm:px-6 lg:px-8">
+      <PageHeader breadcrumb="ตั้งค่า · สาขา" title="แก้ไขสาขา" />
+      <div className="max-w-2xl">
+        <BranchForm
+          mode="edit"
+          action={updateBound}
+          initial={{
+            name: branch.name,
+            address: branch.address,
+            latitude: branch.latitude ? Number(branch.latitude) : null,
+            longitude: branch.longitude ? Number(branch.longitude) : null,
+            radiusMeters: branch.radiusMeters,
+            requireSelfie: branch.requireSelfie,
+            requireGps: branch.requireGps,
+            requireCheckOut: branch.requireCheckOut,
+          }}
+          error={error ? decodeURIComponent(error) : null}
+          extraActions={
+            <form action={archiveBranch.bind(null, id)}>
+              <Button type="submit" variant="destructive">
+                ลบถาวร
+              </Button>
+            </form>
+          }
+        />
+      </div>
     </div>
   );
 }
