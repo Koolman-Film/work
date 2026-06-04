@@ -66,7 +66,11 @@ test.describe('Admin cash-advance approval', () => {
    * the name unique even in a dev DB with other rows.
    */
   function findAdvanceRow(page: import('@playwright/test').Page, employeeName: string) {
-    return page.locator('li').filter({ hasText: employeeName }).first();
+    // The whole row is a button (aria-label "ตรวจสอบคำขอเบิกของ <name>") that
+    // opens the review modal.
+    return page.getByRole('button', {
+      name: new RegExp(`ตรวจสอบคำขอเบิกของ.*${employeeName}`),
+    });
   }
 
   test('approve a Pending advance (no receipt) → status=Approved, approvedAt set, receiptUrl null', async ({
@@ -83,14 +87,13 @@ test.describe('Admin cash-advance approval', () => {
 
     const row = findAdvanceRow(page, employeeName);
     await expect(row).toBeVisible({ timeout: 5_000 });
+    await row.click();
 
-    // Open the review panel, then approve via the two-step ConfirmDialog:
-    //   trigger "อนุมัติ ฿4,321"  →  confirm "ยืนยันอนุมัติ"
-    await row.getByRole('button', { name: /ตรวจสอบ/ }).click();
-    await row.getByRole('button', { name: /^อนุมัติ ฿/ }).click();
-    await row.getByRole('button', { name: /^ยืนยันอนุมัติ$/ }).click();
-
-    await expect(row.getByText(/อนุมัติ.*เรียบร้อย/)).toBeVisible({ timeout: 5_000 });
+    // Approve via the modal's money-confirm: "อนุมัติ ฿4,321" → "ยืนยันอนุมัติ".
+    const dialog = page.getByRole('dialog');
+    await dialog.getByRole('button', { name: /^อนุมัติ ฿/ }).click();
+    await dialog.getByRole('button', { name: /^ยืนยันอนุมัติ/ }).click();
+    await expect(dialog).toBeHidden({ timeout: 5_000 });
 
     // ── DB assertions ───────────────────────────────────────────────
     const refreshed = await prisma.cashAdvance.findUnique({
@@ -124,13 +127,13 @@ test.describe('Admin cash-advance approval', () => {
     await page.goto('/admin/advance');
 
     const row = findAdvanceRow(page, employeeName);
-    await row.getByRole('button', { name: /ตรวจสอบ/ }).click();
-    // First "ปฏิเสธ" opens the ConfirmDialog.
-    await row.getByRole('button', { name: /^ปฏิเสธ$/ }).click();
-    // Then "ยืนยันปฏิเสธ" commits.
-    await row.getByRole('button', { name: /^ยืนยันปฏิเสธ$/ }).click();
+    await expect(row).toBeVisible({ timeout: 5_000 });
+    await row.click();
 
-    await expect(row.getByText(/ปฏิเสธเรียบร้อย/)).toBeVisible({ timeout: 5_000 });
+    // Reject commits directly from the modal (no money confirm for reject).
+    const dialog = page.getByRole('dialog');
+    await dialog.getByRole('button', { name: /^ปฏิเสธ$/ }).click();
+    await expect(dialog).toBeHidden({ timeout: 5_000 });
 
     const refreshed = await prisma.cashAdvance.findUnique({
       where: { id: advance.id },

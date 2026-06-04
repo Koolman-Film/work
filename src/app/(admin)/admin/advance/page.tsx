@@ -1,22 +1,22 @@
 /**
  * /admin/advance — cash-advance request inbox.
  *
- * Same shape as /admin/leave but without the date-range / working-day
- * expansion. Default filter is Pending. Ported to the shared Sapphire
- * Editorial system (PageHeader, tab-style filter chips, StatusBadge,
- * EmptyState, Card) so it reads identically to the leave inbox.
+ * Same shape as /admin/leave: Pending-by-default with status filter chips +
+ * a trash view. Each row is a button opening the shared ReviewModal — the
+ * pending modal offers an optional receipt upload + a money-confirm approve,
+ * plus reject and void; decided rows are read-only (with a receipt link).
  */
 
 import Link from 'next/link';
-import { RestoreButton, VoidDialog } from '@/components/admin/void-dialog';
+import { RestoreButton } from '@/components/admin/void-dialog';
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageHeader } from '@/components/ui/page-header';
 import { StatusBadge, type StatusKey } from '@/components/ui/status-badge';
-import { restoreCashAdvance, voidCashAdvance } from '@/lib/advance/void';
+import { restoreCashAdvance } from '@/lib/advance/void';
 import { prisma, prismaRaw } from '@/lib/db/prisma';
 import { signAttendancePhotoUrls } from '@/lib/storage/signed-urls';
-import { AdvanceReviewPanel } from './advance-review-panel';
+import { AdvanceInbox, type AdvanceRowVM } from './advance-inbox';
 
 type SearchParams = Promise<{ status?: string; trash?: string }>;
 
@@ -103,20 +103,35 @@ export default async function AdminAdvanceInboxPage({
         select: advanceSelect,
       });
 
-  // Batch-sign any receipt storage keys in one round-trip. Old rows
-  // (or any admin-pasted Drive URLs from before A2) get pass-through.
   const receiptKeys = rows
     .map((r) => r.receiptUrl)
     .filter((v): v is string => !!v && v.length > 0 && !/^https?:\/\//i.test(v));
   const signedReceiptUrls = await signAttendancePhotoUrls(receiptKeys);
-
-  /** Resolve a stored receipt value to its displayable URL — handles
-   *  both Storage paths (signed) and legacy URLs (pass-through). */
   function resolveReceipt(value: string | null): string | null {
     if (!value) return null;
     if (/^https?:\/\//i.test(value)) return value;
     return signedReceiptUrls.get(value) ?? null;
   }
+
+  const vm: AdvanceRowVM[] = isTrash
+    ? []
+    : rows.map((r) => {
+        const info = STATUS_INFO[r.status] ?? { label: r.status, key: 'neutral' as StatusKey };
+        return {
+          id: r.id,
+          status: r.status,
+          statusKey: info.key,
+          statusLabel: info.label,
+          name: `${r.employee.firstName} ${r.employee.lastName}`,
+          nickname: r.employee.nickname,
+          branch: r.employee.branch.name,
+          department: r.employee.department?.name ?? null,
+          amount: formatMoney(r.amount),
+          submitted: formatDateTime(r.requestedAt),
+          decidedAt: r.approvedAt ? formatDateTime(r.approvedAt) : null,
+          receiptUrl: resolveReceipt(r.receiptUrl),
+        };
+      });
 
   return (
     <div className="px-4 py-6 sm:px-6 lg:px-8">
@@ -175,7 +190,7 @@ export default async function AdminAdvanceInboxPage({
               }
               hint={isTrash ? 'ไม่มีคำขอเบิกที่ถูกลบ' : undefined}
             />
-          ) : (
+          ) : isTrash ? (
             <ul className="divide-y divide-gray-100">
               {rows.map((r) => {
                 const info = STATUS_INFO[r.status] ?? {
@@ -201,7 +216,6 @@ export default async function AdminAdvanceInboxPage({
                         </p>
                         <p className="mt-0.5 text-[10px] text-ink-4">
                           ส่งเมื่อ {formatDateTime(r.requestedAt)}
-                          {r.approvedAt && ` • ตัดสินใจเมื่อ ${formatDateTime(r.approvedAt)}`}
                         </p>
                       </div>
                       <div className="text-left sm:text-right">
@@ -210,61 +224,30 @@ export default async function AdminAdvanceInboxPage({
                         </p>
                       </div>
                     </div>
-
-                    {isTrash ? (
-                      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-gray-50 px-3 py-2 text-xs text-ink-3">
-                        <span>
-                          {r.deleteReason && (
-                            <>
-                              <strong className="text-ink-1">เหตุผลที่ลบ:</strong> {r.deleteReason}
-                            </>
-                          )}
-                          {r.deletedAt && (
-                            <span className="ml-2 text-ink-4">({formatDateTime(r.deletedAt)})</span>
-                          )}
-                        </span>
-                        <RestoreButton
-                          action={async () => {
-                            'use server';
-                            return restoreCashAdvance(r.id);
-                          }}
-                        />
-                      </div>
-                    ) : (
-                      <>
-                        {r.status === 'Pending' && (
-                          <AdvanceReviewPanel
-                            cashAdvanceId={r.id}
-                            amountDisplay={formatMoney(r.amount)}
-                          />
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-gray-50 px-3 py-2 text-xs text-ink-3">
+                      <span>
+                        {r.deleteReason && (
+                          <>
+                            <strong className="text-ink-1">เหตุผลที่ลบ:</strong> {r.deleteReason}
+                          </>
                         )}
-                        {r.status === 'Approved' && resolveReceipt(r.receiptUrl) && (
-                          <a
-                            href={resolveReceipt(r.receiptUrl) ?? '#'}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="mt-3 inline-block text-xs font-medium text-primary-700 underline hover:text-primary-800"
-                          >
-                            ดูใบเสร็จ →
-                          </a>
+                        {r.deletedAt && (
+                          <span className="ml-2 text-ink-4">({formatDateTime(r.deletedAt)})</span>
                         )}
-                        <div className="mt-2 flex justify-end">
-                          <VoidDialog
-                            triggerLabel="ลบ"
-                            title="ลบคำขอเบิก"
-                            description="คำขอนี้จะถูกย้ายไปถังขยะ และกู้คืนได้ภายหลัง"
-                            action={async (reason) => {
-                              'use server';
-                              return voidCashAdvance(r.id, reason);
-                            }}
-                          />
-                        </div>
-                      </>
-                    )}
+                      </span>
+                      <RestoreButton
+                        action={async () => {
+                          'use server';
+                          return restoreCashAdvance(r.id);
+                        }}
+                      />
+                    </div>
                   </li>
                 );
               })}
             </ul>
+          ) : (
+            <AdvanceInbox rows={vm} />
           )}
         </CardBody>
       </Card>
