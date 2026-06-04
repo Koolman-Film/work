@@ -891,3 +891,26 @@ Per the plan, the foundation (PR-0, PR-1) should be executed first and reviewed 
 - ⬜ **PR-7** Settings CRUDs · ⬜ **PR-8** roles+team · ⬜ **PR-9** profile · ⬜ **PR-10** auth · ⬜ **PR-11** LIFF · ⬜ **PR-12** consistency+a11y sweep + doc screenshots
 
 **Known local-env limitations (not regressions):** the `*-void` e2e specs can't run locally (`Cannot find module next/headers` during Playwright collection of `src/lib/*/void.ts`); the advance receipt-upload e2e path needs a Storage bucket (none in local stack).
+
+---
+
+## Post-PR-5 refinement — Review modal + status rail (2026-06-03)
+
+After QA, the inline `ตรวจสอบ` accordion on `/admin/leave` and `/admin/advance`
+was replaced with a shared focused **`ReviewModal`**, and request rows gained a
+status-colored **left rail + icon badge** for at-a-glance scannability. See
+`docs/superpowers/specs/2026-06-03-review-modal-status-redesign-design.md` and
+`docs/superpowers/plans/2026-06-03-review-modal-status-redesign.md`.
+
+- New shared primitives: `STATUS_RAIL`/`STATUS_ICON`/`statusRail()` (next to
+  `StatusBadge`), `DialogFooter`, `ReviewModal` (composes `Dialog`+`DialogFooter`;
+  owns required-note, in-modal money-confirm + void-reason steps, success →
+  `router.refresh()`). `Dialog` also gained an explicit ✕ close button.
+- The two inline panels (`leave-review-panel.tsx`, `advance-review-panel.tsx`)
+  and the advance approve `ConfirmDialog` were removed; void moved into the modal
+  footer. Whole-row click opens the modal; decided rows are read-only.
+- Tests: `confirm-dialog.spec.ts` → `review-modal.spec.ts` (amount/back/confirm/
+  void); `admin-leave-approval` + `admin-advance-approval` updated to the modal
+  flow. All three pass deterministically (the modal-closes-on-resolve flow also
+  fixed the old flaky leave-reject/settled-message race).
+- Reusable later by the attendance disputed inbox (PR-6) + dashboard pending lists.
