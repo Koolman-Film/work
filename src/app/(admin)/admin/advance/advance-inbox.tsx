@@ -105,7 +105,10 @@ export function AdvanceInbox({ rows }: { rows: AdvanceRowVM[] }) {
           <li key={row.id}>
             <button
               type="button"
-              onClick={() => setOpen(row)}
+              onClick={() => {
+                clearReceipt();
+                setOpen(row);
+              }}
               aria-label={`ตรวจสอบคำขอเบิกของ ${row.name}`}
               className={`block w-full border-l-4 ${statusRail(row.statusKey)} px-5 py-4 text-left transition hover:bg-gray-50/70`}
             >

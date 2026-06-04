@@ -11,7 +11,7 @@
  * Controlled: render it always and drive with `open` / `onClose`. Composed by
  * ConfirmDialog and the mobile FilterBar sheet.
  */
-import { type ReactNode, useEffect, useRef } from 'react';
+import { type ReactNode, useEffect, useId, useRef } from 'react';
 import { cn } from '@/lib/utils';
 
 type Props = {
@@ -26,6 +26,7 @@ type Props = {
 
 export function Dialog({ open, onClose, title, children, dismissable = true, className }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
 
   useEffect(() => {
     if (!open) return;
@@ -59,12 +60,17 @@ export function Dialog({ open, onClose, title, children, dismissable = true, cla
         ref={panelRef}
         role="dialog"
         aria-modal="true"
+        aria-labelledby={title ? titleId : undefined}
         className={cn(
           'relative w-full rounded-t-2xl bg-white p-5 shadow-hero sm:max-w-md sm:rounded-2xl',
           className,
         )}
       >
-        {title && <h3 className="h-page pr-8 text-lg text-ink-1">{title}</h3>}
+        {title && (
+          <h3 id={titleId} className="h-page pr-8 text-lg text-ink-1">
+            {title}
+          </h3>
+        )}
         {children}
         {/* Close button — rendered last so focus-on-open still lands on the
             first meaningful control, not the X. Hidden while non-dismissable
