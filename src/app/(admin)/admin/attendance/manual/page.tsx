@@ -10,15 +10,15 @@
  */
 
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
+import { PageHeader } from '@/components/ui/page-header';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
+import { AttendanceTabs } from '../attendance-tabs';
 import { ManualAttendanceForm } from './manual-form';
 
 export default async function ManualAttendancePage() {
   await requirePermission('attendance.manual-create');
 
-  // Load active employees for the dropdown. We exclude archived + non-
-  // active status. ~50 employees max at Phase-1 scale, so no pagination.
   const employees = await prisma.employee.findMany({
     where: {
       archivedAt: null,
@@ -35,28 +35,30 @@ export default async function ManualAttendancePage() {
   });
 
   return (
-    <div className="mx-auto max-w-2xl px-6 py-8">
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-gray-900">บันทึกการขาด/ลา/สาย (ด้วยตนเอง)</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          ใช้เมื่อพนักงานไม่สามารถเช็คอินด้วย LINE ได้ — เช่น ป่วย, ลืมโทรศัพท์
-        </p>
-      </div>
+    <div className="px-4 py-6 sm:px-6 lg:px-8">
+      <PageHeader
+        breadcrumb="ลงเวลา"
+        title="คีย์มือ — บันทึกการขาด/ลา/สาย"
+        subtitle="ใช้เมื่อพนักงานไม่สามารถเช็คอินด้วย LINE ได้ — เช่น ป่วย, ลืมโทรศัพท์"
+      />
+      <AttendanceTabs current="manual" />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>รายละเอียด</CardTitle>
-        </CardHeader>
-        <CardBody>
-          <ManualAttendanceForm
-            employees={employees.map((e) => ({
-              id: e.id,
-              label:
-                `${e.firstName} ${e.lastName}${e.nickname ? ` (${e.nickname})` : ''} — ${e.branch.name}`.trim(),
-            }))}
-          />
-        </CardBody>
-      </Card>
+      <div className="max-w-2xl">
+        <Card>
+          <CardHeader>
+            <CardTitle>รายละเอียด</CardTitle>
+          </CardHeader>
+          <CardBody>
+            <ManualAttendanceForm
+              employees={employees.map((e) => ({
+                id: e.id,
+                label:
+                  `${e.firstName} ${e.lastName}${e.nickname ? ` (${e.nickname})` : ''} — ${e.branch.name}`.trim(),
+              }))}
+            />
+          </CardBody>
+        </Card>
+      </div>
     </div>
   );
 }
