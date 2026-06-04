@@ -64,3 +64,24 @@ export function StatusBadge({ status, children, className }: Props) {
     </span>
   );
 }
+
+/** Left-rail border color per approval status (width comes from `border-l-4`). */
+export const STATUS_RAIL: Partial<Record<StatusKey, string>> = {
+  pending: 'border-l-amber-400',
+  approved: 'border-l-emerald-400',
+  rejected: 'border-l-red-400',
+  cancelled: 'border-l-slate-300',
+};
+
+/** Small glyph shown inside the badge for approval statuses. */
+export const STATUS_ICON: Partial<Record<StatusKey, string>> = {
+  pending: '⏳',
+  approved: '✓',
+  rejected: '✕',
+  cancelled: '⊘',
+};
+
+/** Rail class for a row, with a neutral fallback for non-approval keys. */
+export function statusRail(status: StatusKey): string {
+  return STATUS_RAIL[status] ?? 'border-l-gray-200';
+}
