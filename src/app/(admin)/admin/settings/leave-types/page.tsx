@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/table';
+import { EmptyState } from '@/components/ui/empty-state';
+import { PageHeader } from '@/components/ui/page-header';
+import { type Column, ResponsiveTable } from '@/components/ui/responsive-table';
 import { prisma } from '@/lib/db/prisma';
 
 type SearchParams = Promise<{ error?: string }>;
@@ -21,88 +22,89 @@ export default async function LeaveTypeListPage({ searchParams }: { searchParams
     },
   });
 
+  const columns: Column<(typeof rows)[number]>[] = [
+    {
+      key: 'name',
+      header: 'ชื่อ',
+      cell: (t) => <span className="font-medium text-ink-1">{t.name}</span>,
+    },
+    {
+      key: 'isPaid',
+      header: 'การจ่ายเงิน',
+      cell: (t) =>
+        t.isPaid ? (
+          <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
+            จ่ายเงิน
+          </span>
+        ) : (
+          <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
+            ไม่จ่าย
+          </span>
+        ),
+    },
+    {
+      key: 'annualQuota',
+      header: 'โควต้า/ปี',
+      cell: (t) => (
+        <span className="tabular-nums text-ink-2">
+          {t.annualQuota != null ? `${t.annualQuota} วัน` : 'ไม่จำกัด'}
+        </span>
+      ),
+    },
+    {
+      key: 'requests',
+      header: 'คำขอทั้งหมด',
+      cell: (t) => <span className="tabular-nums text-ink-2">{t._count.requests}</span>,
+    },
+  ];
+
   return (
-    <div>
-      <div className="mb-6 flex items-baseline justify-between">
-        <div>
-          <h2 className="text-lg font-semibold text-gray-900">ประเภทการลา</h2>
-          <p className="mt-0.5 text-sm text-gray-500">
-            กำหนดประเภทการลาที่พนักงานเลือกได้จาก LIFF (ลาป่วย / ลากิจ / ลาพักร้อน ฯลฯ)
-          </p>
-        </div>
-        <Link href="/admin/settings/leave-types/new">
-          <Button>+ เพิ่มประเภท</Button>
-        </Link>
-      </div>
+    <div className="px-4 py-6 sm:px-6 lg:px-8">
+      <PageHeader
+        breadcrumb="ตั้งค่า"
+        title="ประเภทการลา"
+        subtitle="กำหนดประเภทการลาที่พนักงานเลือกได้จาก LIFF (ลาป่วย / ลากิจ / ลาพักร้อน ฯลฯ)"
+        actions={
+          <Link href="/admin/settings/leave-types/new">
+            <Button>+ เพิ่มประเภท</Button>
+          </Link>
+        }
+      />
 
       {error && (
-        <div role="alert" className="mb-4 rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div
+          role="alert"
+          className="mb-4 rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger-deep"
+        >
           {decodeURIComponent(error)}
         </div>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            ทั้งหมด <span className="tabular-nums text-gray-500">({rows.length})</span>
-          </CardTitle>
-        </CardHeader>
-        <CardBody className="!p-0">
-          {rows.length === 0 ? (
-            <div className="px-6 py-12 text-center">
-              <p className="text-sm text-gray-500">ยังไม่มีประเภทการลา</p>
-              <p className="mt-1 text-xs text-gray-400">
-                พนักงานต้องมีประเภทการลาอย่างน้อย 1 รายการก่อนจึงจะส่งคำขอลาได้
-              </p>
-              <Link href="/admin/settings/leave-types/new" className="mt-3 inline-block">
-                <Button variant="secondary">+ เพิ่มประเภทแรก</Button>
-              </Link>
-            </div>
-          ) : (
-            <Table>
-              <THead>
-                <TR>
-                  <TH>ชื่อ</TH>
-                  <TH>การจ่ายเงิน</TH>
-                  <TH>โควต้า/ปี</TH>
-                  <TH>คำขอทั้งหมด</TH>
-                  <TH className="text-right">การจัดการ</TH>
-                </TR>
-              </THead>
-              <TBody>
-                {rows.map((t) => (
-                  <TR key={t.id}>
-                    <TD className="font-medium text-gray-900">{t.name}</TD>
-                    <TD>
-                      {t.isPaid ? (
-                        <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
-                          จ่ายเงิน
-                        </span>
-                      ) : (
-                        <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
-                          ไม่จ่าย
-                        </span>
-                      )}
-                    </TD>
-                    <TD className="tabular-nums text-gray-700">
-                      {t.annualQuota != null ? `${t.annualQuota} วัน` : 'ไม่จำกัด'}
-                    </TD>
-                    <TD className="tabular-nums">{t._count.requests}</TD>
-                    <TD className="text-right">
-                      <Link
-                        href={`/admin/settings/leave-types/${t.id}/edit`}
-                        className="text-sm font-medium text-primary-600 hover:text-primary-700"
-                      >
-                        แก้ไข
-                      </Link>
-                    </TD>
-                  </TR>
-                ))}
-              </TBody>
-            </Table>
-          )}
-        </CardBody>
-      </Card>
+      <ResponsiveTable
+        columns={columns}
+        rows={rows}
+        rowKey={(t) => t.id}
+        actions={(t) => (
+          <Link
+            href={`/admin/settings/leave-types/${t.id}/edit`}
+            className="text-sm font-medium text-primary-700 hover:text-primary-800"
+          >
+            แก้ไข
+          </Link>
+        )}
+        empty={
+          <div className="surface">
+            <EmptyState
+              title="ยังไม่มีประเภทการลา"
+              action={
+                <Link href="/admin/settings/leave-types/new">
+                  <Button variant="secondary">+ เพิ่มประเภทแรก</Button>
+                </Link>
+              }
+            />
+          </div>
+        }
+      />
     </div>
   );
 }

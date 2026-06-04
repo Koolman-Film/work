@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import { PageHeader } from '@/components/ui/page-header';
 import { prisma } from '@/lib/db/prisma';
 import { AccountingGroupForm } from '../../accounting-group-form';
 import { archiveAccountingGroup, updateAccountingGroup } from '../../actions';
@@ -24,20 +25,23 @@ export default async function EditAccountingGroupPage({
   if (!row || row.archivedAt) notFound();
 
   return (
-    <div className="max-w-2xl">
-      <AccountingGroupForm
-        mode="edit"
-        action={updateAccountingGroup.bind(null, id)}
-        initial={{ name: row.name, peakCode: row.peakCode, description: row.description }}
-        error={error ? decodeURIComponent(error) : null}
-        extraActions={
-          <form action={archiveAccountingGroup.bind(null, id)}>
-            <Button type="submit" variant="destructive">
-              ลบถาวร
-            </Button>
-          </form>
-        }
-      />
+    <div className="px-4 py-6 sm:px-6 lg:px-8">
+      <PageHeader breadcrumb="ตั้งค่า · กลุ่มบัญชี" title="แก้ไขกลุ่มบัญชี" />
+      <div className="max-w-2xl">
+        <AccountingGroupForm
+          mode="edit"
+          action={updateAccountingGroup.bind(null, id)}
+          initial={{ name: row.name, peakCode: row.peakCode, description: row.description }}
+          error={error ? decodeURIComponent(error) : null}
+          extraActions={
+            <form action={archiveAccountingGroup.bind(null, id)}>
+              <Button type="submit" variant="destructive">
+                ลบถาวร
+              </Button>
+            </form>
+          }
+        />
+      </div>
     </div>
   );
 }

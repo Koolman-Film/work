@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/table';
+import { EmptyState } from '@/components/ui/empty-state';
+import { PageHeader } from '@/components/ui/page-header';
+import { type Column, ResponsiveTable } from '@/components/ui/responsive-table';
 import { prisma } from '@/lib/db/prisma';
 
 type SearchParams = Promise<{ error?: string }>;
@@ -24,68 +25,76 @@ export default async function WorkScheduleListPage({
     },
   });
 
+  const columns: Column<(typeof schedules)[number]>[] = [
+    {
+      key: 'name',
+      header: 'ชื่อ',
+      cell: (s) => <span className="font-medium text-ink-1">{s.name}</span>,
+    },
+    {
+      key: 'days',
+      header: 'วันทำงาน',
+      cell: (s) => <DaySummary days={s.days} />,
+    },
+    {
+      key: 'lateTolerance',
+      header: 'เวลายืดหยุ่น',
+      cell: (s) => <span className="tabular-nums text-ink-3">{s.lateToleranceMin} นาที</span>,
+    },
+    {
+      key: 'employees',
+      header: 'พนักงาน',
+      cell: (s) => <span className="tabular-nums text-ink-2">{s._count.employees}</span>,
+    },
+  ];
+
   return (
-    <div>
-      <div className="mb-6 flex items-baseline justify-between">
-        <div>
-          <h2 className="text-lg font-semibold text-gray-900">ตารางงาน</h2>
-          <p className="mt-0.5 text-sm text-gray-500">ตั้งวันทำงาน + เวลาเริ่ม-เลิก ต่อวัน</p>
-        </div>
-        <Link href="/admin/settings/work-schedules/new">
-          <Button>+ เพิ่มตาราง</Button>
-        </Link>
-      </div>
+    <div className="px-4 py-6 sm:px-6 lg:px-8">
+      <PageHeader
+        breadcrumb="ตั้งค่า"
+        title="ตารางงาน"
+        subtitle="ตั้งวันทำงาน + เวลาเริ่ม-เลิก ต่อวัน"
+        actions={
+          <Link href="/admin/settings/work-schedules/new">
+            <Button>+ เพิ่มตาราง</Button>
+          </Link>
+        }
+      />
 
       {error && (
-        <div role="alert" className="mb-4 rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div
+          role="alert"
+          className="mb-4 rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger-deep"
+        >
           {decodeURIComponent(error)}
         </div>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            ทั้งหมด <span className="tabular-nums text-gray-500">({schedules.length})</span>
-          </CardTitle>
-        </CardHeader>
-        <CardBody className="!p-0">
-          {schedules.length === 0 ? (
-            <EmptyState />
-          ) : (
-            <Table>
-              <THead>
-                <TR>
-                  <TH>ชื่อ</TH>
-                  <TH>วันทำงาน</TH>
-                  <TH>เวลายืดหยุ่น</TH>
-                  <TH>พนักงาน</TH>
-                  <TH className="text-right">การจัดการ</TH>
-                </TR>
-              </THead>
-              <TBody>
-                {schedules.map((s) => (
-                  <TR key={s.id}>
-                    <TD className="font-medium text-gray-900">{s.name}</TD>
-                    <TD>
-                      <DaySummary days={s.days} />
-                    </TD>
-                    <TD className="tabular-nums text-gray-500">{s.lateToleranceMin} นาที</TD>
-                    <TD className="tabular-nums">{s._count.employees}</TD>
-                    <TD className="text-right">
-                      <Link
-                        href={`/admin/settings/work-schedules/${s.id}/edit`}
-                        className="text-sm font-medium text-primary-600 hover:text-primary-700"
-                      >
-                        แก้ไข
-                      </Link>
-                    </TD>
-                  </TR>
-                ))}
-              </TBody>
-            </Table>
-          )}
-        </CardBody>
-      </Card>
+      <ResponsiveTable
+        columns={columns}
+        rows={schedules}
+        rowKey={(s) => s.id}
+        actions={(s) => (
+          <Link
+            href={`/admin/settings/work-schedules/${s.id}/edit`}
+            className="text-sm font-medium text-primary-700 hover:text-primary-800"
+          >
+            แก้ไข
+          </Link>
+        )}
+        empty={
+          <div className="surface">
+            <EmptyState
+              title="ยังไม่มีตารางงาน"
+              action={
+                <Link href="/admin/settings/work-schedules/new">
+                  <Button variant="secondary">+ สร้างตารางแรก</Button>
+                </Link>
+              }
+            />
+          </div>
+        }
+      />
     </div>
   );
 }
@@ -131,16 +140,5 @@ function DaySummary({
       <span className="font-medium">{chips}</span>{' '}
       <span className="text-xs text-gray-500">(เวลาต่างกันต่อวัน)</span>
     </span>
-  );
-}
-
-function EmptyState() {
-  return (
-    <div className="px-6 py-12 text-center">
-      <p className="text-sm text-gray-500">ยังไม่มีตารางงาน</p>
-      <Link href="/admin/settings/work-schedules/new" className="mt-3 inline-block">
-        <Button variant="secondary">+ สร้างตารางแรก</Button>
-      </Link>
-    </div>
   );
 }
