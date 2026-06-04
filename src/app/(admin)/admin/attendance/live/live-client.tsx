@@ -1,31 +1,21 @@
 'use client';
 
 /**
- * Live attendance board.
+ * Live attendance board — KPI strip + branch-grouped status chips.
  *
- * Connection model:
- *   - Subscribe to Supabase Realtime channel for postgres_changes on the
- *     Attendance table. On any INSERT/UPDATE/DELETE we refetch the day's
- *     rows via the getTodayAttendance Server Action.
- *   - In parallel, run a 30-second polling loop as a fallback. If
- *     Realtime drops silently (corporate firewall, mobile carrier
- *     WebSocket meddling), the board still self-heals within 30 seconds.
- *
- * Why refetch the full day on every change instead of diff-patching the
- * local array:
- *   - Tiny dataset (≤20 employees × 1-2 rows each); a single Postgres
- *     SELECT is cheaper than maintaining a correct local cache.
- *   - Avoids "stale row count" bugs from out-of-order Realtime payloads.
- *   - The diff-patch approach also misses the case where an UPDATE on row
- *     X needs the *joined* employee.branch row — which our select
- *     dereferences. Plain Realtime payloads don't have joins.
- *
- * UI shows a tiny status pill: "เชื่อมต่อสด" (Realtime open) /
- * "อัปเดตทุก 30 วินาที" (polling fallback) so admins know what to expect.
+ * Connection model (unchanged): subscribe to Supabase Realtime for
+ * postgres_changes on Attendance → refetch the day on any change; plus a
+ * 30s polling fallback so the board self-heals if the socket drops.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { getTodayAttendance, type LiveAttendanceRow } from '@/lib/attendance/live';
+import { EmptyState } from '@/components/ui/empty-state';
+import { StatCard } from '@/components/ui/stat-card';
+import {
+  getTodayAttendance,
+  type LiveAttendanceRow,
+  type LiveBoardData,
+} from '@/lib/attendance/live';
 import { createClient } from '@/lib/supabase/browser';
 
 type Status =
@@ -34,20 +24,15 @@ type Status =
 
 const POLL_INTERVAL_MS = 30_000;
 
-export function LiveBoardClient({ initialRows }: { initialRows: LiveAttendanceRow[] }) {
-  const [rows, setRows] = useState<LiveAttendanceRow[]>(initialRows);
-  const [status, setStatus] = useState<Status>({
-    kind: 'realtime',
-    channelStatus: 'connecting',
-  });
-  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+export function LiveBoardClient({ initial }: { initial: LiveBoardData }) {
+  const [data, setData] = useState<LiveBoardData>(initial);
+  const [status, setStatus] = useState<Status>({ kind: 'realtime', channelStatus: 'connecting' });
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  // Stable refetch callback (kept in a ref so the long-lived polling
-  // interval doesn't capture a stale closure of `rows`).
   const refetch = useCallback(async () => {
     try {
       const next = await getTodayAttendance();
-      setRows(next);
+      setData(next);
       setLastUpdated(new Date());
     } catch (err) {
       console.error('[live-board] refetch failed', err);
@@ -61,40 +46,22 @@ export function LiveBoardClient({ initialRows }: { initialRows: LiveAttendanceRo
     const supabase = createClient();
     const channel = supabase
       .channel('attendance:live-board')
-      .on(
-        'postgres_changes',
-        // Listen to every change on the Attendance table; we'll refetch
-        // when any of them lands. Filtering server-side by today's date
-        // requires Postgres RLS-grant on logical replication — easier to
-        // overfetch and let the SELECT below filter to today.
-        {
-          event: '*',
-          schema: 'public',
-          table: 'Attendance',
-        },
-        () => {
-          void refetchRef.current();
-        },
-      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'Attendance' }, () => {
+        void refetchRef.current();
+      })
       .subscribe((channelStatus) => {
-        // Supabase passes the channel state as a string; normalise to our
-        // 3-value enum.
         if (channelStatus === 'SUBSCRIBED') {
           setStatus({ kind: 'realtime', channelStatus: 'connected' });
         } else if (channelStatus === 'CHANNEL_ERROR' || channelStatus === 'TIMED_OUT') {
-          // Connection dropped — switch the badge to "polling only" so
-          // admins know the freshness model changed.
           setStatus({ kind: 'polling-only' });
         }
       });
-
     return () => {
       void supabase.removeChannel(channel);
     };
   }, []);
 
-  // 30-second polling fallback. Runs regardless of Realtime status —
-  // belt + suspenders.
+  // 30-second polling fallback.
   useEffect(() => {
     const id = setInterval(() => {
       void refetchRef.current();
@@ -102,70 +69,96 @@ export function LiveBoardClient({ initialRows }: { initialRows: LiveAttendanceRo
     return () => clearInterval(id);
   }, []);
 
+  const { rows, activeCount, onLeaveCount } = data;
+  const present = rows.length;
+  const late = rows.filter((r) => isLate(r.clockInAt)).length;
+  const out = rows.filter((r) => r.clockOutAt).length;
+  const notYet = Math.max(0, activeCount - present);
+  const pct = activeCount > 0 ? Math.round((present / activeCount) * 100) : 0;
+  const groups = groupByBranch(rows);
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {/* Status row */}
-      <div className="flex items-center justify-between gap-3 text-xs">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <StatusPill status={status} />
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 text-xs text-ink-3">
           <a
             href="/admin/attendance/manual"
-            className="rounded-md border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+            className="rounded-lg border border-gray-200 bg-white px-2.5 py-1 font-medium text-ink-2 transition hover:bg-gray-50"
           >
             + บันทึกด้วยตนเอง
           </a>
-          <p className="text-gray-400">
-            อัปเดตล่าสุด: {lastUpdated.toLocaleTimeString('th-TH', { timeZone: 'Asia/Bangkok' })}
-          </p>
+          <span>
+            ซิงค์ล่าสุด{' '}
+            {lastUpdated
+              ? lastUpdated.toLocaleTimeString('th-TH', { timeZone: 'Asia/Bangkok' })
+              : '—'}
+          </span>
         </div>
       </div>
 
-      {/* Board */}
+      {/* KPI strip */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        <StatCard label="เข้างานแล้ว" value={present} hint={`${pct}% ของ ${activeCount} คน`} />
+        <StatCard label="มาสาย" value={late} hint="เช็คอินหลัง 09:00" />
+        <StatCard label="ยังไม่มา" value={notYet} hint="ยังไม่เช็คอินวันนี้" />
+        <StatCard label="ลา/หยุด" value={onLeaveCount} hint="อนุมัติแล้ว" />
+        <StatCard label="ออกแล้ว" value={out} hint="เช็คเอาท์แล้ว" />
+      </div>
+
+      {/* Branch-grouped chips */}
       {rows.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-12 text-center">
-          <p className="text-sm text-gray-500">ยังไม่มีพนักงานเช็คอินวันนี้</p>
+        <div className="surface">
+          <EmptyState title="ยังไม่มีพนักงานเช็คอินวันนี้" hint="แผงจะอัปเดตอัตโนมัติเมื่อมีการเช็คอิน" />
         </div>
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
-              <tr>
-                <th className="px-4 py-3 text-left font-medium">พนักงาน</th>
-                <th className="px-4 py-3 text-left font-medium">สาขา</th>
-                <th className="px-4 py-3 text-left font-medium">เช็คอิน</th>
-                <th className="px-4 py-3 text-left font-medium">เช็คเอาท์</th>
-                <th className="px-4 py-3 text-left font-medium">สถานะ</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {rows.map((r) => (
-                <tr key={r.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3">
-                    <span className="font-medium text-gray-900">{r.employeeName}</span>
-                    {r.employeeNickname && (
-                      <span className="ml-1 text-gray-500">({r.employeeNickname})</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-gray-700">{r.branchName}</td>
-                  <td className="px-4 py-3 font-mono text-gray-700">
-                    {r.clockInAt ? formatTimeBkk(r.clockInAt) : '—'}
-                  </td>
-                  <td className="px-4 py-3 font-mono text-gray-700">
-                    {r.clockOutAt ? formatTimeBkk(r.clockOutAt) : '—'}
-                  </td>
-                  <td className="px-4 py-3">
-                    <StatusBadge
-                      status={r.checkInStatus}
-                      hasCheckedOut={!!r.clockOutAt}
-                      isOverridden={r.isOverridden}
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="space-y-5">
+          {groups.map((g) => (
+            <div key={g.branch}>
+              <p className="mb-2 text-xs font-semibold text-ink-3">
+                {g.branch} <span className="text-ink-4">· {g.rows.length} คน</span>
+              </p>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {g.rows.map((r) => (
+                  <Chip key={r.id} row={r} />
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       )}
+
+      {/* Legend */}
+      <div className="flex flex-wrap items-center gap-3 text-[11px] text-ink-4">
+        <Legend color="bg-emerald-400" label="กำลังทำงาน" />
+        <Legend color="bg-amber-400" label="ตรวจสอบ" />
+        <Legend color="bg-slate-300" label="ออกแล้ว" />
+        <Legend color="bg-red-400" label="ปฏิเสธ" />
+        <span className="ml-auto text-ink-5">realtime · supabase channel + 30s polling</span>
+      </div>
+    </div>
+  );
+}
+
+function Chip({ row }: { row: LiveAttendanceRow }) {
+  return (
+    <div
+      className={`flex items-center gap-2.5 rounded-lg border border-gray-200 border-l-4 ${chipRail(row)} bg-white px-3 py-2 shadow-sm`}
+    >
+      <span className="grid size-8 shrink-0 place-items-center rounded-full bg-primary-100 font-display text-[11px] font-bold text-primary-700">
+        {initials(row.employeeName)}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-xs font-medium text-ink-1">
+          {row.employeeName}
+          {row.employeeNickname && <span className="text-ink-3"> ({row.employeeNickname})</span>}
+        </p>
+        <p className="mono text-[10px] text-ink-3">
+          เข้า {row.clockInAt ? fmtTime(row.clockInAt) : '—'}
+          {row.clockOutAt && ` · ออก ${fmtTime(row.clockOutAt)}`}
+        </p>
+      </div>
     </div>
   );
 }
@@ -173,21 +166,20 @@ export function LiveBoardClient({ initialRows }: { initialRows: LiveAttendanceRo
 function StatusPill({ status }: { status: Status }) {
   if (status.kind === 'realtime' && status.channelStatus === 'connected') {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-2.5 py-1 text-[11px] font-medium text-green-700">
-        <span className="size-1.5 animate-pulse rounded-full bg-green-500" aria-hidden="true" />
-        เชื่อมต่อสด
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-700">
+        <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" aria-hidden="true" />🟢
+        LIVE — เชื่อมต่อสด
       </span>
     );
   }
   if (status.kind === 'realtime' && status.channelStatus === 'connecting') {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-50 px-2.5 py-1 text-[11px] font-medium text-gray-600">
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-50 px-2.5 py-1 text-[11px] font-medium text-ink-3">
         <span className="size-1.5 rounded-full bg-gray-400" aria-hidden="true" />
         กำลังเชื่อมต่อ...
       </span>
     );
   }
-  // polling-only or realtime/error
   return (
     <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-800">
       <span className="size-1.5 rounded-full bg-amber-500" aria-hidden="true" />
@@ -196,46 +188,51 @@ function StatusPill({ status }: { status: Status }) {
   );
 }
 
-function StatusBadge({
-  status,
-  hasCheckedOut,
-  isOverridden,
-}: {
-  status: LiveAttendanceRow['checkInStatus'];
-  hasCheckedOut: boolean;
-  isOverridden: boolean;
-}) {
-  // Priority: explicit Disputed/Rejected status > checked-out > confirmed
-  if (status === 'Disputed') {
-    return (
-      <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800">
-        ตรวจสอบ
-      </span>
-    );
-  }
-  if (status === 'Rejected') {
-    return (
-      <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-medium text-red-800">
-        ปฏิเสธ
-      </span>
-    );
-  }
-  if (hasCheckedOut) {
-    return (
-      <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-700">
-        เสร็จงาน
-      </span>
-    );
-  }
+function Legend({ color, label }: { color: string; label: string }) {
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-medium text-green-800">
-      กำลังทำงาน
-      {isOverridden && <span className="text-[8px] text-green-600">(ปรับ)</span>}
+    <span className="inline-flex items-center gap-1">
+      <span className={`size-2 rounded-full ${color}`} aria-hidden="true" />
+      {label}
     </span>
   );
 }
 
-function formatTimeBkk(iso: string): string {
+function chipRail(row: LiveAttendanceRow): string {
+  if (row.checkInStatus === 'Disputed') return 'border-l-amber-400';
+  if (row.checkInStatus === 'Rejected') return 'border-l-red-400';
+  if (row.clockOutAt) return 'border-l-slate-300';
+  return 'border-l-emerald-400';
+}
+
+function groupByBranch(rows: LiveAttendanceRow[]): { branch: string; rows: LiveAttendanceRow[] }[] {
+  const map = new Map<string, LiveAttendanceRow[]>();
+  for (const r of rows) {
+    const list = map.get(r.branchName);
+    if (list) list.push(r);
+    else map.set(r.branchName, [r]);
+  }
+  return [...map.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0], 'th'))
+    .map(([branch, list]) => ({ branch, rows: list }));
+}
+
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase() || '?';
+}
+
+function isLate(clockInIso: string | null): boolean {
+  if (!clockInIso) return false;
+  const hhmm = new Date(clockInIso).toLocaleTimeString('en-GB', {
+    timeZone: 'Asia/Bangkok',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+  return hhmm > '09:00';
+}
+
+function fmtTime(iso: string): string {
   return new Date(iso).toLocaleTimeString('th-TH', {
     hour: '2-digit',
     minute: '2-digit',
