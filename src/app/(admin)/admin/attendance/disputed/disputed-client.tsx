@@ -136,6 +136,7 @@ export function DisputedClient({ rows }: { rows: DisputedVM[] }) {
               <p className="mb-1 text-xs font-medium text-ink-4">ตำแหน่ง vs สาขา</p>
               {selected.branch && selected.empLat != null && selected.empLng != null ? (
                 <DisputeMap
+                  key={selected.id}
                   branch={selected.branch}
                   employee={{ lat: selected.empLat, lng: selected.empLng }}
                 />
