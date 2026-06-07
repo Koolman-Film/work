@@ -130,3 +130,28 @@ export function indexEntriesByDate(entries: TeamCalendarEntry[]): Map<string, Te
   }
   return idx;
 }
+
+// ─── Display helpers ───────────────────────────────────────────────────────
+
+const THAI_MONTHS = [
+  'มกราคม',
+  'กุมภาพันธ์',
+  'มีนาคม',
+  'เมษายน',
+  'พฤษภาคม',
+  'มิถุนายน',
+  'กรกฎาคม',
+  'สิงหาคม',
+  'กันยายน',
+  'ตุลาคม',
+  'พฤศจิกายน',
+  'ธันวาคม',
+] as const;
+
+/**
+ * Header label like "มิถุนายน 2569" — Thai month name + Buddhist-calendar
+ * year (Gregorian + 543). `month0` is 0-indexed (0 = January).
+ */
+export function formatThaiMonthLabel(year: number, month0: number): string {
+  return `${THAI_MONTHS[month0]} ${year + 543}`;
+}
