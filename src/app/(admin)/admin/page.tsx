@@ -21,6 +21,9 @@ import { Pill } from '@/components/ui/pill';
 import { StatCard } from '@/components/ui/stat-card';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
+import { getOrgCalendarData } from '@/lib/leave/team-calendar';
+import { currentMonthYM, parseMonth } from '@/lib/leave/team-calendar-shape';
+import { AdminCalendarCard } from './_calendar/admin-calendar-card';
 
 /**
  * Re-render the dashboard at most every 30 seconds.
@@ -90,6 +93,11 @@ export default async function AdminHomePage() {
   const today = bangkokDateUtcMidnight(new Date());
   const todayIsSunday = today.getUTCDay() === 0;
 
+  // Current Bangkok month for the dashboard calendar card.
+  const initialYm = currentMonthYM();
+  const calMonth = parseMonth(initialYm);
+  if (!calMonth) throw new Error('Could not parse current month — date system broken?');
+
   // Single round-trip via Promise.all. Each query is small (~tens of rows
   // max at Phase-1 scale); the parallelism is mainly latency, not load.
   const [
@@ -102,6 +110,8 @@ export default async function AdminHomePage() {
     pendingLeaveRecent,
     pendingAdvanceRecent,
     onLeaveToday,
+    branchesForCalendar,
+    initialCalendar,
   ] = await Promise.all([
     prisma.leaveRequest.count({ where: { status: 'Pending' } }),
     prisma.cashAdvance.count({ where: { status: 'Pending' } }),
@@ -153,6 +163,12 @@ export default async function AdminHomePage() {
         },
       },
     }),
+    prisma.branch.findMany({
+      where: { archivedAt: null },
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true },
+    }),
+    getOrgCalendarData({ monthStart: calMonth.start, monthEnd: calMonth.end }),
   ]);
 
   // "ยังไม่เช็คอินวันนี้" = active employees minus those who've checked in
@@ -356,6 +372,15 @@ export default async function AdminHomePage() {
             )}
           </CardBody>
         </Card>
+      </div>
+
+      {/* Work calendar — month leave/holiday view across all branches */}
+      <div className="mt-4">
+        <AdminCalendarCard
+          branches={branchesForCalendar}
+          initialYm={initialYm}
+          initialData={initialCalendar}
+        />
       </div>
     </div>
   );
