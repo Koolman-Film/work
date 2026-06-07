@@ -29,7 +29,7 @@ export default async function RoleListPage({ searchParams }: { searchParams: Sea
   });
 
   return (
-    <div>
+    <div className="px-4 py-6 sm:px-6 lg:px-8">
       <div className="mb-6 flex items-baseline justify-between">
         <div>
           <h2 className="text-lg font-semibold text-gray-900">บทบาทและสิทธิ์</h2>
