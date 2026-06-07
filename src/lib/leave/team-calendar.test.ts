@@ -10,6 +10,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildMonthGrid,
+  formatThaiMonthLabel,
   indexEntriesByDate,
   parseMonth,
   shiftMonth,
@@ -156,5 +157,17 @@ describe('indexEntriesByDate', () => {
     expect(idx.has('2026-02-28')).toBe(true);
     expect(idx.has('2026-03-01')).toBe(true);
     expect(idx.has('2026-03-02')).toBe(true);
+  });
+});
+
+describe('formatThaiMonthLabel', () => {
+  it('formats month name + Buddhist year (June 2026 → 2569 BE)', () => {
+    expect(formatThaiMonthLabel(2026, 5)).toBe('มิถุนายน 2569');
+  });
+  it('formats January', () => {
+    expect(formatThaiMonthLabel(2027, 0)).toBe('มกราคม 2570');
+  });
+  it('formats December', () => {
+    expect(formatThaiMonthLabel(2026, 11)).toBe('ธันวาคม 2569');
   });
 });
