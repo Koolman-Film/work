@@ -144,6 +144,7 @@ export async function submitLeaveRequest(input: SubmitInput): Promise<SubmitLeav
     where: {
       employeeId: employee.id,
       status: { in: ['Pending', 'Approved'] },
+      deletedAt: null,
       // Standard range-overlap formula: existing.start ≤ ours.end AND
       // existing.end ≥ ours.start.
       startDate: { lte: end },
