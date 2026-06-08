@@ -16,6 +16,13 @@
  * sub-routes (/liff/check-in, /liff/history, etc.) once the bind is done.
  */
 
+import { LiffLocaleGate } from '@/components/liff/liff-locale-gate';
+
 export default function LiffLayout({ children }: { children: React.ReactNode }) {
-  return <div className="min-h-dvh bg-gray-50">{children}</div>;
+  return (
+    <div className="min-h-dvh bg-gray-50">
+      {children}
+      <LiffLocaleGate />
+    </div>
+  );
 }
