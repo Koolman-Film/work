@@ -8,9 +8,10 @@ import { archiveEmployee, deleteEmployee, updateEmployee } from '../../actions';
 import { EmployeeForm } from '../../employee-form';
 import { PairingCard } from '../../pairing-card';
 import { DangerActions } from './danger-actions';
+import { EntitlementsSection } from './entitlements-section';
 
 type Params = Promise<{ id: string }>;
-type SearchParams = Promise<{ error?: string; ok?: string }>;
+type SearchParams = Promise<{ error?: string; ok?: string; year?: string }>;
 
 export default async function EditEmployeePage({
   params,
@@ -20,7 +21,11 @@ export default async function EditEmployeePage({
   searchParams: SearchParams;
 }) {
   const { id } = await params;
-  const { error, ok } = await searchParams;
+  const { error, ok, year: yearParam } = await searchParams;
+  const currentYear = Number(
+    new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' }).slice(0, 4),
+  );
+  const year = yearParam && /^\d{4}$/.test(yearParam) ? Number(yearParam) : currentYear;
 
   const [emp, options] = await Promise.all([
     prisma.employee.findUnique({
@@ -121,14 +126,17 @@ export default async function EditEmployeePage({
           )
         }
         belowForm={
-          <PairingCard
-            employeeId={id}
-            employeeName={`${emp.firstName} ${emp.lastName}`.trim()}
-            inviteToken={emp.inviteToken}
-            inviteExpiresAt={emp.inviteExpiresAt}
-            lineUserId={emp.user.lineUserId}
-            baseUrl={baseUrl}
-          />
+          <>
+            <PairingCard
+              employeeId={id}
+              employeeName={`${emp.firstName} ${emp.lastName}`.trim()}
+              inviteToken={emp.inviteToken}
+              inviteExpiresAt={emp.inviteExpiresAt}
+              lineUserId={emp.user.lineUserId}
+              baseUrl={baseUrl}
+            />
+            <EntitlementsSection employeeId={id} year={year} />
+          </>
         }
       />
     </div>
