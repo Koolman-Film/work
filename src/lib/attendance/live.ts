@@ -110,15 +110,23 @@ export async function getTodayAttendance(): Promise<LiveBoardData> {
     ...onLeaveRows.map((r) => r.employeeId),
   ]);
 
-  const onLeave: OnLeaveEmployee[] = onLeaveRows.map((r) => ({
-    id: r.id,
-    employeeName: `${r.employee.firstName} ${r.employee.lastName}`,
-    employeeNickname: r.employee.nickname,
-    branchName: r.employee.branch.name,
-    leaveTypeName: r.leaveRequest?.leaveType.name ?? null,
-    startDate: r.leaveRequest ? r.leaveRequest.startDate.toISOString() : null,
-    endDate: r.leaveRequest ? r.leaveRequest.endDate.toISOString() : null,
-  }));
+  // Dedup by employee: a date can now hold two OnLeave rows (a morning + an
+  // afternoon half from separate requests). The board lists/counts each
+  // employee once (first row wins).
+  const onLeaveByEmp = new Map<string, OnLeaveEmployee>();
+  for (const r of onLeaveRows) {
+    if (onLeaveByEmp.has(r.employeeId)) continue;
+    onLeaveByEmp.set(r.employeeId, {
+      id: r.id,
+      employeeName: `${r.employee.firstName} ${r.employee.lastName}`,
+      employeeNickname: r.employee.nickname,
+      branchName: r.employee.branch.name,
+      leaveTypeName: r.leaveRequest?.leaveType.name ?? null,
+      startDate: r.leaveRequest ? r.leaveRequest.startDate.toISOString() : null,
+      endDate: r.leaveRequest ? r.leaveRequest.endDate.toISOString() : null,
+    });
+  }
+  const onLeave: OnLeaveEmployee[] = [...onLeaveByEmp.values()];
 
   return {
     rows: checkInRows.map((r) => ({

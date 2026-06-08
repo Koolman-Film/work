@@ -33,6 +33,8 @@ import { auditLog } from '@/lib/audit/log';
 import { requireRole } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
 import { notifyAdminsInApp } from '@/lib/notifications/in-app-bell';
+import { getLeaveConfig } from './leave-config';
+import { type LeaveUnit, segmentFor, segmentsOverlap } from './units';
 import { parseInputDate } from './working-days';
 
 /** Display name for bell notifications. Prefers nickname when present so
@@ -53,6 +55,8 @@ export type SubmitLeaveResult =
         | 'past-date'
         | 'too-far-future'
         | 'bad-leave-type'
+        | 'bad-unit'
+        | 'bad-segment'
         | 'overlap'
         | 'short-reason'
         | 'bad-attachment-path'
@@ -75,6 +79,13 @@ type SubmitInput = {
    *  Path must match `{authUserId}/leave-medical-certs/...` — Storage
    *  RLS enforces this at upload time; we re-check server-side here. */
   attachmentKey?: string | null;
+  /** Granularity. Defaults to FullDay when omitted (back-compat). The
+   *  `LeaveUnit` string union from ./units shares the Prisma enum's literal
+   *  values, so it's assignable to prisma.leaveRequest.create({ data: { unit } }). */
+  unit?: LeaveUnit;
+  /** "HH:MM" — required for Hourly; ignored for halves (derived). */
+  startTime?: string | null;
+  endTime?: string | null;
 };
 
 const MAX_FUTURE_DAYS = 365;
@@ -132,31 +143,68 @@ export async function submitLeaveRequest(input: SubmitInput): Promise<SubmitLeav
   // Check leave type validity.
   const lt = await prisma.leaveType.findUnique({
     where: { id: input.leaveTypeId },
-    select: { id: true, name: true, archivedAt: true },
+    select: {
+      id: true,
+      name: true,
+      archivedAt: true,
+      allowFullDay: true,
+      allowHalfDay: true,
+      allowHourly: true,
+    },
   });
   if (!lt || lt.archivedAt) {
     return { ok: false, code: 'bad-leave-type', message: 'ประเภทการลาไม่ถูกต้อง' };
   }
 
-  // Overlap check: any existing Pending/Approved request for this
-  // employee whose range intersects ours.
-  const overlap = await prisma.leaveRequest.findFirst({
+  const unit: LeaveUnit = input.unit ?? 'FullDay';
+  const allowed =
+    (unit === 'FullDay' && lt.allowFullDay) ||
+    ((unit === 'HalfMorning' || unit === 'HalfAfternoon') && lt.allowHalfDay) ||
+    (unit === 'Hourly' && lt.allowHourly);
+  if (!allowed) {
+    return { ok: false, code: 'bad-unit', message: 'ประเภทการลานี้ไม่รองรับหน่วยที่เลือก' };
+  }
+
+  // Partial units are single-date and must fall on an open weekday. (Sunday is
+  // the hardcoded closed day; holidays are caught authoritatively at approval,
+  // where the Holiday table is consulted — see admin.ts targetDates guard.)
+  const isPartial = unit !== 'FullDay';
+  if (isPartial) {
+    if (start.getTime() !== end.getTime()) {
+      return { ok: false, code: 'bad-segment', message: 'การลาบางส่วนต้องเป็นวันเดียว' };
+    }
+    if (start.getUTCDay() === 0) {
+      return { ok: false, code: 'bad-segment', message: 'ไม่สามารถลาบางส่วนในวันหยุดได้' };
+    }
+  }
+
+  const cfg = await getLeaveConfig();
+  const segment = segmentFor(unit, cfg, input.startTime, input.endTime);
+  if (!segment) {
+    return { ok: false, code: 'bad-segment', message: 'ช่วงเวลาที่เลือกไม่ถูกต้อง' };
+  }
+
+  // Overlap: pull every Pending/Approved request that intersects our date
+  // range, then reject only when the day actually conflicts. Two PARTIAL
+  // leaves on a shared date are allowed if their time segments are disjoint.
+  const overlaps = await prisma.leaveRequest.findMany({
     where: {
       employeeId: employee.id,
       status: { in: ['Pending', 'Approved'] },
-      // Standard range-overlap formula: existing.start ≤ ours.end AND
-      // existing.end ≥ ours.start.
+      deletedAt: null,
       startDate: { lte: end },
       endDate: { gte: start },
     },
-    select: { id: true },
+    select: { unit: true, startTime: true, endTime: true },
   });
-  if (overlap) {
-    return {
-      ok: false,
-      code: 'overlap',
-      message: 'มีคำขอลาในช่วงวันที่นี้อยู่แล้ว',
-    };
+  const conflict = overlaps.some((o) => {
+    // Either side full-day (or multi-day) → whole-day occupancy → conflict.
+    if (unit === 'FullDay' || o.unit === 'FullDay') return true;
+    // Both partial + single-date: conflict only if the time segments overlap.
+    return segmentsOverlap(segment.startTime, segment.endTime, o.startTime, o.endTime);
+  });
+  if (conflict) {
+    return { ok: false, code: 'overlap', message: 'มีคำขอลาที่ทับซ้อนช่วงวัน/เวลานี้อยู่แล้ว' };
   }
 
   const headerList = await headers();
@@ -189,6 +237,9 @@ export async function submitLeaveRequest(input: SubmitInput): Promise<SubmitLeav
         reason,
         status: 'Pending',
         attachmentUrl: attachmentKey,
+        unit,
+        startTime: segment.startTime,
+        endTime: segment.endTime,
       },
       select: { id: true },
     });

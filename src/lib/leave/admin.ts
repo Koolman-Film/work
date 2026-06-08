@@ -12,12 +12,13 @@
  *   - Skip Sundays (Koolman's closed day per v1)
  *   - Skip non-archived Holiday rows whose date falls in the range
  *
- * Duplicate handling:
- *   - The Attendance @@unique([employeeId, date, type]) constraint catches
- *     the case where an OnLeave row already exists (re-approval, or
- *     overlap with a previously-approved leave). We use createMany with
- *     skipDuplicates so the transaction doesn't abort; the audit log
- *     captures the actual count inserted.
+ * Duplicate / overlap handling:
+ *   - The Attendance partial-unique index now EXCLUDES OnLeave, so a date
+ *     may hold multiple OnLeave rows (e.g. a morning-half + an afternoon-half
+ *     from separate requests). Before inserting, approval runs an explicit
+ *     per-date time-overlap guard (segmentsOverlap) and rejects clashing or
+ *     full-day-vs-anything requests, so a unique violation can't occur in
+ *     normal flow. Each request owns its rows (leaveRequestId) for clean void.
  *
  * Audit:
  *   - `leave.approve` / `leave.reject` actions, with before/after status
@@ -31,7 +32,20 @@ import { auditLogTx } from '@/lib/audit/log';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { sendNotification } from '@/lib/inngest/events';
+import { getLeaveConfig } from './leave-config';
+import { formatDaysHours, segmentFor, segmentsOverlap } from './units';
 import { expandHolidaysWithSubstitutes, workingDaysIn } from './working-days';
+
+/** Format a Date's Bangkok wall-clock time as "HH:MM" for segment comparison.
+ *  OnLeave rows store clockInAt/clockOutAt as the segment bounds on the date. */
+function hhmm(d: Date): string {
+  return d.toLocaleTimeString('en-GB', {
+    timeZone: 'Asia/Bangkok',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+}
 
 export type ApproveResult =
   | { ok: true; attendanceRowsCreated: number; workingDays: number }
@@ -89,6 +103,7 @@ export async function approveLeaveRequest(input: Input): Promise<ApproveResult> 
       startDate: string;
       endDate: string;
       workingDayCount: number;
+      durationLabel: string;
     } | null;
   } = { data: null };
 
@@ -103,6 +118,9 @@ export async function approveLeaveRequest(input: Input): Promise<ApproveResult> 
           leaveTypeId: true,
           startDate: true,
           endDate: true,
+          unit: true,
+          startTime: true,
+          endTime: true,
           employee: { select: { firstName: true, userId: true } },
           leaveType: { select: { name: true } },
         },
@@ -141,28 +159,74 @@ export async function approveLeaveRequest(input: Input): Promise<ApproveResult> 
         holidays: expandedHolidays,
       });
 
-      // Build the Attendance rows. `date` is the calendar day (UTC midnight,
-      // matching @db.Date). `clockInAt/clockOutAt` stay null — the row's
-      // existence + type=OnLeave is the signal. `createdById` = admin doing
-      // the approval (audit trail).
-      const attendanceRows = workingDays.map((d) => ({
+      const cfg = await getLeaveConfig();
+      const segment = segmentFor(req.unit, cfg, req.startTime, req.endTime);
+      if (!segment) {
+        return { ok: false as const, code: 'db-error' as const, message: 'ช่วงเวลาการลาไม่ถูกต้อง' };
+      }
+
+      // FullDay → one row per working day, each a full standard day.
+      // Partial → exactly one row on the single date (workingDays has 1 entry;
+      // if 0, the date is a closed day and there is nothing to charge).
+      const targetDates = workingDays;
+      if (targetDates.length === 0) {
+        return {
+          ok: false as const,
+          code: 'db-error' as const,
+          message: 'ไม่มีวันทำงานในช่วงที่เลือก',
+        };
+      }
+
+      // Per-date time-overlap guard against existing OnLeave rows (a date may
+      // hold two disjoint partial leaves, but not overlapping ones / a full day).
+      const existing = await tx.attendance.findMany({
+        where: {
+          employeeId: req.employeeId,
+          type: 'OnLeave',
+          deletedAt: null,
+          date: { in: targetDates },
+          leaveRequestId: { not: req.id },
+        },
+        select: { date: true, clockInAt: true, clockOutAt: true },
+      });
+      const newStart = req.unit === 'FullDay' ? null : segment.startTime;
+      const newEnd = req.unit === 'FullDay' ? null : segment.endTime;
+      const clash = existing.find((e) => {
+        const eStart = e.clockInAt ? hhmm(e.clockInAt) : null;
+        const eEnd = e.clockOutAt ? hhmm(e.clockOutAt) : null;
+        return segmentsOverlap(newStart, newEnd, eStart, eEnd);
+      });
+      if (clash) {
+        return {
+          ok: false as const,
+          code: 'db-error' as const,
+          message: `วันที่ ${clash.date.toISOString().slice(0, 10)} มีการลาทับซ้อนอยู่แล้ว`,
+        };
+      }
+
+      // Partial leaves carry the segment as clockInAt/clockOutAt so the live
+      // board can show the window and OT can reconcile. Build the BANGKOK
+      // instant (+07:00, no DST in Thailand) so it renders as the chosen wall-
+      // clock time everywhere clockInAt is formatted in Asia/Bangkok — and so
+      // the hhmm() round-trip used by the overlap guard is consistent.
+      function segInstant(date: Date, time: string): Date {
+        return new Date(`${date.toISOString().slice(0, 10)}T${time}:00+07:00`);
+      }
+
+      const attendanceRows = targetDates.map((d) => ({
         employeeId: req.employeeId,
         date: d,
         type: 'OnLeave' as const,
         source: 'Manual' as const,
+        durationMinutes: segment.minutes,
+        clockInAt: segment.startTime ? segInstant(d, segment.startTime) : null,
+        clockOutAt: segment.endTime ? segInstant(d, segment.endTime) : null,
         leaveRequestId: req.id,
         createdById: user.id,
       }));
 
-      const inserted =
-        attendanceRows.length > 0
-          ? await tx.attendance.createMany({
-              data: attendanceRows,
-              // If a previous approval already created some of these rows
-              // (admin re-approves after a bug), don't blow up the tx.
-              skipDuplicates: true,
-            })
-          : { count: 0 };
+      const inserted = await tx.attendance.createMany({ data: attendanceRows });
+      const chargedMinutes = segment.minutes * targetDates.length;
 
       // Mark the LeaveRequest itself approved.
       await tx.leaveRequest.update({
@@ -172,6 +236,7 @@ export async function approveLeaveRequest(input: Input): Promise<ApproveResult> 
           reviewedById: user.id,
           reviewedAt: new Date(),
           reviewNote: note,
+          chargedMinutes,
         },
       });
 
@@ -184,6 +249,8 @@ export async function approveLeaveRequest(input: Input): Promise<ApproveResult> 
         after: {
           status: 'Approved',
           reviewNote: note,
+          unit: req.unit,
+          chargedMinutes,
           attendanceRowsCreated: inserted.count,
           workingDays: workingDays.length,
           dates: workingDays.map((d) => d.toISOString().slice(0, 10)),
@@ -199,6 +266,7 @@ export async function approveLeaveRequest(input: Input): Promise<ApproveResult> 
         startDate: req.startDate.toISOString().slice(0, 10),
         endDate: req.endDate.toISOString().slice(0, 10),
         workingDayCount: workingDays.length,
+        durationLabel: formatDaysHours(chargedMinutes, cfg),
       };
 
       return {
@@ -220,6 +288,7 @@ export async function approveLeaveRequest(input: Input): Promise<ApproveResult> 
         startDate: notifBox.data.startDate,
         endDate: notifBox.data.endDate,
         workingDays: notifBox.data.workingDayCount,
+        durationLabel: notifBox.data.durationLabel,
         reviewNote: note,
       });
     }

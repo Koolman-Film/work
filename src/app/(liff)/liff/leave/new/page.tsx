@@ -9,16 +9,28 @@
 import { redirect } from 'next/navigation';
 import { requireRole } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
+import { getLeaveConfig } from '@/lib/leave/leave-config';
 import { LeaveNewForm } from './leave-new-form';
 
 export default async function NewLeavePage() {
   await requireRole(['Staff']);
 
-  const leaveTypes = await prisma.leaveType.findMany({
-    where: { archivedAt: null },
-    orderBy: { name: 'asc' },
-    select: { id: true, name: true, isPaid: true, annualQuota: true },
-  });
+  const [leaveTypes, leaveConfig] = await Promise.all([
+    prisma.leaveType.findMany({
+      where: { archivedAt: null },
+      orderBy: { name: 'asc' },
+      select: {
+        id: true,
+        name: true,
+        isPaid: true,
+        annualQuota: true,
+        allowFullDay: true,
+        allowHalfDay: true,
+        allowHourly: true,
+      },
+    }),
+    getLeaveConfig(),
+  ]);
 
   if (leaveTypes.length === 0) {
     // Defensive: if admin hasn't seeded any LeaveType yet, send the
@@ -30,5 +42,5 @@ export default async function NewLeavePage() {
   // Today's date in YYYY-MM-DD (Bangkok) for the date `min` attribute.
   const todayYmd = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
 
-  return <LeaveNewForm leaveTypes={leaveTypes} minDate={todayYmd} />;
+  return <LeaveNewForm leaveTypes={leaveTypes} minDate={todayYmd} leaveConfig={leaveConfig} />;
 }
