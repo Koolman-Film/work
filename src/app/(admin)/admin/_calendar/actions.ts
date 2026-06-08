@@ -15,7 +15,7 @@ import { prisma } from '@/lib/db/prisma';
 import { getOrgCalendarData } from '@/lib/leave/team-calendar';
 import { currentMonthYM, parseMonth, type TeamCalendarData } from '@/lib/leave/team-calendar-shape';
 import { expandHolidaysWithSubstitutes, workingDaysIn } from '@/lib/leave/working-days';
-import { signAttendancePhotoUrls } from '@/lib/storage/signed-urls';
+import { resolveStoredImageUrl } from '@/lib/storage/signed-urls';
 import type { AdvanceRowVM } from '../advance/advance-review-modal';
 import { ADVANCE_SELECT, buildAdvanceRowVM } from '../advance/advance-row-vm';
 import type { LeaveRowVM } from '../leave/leave-review-modal';
@@ -39,14 +39,6 @@ export async function loadAdminCalendar(input: {
   });
 }
 
-/** Resolve a possibly-relative storage key to a signed URL (or pass through http URLs). */
-async function resolveOne(value: string | null): Promise<string | null> {
-  if (!value) return null;
-  if (/^https?:\/\//i.test(value)) return value;
-  const signed = await signAttendancePhotoUrls([value]);
-  return signed.get(value) ?? null;
-}
-
 /**
  * Fetch the full leave review VM for one request, for the calendar's
  * click-to-review. Same permission as the leave approve action.
@@ -68,7 +60,7 @@ export async function getLeaveReviewRow(leaveRequestId: string): Promise<LeaveRo
   }).length;
 
   return buildLeaveRowVM(row, {
-    attachmentUrl: await resolveOne(row.attachmentUrl),
+    attachmentUrl: await resolveStoredImageUrl(row.attachmentUrl),
     workingDays,
   });
 }
@@ -86,5 +78,5 @@ export async function getAdvanceReviewRow(cashAdvanceId: string): Promise<Advanc
   });
   if (!row) return null;
 
-  return buildAdvanceRowVM(row, { receiptUrl: await resolveOne(row.receiptUrl) });
+  return buildAdvanceRowVM(row, { receiptUrl: await resolveStoredImageUrl(row.receiptUrl) });
 }
