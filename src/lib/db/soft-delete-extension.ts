@@ -10,7 +10,7 @@ import { Prisma } from '@prisma/client';
  * Bypass: code that must SEE voided rows (void/restore actions, trash views)
  * uses `prismaRaw` from ./prisma, which is unextended.
  */
-const SOFT_DELETE_MODELS = new Set(['Attendance', 'LeaveRequest', 'CashAdvance']);
+const SOFT_DELETE_MODELS = new Set(['Attendance', 'LeaveRequest', 'CashAdvance', 'OvertimeEntry']);
 const READ_OPS = new Set(['findFirst', 'findFirstOrThrow', 'findMany', 'count', 'aggregate']);
 
 export const softDeleteExtension = Prisma.defineExtension({
