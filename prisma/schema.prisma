@@ -85,6 +85,13 @@ enum LeaveStatus {
   Cancelled
 }
 
+enum LeaveUnit {
+  FullDay
+  HalfMorning
+  HalfAfternoon
+  Hourly
+}
+
 enum AdvanceStatus {
   Pending
   Approved
@@ -448,8 +455,23 @@ model LeaveType {
   name        String    @unique // "ลาป่วย", "ลากิจ", "ลาพักร้อน"
   isPaid      Boolean   @default(true)
   annualQuota Int?      // null = unlimited (e.g., unpaid leave)
+  allowFullDay Boolean  @default(true)
+  allowHalfDay Boolean  @default(false)
+  allowHourly  Boolean  @default(false)
   archivedAt  DateTime?
   requests    LeaveRequest[]
+}
+
+/// Company-wide leave-unit configuration (singleton — read via findFirst()).
+/// Defines the morning/afternoon half-day windows; the standard day length is
+/// derived from them. Edited on /admin/settings/leave-config.
+model LeaveConfig {
+  id             String   @id @default(uuid()) @db.Uuid
+  morningStart   String   @default("09:00") // "HH:MM" 24h, app-validated
+  morningEnd     String   @default("12:00")
+  afternoonStart String   @default("13:00")
+  afternoonEnd   String   @default("17:00")
+  updatedAt      DateTime @updatedAt
 }
 
 model LeaveRequest {
@@ -460,6 +482,10 @@ model LeaveRequest {
   leaveType     LeaveType @relation(fields: [leaveTypeId], references: [id], onDelete: Restrict)
   startDate     DateTime  @db.Date
   endDate       DateTime  @db.Date
+  unit           LeaveUnit @default(FullDay)
+  startTime      String?   // "HH:MM" — set for HalfMorning/HalfAfternoon/Hourly
+  endTime        String?
+  chargedMinutes Int?      // frozen at approval; the amount deducted from balance
   reason        String
   attachmentUrl String?   // medical certificate / supporting doc
   status        LeaveStatus

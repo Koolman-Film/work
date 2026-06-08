@@ -110,7 +110,15 @@ export default async function AdminHomePage() {
     prisma.employee.count({
       where: { archivedAt: null, status: { not: 'Archived' }, canCheckIn: true },
     }),
-    prisma.attendance.count({ where: { type: 'OnLeave', date: today } }),
+    // Distinct by employee: a date can hold two OnLeave rows (two halves), so
+    // count people on leave, not rows.
+    prisma.attendance
+      .findMany({
+        where: { type: 'OnLeave', date: today },
+        distinct: ['employeeId'],
+        select: { employeeId: true },
+      })
+      .then((rows) => rows.length),
     prisma.holiday.findFirst({
       where: { date: today, archivedAt: null },
       select: { name: true },
@@ -141,6 +149,7 @@ export default async function AdminHomePage() {
     }),
     prisma.attendance.findMany({
       where: { type: 'OnLeave', date: today },
+      distinct: ['employeeId'],
       orderBy: { employee: { firstName: 'asc' } },
       select: {
         id: true,

@@ -45,6 +45,9 @@ export type NotificationPayload =
       endDate: string;
       /** Working days expanded (approved) — null on reject. */
       workingDays: number | null;
+      /** Preformatted days+hours duration ("1 วัน 3 ชม.") for approved leave;
+       *  preferred over workingDays in the flex message. Omitted on reject. */
+      durationLabel?: string | null;
       reviewNote: string | null;
     }
   | {

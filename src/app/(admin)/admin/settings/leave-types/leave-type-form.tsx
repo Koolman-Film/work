@@ -8,6 +8,9 @@ type Initial = {
   name: string;
   isPaid: boolean;
   annualQuota: number | null;
+  allowFullDay: boolean;
+  allowHalfDay: boolean;
+  allowHourly: boolean;
 };
 
 type Props =
@@ -87,6 +90,35 @@ export function LeaveTypeForm({ mode, action, initial, error, extraActions }: Pr
                 placeholder="เช่น 30"
                 defaultValue={initial?.annualQuota?.toString() ?? ''}
               />
+            </FormField>
+
+            <FormField
+              label="หน่วยการลาที่อนุญาต"
+              htmlFor="allowFullDay"
+              hint="เลือกได้ว่าการลาประเภทนี้ลาแบบใดได้บ้าง"
+            >
+              <div className="space-y-2">
+                {[
+                  { name: 'allowFullDay', label: 'เต็มวัน', def: initial?.allowFullDay ?? true },
+                  {
+                    name: 'allowHalfDay',
+                    label: 'ครึ่งวัน (เช้า/บ่าย)',
+                    def: initial?.allowHalfDay ?? false,
+                  },
+                  { name: 'allowHourly', label: 'รายชั่วโมง', def: initial?.allowHourly ?? false },
+                ].map((u) => (
+                  <label key={u.name} className="flex items-center gap-3 text-sm">
+                    <input
+                      type="checkbox"
+                      id={u.name}
+                      name={u.name}
+                      defaultChecked={u.def}
+                      className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                    />
+                    <span className="text-gray-900">{u.label}</span>
+                  </label>
+                ))}
+              </div>
             </FormField>
           </CardBody>
           <CardFooter className="flex items-center justify-between">
