@@ -14,12 +14,17 @@
  *   - **Plain-text altText** ALWAYS — populates the OS notification
  *     preview where Flex isn't supported (e.g. iOS lock screen).
  *
- * Why we hardcode template strings instead of i18n:
- *   v1 is Thai-only by product decision. Adding i18n now would be
- *   yak-shaving for an audience of one language.
+ * Templates are localized per recipient locale via `createTranslator` +
+ * `getMessages(locale)` (chrome strings: headers, subtitles, labels, action
+ * buttons, altText). Dynamic payload values such as `leaveTypeName` and
+ * `reviewNote` are DB/free-text and pass through untranslated.
  */
 
 import type { messagingApi } from '@line/bot-sdk';
+import { createTranslator } from 'next-intl';
+import type { Locale } from '@/lib/i18n/config';
+import { formatDate } from '@/lib/i18n/format';
+import { getMessages } from '@/lib/i18n/messages';
 import type { NotificationPayload } from '@/lib/inngest/events';
 
 type FlexMessage = messagingApi.FlexMessage;
@@ -33,132 +38,140 @@ const RED = '#dc2626';
 const TEXT_DARK = '#1f2937';
 const TEXT_MUTED = '#6b7280';
 
-/**
- * Format a YYYY-MM-DD string in Thai short-date form (e.g. "12 พ.ค. 2569"
- * including Buddhist-era year).
- */
-function fmtThaiDate(ymd: string): string {
-  const d = new Date(`${ymd}T00:00:00.000Z`);
-  if (Number.isNaN(d.getTime())) return ymd;
-  // Use UTC formatter because the input is a UTC midnight calendar day.
-  const formatter = new Intl.DateTimeFormat('th-TH', {
-    timeZone: 'UTC',
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
-  return formatter.format(d);
+/** Parse a 'YYYY-MM-DD' calendar day into a Date (UTC midnight). */
+function parseYmd(ymd: string): Date {
+  return new Date(`${ymd}T00:00:00.000Z`);
 }
 
-function fmtDateRange(startYmd: string, endYmd: string): string {
+function fmtDate(ymd: string, locale: Locale): string {
+  const d = parseYmd(ymd);
+  return Number.isNaN(d.getTime()) ? ymd : formatDate(d, locale);
+}
+
+function fmtDateRange(startYmd: string, endYmd: string, locale: Locale): string {
   return startYmd === endYmd
-    ? fmtThaiDate(startYmd)
-    : `${fmtThaiDate(startYmd)} – ${fmtThaiDate(endYmd)}`;
+    ? fmtDate(startYmd, locale)
+    : `${fmtDate(startYmd, locale)} – ${fmtDate(endYmd, locale)}`;
 }
 
 /** Build a Flex Message bubble for the given notification payload. */
-export function buildFlexMessage(payload: NotificationPayload, appBaseUrl: string): FlexMessage {
+export function buildFlexMessage(
+  payload: NotificationPayload,
+  appBaseUrl: string,
+  locale: Locale,
+): FlexMessage {
+  // createTranslator's IntlMessages constraint is Record<string, any>; passing the
+  // notifications sub-object directly (no namespace) keeps keys relative and avoids
+  // the any cast on the full catalog. The value cast is safe — catalog is plain JSON.
+  // biome-ignore lint/suspicious/noExplicitAny: use-intl IntlMessages requires any-valued records
+  const notifMessages = getMessages(locale).notifications as Record<string, any>;
+  const t = createTranslator({ locale, messages: notifMessages });
   let bubble: FlexBubble;
   let altText: string;
 
   switch (payload.kind) {
     case 'leave.approved':
-      altText = `✅ คำขอลา ${payload.leaveTypeName} ของคุณได้รับการอนุมัติ`;
+      altText = t('leaveApproved.alt', { type: payload.leaveTypeName });
       bubble = approvedRejectedBubble({
         accent: GREEN,
         headerEmoji: '✅',
-        headerText: 'อนุมัติคำขอลา',
-        title: `${payload.leaveTypeName}`,
-        subtitle: fmtDateRange(payload.startDate, payload.endDate),
+        headerText: t('leaveApproved.header'),
+        title: payload.leaveTypeName,
+        subtitle: fmtDateRange(payload.startDate, payload.endDate, locale),
         details: [
           payload.durationLabel
-            ? { label: 'ระยะเวลา', value: payload.durationLabel }
+            ? { label: t('label.duration'), value: payload.durationLabel }
             : payload.workingDays != null
-              ? { label: 'วันทำงาน', value: `${payload.workingDays} วัน` }
+              ? {
+                  label: t('label.workingDays'),
+                  value: t('workingDaysValue', { days: payload.workingDays }),
+                }
               : null,
-          payload.reviewNote ? { label: 'หมายเหตุ', value: payload.reviewNote } : null,
+          payload.reviewNote ? { label: t('label.note'), value: payload.reviewNote } : null,
         ],
-        actionLabel: 'ดูรายละเอียด',
+        actionLabel: t('action.viewDetails'),
         actionUri: `${appBaseUrl}/liff/leave/${payload.leaveRequestId}`,
       });
       break;
 
     case 'leave.rejected':
-      altText = `❌ คำขอลา ${payload.leaveTypeName} ของคุณถูกปฏิเสธ`;
+      altText = t('leaveRejected.alt', { type: payload.leaveTypeName });
       bubble = approvedRejectedBubble({
         accent: RED,
         headerEmoji: '❌',
-        headerText: 'ไม่อนุมัติคำขอลา',
-        title: `${payload.leaveTypeName}`,
-        subtitle: fmtDateRange(payload.startDate, payload.endDate),
-        details: [payload.reviewNote ? { label: 'เหตุผล', value: payload.reviewNote } : null],
-        actionLabel: 'ดูรายละเอียด',
+        headerText: t('leaveRejected.header'),
+        title: payload.leaveTypeName,
+        subtitle: fmtDateRange(payload.startDate, payload.endDate, locale),
+        details: [
+          payload.reviewNote ? { label: t('label.reason'), value: payload.reviewNote } : null,
+        ],
+        actionLabel: t('action.viewDetails'),
         actionUri: `${appBaseUrl}/liff/leave/${payload.leaveRequestId}`,
       });
       break;
 
     case 'advance.approved':
-      altText = `✅ คำขอเบิก ฿${payload.amount} ของคุณได้รับการอนุมัติ`;
+      altText = t('advanceApproved.alt', { amount: payload.amount });
       bubble = approvedRejectedBubble({
         accent: GREEN,
         headerEmoji: '✅',
-        headerText: 'อนุมัติคำขอเบิก',
+        headerText: t('advanceApproved.header'),
         title: `฿${payload.amount}`,
-        subtitle: 'จะหักจากเงินเดือนงวดถัดไป',
+        subtitle: t('advanceApproved.subtitle'),
         details: [],
-        actionLabel: 'ดูรายละเอียด',
+        actionLabel: t('action.viewDetails'),
         actionUri: `${appBaseUrl}/liff/advance/${payload.cashAdvanceId}`,
       });
       break;
 
     case 'advance.rejected':
-      altText = `❌ คำขอเบิก ฿${payload.amount} ของคุณถูกปฏิเสธ`;
+      altText = t('advanceRejected.alt', { amount: payload.amount });
       bubble = approvedRejectedBubble({
         accent: RED,
         headerEmoji: '❌',
-        headerText: 'ไม่อนุมัติคำขอเบิก',
+        headerText: t('advanceRejected.header'),
         title: `฿${payload.amount}`,
-        subtitle: 'กรุณาติดต่อแอดมินเพื่อขอข้อมูลเพิ่มเติม',
+        subtitle: t('advanceRejected.subtitle'),
         details: [],
-        actionLabel: 'ดูรายละเอียด',
+        actionLabel: t('action.viewDetails'),
         actionUri: `${appBaseUrl}/liff/advance/${payload.cashAdvanceId}`,
       });
       break;
 
     case 'attendance.dispute-approved':
-      altText = `✅ เช็คอินวันที่ ${fmtThaiDate(payload.date)} ของคุณได้รับการยืนยัน`;
+      altText = t('disputeApproved.alt', { date: fmtDate(payload.date, locale) });
       bubble = approvedRejectedBubble({
         accent: GREEN,
         headerEmoji: '✅',
-        headerText: 'ยืนยันการเช็คอิน',
-        title: fmtThaiDate(payload.date),
-        subtitle: 'แอดมินตรวจสอบและยืนยันการเช็คอินที่ต้องตรวจสอบแล้ว',
-        details: [payload.reviewNote ? { label: 'หมายเหตุ', value: payload.reviewNote } : null],
-        actionLabel: 'ดูประวัติเช็คอิน',
+        headerText: t('disputeApproved.header'),
+        title: fmtDate(payload.date, locale),
+        subtitle: t('disputeApproved.subtitle'),
+        details: [
+          payload.reviewNote ? { label: t('label.note'), value: payload.reviewNote } : null,
+        ],
+        actionLabel: t('action.viewAttendance'),
         actionUri: `${appBaseUrl}/liff/check-in`,
       });
       break;
 
     case 'attendance.dispute-rejected':
-      altText = `❌ เช็คอินวันที่ ${fmtThaiDate(payload.date)} ของคุณถูกปฏิเสธ`;
+      altText = t('disputeRejected.alt', { date: fmtDate(payload.date, locale) });
       bubble = approvedRejectedBubble({
         accent: RED,
         headerEmoji: '❌',
-        headerText: 'ปฏิเสธการเช็คอิน',
-        title: fmtThaiDate(payload.date),
-        subtitle: 'แอดมินไม่ยืนยันการเช็คอินวันดังกล่าว',
-        details: [payload.reviewNote ? { label: 'เหตุผล', value: payload.reviewNote } : null],
-        actionLabel: 'ดูประวัติเช็คอิน',
+        headerText: t('disputeRejected.header'),
+        title: fmtDate(payload.date, locale),
+        subtitle: t('disputeRejected.subtitle'),
+        details: [
+          payload.reviewNote ? { label: t('label.reason'), value: payload.reviewNote } : null,
+        ],
+        actionLabel: t('action.viewAttendance'),
         actionUri: `${appBaseUrl}/liff/check-in`,
       });
       break;
   }
 
-  return {
-    type: 'flex',
-    altText,
-    contents: bubble,
-  };
+  return { type: 'flex', altText, contents: bubble };
 }
 
 /**

@@ -25,6 +25,7 @@
 
 import type { messagingApi } from '@line/bot-sdk';
 import { prisma } from '@/lib/db/prisma';
+import { DEFAULT_LOCALE, isLocale } from '@/lib/i18n/config';
 import { appBaseUrl, buildFlexMessage } from '@/lib/line/flex-templates';
 import { getLineMessagingClient } from '@/lib/line/messaging-client';
 import { inngest } from '../client';
@@ -62,20 +63,21 @@ export const linePushNotification = inngest.createFunction(
       });
     });
 
-    // Step 2 — look up LINE userId
-    const lineUserId = await step.run('lookup-line-user-id', async () => {
+    // Step 2 — look up LINE userId + recipient locale
+    const userInfo = await step.run('lookup-line-user-id', async () => {
       const u = await prisma.user.findUnique({
         where: { id: recipientUserId },
-        select: { lineUserId: true, archivedAt: true },
+        select: { lineUserId: true, archivedAt: true, locale: true },
       });
       // Archived users don't get notifications. Refusing here also
       // prevents leaking that an archived account still exists.
       if (!u || u.archivedAt) return null;
-      return u.lineUserId;
+      return { lineUserId: u.lineUserId, locale: u.locale };
     });
+    const lineUserId = userInfo?.lineUserId ?? null;
 
     // Step 3 — bail if not paired. Not a failure; just no delivery channel.
-    if (!lineUserId) {
+    if (!userInfo || !lineUserId) {
       logger.info(
         `skipping push: no lineUserId on User.${recipientUserId} (employee not yet paired)`,
       );
@@ -87,8 +89,10 @@ export const linePushNotification = inngest.createFunction(
     }
 
     // Step 4 — build the Flex Message (pure; outside step.run because
-    // it's not I/O and replay-deterministic)
-    const message: FlexMessage = buildFlexMessage(payload, appBaseUrl());
+    // it's not I/O and replay-deterministic).
+    // Resolve recipient locale: prefer the stored value, fall back to DEFAULT_LOCALE.
+    const recipientLocale = isLocale(userInfo.locale) ? userInfo.locale : DEFAULT_LOCALE;
+    const message: FlexMessage = buildFlexMessage(payload, appBaseUrl(), recipientLocale);
 
     // Step 5 — push to LINE.
     // If this throws, Inngest retries with exponential backoff (3 retries
