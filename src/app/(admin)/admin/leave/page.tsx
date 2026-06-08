@@ -22,15 +22,15 @@ import { restoreLeaveRequest } from '@/lib/leave/void';
 import { expandHolidaysWithSubstitutes, workingDaysIn } from '@/lib/leave/working-days';
 import { signAttendancePhotoUrls } from '@/lib/storage/signed-urls';
 import { LeaveInbox, type LeaveRowVM } from './leave-inbox';
+import {
+  buildLeaveRowVM,
+  formatLeaveDateTime,
+  formatLeaveRange,
+  LEAVE_SELECT,
+  LEAVE_STATUS_INFO,
+} from './leave-row-vm';
 
 type SearchParams = Promise<{ status?: string; trash?: string }>;
-
-const STATUS_INFO: Record<string, { label: string; key: StatusKey }> = {
-  Pending: { label: 'รออนุมัติ', key: 'pending' },
-  Approved: { label: 'อนุมัติแล้ว', key: 'approved' },
-  Rejected: { label: 'ไม่อนุมัติ', key: 'rejected' },
-  Cancelled: { label: 'ยกเลิก', key: 'cancelled' },
-};
 
 const FILTER_OPTIONS = [
   { value: '', label: 'รออนุมัติ' },
@@ -38,34 +38,6 @@ const FILTER_OPTIONS = [
   { value: 'approved', label: 'อนุมัติแล้ว' },
   { value: 'rejected', label: 'ไม่อนุมัติ' },
 ] as const;
-
-function formatRange(start: Date, end: Date): string {
-  const opts: Intl.DateTimeFormatOptions = {
-    timeZone: 'UTC',
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  };
-  const same =
-    start.getUTCFullYear() === end.getUTCFullYear() &&
-    start.getUTCMonth() === end.getUTCMonth() &&
-    start.getUTCDate() === end.getUTCDate();
-  if (same) return start.toLocaleDateString('th-TH', opts);
-  return `${start.toLocaleDateString('th-TH', { ...opts, year: undefined })} – ${end.toLocaleDateString(
-    'th-TH',
-    opts,
-  )}`;
-}
-
-function formatDateTime(d: Date): string {
-  return d.toLocaleString('th-TH', {
-    timeZone: 'Asia/Bangkok',
-    day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
 
 export default async function AdminLeaveInboxPage({
   searchParams,
@@ -82,43 +54,19 @@ export default async function AdminLeaveInboxPage({
     return { status: 'Pending' as const };
   })();
 
-  const leaveSelect = {
-    id: true,
-    startDate: true,
-    endDate: true,
-    reason: true,
-    status: true,
-    reviewNote: true,
-    reviewedAt: true,
-    createdAt: true,
-    attachmentUrl: true,
-    deletedAt: true,
-    deleteReason: true,
-    leaveType: { select: { name: true, isPaid: true } },
-    employee: {
-      select: {
-        firstName: true,
-        lastName: true,
-        nickname: true,
-        branch: { select: { name: true } },
-        department: { select: { name: true } },
-      },
-    },
-  } as const;
-
   const [rows, holidays] = await Promise.all([
     isTrash
       ? prismaRaw.leaveRequest.findMany({
           where: { deletedAt: { not: null } },
           orderBy: { deletedAt: 'desc' },
           take: 100,
-          select: leaveSelect,
+          select: LEAVE_SELECT,
         })
       : prisma.leaveRequest.findMany({
           where,
           orderBy: { createdAt: 'desc' },
           take: 100,
-          select: leaveSelect,
+          select: LEAVE_SELECT,
         }),
     prisma.holiday.findMany({
       where: { archivedAt: null },
@@ -141,33 +89,16 @@ export default async function AdminLeaveInboxPage({
   const expandedHolidays = expandHolidaysWithSubstitutes(holidays.map((h) => h.date));
   const vm: LeaveRowVM[] = isTrash
     ? []
-    : rows.map((r) => {
-        const info = STATUS_INFO[r.status] ?? { label: r.status, key: 'neutral' as StatusKey };
-        const wd = workingDaysIn({
-          startDate: r.startDate,
-          endDate: r.endDate,
-          holidays: expandedHolidays,
-        });
-        return {
-          id: r.id,
-          status: r.status,
-          statusKey: info.key,
-          statusLabel: info.label,
-          name: `${r.employee.firstName} ${r.employee.lastName}`,
-          nickname: r.employee.nickname,
-          branch: r.employee.branch.name,
-          department: r.employee.department?.name ?? null,
-          leaveType: r.leaveType.name,
-          isPaid: r.leaveType.isPaid,
-          range: formatRange(r.startDate, r.endDate),
-          workingDays: wd.length,
-          submitted: formatDateTime(r.createdAt),
-          reason: r.reason,
-          reviewNote: r.reviewNote ?? null,
-          reviewedAt: r.reviewedAt ? formatDateTime(r.reviewedAt) : null,
+    : rows.map((r) =>
+        buildLeaveRowVM(r, {
           attachmentUrl: resolveAttachment(r.attachmentUrl),
-        };
-      });
+          workingDays: workingDaysIn({
+            startDate: r.startDate,
+            endDate: r.endDate,
+            holidays: expandedHolidays,
+          }).length,
+        }),
+      );
 
   return (
     <div className="px-4 py-6 sm:px-6 lg:px-8">
@@ -229,7 +160,7 @@ export default async function AdminLeaveInboxPage({
           ) : isTrash ? (
             <ul className="divide-y divide-gray-100">
               {rows.map((r) => {
-                const info = STATUS_INFO[r.status] ?? {
+                const info = LEAVE_STATUS_INFO[r.status] ?? {
                   label: r.status,
                   key: 'neutral' as StatusKey,
                 };
@@ -263,10 +194,10 @@ export default async function AdminLeaveInboxPage({
                           {r.leaveType.isPaid ? '' : <span className="text-ink-3">(ไม่จ่าย)</span>}
                         </p>
                         <p className="mt-0.5 text-ink-3">
-                          {formatRange(r.startDate, r.endDate)} • {wd.length} วันทำงาน
+                          {formatLeaveRange(r.startDate, r.endDate)} • {wd.length} วันทำงาน
                         </p>
                         <p className="mt-0.5 text-[10px] text-ink-4">
-                          ส่งเมื่อ {formatDateTime(r.createdAt)}
+                          ส่งเมื่อ {formatLeaveDateTime(r.createdAt)}
                         </p>
                       </div>
                     </div>
@@ -295,7 +226,9 @@ export default async function AdminLeaveInboxPage({
                           </>
                         )}
                         {r.deletedAt && (
-                          <span className="ml-2 text-ink-4">({formatDateTime(r.deletedAt)})</span>
+                          <span className="ml-2 text-ink-4">
+                            ({formatLeaveDateTime(r.deletedAt)})
+                          </span>
                         )}
                       </span>
                       <RestoreButton

@@ -35,9 +35,23 @@ export type TeamCalendarHoliday = {
   name: string;
 };
 
+export type TeamCalendarAdvance = {
+  cashAdvanceId: string;
+  employeeId: string;
+  employeeName: string;
+  /** Short label — nickname if present, else first name. Compact for grid chips. */
+  shortLabel: string;
+  /** Pre-formatted THB amount, e.g. "฿1,500.00". */
+  amountLabel: string;
+  status: 'Pending' | 'Approved';
+  /** Single anchor day = requestedAt as a Bangkok-calendar YYYY-MM-DD. */
+  date: string;
+};
+
 export type TeamCalendarData = {
   entries: TeamCalendarEntry[];
   holidays: TeamCalendarHoliday[];
+  advances: TeamCalendarAdvance[];
 };
 
 /** Format a UTC-midnight Date as YYYY-MM-DD. Inverse of parseInputDate. */
@@ -127,6 +141,19 @@ export function indexEntriesByDate(entries: TeamCalendarEntry[]): Map<string, Te
       if (arr) arr.push(e);
       else idx.set(key, [e]);
     }
+  }
+  return idx;
+}
+
+/** Group advances by their single anchor day (YYYY-MM-DD). */
+export function indexAdvancesByDate(
+  advances: TeamCalendarAdvance[],
+): Map<string, TeamCalendarAdvance[]> {
+  const idx = new Map<string, TeamCalendarAdvance[]>();
+  for (const a of advances) {
+    const arr = idx.get(a.date);
+    if (arr) arr.push(a);
+    else idx.set(a.date, [a]);
   }
   return idx;
 }
