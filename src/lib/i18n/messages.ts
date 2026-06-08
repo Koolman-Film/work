@@ -44,15 +44,15 @@ export function deepMerge(...layers: Messages[]): Messages {
   return out;
 }
 
-/** Merged catalog for `locale`: th (base) ← en ← target.
+/** Merged catalog for `locale` — fallback chain: target ← English ← Thai.
  *
- * For the `en` locale, en overlays th so English strings take priority.
- * For all other non-th locales, th overlays en (th is the authoritative
- * fallback) and the target overlays both — so untranslated keys show
- * Thai rather than English, which is the correct UX for this app.
+ * Thai is the base layer (the complete source of truth), English overlays
+ * it, and the target locale overlays both. So a key missing in the target
+ * locale resolves to English first, then Thai, before next-intl would ever
+ * render the raw key. (For the `en` locale itself, en overlays th.)
  */
 export function getMessages(locale: Locale): Messages {
   if (locale === 'th') return CATALOGS.th;
   if (locale === 'en') return deepMerge(CATALOGS.th, CATALOGS.en);
-  return deepMerge(CATALOGS.en, CATALOGS.th, CATALOGS[locale]);
+  return deepMerge(CATALOGS.th, CATALOGS.en, CATALOGS[locale]);
 }

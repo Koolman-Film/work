@@ -557,7 +557,7 @@ git commit -m "feat(line): send notifications in the recipient's preferred langu
 ## Task 6: Manual verification (no code)
 
 - [ ] Trigger a leave approval for a worker whose `User.locale = 'en'`; confirm the LINE push + lock-screen preview are English.
-- [ ] Set the worker to `'km'` (no Khmer translations yet); confirm the push renders Thai (fallback), not raw keys.
+- [ ] Set the worker to `'km'` (no Khmer translations yet); confirm the push renders English (first fallback in the target←en←th chain), not raw keys.
 - [ ] Confirm a Thai worker's notifications are unchanged from before.
 - [ ] Confirm dates render correctly per locale (Buddhist year for Thai) and `฿` is shown for all locales.
 

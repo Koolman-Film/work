@@ -23,9 +23,18 @@ describe('getMessages', () => {
     }
   });
 
-  it('falls back to Thai for keys missing in an untranslated locale', () => {
+  it('falls back to English first for keys missing in an untranslated locale', () => {
+    // km has no notifications keys yet → fallback chain target ← en ← th
+    // resolves them to English (en overlays th), NOT Thai.
     const km = getMessages('km') as { notifications: { leaveApproved: { header: string } } };
-    const th = getMessages('th') as { notifications: { leaveApproved: { header: string } } };
-    expect(km.notifications.leaveApproved.header).toBe(th.notifications.leaveApproved.header);
+    const en = getMessages('en') as { notifications: { leaveApproved: { header: string } } };
+    expect(km.notifications.leaveApproved.header).toBe(en.notifications.leaveApproved.header);
+  });
+
+  it('uses Thai as the ultimate base (English overlays Thai for en)', () => {
+    // Sanity: the en catalog itself is th-based with en overlaid, so a key
+    // present in both comes from en.
+    const en = getMessages('en') as { notifications: { leaveApproved: { header: string } } };
+    expect(en.notifications.leaveApproved.header).toBe('Leave approved');
   });
 });
