@@ -35,11 +35,16 @@ describe('time-of-day math', () => {
 });
 
 describe('formatDaysHours', () => {
-  it('renders days + hours + minutes against the standard day', () => {
+  it('renders days, hours, and sub-hour minutes, omitting zero parts', () => {
     expect(formatDaysHours(0, CFG)).toBe('0 ชม.');
     expect(formatDaysHours(180, CFG)).toBe('3 ชม.'); // < 1 day
     expect(formatDaysHours(420, CFG)).toBe('1 วัน'); // exact day
     expect(formatDaysHours(600, CFG)).toBe('1 วัน 3 ชม.'); // 420 + 180
     expect(formatDaysHours(630, CFG)).toBe('1 วัน 3 ชม. 30 น.'); // 420 + 210
+  });
+
+  it('renders multiple whole days', () => {
+    expect(formatDaysHours(840, CFG)).toBe('2 วัน'); // 420 * 2
+    expect(formatDaysHours(1020, CFG)).toBe('2 วัน 3 ชม.'); // 840 + 180
   });
 });
