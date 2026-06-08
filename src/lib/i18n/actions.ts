@@ -18,6 +18,11 @@
  * this, a client-side router.refresh() would also work, but
  * revalidatePath keeps the render fully on the server — fewer
  * intermediate states for the user.)
+ *
+ * When called by the worker (modal/switcher), `setLocale` also stamps
+ * `User.localeChosenByEmployeeAt` — that flag is what stops the
+ * first-run modal from reappearing. Admin default-setting uses a
+ * separate action (`setEmployeeDefaultLocale`) that must NOT stamp it.
  */
 
 import { revalidatePath } from 'next/cache';
@@ -55,7 +60,11 @@ export async function setLocale(locale: Locale): Promise<{ ok: boolean; locale: 
     if (authUser) {
       await prisma.user.update({
         where: { authUserId: authUser.id },
-        data: { locale },
+        // This action is the WORKER's explicit choice (modal/switcher), so
+        // stamp localeChosenByEmployeeAt — that's what stops the first-run
+        // modal from reappearing. Admin default-setting uses a separate
+        // action (setEmployeeDefaultLocale) that does NOT stamp this.
+        data: { locale, localeChosenByEmployeeAt: new Date() },
       });
     }
   } catch (err) {
