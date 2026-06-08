@@ -85,6 +85,16 @@ enum LeaveStatus {
   Cancelled
 }
 
+enum OtRateType {
+  PerHourAmount
+  Multiplier
+}
+
+enum OtStatus {
+  Approved
+  Rejected
+}
+
 enum LeaveUnit {
   FullDay
   HalfMorning
@@ -372,6 +382,10 @@ model Employee {
 
   salaryType        SalaryType
   baseSalary        Decimal  @db.Decimal(12, 2)
+  // Per-employee default OT rate (overridable per OvertimeEntry).
+  defaultOtRateType    OtRateType?
+  defaultOtRatePerHour Decimal?    @db.Decimal(12, 2)
+  defaultOtMultiplier  Decimal?    @db.Decimal(3, 2)
   status            EmpStatus
   canCheckIn        Boolean  @default(true)
   hiredAt           DateTime @db.Date
@@ -387,6 +401,7 @@ model Employee {
   attendances         Attendance[]
   leaveRequests       LeaveRequest[]
   leaveEntitlements   LeaveEntitlement[]
+  overtimeEntries     OvertimeEntry[]
   cashAdvances        CashAdvance[]
   payrolls            Payroll[]
   recurringDeductions RecurringDeduction[]
@@ -425,6 +440,9 @@ model Attendance {
   /// When type=OnLeave, the LeaveRequest that produced these auto-rows.
   leaveRequestId    String?   @db.Uuid
   leaveRequest      LeaveRequest? @relation(fields: [leaveRequestId], references: [id], onDelete: SetNull)
+
+  /// OT entries surfaced from this check-in's clock-out (back-relation).
+  overtimeEntries   OvertimeEntry[]
 
   deductAmount      Decimal?  @db.Decimal(12, 2)
   isOverridden      Boolean   @default(false)
@@ -605,6 +623,39 @@ model Payroll {
   @@index([status])
 }
 
+/// One overtime record per (employee, date). computedAmount is frozen at
+/// approval (snapshot of rate × hours / wage × multiplier). status=Rejected
+/// is a "dismissed — not OT" marker that stops the date re-surfacing as a
+/// candidate. Candidates themselves are computed live (not stored). See spec §Phase 3.
+model OvertimeEntry {
+  id                 String      @id @default(uuid()) @db.Uuid
+  employeeId         String      @db.Uuid
+  employee           Employee    @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  date               DateTime    @db.Date
+  minutes            Int
+  rateType           OtRateType
+  ratePerHour        Decimal?    @db.Decimal(12, 2) // when PerHourAmount
+  multiplier         Decimal?    @db.Decimal(3, 2)  // when Multiplier
+  computedAmount     Decimal     @db.Decimal(12, 2) // frozen pay at approval
+  status             OtStatus
+  sourceAttendanceId String?     @db.Uuid
+  sourceAttendance   Attendance? @relation(fields: [sourceAttendanceId], references: [id], onDelete: SetNull)
+  note               String?
+  reviewedById       String?     @db.Uuid
+  reviewedAt         DateTime?
+  deletedAt          DateTime?
+  deletedById        String?     @db.Uuid
+  deleteReason       String?
+  createdAt          DateTime    @default(now())
+  createdById        String      @db.Uuid
+
+  @@index([employeeId, date])
+  @@index([status])
+  @@index([deletedAt])
+  // PARTIAL unique (employeeId, date) WHERE deletedAt IS NULL — raw SQL in the
+  // migration (Prisma DSL can't express partial-unique; see Attendance 0014).
+}
+
 /// Singleton configuration for the payroll calc engine (Phase 2).
 /// The model allows multiple rows but app code always reads the first
 /// via `findFirst()`. Seed creates one row; admin edits via the future
@@ -619,6 +670,12 @@ model PayrollConfig {
   ssoAmountCap Decimal @db.Decimal(12, 2)
   /// Overtime multiplier (1.5 = OT pays 1.5× regular).
   otMultiplier Decimal @db.Decimal(3, 2)
+  /// Days/month used to derive an hourly wage from a monthly salary for OT
+  /// multiplier-mode pricing (Thai convention ÷30).
+  workingDaysPerMonth Int @default(30)
+  /// Clock-out must beat the scheduled end by at least this many minutes to
+  /// surface as an OT candidate.
+  otThresholdMinutes  Int @default(30)
   /// Day of month payroll cut-off — e.g., 25 means "calculate for the
   /// 26th of prior month through the 25th of this month".
   cutoffDay    Int      @default(25)
