@@ -17,15 +17,15 @@ import { restoreCashAdvance } from '@/lib/advance/void';
 import { prisma, prismaRaw } from '@/lib/db/prisma';
 import { signAttendancePhotoUrls } from '@/lib/storage/signed-urls';
 import { AdvanceInbox, type AdvanceRowVM } from './advance-inbox';
+import {
+  ADVANCE_SELECT,
+  ADVANCE_STATUS_INFO,
+  buildAdvanceRowVM,
+  formatAdvanceDateTime,
+  formatAdvanceMoney,
+} from './advance-row-vm';
 
 type SearchParams = Promise<{ status?: string; trash?: string }>;
-
-const STATUS_INFO: Record<string, { label: string; key: StatusKey }> = {
-  Pending: { label: 'รออนุมัติ', key: 'pending' },
-  Approved: { label: 'อนุมัติแล้ว', key: 'approved' },
-  Rejected: { label: 'ไม่อนุมัติ', key: 'rejected' },
-  Cancelled: { label: 'ยกเลิก', key: 'cancelled' },
-};
 
 const FILTER_OPTIONS = [
   { value: '', label: 'รออนุมัติ' },
@@ -33,26 +33,6 @@ const FILTER_OPTIONS = [
   { value: 'approved', label: 'อนุมัติแล้ว' },
   { value: 'rejected', label: 'ไม่อนุมัติ' },
 ] as const;
-
-function formatMoney(v: unknown): string {
-  const n = Number(v);
-  if (!Number.isFinite(n)) return '—';
-  return new Intl.NumberFormat('th-TH', {
-    style: 'currency',
-    currency: 'THB',
-    maximumFractionDigits: 2,
-  }).format(n);
-}
-
-function formatDateTime(d: Date): string {
-  return d.toLocaleString('th-TH', {
-    timeZone: 'Asia/Bangkok',
-    day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
 
 export default async function AdminAdvanceInboxPage({
   searchParams,
@@ -69,38 +49,18 @@ export default async function AdminAdvanceInboxPage({
     return { status: 'Pending' as const };
   })();
 
-  const advanceSelect = {
-    id: true,
-    amount: true,
-    status: true,
-    requestedAt: true,
-    approvedAt: true,
-    receiptUrl: true,
-    deletedAt: true,
-    deleteReason: true,
-    employee: {
-      select: {
-        firstName: true,
-        lastName: true,
-        nickname: true,
-        branch: { select: { name: true } },
-        department: { select: { name: true } },
-      },
-    },
-  } as const;
-
   const rows = isTrash
     ? await prismaRaw.cashAdvance.findMany({
         where: { deletedAt: { not: null } },
         orderBy: { deletedAt: 'desc' },
         take: 100,
-        select: advanceSelect,
+        select: ADVANCE_SELECT,
       })
     : await prisma.cashAdvance.findMany({
         where,
         orderBy: { requestedAt: 'desc' },
         take: 100,
-        select: advanceSelect,
+        select: ADVANCE_SELECT,
       });
 
   const receiptKeys = rows
@@ -115,23 +75,7 @@ export default async function AdminAdvanceInboxPage({
 
   const vm: AdvanceRowVM[] = isTrash
     ? []
-    : rows.map((r) => {
-        const info = STATUS_INFO[r.status] ?? { label: r.status, key: 'neutral' as StatusKey };
-        return {
-          id: r.id,
-          status: r.status,
-          statusKey: info.key,
-          statusLabel: info.label,
-          name: `${r.employee.firstName} ${r.employee.lastName}`,
-          nickname: r.employee.nickname,
-          branch: r.employee.branch.name,
-          department: r.employee.department?.name ?? null,
-          amount: formatMoney(r.amount),
-          submitted: formatDateTime(r.requestedAt),
-          decidedAt: r.approvedAt ? formatDateTime(r.approvedAt) : null,
-          receiptUrl: resolveReceipt(r.receiptUrl),
-        };
-      });
+    : rows.map((r) => buildAdvanceRowVM(r, { receiptUrl: resolveReceipt(r.receiptUrl) }));
 
   return (
     <div className="px-4 py-6 sm:px-6 lg:px-8">
@@ -193,7 +137,7 @@ export default async function AdminAdvanceInboxPage({
           ) : isTrash ? (
             <ul className="divide-y divide-gray-100">
               {rows.map((r) => {
-                const info = STATUS_INFO[r.status] ?? {
+                const info = ADVANCE_STATUS_INFO[r.status] ?? {
                   label: r.status,
                   key: 'neutral' as StatusKey,
                 };
@@ -215,12 +159,12 @@ export default async function AdminAdvanceInboxPage({
                           {r.employee.department ? ` • ${r.employee.department.name}` : ''}
                         </p>
                         <p className="mt-0.5 text-[10px] text-ink-4">
-                          ส่งเมื่อ {formatDateTime(r.requestedAt)}
+                          ส่งเมื่อ {formatAdvanceDateTime(r.requestedAt)}
                         </p>
                       </div>
                       <div className="text-left sm:text-right">
                         <p className="display text-2xl font-semibold tabular-nums text-ink-1">
-                          {formatMoney(r.amount)}
+                          {formatAdvanceMoney(r.amount)}
                         </p>
                       </div>
                     </div>
@@ -232,7 +176,9 @@ export default async function AdminAdvanceInboxPage({
                           </>
                         )}
                         {r.deletedAt && (
-                          <span className="ml-2 text-ink-4">({formatDateTime(r.deletedAt)})</span>
+                          <span className="ml-2 text-ink-4">
+                            ({formatAdvanceDateTime(r.deletedAt)})
+                          </span>
                         )}
                       </span>
                       <RestoreButton

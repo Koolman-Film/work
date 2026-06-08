@@ -24,7 +24,12 @@ import 'server-only';
 
 import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
-import { type TeamCalendarData, type TeamCalendarEntry, ymd } from './team-calendar-shape';
+import {
+  type TeamCalendarAdvance,
+  type TeamCalendarData,
+  type TeamCalendarEntry,
+  ymd,
+} from './team-calendar-shape';
 
 type EmployeeLite = {
   id: string;
@@ -62,6 +67,7 @@ async function loadEntriesAndHolidays(args: {
     return {
       entries: [],
       holidays: holidays.map((h) => ({ date: ymd(h.date), name: h.name })),
+      advances: [],
     };
   }
 
@@ -112,6 +118,7 @@ async function loadEntriesAndHolidays(args: {
   return {
     entries,
     holidays: holidays.map((h) => ({ date: ymd(h.date), name: h.name })),
+    advances: [],
   };
 }
 
@@ -133,7 +140,7 @@ export async function getTeamCalendarData(args: {
     where: { id: viewerEmployeeId },
     select: { branchId: true, assignedBranchIds: true },
   });
-  if (!me) return { entries: [], holidays: [] };
+  if (!me) return { entries: [], holidays: [], advances: [] };
 
   const myBranchIds = Array.from(new Set([me.branchId, ...me.assignedBranchIds]));
 
@@ -174,5 +181,51 @@ export async function getOrgCalendarData(args: {
     select: { id: true, firstName: true, lastName: true, nickname: true },
   });
 
-  return loadEntriesAndHolidays({ employees, monthStart, monthEnd, viewerEmployeeId: null });
+  const base = await loadEntriesAndHolidays({
+    employees,
+    monthStart,
+    monthEnd,
+    viewerEmployeeId: null,
+  });
+  if (employees.length === 0) return base; // base.advances already []
+
+  // Cash advances are point-in-time: anchor each to its requestedAt day. Window
+  // is [monthStart, firstOfNextMonth) so the whole last day of the month is
+  // included. `prisma` (not prismaRaw) already excludes soft-deleted rows.
+  const nextMonthStart = new Date(monthEnd.getTime() + 86_400_000);
+  const advanceRows = await prisma.cashAdvance.findMany({
+    where: {
+      employeeId: { in: employees.map((e) => e.id) },
+      status: { in: ['Pending', 'Approved'] },
+      requestedAt: { gte: monthStart, lt: nextMonthStart },
+    },
+    select: { id: true, employeeId: true, amount: true, status: true, requestedAt: true },
+    orderBy: { requestedAt: 'asc' },
+  });
+
+  const empMap = new Map(employees.map((e) => [e.id, e]));
+  const thb = new Intl.NumberFormat('th-TH', {
+    style: 'currency',
+    currency: 'THB',
+    maximumFractionDigits: 2,
+  });
+
+  const advances: TeamCalendarAdvance[] = advanceRows
+    .map((a): TeamCalendarAdvance | null => {
+      const emp = empMap.get(a.employeeId);
+      if (!emp) return null; // shouldn't happen given the IN clause
+      return {
+        cashAdvanceId: a.id,
+        employeeId: a.employeeId,
+        employeeName: `${emp.firstName} ${emp.lastName}`.trim(),
+        shortLabel: emp.nickname?.trim() || emp.firstName,
+        amountLabel: thb.format(Number(a.amount)),
+        status: a.status as 'Pending' | 'Approved',
+        // Bangkok-calendar day so the anchor matches the grid's day cells.
+        date: a.requestedAt.toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' }),
+      };
+    })
+    .filter((x): x is TeamCalendarAdvance => x !== null);
+
+  return { ...base, advances };
 }
