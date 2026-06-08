@@ -93,6 +93,25 @@ export const EmployeeSchema = z.object({
     .max(120)
     .optional()
     .transform((s) => (s ? s : null)),
+
+  // ─── Default OT rate (all optional + clearable) ─────────────────────────
+  defaultOtRateType: z
+    .string()
+    .optional()
+    .transform((s) => (s === 'PerHourAmount' || s === 'Multiplier' ? s : null)),
+  defaultOtRatePerHour: z
+    .string()
+    .optional()
+    .transform((s) => (s && s.trim() !== '' ? Number(s) : null))
+    .refine((n) => n === null || (Number.isFinite(n) && n >= 0), 'เรท OT ต้องเป็นตัวเลขไม่ติดลบ'),
+  defaultOtMultiplier: z
+    .string()
+    .optional()
+    .transform((s) => (s && s.trim() !== '' ? Number(s) : null))
+    .refine(
+      (n) => n === null || (Number.isFinite(n) && n >= 0 && n <= 9.99),
+      'ตัวคูณ OT ต้องอยู่ระหว่าง 0–9.99',
+    ),
 });
 
 export type EmployeeInput = z.infer<typeof EmployeeSchema>;
@@ -124,5 +143,8 @@ export function readForm(formData: FormData) {
     bankId: str(formData, 'bankId'),
     bankAccountNumber: str(formData, 'bankAccountNumber'),
     bankAccountName: str(formData, 'bankAccountName'),
+    defaultOtRateType: str(formData, 'defaultOtRateType'),
+    defaultOtRatePerHour: str(formData, 'defaultOtRatePerHour'),
+    defaultOtMultiplier: str(formData, 'defaultOtMultiplier'),
   });
 }
