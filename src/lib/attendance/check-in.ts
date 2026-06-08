@@ -38,6 +38,7 @@ import { auditLogTx } from '@/lib/audit/log';
 import { requireRole } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
 import { notifyAdminsInApp } from '@/lib/notifications/in-app-bell';
+import { bangkokDateUtcMidnight } from './date';
 import { type CheckInPoint, disputeReasonText, evaluateCheckIn } from './evaluate';
 
 /** Display name for admin bell — prefer nickname. Mirrors leave/actions.ts. */
@@ -87,14 +88,6 @@ function bangkokDateString(d: Date): string {
   // Intl handles the timezone conversion robustly without pulling in date-fns-tz
   // for this single use. The locale produces YYYY-MM-DD when given 'sv-SE'.
   return d.toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
-}
-
-/** Helper: today's start-of-day in UTC for Prisma's `@db.Date` column. */
-function bangkokDateUtcMidnight(d: Date): Date {
-  const ymd = bangkokDateString(d);
-  // Prisma @db.Date stores at UTC midnight. We need the *date* part — not
-  // the local-midnight instant. So construct from the YYYY-MM-DD string.
-  return new Date(`${ymd}T00:00:00.000Z`);
 }
 
 /** Fetch the employee's assigned branches with geofence data. */
