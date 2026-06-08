@@ -65,6 +65,12 @@ describe('resolveLocaleFromAcceptLanguage', () => {
     // RFC 7231: q=0 means "do not accept". We must skip it.
     expect(resolveLocaleFromAcceptLanguage('th;q=0,en;q=0.5')).toBe('en');
   });
+
+  it('matches Khmer', () => {
+    expect(resolveLocaleFromAcceptLanguage('km')).toBe('km');
+    expect(resolveLocaleFromAcceptLanguage('km-KH')).toBe('km');
+    expect(resolveLocaleFromAcceptLanguage('KM')).toBe('km');
+  });
 });
 
 describe('resolveLocale', () => {
