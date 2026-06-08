@@ -40,9 +40,11 @@ type Props = {
   /** YYYY-MM-DD for the date input min — today in Bangkok. */
   minDate: string;
   leaveConfig: LeaveUnitConfig;
+  /** Remaining minutes per leave type id for the current year (null = unlimited). */
+  remainingByType: Record<string, number | null>;
 };
 
-export function LeaveNewForm({ leaveTypes, minDate, leaveConfig }: Props) {
+export function LeaveNewForm({ leaveTypes, minDate, leaveConfig, remainingByType }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [leaveTypeId, setLeaveTypeId] = useState<string>(leaveTypes[0]?.id ?? '');
@@ -110,6 +112,11 @@ export function LeaveNewForm({ leaveTypes, minDate, leaveConfig }: Props) {
     const seg = segmentFor(unit, leaveConfig, startTime, endTime);
     return seg ? seg.minutes : null;
   }, [unit, startDate, endDate, startTime, endTime, leaveConfig]);
+
+  // Remaining balance for the selected type this year (null = unlimited).
+  // Soft-warn only — never blocks submission (admin decides at approval).
+  const remaining = remainingByType[leaveTypeId] ?? null;
+  const exceeds = remaining != null && chargePreview != null && chargePreview > remaining;
 
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -331,6 +338,18 @@ export function LeaveNewForm({ leaveTypes, minDate, leaveConfig }: Props) {
                 </span>
               </>
             )}
+          </p>
+        )}
+
+        {/* Remaining balance + over-balance soft-warn */}
+        {remaining != null && (
+          <p className="text-xs text-gray-500">
+            คงเหลือปีนี้: <strong>{formatDaysHours(remaining, leaveConfig)}</strong>
+          </p>
+        )}
+        {exceeds && (
+          <p className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            ⚠️ คำขอนี้เกินสิทธิคงเหลือ — แอดมินจะพิจารณาอีกครั้งเมื่ออนุมัติ
           </p>
         )}
 
