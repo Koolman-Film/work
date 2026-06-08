@@ -19,6 +19,7 @@
 
 import { PrismaClient } from '@prisma/client';
 import { createClient } from '@supabase/supabase-js';
+import { seedBanks } from './seed-banks-data';
 
 const prisma = new PrismaClient();
 
@@ -205,6 +206,11 @@ async function main() {
     });
     console.log(`  ✓ ${row.name}`);
   }
+
+  // Banks — national reference list (idempotent upsert by code).
+  console.log('\nBanks:');
+  const bankCount = await seedBanks(prisma);
+  console.log(`  ✓ ${bankCount} banks`);
 
   // 3. Branches
   console.log('\nBranches:');

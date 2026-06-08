@@ -26,6 +26,7 @@
     "db:studio": "dotenv -e .env.local -- prisma studio",
     "db:seed": "dotenv -e .env.local -- tsx prisma/seed.ts",
     "db:seed:employees": "dotenv -e .env.local -- tsx prisma/seed-employees.ts",
+    "db:seed:banks": "dotenv -e .env.local -- tsx prisma/seed-banks.ts",
     "db:seed:leave-advance": "dotenv -e .env.local -- tsx prisma/seed-leave-advance.ts",
     "db:reset": "dotenv -e .env.local -- prisma migrate reset --skip-seed",
     "prepare": "simple-git-hooks",
