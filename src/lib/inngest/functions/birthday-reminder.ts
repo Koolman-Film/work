@@ -29,7 +29,12 @@ export const birthdayReminder = inngest.createFunction(
     triggers: [{ cron: 'TZ=Asia/Bangkok 0 9 * * *' }],
   },
   async ({ step }) => {
-    const { todMonth, todDay, tomMonth, tomDay } = birthdayTargets(new Date());
+    // Memoize the date targets in a step so retries/replays reuse the same
+    // today/tomorrow values (new Date() would otherwise drift across a
+    // midnight-crossing replay and mismatch the per-employee step keys).
+    const { todMonth, todDay, tomMonth, tomDay } = await step.run('compute-targets', () =>
+      birthdayTargets(new Date()),
+    );
 
     const due = await step.run('find-due', async () => {
       return prisma.$queryRaw<DueRow[]>`
