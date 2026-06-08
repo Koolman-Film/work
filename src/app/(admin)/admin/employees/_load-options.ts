@@ -7,7 +7,7 @@ import { prisma } from '@/lib/db/prisma';
 import type { EmployeeFormOptions } from './employee-form';
 
 export async function loadEmployeeFormOptions(): Promise<EmployeeFormOptions> {
-  const [branches, departments, accountingGroups, workSchedules] = await Promise.all([
+  const [branches, departments, accountingGroups, workSchedules, banks] = await Promise.all([
     prisma.branch.findMany({
       where: { archivedAt: null },
       orderBy: { name: 'asc' },
@@ -28,6 +28,11 @@ export async function loadEmployeeFormOptions(): Promise<EmployeeFormOptions> {
       orderBy: { name: 'asc' },
       select: { id: true, name: true },
     }),
+    prisma.bank.findMany({
+      where: { archivedAt: null },
+      orderBy: { sortOrder: 'asc' },
+      select: { id: true, shortName: true, nameTh: true },
+    }),
   ]);
-  return { branches, departments, accountingGroups, workSchedules };
+  return { branches, departments, accountingGroups, workSchedules, banks };
 }

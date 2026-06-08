@@ -2,6 +2,7 @@ import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { PageHeader } from '@/components/ui/page-header';
 import { prisma } from '@/lib/db/prisma';
+import { resolveStoredImageUrl } from '@/lib/storage/signed-urls';
 import { loadEmployeeFormOptions } from '../../_load-options';
 import { archiveEmployee, deleteEmployee, updateEmployee } from '../../actions';
 import { EmployeeForm } from '../../employee-form';
@@ -39,6 +40,11 @@ export default async function EditEmployeePage({
         status: true,
         canCheckIn: true,
         hiredAt: true,
+        photoKey: true,
+        dateOfBirth: true,
+        bankId: true,
+        bankAccountNumber: true,
+        bankAccountName: true,
         archivedAt: true,
         inviteToken: true,
         inviteExpiresAt: true,
@@ -48,6 +54,8 @@ export default async function EditEmployeePage({
     loadEmployeeFormOptions(),
   ]);
   if (!emp) notFound();
+
+  const photoUrl = await resolveStoredImageUrl(emp.photoKey);
 
   // Build absolute base URL from request headers — works dev / preview / prod
   const headerList = await headers();
@@ -78,6 +86,7 @@ export default async function EditEmployeePage({
         action={updateEmployee.bind(null, id)}
         options={options}
         error={error ? decodeURIComponent(error) : null}
+        employeeId={id}
         initial={{
           firstName: emp.firstName,
           lastName: emp.lastName,
@@ -92,6 +101,12 @@ export default async function EditEmployeePage({
           status: emp.status,
           canCheckIn: emp.canCheckIn,
           hiredAt: emp.hiredAt.toISOString().slice(0, 10),
+          dateOfBirth: emp.dateOfBirth ? emp.dateOfBirth.toISOString().slice(0, 10) : null,
+          bankId: emp.bankId,
+          bankAccountNumber: emp.bankAccountNumber,
+          bankAccountName: emp.bankAccountName,
+          photoKey: emp.photoKey,
+          photoUrl,
         }}
         extraActions={
           // Archive + Delete are ConfirmDialog triggers (type="button") in the
