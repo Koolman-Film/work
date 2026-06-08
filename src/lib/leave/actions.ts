@@ -191,6 +191,7 @@ export async function submitLeaveRequest(input: SubmitInput): Promise<SubmitLeav
     where: {
       employeeId: employee.id,
       status: { in: ['Pending', 'Approved'] },
+      deletedAt: null,
       startDate: { lte: end },
       endDate: { gte: start },
     },
