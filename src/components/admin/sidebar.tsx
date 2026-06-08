@@ -5,6 +5,7 @@ import {
   Banknote,
   Calculator,
   Calendar,
+  CalendarDays,
   Clock,
   FileText,
   History,
@@ -46,6 +47,7 @@ const SECTIONS: ReadonlyArray<{ label: string; items: ReadonlyArray<NavItem> }> 
     label: 'เมนูหลัก',
     items: [
       { href: '/admin', label: 'หน้าหลัก', Icon: Home, enabled: true },
+      { href: '/admin/calendar', label: 'ปฏิทินงาน', Icon: CalendarDays, enabled: true },
       { href: '/admin/employees', label: 'พนักงาน', Icon: Users, enabled: true },
       { href: '/admin/leave', label: 'คำขอลา', Icon: Calendar, enabled: true },
       { href: '/admin/advance', label: 'คำขอเบิก', Icon: Banknote, enabled: true },
