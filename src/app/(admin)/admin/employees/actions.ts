@@ -78,6 +78,13 @@ export async function createEmployee(formData: FormData) {
           bankId: data.bankId,
           bankAccountNumber: data.bankAccountNumber,
           bankAccountName: data.bankAccountName,
+          defaultOtRateType: data.defaultOtRateType,
+          defaultOtRatePerHour:
+            data.defaultOtRatePerHour == null
+              ? null
+              : new Prisma.Decimal(data.defaultOtRatePerHour),
+          defaultOtMultiplier:
+            data.defaultOtMultiplier == null ? null : new Prisma.Decimal(data.defaultOtMultiplier),
         },
       });
       // Look up the 'staff' system role definition once.
@@ -184,6 +191,11 @@ export async function updateEmployee(id: string, formData: FormData) {
         bankId: data.bankId,
         bankAccountNumber: data.bankAccountNumber,
         bankAccountName: data.bankAccountName,
+        defaultOtRateType: data.defaultOtRateType,
+        defaultOtRatePerHour:
+          data.defaultOtRatePerHour == null ? null : new Prisma.Decimal(data.defaultOtRatePerHour),
+        defaultOtMultiplier:
+          data.defaultOtMultiplier == null ? null : new Prisma.Decimal(data.defaultOtMultiplier),
       },
     });
 
