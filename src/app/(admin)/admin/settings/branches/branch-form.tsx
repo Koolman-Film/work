@@ -86,7 +86,7 @@ export function BranchForm({ mode, action, initial, error, extraActions }: Props
             <FormField
               label="ตำแหน่งบนแผนที่"
               htmlFor="latitude"
-              hint="คลิกเพื่อปักหมุด หรือลากหมุดเพื่อปรับ — ไม่บังคับ (ถ้าไม่ตั้งค่า จะไม่บังคับ geofence)"
+              hint="คลิกเพื่อปักหมุด ลากหมุดเพื่อปรับ หรือกรอกพิกัดด้านล่าง — ไม่บังคับ (ถ้าไม่ตั้งค่า จะไม่บังคับ geofence)"
             >
               <GeofencePicker
                 initialLat={initial?.latitude ?? null}
