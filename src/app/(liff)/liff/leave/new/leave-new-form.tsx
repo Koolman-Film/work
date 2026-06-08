@@ -12,8 +12,15 @@
  */
 
 import { useRouter } from 'next/navigation';
-import { useMemo, useRef, useState, useTransition } from 'react';
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { submitLeaveRequest } from '@/lib/leave/actions';
+import {
+  formatDaysHours,
+  type LeaveUnit,
+  type LeaveUnitConfig,
+  segmentFor,
+  standardDayMinutes,
+} from '@/lib/leave/units';
 import { parseInputDate, workingDaysIn } from '@/lib/leave/working-days';
 import { compressToJpeg, uploadLeaveMedicalCert } from '@/lib/storage/upload-selfie';
 import { createClient } from '@/lib/supabase/browser';
@@ -23,18 +30,25 @@ type LeaveTypeOption = {
   name: string;
   isPaid: boolean;
   annualQuota: number | null;
+  allowFullDay: boolean;
+  allowHalfDay: boolean;
+  allowHourly: boolean;
 };
 
 type Props = {
   leaveTypes: readonly LeaveTypeOption[];
   /** YYYY-MM-DD for the date input min — today in Bangkok. */
   minDate: string;
+  leaveConfig: LeaveUnitConfig;
 };
 
-export function LeaveNewForm({ leaveTypes, minDate }: Props) {
+export function LeaveNewForm({ leaveTypes, minDate, leaveConfig }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [leaveTypeId, setLeaveTypeId] = useState<string>(leaveTypes[0]?.id ?? '');
+  const [unit, setUnit] = useState<LeaveUnit>('FullDay');
+  const [startTime, setStartTime] = useState<string>('13:00');
+  const [endTime, setEndTime] = useState<string>('15:00');
   const [startDate, setStartDate] = useState<string>(minDate);
   const [endDate, setEndDate] = useState<string>(minDate);
   const [reason, setReason] = useState<string>('');
@@ -58,17 +72,44 @@ export function LeaveNewForm({ leaveTypes, minDate }: Props) {
     if (attachmentInputRef.current) attachmentInputRef.current.value = '';
   }
 
-  // Client-preview of working-day count. Excludes Sundays only — server
-  // is the source of truth for the holiday-aware count.
-  const workingDayCount = useMemo(() => {
-    const s = parseInputDate(startDate);
-    const e = parseInputDate(endDate);
-    if (!s || !e) return null;
-    if (e.getTime() < s.getTime()) return null;
-    return workingDaysIn({ startDate: s, endDate: e, holidays: [] }).length;
-  }, [startDate, endDate]);
-
   const selectedType = leaveTypes.find((t) => t.id === leaveTypeId);
+
+  // Units the selected type permits — the picker only offers these. Memoized
+  // so it's a stable dependency for the reset effect below.
+  const allowedUnits = useMemo<{ value: LeaveUnit; label: string }[]>(() => {
+    const units: { value: LeaveUnit; label: string }[] = [];
+    if (selectedType?.allowFullDay) units.push({ value: 'FullDay', label: 'เต็มวัน' });
+    if (selectedType?.allowHalfDay) {
+      units.push({ value: 'HalfMorning', label: 'ครึ่งเช้า' });
+      units.push({ value: 'HalfAfternoon', label: 'ครึ่งบ่าย' });
+    }
+    if (selectedType?.allowHourly) units.push({ value: 'Hourly', label: 'รายชั่วโมง' });
+    return units;
+  }, [selectedType]);
+
+  // Snap `unit` to the first allowed unit whenever the selected type changes,
+  // so the picker never shows a disallowed unit.
+  useEffect(() => {
+    const first = allowedUnits[0];
+    if (first && !allowedUnits.some((u) => u.value === unit)) {
+      setUnit(first.value);
+    }
+  }, [allowedUnits, unit]);
+
+  // Client preview of the charged amount, shown as days+hours. For full-day
+  // leave this is working-days × standard day (Sundays excluded; the server
+  // re-computes holidays at approval). For partial leave it's the segment.
+  const chargePreview = useMemo(() => {
+    if (unit === 'FullDay') {
+      const s = parseInputDate(startDate);
+      const e = parseInputDate(endDate);
+      if (!s || !e || e.getTime() < s.getTime()) return null;
+      const days = workingDaysIn({ startDate: s, endDate: e, holidays: [] }).length;
+      return days * standardDayMinutes(leaveConfig);
+    }
+    const seg = segmentFor(unit, leaveConfig, startTime, endTime);
+    return seg ? seg.minutes : null;
+  }, [unit, startDate, endDate, startTime, endTime, leaveConfig]);
 
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -96,9 +137,12 @@ export function LeaveNewForm({ leaveTypes, minDate }: Props) {
         const result = await submitLeaveRequest({
           leaveTypeId,
           startDate,
-          endDate,
+          endDate: unit === 'FullDay' ? endDate : startDate,
           reason,
           attachmentKey,
+          unit,
+          startTime: unit === 'Hourly' ? startTime : null,
+          endTime: unit === 'Hourly' ? endTime : null,
         });
         if (result.ok) {
           router.push(`/liff/leave/${result.id}`);
@@ -121,9 +165,10 @@ export function LeaveNewForm({ leaveTypes, minDate }: Props) {
     pending ||
     !leaveTypeId ||
     !startDate ||
-    !endDate ||
+    (unit === 'FullDay' && !endDate) ||
     reason.trim().length < 4 ||
-    (workingDayCount != null && workingDayCount === 0);
+    chargePreview == null ||
+    chargePreview === 0;
 
   return (
     <main className="mx-auto max-w-md px-4 pt-8 pb-12">
@@ -165,11 +210,69 @@ export function LeaveNewForm({ leaveTypes, minDate }: Props) {
           )}
         </div>
 
-        {/* Dates */}
-        <div className="grid grid-cols-2 gap-3">
+        {/* Unit (granularity) — only offered when the type allows >1 option */}
+        {allowedUnits.length > 1 && (
+          <div>
+            <span className="mb-1.5 block text-sm font-medium text-gray-700">รูปแบบการลา</span>
+            <div className="flex flex-wrap gap-2">
+              {allowedUnits.map((u) => (
+                <button
+                  key={u.value}
+                  type="button"
+                  onClick={() => setUnit(u.value)}
+                  className={
+                    unit === u.value
+                      ? 'rounded-md border border-primary-600 bg-primary-50 px-3 py-1.5 text-sm font-medium text-primary-700'
+                      : 'rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700'
+                  }
+                >
+                  {u.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Dates — full day uses a start/end range; partial uses a single date */}
+        {unit === 'FullDay' ? (
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label htmlFor="startDate" className="mb-1.5 block text-sm font-medium text-gray-700">
+                วันเริ่มต้น <span className="text-red-600">*</span>
+              </label>
+              <input
+                id="startDate"
+                type="date"
+                required
+                min={minDate}
+                value={startDate}
+                onChange={(e) => {
+                  setStartDate(e.target.value);
+                  // Auto-bump end if it's now < start.
+                  if (e.target.value > endDate) setEndDate(e.target.value);
+                }}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+              />
+            </div>
+            <div>
+              <label htmlFor="endDate" className="mb-1.5 block text-sm font-medium text-gray-700">
+                วันสิ้นสุด <span className="text-red-600">*</span>
+              </label>
+              <input
+                id="endDate"
+                type="date"
+                required
+                min={startDate}
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+              />
+            </div>
+          </div>
+        ) : (
           <div>
             <label htmlFor="startDate" className="mb-1.5 block text-sm font-medium text-gray-700">
-              วันเริ่มต้น <span className="text-red-600">*</span>
+              วันที่ลา <span className="text-red-600">*</span>
             </label>
             <input
               id="startDate"
@@ -177,38 +280,57 @@ export function LeaveNewForm({ leaveTypes, minDate }: Props) {
               required
               min={minDate}
               value={startDate}
-              onChange={(e) => {
-                setStartDate(e.target.value);
-                // Auto-bump end if it's now < start.
-                if (e.target.value > endDate) setEndDate(e.target.value);
-              }}
+              onChange={(e) => setStartDate(e.target.value)}
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
             />
           </div>
-          <div>
-            <label htmlFor="endDate" className="mb-1.5 block text-sm font-medium text-gray-700">
-              วันสิ้นสุด <span className="text-red-600">*</span>
-            </label>
-            <input
-              id="endDate"
-              type="date"
-              required
-              min={startDate}
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-            />
-          </div>
-        </div>
+        )}
 
-        {/* Working-day preview */}
-        {workingDayCount != null && (
+        {/* Hourly time window */}
+        {unit === 'Hourly' && (
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label htmlFor="startTime" className="mb-1.5 block text-sm font-medium text-gray-700">
+                ตั้งแต่ <span className="text-red-600">*</span>
+              </label>
+              <input
+                id="startTime"
+                type="time"
+                required
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+              />
+            </div>
+            <div>
+              <label htmlFor="endTime" className="mb-1.5 block text-sm font-medium text-gray-700">
+                ถึง <span className="text-red-600">*</span>
+              </label>
+              <input
+                id="endTime"
+                type="time"
+                required
+                value={endTime}
+                onChange={(e) => setEndTime(e.target.value)}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Charged-amount preview (days + hours) */}
+        {chargePreview != null && (
           <p className="rounded-md bg-primary-50 px-3 py-2 text-xs text-primary-800">
-            ประมาณการ: <strong>{workingDayCount} วันทำงาน</strong>{' '}
-            <span className="text-primary-600">(ไม่นับวันอาทิตย์)</span>
-            <span className="block text-[10px] text-primary-600/80">
-              * แอดมินจะคำนวณรวมวันหยุดอีกครั้งเมื่ออนุมัติ
-            </span>
+            ประมาณการ: <strong>{formatDaysHours(chargePreview, leaveConfig)}</strong>
+            {unit === 'FullDay' && (
+              <>
+                {' '}
+                <span className="text-primary-600">(ไม่นับวันอาทิตย์)</span>
+                <span className="block text-[10px] text-primary-600/80">
+                  * แอดมินจะคำนวณรวมวันหยุดอีกครั้งเมื่ออนุมัติ
+                </span>
+              </>
+            )}
           </p>
         )}
 
