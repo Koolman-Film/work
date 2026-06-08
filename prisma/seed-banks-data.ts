@@ -12,7 +12,7 @@ import type { PrismaClient } from '@prisma/client';
 
 export type BankSeed = {
   code: string;
-  shortName: string;
+  shortName?: string;
   nameEn: string;
   nameTh: string;
 };
@@ -77,12 +77,12 @@ export async function seedBanks(prisma: PrismaClient): Promise<number> {
     const sortOrder = i + 1;
     await prisma.bank.upsert({
       where: { code: b.code },
-      update: { nameTh: b.nameTh, nameEn: b.nameEn, shortName: b.shortName, sortOrder },
+      update: { nameTh: b.nameTh, nameEn: b.nameEn, shortName: b.shortName ?? null, sortOrder },
       create: {
         code: b.code,
         nameTh: b.nameTh,
         nameEn: b.nameEn,
-        shortName: b.shortName,
+        shortName: b.shortName ?? null,
         sortOrder,
       },
     });
