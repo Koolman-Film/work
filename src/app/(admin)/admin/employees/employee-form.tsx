@@ -108,7 +108,11 @@ export function EmployeeForm({
                 <CardTitle>ข้อมูลพนักงาน</CardTitle>
               </CardHeader>
               <CardBody className="space-y-5">
-                <FormField label="รูปพนักงาน" htmlFor="photoKey" hint="ไม่บังคับ — รองรับ JPG/PNG">
+                <FormField
+                  label="รูปพนักงาน"
+                  htmlFor="employee-photo-file"
+                  hint="ไม่บังคับ — รองรับ JPG/PNG"
+                >
                   <PhotoField
                     employeeId={employeeId ?? null}
                     initialKey={initial?.photoKey ?? null}
