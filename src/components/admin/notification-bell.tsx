@@ -255,6 +255,18 @@ function renderNotification(n: BellNotification): RenderedKind {
           ? `/admin/employees/${payload.employeeId}/edit`
           : '/admin/employees',
       };
+    case 'birthday.upcoming':
+      return {
+        emoji: '🎂',
+        title:
+          payload.daysUntil === '0'
+            ? `วันนี้วันเกิด ${payload.employeeName ?? 'พนักงาน'}`
+            : `พรุ่งนี้วันเกิด ${payload.employeeName ?? 'พนักงาน'}`,
+        subtitle: `วันเกิด ${payload.birthday ?? ''}`,
+        href: payload.employeeId
+          ? `/admin/employees/${payload.employeeId}/edit`
+          : '/admin/employees',
+      };
     default:
       return {
         emoji: '🔔',
