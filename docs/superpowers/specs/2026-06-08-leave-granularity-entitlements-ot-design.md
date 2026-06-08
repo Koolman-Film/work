@@ -196,7 +196,10 @@ model LeaveRequest {
 
 Migration `0016_partial_day_leave`: add the enum, the three `LeaveType`
 booleans (existing rows default to full-day-only — safe), the `LeaveRequest`
-columns, and create the `LeaveConfig` table + seed one row. Backfill
+columns, create the `LeaveConfig` table + seed one row, and **replace the
+`Attendance` partial-unique index to exclude `OnLeave`** (raw SQL — drop
+`Attendance_employeeId_date_type_live_key`, recreate it `WHERE deletedAt IS NULL
+AND type <> 'OnLeave'`) so a date can hold multiple OnLeave rows. Backfill
 `LeaveRequest.unit = 'FullDay'` for existing rows (the default handles it).
 
 ### Flows
@@ -221,14 +224,27 @@ expansion gains unit-awareness:
   `durationMinutes = segment.minutes`, `clockInAt`/`clockOutAt` set to the
   segment's times on that date (so the row reconciles with a same-day check-in
   for the other half). `chargedMinutes = segment.minutes`.
+- **Per-date cap (over-allocation guard):** before inserting, sum the
+  `durationMinutes` of existing non-deleted `OnLeave` rows for each target date;
+  reject the whole request if existing + new would exceed `standardDayMinutes`
+  on any date (message names the date). This replaces the old
+  `skipDuplicates`-on-unique approach — `OnLeave` is no longer in the unique
+  index, so half+half on a date coexist as two rows while full+anything is
+  capped out.
 - The stored `chargedMinutes` is written to the `LeaveRequest` inside the same
   transaction. Audit `after` payload gains `unit` + `chargedMinutes`.
 
-> **Same-day collision:** the `Attendance` partial-unique
-> `(employeeId, date, type=OnLeave)` means a date can hold **one** OnLeave row.
-> Taking morning-half *and* afternoon-half on the same day via two requests
-> would collide — v1 rejects the second partial request for a date that already
-> has approved OnLeave (surface a clear message). Effectively "take a full day."
+> **Multiple partial leaves per date (supported).** A single date may hold
+> **more than one** `OnLeave` row — e.g. a morning-half and an afternoon-half
+> from two **separate** requests, which is realistic (an employee may ask for
+> them at different times). To allow this, Phase 1 changes the `Attendance`
+> partial-unique to **exclude `OnLeave`** (`... WHERE deletedAt IS NULL AND type
+> <> 'OnLeave'`), and approval instead enforces a **per-date cap**: existing +
+> new `OnLeave` minutes for any date must not exceed `standardDayMinutes`. So
+> half+half is fine; half+full or full+full on the same date is rejected with a
+> message naming the conflicting date. Each request keeps its **own** OnLeave
+> rows (linked by `leaveRequestId`), so voiding one request removes only its
+> rows.
 
 ### UI
 
@@ -254,7 +270,9 @@ expansion gains unit-awareness:
   a valid hourly/half.
 - `approveLeaveRequest`: full-day charges `days × standardDayMinutes` and writes
   per-day rows; partial charges the segment and writes one timed OnLeave row;
-  second same-day partial is rejected.
+  morning-half + afternoon-half on the same date (two separate requests) both
+  approve as two rows; half + full (or full + full) on the same date is rejected
+  by the per-date cap.
 
 ---
 
@@ -318,6 +336,13 @@ default is not a manual change — only subsequent edits are).
   **days + hours** hybrid widget as the display (consistent with Phase 1), so an
   admin can grant "6 วัน" or a "−3 วัน 4 ชม." adjustment; values convert to
   minutes via `standardDayMinutes` for storage.
+- **Adjustment column, explained.** `adjustmentMinutes` defaults to **0** and is
+  non-zero only when an admin types it. Two uses: (a) **onboarding prior usage** —
+  a mid-year/migrated employee who already took leave before go-live has no
+  system `used`, so the admin enters a **negative** adjustment (e.g. −3 วัน 4 ชม.)
+  to make Remaining reflect reality; (b) **one-off grants** — a **positive**
+  adjustment (e.g. +2 วัน) without changing the policy `granted`. It appears in the
+  table's Adjustment column and is audit-logged on change. Most employees show 0.
 - **Create page stays lean** — entitlements auto-seed on first edit-page visit;
   no entitlement fields on the create form.
 
@@ -482,6 +507,13 @@ And for the leave phases:
   new requests use the new windows.
 - **Employee without a `workSchedule`** — excluded from OT candidate detection
   (no scheduled end to compare); manual OT add still works.
+- **OnLeave counting is per-employee, not per-row.** Because a date can now hold
+  two `OnLeave` rows (a morning + an afternoon half), the live board
+  (`lib/attendance/live.ts`) and the dashboard "ลาวันนี้" count/list must be
+  **distinct by employee** (an employee on two halves is one person on leave, not
+  two). Existence-based logic (the not-checked-in `none` filter) is unaffected.
+  *(This adjustment ships in Phase 1, since that's when multi-row dates become
+  possible.)*
 - **Soft-deleted OT / leave** — excluded from `used`, candidates, and payroll
   sums via the soft-delete extension + explicit `deletedAt: null` filters.
 - **Permission gaps** — each new page/action guarded; pages the viewer can't
