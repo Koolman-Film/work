@@ -164,6 +164,7 @@ morningMinutes(cfg), afternoonMinutes(cfg): number
 standardDayMinutes(cfg): number                     // morning + afternoon
 segmentFor(unit, cfg, startTime?, endTime?):        // resolve a request to a concrete segment
   { startTime, endTime, minutes }                   // FullDay → null times, minutes per-day handled by caller
+segmentsOverlap(aStart, aEnd, bStart, bEnd): boolean // half-open [start,end) overlap; null start/end = whole day
 formatDaysHours(minutes, cfg): string               // 420/day → 600 → "1 วัน 3 ชม." (also "3 ชม." / "1 วัน")
 ```
 
@@ -213,6 +214,11 @@ AND type <> 'OnLeave'`) so a date can hold multiple OnLeave rows. Backfill
   partial leave on a closed day is meaningless). `Hourly` requires a valid
   `startTime < endTime` within the working day; halves derive times from
   `LeaveConfig` and ignore any posted times.
+- **Overlap check becomes segment-aware.** The existing date-range overlap
+  rejection (which blocks any intersecting Pending/Approved request) is relaxed:
+  on a shared date where both the existing and new leave are partial, allow them
+  when their time segments are disjoint; otherwise reject. Full-day on either
+  side still conflicts with anything on that date.
 - `chargedMinutes` is **not** trusted from the client — computed server-side.
 
 **Approval (`src/lib/leave/admin.ts::approveLeaveRequest`)** — the working-day
@@ -224,13 +230,13 @@ expansion gains unit-awareness:
   `durationMinutes = segment.minutes`, `clockInAt`/`clockOutAt` set to the
   segment's times on that date (so the row reconciles with a same-day check-in
   for the other half). `chargedMinutes = segment.minutes`.
-- **Per-date cap (over-allocation guard):** before inserting, sum the
-  `durationMinutes` of existing non-deleted `OnLeave` rows for each target date;
-  reject the whole request if existing + new would exceed `standardDayMinutes`
-  on any date (message names the date). This replaces the old
-  `skipDuplicates`-on-unique approach — `OnLeave` is no longer in the unique
-  index, so half+half on a date coexist as two rows while full+anything is
-  capped out.
+- **Per-date time-overlap guard:** before inserting, for each target date load
+  existing non-deleted `OnLeave` rows; reject the whole request if the new
+  leave's segment overlaps any existing one (a full-day row — null clock times —
+  occupies the whole day). This replaces the old `skipDuplicates`-on-unique
+  approach — `OnLeave` is no longer in the unique index, so disjoint partials on
+  a date coexist as two rows while overlapping/full conflicts are rejected
+  (message names the date).
 - The stored `chargedMinutes` is written to the `LeaveRequest` inside the same
   transaction. Audit `after` payload gains `unit` + `chargedMinutes`.
 
@@ -239,12 +245,13 @@ expansion gains unit-awareness:
 > from two **separate** requests, which is realistic (an employee may ask for
 > them at different times). To allow this, Phase 1 changes the `Attendance`
 > partial-unique to **exclude `OnLeave`** (`... WHERE deletedAt IS NULL AND type
-> <> 'OnLeave'`), and approval instead enforces a **per-date cap**: existing +
-> new `OnLeave` minutes for any date must not exceed `standardDayMinutes`. So
-> half+half is fine; half+full or full+full on the same date is rejected with a
-> message naming the conflicting date. Each request keeps its **own** OnLeave
-> rows (linked by `leaveRequestId`), so voiding one request removes only its
-> rows.
+> <> 'OnLeave'`), and both submit + approval enforce a **per-date time-overlap
+> guard**: a new leave's time segment must not overlap an existing Pending/
+> Approved leave on that date, where a full day occupies the whole day. So
+> morning-half + afternoon-half coexist (disjoint segments); half+full,
+> full+full, or two overlapping hourly segments are rejected with a message
+> naming the date. Each request keeps its **own** OnLeave rows (linked by
+> `leaveRequestId`), so voiding one request removes only its rows.
 
 ### UI
 
@@ -272,7 +279,7 @@ expansion gains unit-awareness:
   per-day rows; partial charges the segment and writes one timed OnLeave row;
   morning-half + afternoon-half on the same date (two separate requests) both
   approve as two rows; half + full (or full + full) on the same date is rejected
-  by the per-date cap.
+  by the time-overlap guard.
 
 ---
 
