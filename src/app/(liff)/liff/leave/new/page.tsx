@@ -9,11 +9,12 @@
 import { redirect } from 'next/navigation';
 import { requireRole } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
+import { remainingByTypeForEmployee } from '@/lib/leave/balance';
 import { getLeaveConfig } from '@/lib/leave/leave-config';
 import { LeaveNewForm } from './leave-new-form';
 
 export default async function NewLeavePage() {
-  await requireRole(['Staff']);
+  const { employee } = await requireRole(['Staff']);
 
   const [leaveTypes, leaveConfig] = await Promise.all([
     prisma.leaveType.findMany({
@@ -41,6 +42,20 @@ export default async function NewLeavePage() {
 
   // Today's date in YYYY-MM-DD (Bangkok) for the date `min` attribute.
   const todayYmd = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
+  const currentYear = Number(todayYmd.slice(0, 4));
 
-  return <LeaveNewForm leaveTypes={leaveTypes} minDate={todayYmd} leaveConfig={leaveConfig} />;
+  // Remaining balance per leave type for the current year (read-only; falls
+  // back to the type's annualQuota default when no entitlement row exists).
+  const remainingByType = employee
+    ? await remainingByTypeForEmployee(employee.id, currentYear)
+    : {};
+
+  return (
+    <LeaveNewForm
+      leaveTypes={leaveTypes}
+      minDate={todayYmd}
+      leaveConfig={leaveConfig}
+      remainingByType={remainingByType}
+    />
+  );
 }
