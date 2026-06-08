@@ -136,6 +136,7 @@ export default async function EmployeeListPage({ searchParams }: { searchParams:
           <div className="flex items-center gap-3">
             <div className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-full bg-gray-100 text-xs font-medium text-ink-3">
               {url ? (
+                // biome-ignore lint/performance/noImgElement: signed storage URL (short-lived, per-request); next/image optimization/caching doesn't apply
                 <img src={url} alt="" className="size-full object-cover" />
               ) : (
                 <span aria-hidden="true">{initials}</span>

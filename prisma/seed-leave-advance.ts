@@ -19,6 +19,8 @@
  * Run:  npm run db:seed:leave-advance   (uses .env.local — LOCAL dev only!)
  */
 
+// biome-ignore-all lint/suspicious/noConsole: seed scripts are CLI tools — console is the output channel
+
 import { Prisma, PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();

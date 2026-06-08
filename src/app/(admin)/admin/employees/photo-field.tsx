@@ -78,6 +78,7 @@ export function PhotoField({ employeeId, initialKey, initialUrl }: Props) {
       <div className="flex items-center gap-4">
         <div className="grid size-20 shrink-0 place-items-center overflow-hidden rounded-full bg-gray-100 text-ink-3">
           {preview ? (
+            // biome-ignore lint/performance/noImgElement: client preview is an object-URL / signed URL that next/image can't optimize
             <img src={preview} alt="รูปพนักงาน" className="size-full object-cover" />
           ) : (
             <span className="text-xs">ไม่มีรูป</span>
