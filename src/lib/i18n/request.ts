@@ -6,12 +6,10 @@
  * cookie is missing or malformed, falls back to DEFAULT_LOCALE — the
  * proxy will set the cookie correctly on the next request.
  *
- * Loads the locale's message catalog from `messages/<locale>.json`.
- * If the file is missing keys (common during the Phase 2 rollout while
- * translators catch up), next-intl will:
- *   - Log a warning in dev
- *   - Fall back to the key string itself in prod (visible "key.path"
- *     in the UI is the worst case, but the page still renders)
+ * Messages come from `getMessages(locale)`, which merges catalogs with
+ * the fallback chain: target ← English ← Thai (Thai is the complete
+ * source of truth). A missing key in the target locale first falls back
+ * to English, then to Thai, before next-intl renders the raw key string.
  *
  * We DO NOT load the DB User.locale here. See resolve.ts for the
  * reasoning — the cookie is the per-request source of truth; DB sync
@@ -32,12 +30,8 @@ export default getRequestConfig(async () => {
     acceptLanguage: headerStore.get('accept-language'),
   });
 
-  // Dynamic import keyed by locale code. The bundler tree-shakes
-  // unused message files at build time only when imports are static —
-  // for runtime locale switching we accept the small cost of loading
-  // all 5 catalogs into the server bundle. They're small (text only)
-  // and the alternative (5 separate route trees) is much heavier.
-  const messages = (await import(`../../../messages/${locale}.json`)).default;
-
-  return { locale, messages };
+  // getMessages applies the fallback chain (target ← en ← th), so an
+  // untranslated key renders English, then Thai, before the raw key.
+  const { getMessages } = await import('./messages');
+  return { locale, messages: getMessages(locale) };
 });
