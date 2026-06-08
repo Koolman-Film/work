@@ -23,13 +23,14 @@
 import { useMemo, useState } from 'react';
 import type {
   GridDay,
+  TeamCalendarAdvance,
   TeamCalendarEntry,
   TeamCalendarHoliday,
 } from '@/lib/leave/team-calendar-shape';
 // IMPORTANT: import from -shape, NOT team-calendar. The latter is
 // `server-only` and importing it from a client component will throw
 // at build time. The -shape module has the pure helpers + types.
-import { indexEntriesByDate } from '@/lib/leave/team-calendar-shape';
+import { indexAdvancesByDate, indexEntriesByDate } from '@/lib/leave/team-calendar-shape';
 import { cn } from '@/lib/utils';
 
 const WEEKDAY_LABELS = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'] as const;
@@ -52,6 +53,8 @@ type Props = {
   grid: GridDay[];
   entries: TeamCalendarEntry[];
   holidays: TeamCalendarHoliday[];
+  /** Cash-advance markers (admin calendar only). Defaults to none. */
+  advances?: TeamCalendarAdvance[];
   /**
    * Day-detail panel placement. 'below' (default) stacks it under the grid —
    * the mobile/LIFF layout, left untouched. 'right' moves it beside the grid on
@@ -59,13 +62,29 @@ type Props = {
    * into the narrower column. Grid cell rendering is identical in both.
    */
   detailPosition?: 'below' | 'right';
+  /** When provided, day-detail leave rows become buttons opening a review modal. */
+  onLeaveClick?: (leaveRequestId: string) => void;
+  /** When provided, day-detail advance rows become buttons opening a review modal. */
+  onAdvanceClick?: (cashAdvanceId: string) => void;
+  /** id of the row currently fetching its modal VM — shows a disabled/busy state. */
+  busyId?: string | null;
 };
 
-export function CalendarGrid({ grid, entries, holidays, detailPosition = 'below' }: Props) {
+export function CalendarGrid({
+  grid,
+  entries,
+  holidays,
+  advances = [],
+  detailPosition = 'below',
+  onLeaveClick,
+  onAdvanceClick,
+  busyId = null,
+}: Props) {
   // Build lookup maps once per props change. The grid re-renders on day
   // selection but the underlying indices don't change, so useMemo keeps
   // the per-cell render cheap (Map.get is O(1)).
   const entriesByDate = useMemo(() => indexEntriesByDate(entries), [entries]);
+  const advancesByDate = useMemo(() => indexAdvancesByDate(advances), [advances]);
   const holidayByDate = useMemo(() => {
     const m = new Map<string, string>();
     for (const h of holidays) m.set(h.date, h.name);
@@ -89,6 +108,7 @@ export function CalendarGrid({ grid, entries, holidays, detailPosition = 'below'
   const [selected, setSelected] = useState<string>(defaultSelected);
 
   const selectedEntries = entriesByDate.get(selected) ?? [];
+  const selectedAdvances = advancesByDate.get(selected) ?? [];
   const selectedHoliday = holidayByDate.get(selected) ?? null;
 
   return (
@@ -120,6 +140,14 @@ export function CalendarGrid({ grid, entries, holidays, detailPosition = 'below'
           {grid.map((cell) => {
             const dayEntries = entriesByDate.get(cell.date) ?? [];
             const holiday = holidayByDate.get(cell.date);
+            const dayAdvances = advancesByDate.get(cell.date) ?? [];
+            // Unified marker list: leaves first, then advances; share the ≤2 + "+N" budget.
+            const markers: Array<
+              { kind: 'leave'; e: TeamCalendarEntry } | { kind: 'advance'; a: TeamCalendarAdvance }
+            > = [
+              ...dayEntries.map((e) => ({ kind: 'leave' as const, e })),
+              ...dayAdvances.map((a) => ({ kind: 'advance' as const, a })),
+            ];
             const isToday = cell.date === todayYmd;
             const isSelected = cell.date === selected;
             const dow = new Date(`${cell.date}T00:00:00.000Z`).getUTCDay();
@@ -133,7 +161,7 @@ export function CalendarGrid({ grid, entries, holidays, detailPosition = 'below'
                 aria-pressed={isSelected}
                 aria-label={`${cell.day}${holiday ? ` ${holiday}` : ''}${
                   dayEntries.length > 0 ? ` (มีลา ${dayEntries.length})` : ''
-                }`}
+                }${dayAdvances.length > 0 ? ` (เบิก ${dayAdvances.length})` : ''}`}
                 className={cn(
                   'relative flex aspect-square flex-col rounded-md border p-1 text-left transition',
                   // Out-of-month cells: muted background + ghost text.
@@ -156,27 +184,40 @@ export function CalendarGrid({ grid, entries, holidays, detailPosition = 'below'
                   {cell.day}
                 </span>
 
-                {/* Entry bars — show up to 2 then "+N" */}
-                {cell.inMonth && dayEntries.length > 0 && (
+                {/* Markers — leave bars + ฿ advance chips, up to 2 then "+N" */}
+                {cell.inMonth && markers.length > 0 && (
                   <div className="mt-auto flex flex-col gap-0.5">
-                    {dayEntries.slice(0, 2).map((e) => (
-                      <span
-                        key={e.leaveRequestId}
-                        className={cn(
-                          'block truncate rounded-sm px-0.5 text-[9px] leading-tight',
-                          e.status === 'Approved'
-                            ? 'bg-primary-100 text-primary-800'
-                            : // Pending: hatched look via dashed border + lighter bg.
-                              'border border-dashed border-amber-300 bg-amber-50 text-amber-800',
-                          e.isMine && 'ring-1 ring-primary-400',
-                        )}
-                      >
-                        {e.shortLabel}
-                      </span>
-                    ))}
-                    {dayEntries.length > 2 && (
+                    {markers.slice(0, 2).map((m) =>
+                      m.kind === 'leave' ? (
+                        <span
+                          key={`l:${m.e.leaveRequestId}`}
+                          className={cn(
+                            'block truncate rounded-sm px-0.5 text-[9px] leading-tight',
+                            m.e.status === 'Approved'
+                              ? 'bg-primary-100 text-primary-800'
+                              : 'border border-dashed border-amber-300 bg-amber-50 text-amber-800',
+                            m.e.isMine && 'ring-1 ring-primary-400',
+                          )}
+                        >
+                          {m.e.shortLabel}
+                        </span>
+                      ) : (
+                        <span
+                          key={`a:${m.a.cashAdvanceId}`}
+                          className={cn(
+                            'block truncate rounded-sm px-0.5 text-[9px] leading-tight',
+                            m.a.status === 'Approved'
+                              ? 'bg-green-100 text-green-800'
+                              : 'border border-dashed border-green-300 bg-green-50 text-green-800',
+                          )}
+                        >
+                          {m.a.amountLabel}
+                        </span>
+                      ),
+                    )}
+                    {markers.length > 2 && (
                       <span className="text-[9px] font-medium leading-none text-gray-500">
-                        +{dayEntries.length - 2}
+                        +{markers.length - 2}
                       </span>
                     )}
                   </div>
@@ -209,46 +250,94 @@ export function CalendarGrid({ grid, entries, holidays, detailPosition = 'below'
           )}
         </header>
 
-        {selectedEntries.length === 0 ? (
+        {selectedEntries.length === 0 && selectedAdvances.length === 0 ? (
           <div className="px-4 py-8 text-center">
-            <p className="text-sm text-gray-500">ไม่มีคนลาวันนี้</p>
+            <p className="text-sm text-gray-500">ไม่มีรายการวันนี้</p>
             {selectedHoliday && <p className="mt-1 text-xs text-gray-400">เนื่องจากเป็นวันหยุด</p>}
           </div>
         ) : (
           <ul className="divide-y divide-gray-100">
-            {selectedEntries.map((e) => (
-              <li key={e.leaveRequestId} className="flex items-start gap-3 px-4 py-3">
-                {/* Initial circle — avatar stand-in until we have profile photos */}
-                <span
-                  className={cn(
-                    'grid size-8 shrink-0 place-items-center rounded-full text-xs font-bold',
-                    e.isMine ? 'bg-primary-100 text-primary-700' : 'bg-gray-100 text-gray-600',
-                  )}
-                >
-                  {(e.shortLabel[0] ?? '?').toUpperCase()}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <p className="truncate text-sm font-medium text-gray-900">
-                      {e.employeeName}
-                      {e.isMine && (
-                        <span className="ml-1 text-xs font-normal text-primary-600">(คุณ)</span>
+            {selectedEntries.map((e) => {
+              const body = (
+                <>
+                  <span
+                    className={cn(
+                      'grid size-8 shrink-0 place-items-center rounded-full text-xs font-bold',
+                      e.isMine ? 'bg-primary-100 text-primary-700' : 'bg-gray-100 text-gray-600',
+                    )}
+                  >
+                    {(e.shortLabel[0] ?? '?').toUpperCase()}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="truncate text-sm font-medium text-gray-900">
+                        {e.employeeName}
+                        {e.isMine && (
+                          <span className="ml-1 text-xs font-normal text-primary-600">(คุณ)</span>
+                        )}
+                      </p>
+                    </div>
+                    <p className="mt-0.5 text-xs text-gray-600">
+                      {e.leaveTypeName}
+                      {e.startDate !== e.endDate && (
+                        <span className="text-gray-400">
+                          {' '}
+                          · {formatRangeCompact(e.startDate, e.endDate)}
+                        </span>
                       )}
                     </p>
                   </div>
-                  <p className="mt-0.5 text-xs text-gray-600">
-                    {e.leaveTypeName}
-                    {e.startDate !== e.endDate && (
-                      <span className="text-gray-400">
-                        {' '}
-                        · {formatRangeCompact(e.startDate, e.endDate)}
-                      </span>
-                    )}
-                  </p>
-                </div>
-                <StatusBadge status={e.status} />
-              </li>
-            ))}
+                  <StatusBadge status={e.status} />
+                </>
+              );
+              return (
+                <li key={e.leaveRequestId}>
+                  {onLeaveClick ? (
+                    <button
+                      type="button"
+                      disabled={busyId === e.leaveRequestId}
+                      onClick={() => onLeaveClick(e.leaveRequestId)}
+                      className="flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-gray-50 disabled:opacity-60"
+                    >
+                      {body}
+                    </button>
+                  ) : (
+                    <div className="flex items-start gap-3 px-4 py-3">{body}</div>
+                  )}
+                </li>
+              );
+            })}
+
+            {selectedAdvances.map((a) => {
+              const body = (
+                <>
+                  <span className="grid size-8 shrink-0 place-items-center rounded-full bg-green-100 text-xs font-bold text-green-700">
+                    ฿
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-gray-900">{a.employeeName}</p>
+                    <p className="mt-0.5 text-xs text-gray-600">เบิกเงิน · {a.amountLabel}</p>
+                  </div>
+                  <StatusBadge status={a.status} />
+                </>
+              );
+              return (
+                <li key={a.cashAdvanceId}>
+                  {onAdvanceClick ? (
+                    <button
+                      type="button"
+                      disabled={busyId === a.cashAdvanceId}
+                      onClick={() => onAdvanceClick(a.cashAdvanceId)}
+                      className="flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-gray-50 disabled:opacity-60"
+                    >
+                      {body}
+                    </button>
+                  ) : (
+                    <div className="flex items-start gap-3 px-4 py-3">{body}</div>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>
