@@ -16,12 +16,13 @@
  *   - 'my'      Burmese (Myanmar) — stub until translator delivers
  *   - 'lo'      Lao — stub until translator delivers
  *   - 'zh-CN'   Chinese, Simplified — stub until translator delivers
+ *   - 'km'      Khmer (Cambodia) — stub until translator delivers
  *
  * If we later add Traditional Chinese (zh-TW), the dropdown order should
  * keep zh-CN and zh-TW adjacent so users see them as related options.
  */
 
-export const LOCALES = ['th', 'en', 'my', 'lo', 'zh-CN'] as const;
+export const LOCALES = ['th', 'en', 'my', 'lo', 'zh-CN', 'km'] as const;
 export type Locale = (typeof LOCALES)[number];
 
 /** The "if everything else fails" locale. Used when:
@@ -49,6 +50,7 @@ export const LOCALE_LABELS: Record<Locale, string> = {
   my: 'မြန်မာ',
   lo: 'ລາວ',
   'zh-CN': '简体中文',
+  km: 'ភាសាខ្មែរ',
 };
 
 /** Type guard — narrow an unknown string to Locale. Use this on any
