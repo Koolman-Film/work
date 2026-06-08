@@ -57,6 +57,10 @@ describe('isLate', () => {
     expect(isLate('2026-06-08T01:00:00.000Z')).toBe(false); // 08:00
     expect(isLate(null)).toBe(false);
   });
+  it('treats exactly 09:00 Bangkok as not late (> not >=)', () => {
+    expect(isLate('2026-06-08T02:00:00.000Z')).toBe(false); // exactly 09:00 BKK
+    expect(isLate('2026-06-08T02:01:00.000Z')).toBe(true); // 09:01 BKK
+  });
 });
 
 describe('selectView', () => {
