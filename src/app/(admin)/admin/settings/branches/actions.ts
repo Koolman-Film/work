@@ -60,7 +60,7 @@ const BranchSchema = z
       .transform((s) => {
         if (!s) return 150;
         const n = Number(s);
-        return Number.isFinite(n) && n >= 50 && n <= 1000 ? n : 150;
+        return Number.isFinite(n) && n >= 10 && n <= 1000 ? n : 150;
       }),
     requireSelfie: z
       .string()
