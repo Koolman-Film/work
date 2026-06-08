@@ -61,3 +61,10 @@ playwright-report/
 blob-report/
 playwright/.cache/
 .superpowers/
+
+# MCP browser captures + ad-hoc dev screenshots (repo root only)
+.playwright-mcp/
+/*.png
+
+# Supabase CLI local scaffolding (untracked dev state, not part of the project)
+supabase/
