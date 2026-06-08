@@ -20,7 +20,16 @@ export default async function EditLeaveTypePage({
 
   const row = await prisma.leaveType.findUnique({
     where: { id },
-    select: { id: true, name: true, isPaid: true, annualQuota: true, archivedAt: true },
+    select: {
+      id: true,
+      name: true,
+      isPaid: true,
+      annualQuota: true,
+      archivedAt: true,
+      allowFullDay: true,
+      allowHalfDay: true,
+      allowHourly: true,
+    },
   });
   if (!row || row.archivedAt) notFound();
 
@@ -41,7 +50,14 @@ export default async function EditLeaveTypePage({
         <LeaveTypeForm
           mode="edit"
           action={update}
-          initial={{ name: row.name, isPaid: row.isPaid, annualQuota: row.annualQuota }}
+          initial={{
+            name: row.name,
+            isPaid: row.isPaid,
+            annualQuota: row.annualQuota,
+            allowFullDay: row.allowFullDay,
+            allowHalfDay: row.allowHalfDay,
+            allowHourly: row.allowHourly,
+          }}
           error={error ? decodeURIComponent(error) : null}
           extraActions={
             <form action={archive}>

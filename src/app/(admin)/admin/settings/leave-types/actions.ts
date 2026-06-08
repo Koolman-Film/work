@@ -26,6 +26,18 @@ const Schema = z.object({
     ])
     .nullable()
     .optional(),
+  allowFullDay: z
+    .literal('on')
+    .optional()
+    .transform((v) => v === 'on'),
+  allowHalfDay: z
+    .literal('on')
+    .optional()
+    .transform((v) => v === 'on'),
+  allowHourly: z
+    .literal('on')
+    .optional()
+    .transform((v) => v === 'on'),
 });
 
 function readForm(formData: FormData) {
@@ -33,6 +45,9 @@ function readForm(formData: FormData) {
     name: formData.get('name'),
     isPaid: formData.get('isPaid') ?? undefined,
     annualQuota: formData.get('annualQuota'),
+    allowFullDay: formData.get('allowFullDay') ?? undefined,
+    allowHalfDay: formData.get('allowHalfDay') ?? undefined,
+    allowHourly: formData.get('allowHourly') ?? undefined,
   });
 }
 
@@ -49,6 +64,9 @@ type ParsedData = {
   name: string;
   isPaid: boolean;
   annualQuota: number | null;
+  allowFullDay: boolean;
+  allowHalfDay: boolean;
+  allowHourly: boolean;
 };
 
 function normalize(parsed: z.infer<typeof Schema>): ParsedData {
@@ -56,6 +74,9 @@ function normalize(parsed: z.infer<typeof Schema>): ParsedData {
     name: parsed.name,
     isPaid: parsed.isPaid ?? false,
     annualQuota: parsed.annualQuota ?? null,
+    allowFullDay: parsed.allowFullDay ?? false,
+    allowHalfDay: parsed.allowHalfDay ?? false,
+    allowHourly: parsed.allowHourly ?? false,
   };
 }
 
@@ -70,6 +91,12 @@ export async function createLeaveType(formData: FormData) {
   }
 
   const data = normalize(parsed.data);
+
+  if (!data.allowFullDay && !data.allowHalfDay && !data.allowHourly) {
+    redirect(
+      `/admin/settings/leave-types/new?error=${encodeURIComponent('ต้องเลือกอย่างน้อยหนึ่งหน่วยการลา')}`,
+    );
+  }
 
   try {
     const created = await prisma.leaveType.create({ data });
@@ -109,6 +136,12 @@ export async function updateLeaveType(id: string, formData: FormData) {
 
   const data = normalize(parsed.data);
 
+  if (!data.allowFullDay && !data.allowHalfDay && !data.allowHourly) {
+    redirect(
+      `/admin/settings/leave-types/${id}/edit?error=${encodeURIComponent('ต้องเลือกอย่างน้อยหนึ่งหน่วยการลา')}`,
+    );
+  }
+
   try {
     await prisma.leaveType.update({ where: { id }, data });
     auditLog({
@@ -116,7 +149,14 @@ export async function updateLeaveType(id: string, formData: FormData) {
       action: 'leaveType.update',
       entityType: 'LeaveType',
       entityId: id,
-      before: { name: before.name, isPaid: before.isPaid, annualQuota: before.annualQuota },
+      before: {
+        name: before.name,
+        isPaid: before.isPaid,
+        annualQuota: before.annualQuota,
+        allowFullDay: before.allowFullDay,
+        allowHalfDay: before.allowHalfDay,
+        allowHourly: before.allowHourly,
+      },
       after: data,
       metadata: { source: 'admin-ui' },
     });
