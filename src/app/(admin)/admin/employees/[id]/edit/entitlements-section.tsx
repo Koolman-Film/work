@@ -21,7 +21,7 @@ export async function EntitlementsSection({
   const days = (min: number) => String(Number((min / std).toFixed(2)));
 
   return (
-    <Card className="mt-6">
+    <Card>
       <CardHeader className="flex items-center justify-between gap-3">
         <CardTitle>สิทธิวันลา</CardTitle>
         <div className="flex items-center gap-2 text-sm">

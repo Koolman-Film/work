@@ -132,7 +132,8 @@ export default async function EditEmployeePage({
           )
         }
         belowForm={
-          <>
+          <div className="mt-6 space-y-6">
+            <EntitlementsSection employeeId={id} year={year} />
             <PairingCard
               employeeId={id}
               employeeName={`${emp.firstName} ${emp.lastName}`.trim()}
@@ -141,8 +142,7 @@ export default async function EditEmployeePage({
               lineUserId={emp.user.lineUserId}
               baseUrl={baseUrl}
             />
-            <EntitlementsSection employeeId={id} year={year} />
-          </>
+          </div>
         }
       />
     </div>
