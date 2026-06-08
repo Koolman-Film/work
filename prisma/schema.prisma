@@ -386,6 +386,7 @@ model Employee {
 
   attendances         Attendance[]
   leaveRequests       LeaveRequest[]
+  leaveEntitlements   LeaveEntitlement[]
   cashAdvances        CashAdvance[]
   payrolls            Payroll[]
   recurringDeductions RecurringDeduction[]
@@ -460,6 +461,7 @@ model LeaveType {
   allowHourly  Boolean  @default(false)
   archivedAt  DateTime?
   requests    LeaveRequest[]
+  entitlements LeaveEntitlement[]
 }
 
 /// Company-wide leave-unit configuration (singleton — read via findFirst()).
@@ -472,6 +474,28 @@ model LeaveConfig {
   afternoonStart String   @default("13:00")
   afternoonEnd   String   @default("17:00")
   updatedAt      DateTime @updatedAt
+}
+
+/// Per-employee, per-year leave allowance for one leave type. Seeded from
+/// LeaveType.annualQuota × standardDayMinutes but individually editable for
+/// onboarding. Remaining = granted + carryover + adjustment − used (used =
+/// Σ chargedMinutes of approved leave that year). See spec §Phase 2.
+model LeaveEntitlement {
+  id                String    @id @default(uuid()) @db.Uuid
+  employeeId        String    @db.Uuid
+  employee          Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveTypeId       String    @db.Uuid
+  leaveType         LeaveType @relation(fields: [leaveTypeId], references: [id], onDelete: Restrict)
+  periodYear        Int       // calendar year
+  grantedMinutes    Int?      // null = unlimited (mirrors annualQuota = null)
+  carryoverMinutes  Int       @default(0)
+  adjustmentMinutes Int       @default(0) // signed; opening balance / corrections
+  note              String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@unique([employeeId, leaveTypeId, periodYear])
+  @@index([employeeId, periodYear])
 }
 
 model LeaveRequest {
