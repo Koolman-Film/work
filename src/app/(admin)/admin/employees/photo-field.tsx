@@ -86,6 +86,7 @@ export function PhotoField({ employeeId, initialKey, initialUrl }: Props) {
         <div className="space-y-2">
           <label className="inline-flex cursor-pointer items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm shadow-sm hover:bg-gray-50">
             <input
+              id="employee-photo-file"
               type="file"
               accept="image/*"
               className="sr-only"
