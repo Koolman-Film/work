@@ -9,7 +9,17 @@ import { resolvePreselectLocale, shouldShowLanguageModal } from './modal-trigger
 
 export type LiffLocaleSync =
   | { paired: false }
-  | { paired: true; showModal: boolean; preselect: Locale };
+  | {
+      paired: true;
+      showModal: boolean;
+      preselect: Locale;
+      /** Where `preselect` came from. 'admin' = an explicit admin/effective
+       *  default the worker should see first (the client must NOT override it
+       *  with the device language, even when it equals 'th'). 'fallback' =
+       *  we guessed from Accept-Language/default, so the client may refine it
+       *  with liff.getLanguage(). */
+      preselectSource: 'admin' | 'fallback';
+    };
 
 /**
  * LIFF entry reconciliation. Called once on mount by <LiffLocaleGate>.
@@ -59,5 +69,8 @@ export async function syncLiffLocale(): Promise<LiffLocaleSync> {
       adminDefault: dbUser.locale,
       acceptLanguage: headerStore.get('accept-language'),
     }),
+    // An admin/effective default is authoritative for the modal's highlight;
+    // anything else is a guess the client may refine with the LINE language.
+    preselectSource: isLocale(dbUser.locale) ? 'admin' : 'fallback',
   };
 }
