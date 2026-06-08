@@ -1,31 +1,49 @@
 'use client';
 
 /**
- * Live attendance board — KPI strip + branch-grouped status chips.
+ * Live attendance board — KPI strip (clickable filters) + branch-grouped list.
  *
  * Connection model (unchanged): subscribe to Supabase Realtime for
  * postgres_changes on Attendance → refetch the day on any change; plus a
  * 30s polling fallback so the board self-heals if the socket drops.
+ *
+ * Filtering: the five KPI cards are filter toggles. The active filter lives in
+ * the URL (`?filter=`) so it's shareable and the dashboard can deep-link in;
+ * the client seeds from `initialFilter` and updates the URL via router.replace.
  */
 
+import { useRouter } from 'next/navigation';
+import type { ReactNode } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { StatCard } from '@/components/ui/stat-card';
-import {
-  getTodayAttendance,
-  type LiveAttendanceRow,
-  type LiveBoardData,
-} from '@/lib/attendance/live';
+import { getTodayAttendance } from '@/lib/attendance/live';
+import type {
+  LiveAttendanceRow,
+  LiveBoardData,
+  OnLeaveEmployee,
+  RosterEmployee,
+} from '@/lib/attendance/live-shape';
 import { createClient } from '@/lib/supabase/browser';
+import { type AttendanceFilter, isLate, selectView } from './filter';
 
 type Status =
   | { kind: 'realtime'; channelStatus: 'connecting' | 'connected' | 'error' }
   | { kind: 'polling-only' };
 
 const POLL_INTERVAL_MS = 30_000;
+const LIVE_PATH = '/admin/attendance/live';
 
-export function LiveBoardClient({ initial }: { initial: LiveBoardData }) {
+export function LiveBoardClient({
+  initial,
+  initialFilter,
+}: {
+  initial: LiveBoardData;
+  initialFilter: AttendanceFilter | null;
+}) {
+  const router = useRouter();
   const [data, setData] = useState<LiveBoardData>(initial);
+  const [filter, setFilter] = useState<AttendanceFilter | null>(initialFilter);
   const [status, setStatus] = useState<Status>({ kind: 'realtime', channelStatus: 'connecting' });
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
@@ -40,6 +58,19 @@ export function LiveBoardClient({ initial }: { initial: LiveBoardData }) {
   }, []);
   const refetchRef = useRef(refetch);
   refetchRef.current = refetch;
+
+  // Toggle a filter: clicking the active card clears it. Mirror the change to
+  // the URL (replace, so we don't pile up history entries) for shareability.
+  const toggleFilter = useCallback(
+    (next: AttendanceFilter) => {
+      setFilter((cur) => {
+        const value = cur === next ? null : next;
+        router.replace(value ? `${LIVE_PATH}?filter=${value}` : LIVE_PATH, { scroll: false });
+        return value;
+      });
+    },
+    [router],
+  );
 
   // Realtime subscription.
   useEffect(() => {
@@ -69,13 +100,14 @@ export function LiveBoardClient({ initial }: { initial: LiveBoardData }) {
     return () => clearInterval(id);
   }, []);
 
-  const { rows, activeCount, onLeaveCount } = data;
+  const { rows, notCheckedIn, activeCount, onLeaveCount } = data;
   const present = rows.length;
   const late = rows.filter((r) => isLate(r.clockInAt)).length;
   const out = rows.filter((r) => r.clockOutAt).length;
-  const notYet = Math.max(0, activeCount - present - onLeaveCount);
+  const notYet = notCheckedIn.length;
   const pct = activeCount > 0 ? Math.round((present / activeCount) * 100) : 0;
-  const groups = groupByBranch(rows);
+
+  const view = selectView(data, filter);
 
   return (
     <div className="space-y-5">
@@ -98,36 +130,47 @@ export function LiveBoardClient({ initial }: { initial: LiveBoardData }) {
         </div>
       </div>
 
-      {/* KPI strip */}
+      {/* KPI strip — clickable filters */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        <StatCard label="เข้างานแล้ว" value={present} hint={`${pct}% ของ ${activeCount} คน`} />
-        <StatCard label="มาสาย" value={late} hint="เช็คอินหลัง 09:00" />
-        <StatCard label="ยังไม่มา" value={notYet} hint="ยังไม่เช็คอินวันนี้" />
-        <StatCard label="ลา/หยุด" value={onLeaveCount} hint="อนุมัติแล้ว" />
-        <StatCard label="ออกแล้ว" value={out} hint="เช็คเอาท์แล้ว" />
+        <StatCard
+          label="เข้างานแล้ว"
+          value={present}
+          hint={`${pct}% ของ ${activeCount} คน`}
+          active={filter === 'checkedin'}
+          onClick={() => toggleFilter('checkedin')}
+        />
+        <StatCard
+          label="มาสาย"
+          value={late}
+          hint="เช็คอินหลัง 09:00"
+          active={filter === 'late'}
+          onClick={() => toggleFilter('late')}
+        />
+        <StatCard
+          label="ยังไม่มา"
+          value={notYet}
+          hint="ยังไม่เช็คอินวันนี้"
+          active={filter === 'notcheckedin'}
+          onClick={() => toggleFilter('notcheckedin')}
+        />
+        <StatCard
+          label="ลา/หยุด"
+          value={onLeaveCount}
+          hint="อนุมัติแล้ว"
+          active={filter === 'onleave'}
+          onClick={() => toggleFilter('onleave')}
+        />
+        <StatCard
+          label="ออกแล้ว"
+          value={out}
+          hint="เช็คเอาท์แล้ว"
+          active={filter === 'checkedout'}
+          onClick={() => toggleFilter('checkedout')}
+        />
       </div>
 
-      {/* Branch-grouped chips */}
-      {rows.length === 0 ? (
-        <div className="surface">
-          <EmptyState title="ยังไม่มีพนักงานเช็คอินวันนี้" hint="แผงจะอัปเดตอัตโนมัติเมื่อมีการเช็คอิน" />
-        </div>
-      ) : (
-        <div className="space-y-5">
-          {groups.map((g) => (
-            <div key={g.branch}>
-              <p className="mb-2 text-xs font-semibold text-ink-3">
-                {g.branch} <span className="text-ink-4">· {g.rows.length} คน</span>
-              </p>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {g.rows.map((r) => (
-                  <Chip key={r.id} row={r} />
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      {/* List area — content depends on the active filter */}
+      <FilteredList view={view} />
 
       {/* Legend */}
       <div className="flex flex-wrap items-center gap-3 text-[11px] text-ink-4">
@@ -141,14 +184,81 @@ export function LiveBoardClient({ initial }: { initial: LiveBoardData }) {
   );
 }
 
+function FilteredList({ view }: { view: ReturnType<typeof selectView> }) {
+  if (view.kind === 'checkin') {
+    if (view.rows.length === 0) {
+      return (
+        <div className="surface">
+          <EmptyState title="ไม่มีรายการในมุมมองนี้" hint="แผงจะอัปเดตอัตโนมัติเมื่อมีการเปลี่ยนแปลง" />
+        </div>
+      );
+    }
+    return (
+      <BranchGroups groups={groupByBranch(view.rows)} render={(r) => <Chip key={r.id} row={r} />} />
+    );
+  }
+
+  if (view.kind === 'roster') {
+    if (view.rows.length === 0) {
+      return (
+        <div className="surface">
+          <EmptyState title="ทุกคนเช็คอินแล้ว ✨" hint="ไม่มีพนักงานที่ยังไม่เข้างานวันนี้" />
+        </div>
+      );
+    }
+    return (
+      <BranchGroups
+        groups={groupByBranch(view.rows)}
+        render={(r) => <RosterChip key={r.id} person={r} />}
+      />
+    );
+  }
+
+  // view.kind === 'leave'
+  if (view.rows.length === 0) {
+    return (
+      <div className="surface">
+        <EmptyState title="ไม่มีพนักงานลาวันนี้" hint="รายการลาที่อนุมัติแล้วจะแสดงที่นี่" />
+      </div>
+    );
+  }
+  return (
+    <BranchGroups
+      groups={groupByBranch(view.rows)}
+      render={(r) => <LeaveChip key={r.id} person={r} />}
+    />
+  );
+}
+
+function BranchGroups<T extends { branchName: string }>({
+  groups,
+  render,
+}: {
+  groups: { branch: string; rows: T[] }[];
+  render: (item: T) => ReactNode;
+}) {
+  return (
+    <div className="space-y-5">
+      {groups.map((g) => (
+        <div key={g.branch}>
+          <p className="mb-2 text-xs font-semibold text-ink-3">
+            {g.branch} <span className="text-ink-4">· {g.rows.length} คน</span>
+          </p>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {g.rows.map(render)}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function Chip({ row }: { row: LiveAttendanceRow }) {
   return (
     <div
       className={`flex items-center gap-2.5 rounded-lg border border-gray-200 border-l-4 ${chipRail(row)} bg-white px-3 py-2 shadow-sm`}
     >
-      <span className="grid size-8 shrink-0 place-items-center rounded-full bg-primary-100 font-display text-[11px] font-bold text-primary-700">
-        {initials(row.employeeName)}
-      </span>
+      <Avatar name={row.employeeName} />
       <div className="min-w-0 flex-1">
         <p className="truncate text-xs font-medium text-ink-1">
           {row.employeeName}
@@ -160,6 +270,51 @@ function Chip({ row }: { row: LiveAttendanceRow }) {
         </p>
       </div>
     </div>
+  );
+}
+
+function RosterChip({ person }: { person: RosterEmployee }) {
+  return (
+    <div className="flex items-center gap-2.5 rounded-lg border border-gray-200 border-l-4 border-l-slate-300 bg-white px-3 py-2 shadow-sm">
+      <Avatar name={person.employeeName} />
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-xs font-medium text-ink-1">
+          {person.employeeName}
+          {person.employeeNickname && (
+            <span className="text-ink-3"> ({person.employeeNickname})</span>
+          )}
+        </p>
+        <p className="text-[10px] text-ink-4">ยังไม่เช็คอิน</p>
+      </div>
+    </div>
+  );
+}
+
+function LeaveChip({ person }: { person: OnLeaveEmployee }) {
+  return (
+    <div className="flex items-center gap-2.5 rounded-lg border border-gray-200 border-l-4 border-l-amber-400 bg-white px-3 py-2 shadow-sm">
+      <Avatar name={person.employeeName} />
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-xs font-medium text-ink-1">
+          {person.employeeName}
+          {person.employeeNickname && (
+            <span className="text-ink-3"> ({person.employeeNickname})</span>
+          )}
+        </p>
+        <p className="text-[10px] text-ink-3">
+          {person.leaveTypeName ?? 'ลา'}
+          {person.startDate && person.endDate && ` · ${fmtRange(person.startDate, person.endDate)}`}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function Avatar({ name }: { name: string }) {
+  return (
+    <span className="grid size-8 shrink-0 place-items-center rounded-full bg-primary-100 font-display text-[11px] font-bold text-primary-700">
+      {initials(name)}
+    </span>
   );
 }
 
@@ -204,8 +359,10 @@ function chipRail(row: LiveAttendanceRow): string {
   return 'border-l-emerald-400';
 }
 
-function groupByBranch(rows: LiveAttendanceRow[]): { branch: string; rows: LiveAttendanceRow[] }[] {
-  const map = new Map<string, LiveAttendanceRow[]>();
+function groupByBranch<T extends { branchName: string }>(
+  rows: T[],
+): { branch: string; rows: T[] }[] {
+  const map = new Map<string, T[]>();
   for (const r of rows) {
     const list = map.get(r.branchName);
     if (list) list.push(r);
@@ -221,21 +378,22 @@ function initials(name: string): string {
   return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase() || '?';
 }
 
-function isLate(clockInIso: string | null): boolean {
-  if (!clockInIso) return false;
-  const hhmm = new Date(clockInIso).toLocaleTimeString('en-GB', {
-    timeZone: 'Asia/Bangkok',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  });
-  return hhmm > '09:00';
-}
-
 function fmtTime(iso: string): string {
   return new Date(iso).toLocaleTimeString('th-TH', {
     hour: '2-digit',
     minute: '2-digit',
     timeZone: 'Asia/Bangkok',
   });
+}
+
+function fmtRange(startIso: string, endIso: string): string {
+  const opts: Intl.DateTimeFormatOptions = { timeZone: 'UTC', day: 'numeric', month: 'short' };
+  const start = new Date(startIso);
+  const end = new Date(endIso);
+  const same =
+    start.getUTCFullYear() === end.getUTCFullYear() &&
+    start.getUTCMonth() === end.getUTCMonth() &&
+    start.getUTCDate() === end.getUTCDate();
+  if (same) return start.toLocaleDateString('th-TH', opts);
+  return `${start.toLocaleDateString('th-TH', opts)}–${end.toLocaleDateString('th-TH', opts)}`;
 }
