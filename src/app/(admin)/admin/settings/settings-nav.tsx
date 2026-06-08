@@ -8,6 +8,7 @@ import {
   CalendarOff,
   Clock,
   FolderTree,
+  Hourglass,
   KeyRound,
   ShieldCheck,
 } from 'lucide-react';
@@ -31,6 +32,12 @@ const ITEMS: Item[] = [
     label: 'ประเภทการลา',
     desc: 'ลาป่วย / ลากิจ',
     Icon: CalendarOff,
+  },
+  {
+    href: '/admin/settings/leave-config',
+    label: 'ตั้งค่าการลา',
+    desc: 'ครึ่งวัน / รายชั่วโมง',
+    Icon: Hourglass,
   },
   { href: '/admin/settings/holidays', label: 'วันหยุด', desc: 'ราชการ + ชดเชย', Icon: CalendarDays },
   {

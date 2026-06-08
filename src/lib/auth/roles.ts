@@ -83,6 +83,7 @@ export const SYSTEM_ROLES: Record<
       'settings.department.manage',
       'settings.accounting-group.manage',
       'settings.leave-type.manage',
+      'settings.leave-config.manage',
       'settings.holiday.manage',
       'settings.work-schedule.manage',
       // Team management — Admin can manage OTHER ADMINS in the same
