@@ -77,9 +77,33 @@ const SEED = {
     },
   ],
   leaveTypes: [
-    { name: 'ลาป่วย', isPaid: true, annualQuota: 30 }, // 30 days/year per Thai labor law
-    { name: 'ลากิจ', isPaid: true, annualQuota: 3 },
-    { name: 'ลาพักร้อน', isPaid: true, annualQuota: 6 }, // minimum per Thai labor law
+    // 30 days/year per Thai labor law. Sick leave can be a half day.
+    {
+      name: 'ลาป่วย',
+      isPaid: true,
+      annualQuota: 30,
+      allowFullDay: true,
+      allowHalfDay: true,
+      allowHourly: false,
+    },
+    // Personal errands — the most granular: full / half / hourly.
+    {
+      name: 'ลากิจ',
+      isPaid: true,
+      annualQuota: 3,
+      allowFullDay: true,
+      allowHalfDay: true,
+      allowHourly: true,
+    },
+    // Vacation — full or half day (minimum per Thai labor law).
+    {
+      name: 'ลาพักร้อน',
+      isPaid: true,
+      annualQuota: 6,
+      allowFullDay: true,
+      allowHalfDay: true,
+      allowHourly: false,
+    },
   ],
   // Default schedule: Mon–Sat 09:00–18:00 with Sunday closed.
   // Per-day rows now live in WorkScheduleDay — `days` below is the
@@ -223,9 +247,27 @@ async function main() {
     const row = await prisma.leaveType.upsert({
       where: { name: lt.name },
       create: lt,
-      update: { isPaid: lt.isPaid, annualQuota: lt.annualQuota },
+      update: {
+        isPaid: lt.isPaid,
+        annualQuota: lt.annualQuota,
+        allowFullDay: lt.allowFullDay,
+        allowHalfDay: lt.allowHalfDay,
+        allowHourly: lt.allowHourly,
+      },
     });
     console.log(`  ✓ ${row.name}  (paid=${row.isPaid}, quota=${row.annualQuota ?? '∞'})`);
+  }
+
+  // 4b. LeaveConfig singleton — create only if missing (column defaults =
+  //     09:00–12:00 / 13:00–17:00). The 0016 migration also inserts one row,
+  //     so this is just a safety net for a wiped DB.
+  console.log('\nLeaveConfig:');
+  const existingLeaveConfig = await prisma.leaveConfig.findFirst();
+  if (existingLeaveConfig) {
+    console.log('  ✓ already present');
+  } else {
+    await prisma.leaveConfig.create({ data: {} });
+    console.log('  ✓ created (09:00–12:00 / 13:00–17:00)');
   }
 
   // 5. WorkSchedule — no natural unique key; check by name.
