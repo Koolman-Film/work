@@ -45,3 +45,53 @@ describe('buildFlexMessage localization', () => {
     expect(m.altText).toContain('ลาป่วย');
   });
 });
+
+// Regression guard: every notification kind must render non-empty, fully
+// resolved chrome in both th and en (no missing-key fallout — a missing
+// key would surface as a raw dotted path like "leaveApproved.header").
+const allKinds = [
+  leaveApproved,
+  { ...leaveApproved, kind: 'leave.rejected' as const, workingDays: null },
+  {
+    kind: 'advance.approved' as const,
+    cashAdvanceId: 'a1',
+    employeeFirstName: 'Aung',
+    amount: '12,500.00',
+  },
+  {
+    kind: 'advance.rejected' as const,
+    cashAdvanceId: 'a2',
+    employeeFirstName: 'Aung',
+    amount: '500.00',
+  },
+  {
+    kind: 'attendance.dispute-approved' as const,
+    attendanceId: 'at1',
+    employeeFirstName: 'Aung',
+    date: '2026-05-12',
+    reviewNote: 'ok',
+  },
+  {
+    kind: 'attendance.dispute-rejected' as const,
+    attendanceId: 'at2',
+    employeeFirstName: 'Aung',
+    date: '2026-05-12',
+    reviewNote: 'no',
+  },
+];
+
+describe('buildFlexMessage covers every kind without missing keys', () => {
+  for (const locale of ['th', 'en'] as const) {
+    for (const payload of allKinds) {
+      it(`${payload.kind} renders resolved chrome in ${locale}`, () => {
+        const m = buildFlexMessage(payload, 'https://x', locale);
+        const header = headerText(m);
+        expect(header.length).toBeGreaterThan(0);
+        expect(m.altText.length).toBeGreaterThan(0);
+        // A failed lookup would echo the dotted key path — assert it doesn't.
+        expect(header).not.toMatch(/^[a-z]+\.[a-zA-Z.]+$/);
+        expect(m.altText).not.toContain('.alt');
+      });
+    }
+  }
+});
