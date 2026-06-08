@@ -15,8 +15,8 @@
 ## Conventions for every task
 
 - **Branch first.** This plan must run on a feature branch, not `main`. If not already on one: `git checkout -b feat/clickable-attendance-kpis`.
-- **Tests live beside source** as `*.test.ts`, using `import { describe, expect, it } from 'vitest'`. There is **no** jsdom / testing-library — only **pure functions** get unit tests. UI wiring is verified by `npm run typecheck` + `npm run build` + an e2e test + manual check.
-- Commands: `npm run test` (vitest), `npm run typecheck` (tsc --noEmit), `npm run lint` (biome), `npm run build`, `npm run test:e2e` (playwright).
+- **Tests live beside source** as `*.test.ts`, using `import { describe, expect, it } from 'vitest'`. There is **no** jsdom / testing-library — only **pure functions** get unit tests. UI wiring is verified by `pnpm typecheck` + `pnpm build` + an e2e test + manual check.
+- Commands: `pnpm test` (vitest), `pnpm typecheck` (tsc --noEmit), `pnpm lint` (biome), `pnpm build`, `pnpm test:e2e` (playwright).
 - Each `git add` lists **exact paths** so unrelated uncommitted work in the tree is never swept into these commits.
 
 ## File Structure
@@ -88,7 +88,7 @@ describe('isClosedDay', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `npm run test -- src/lib/attendance/date.test.ts`
+Run: `pnpm test -- src/lib/attendance/date.test.ts`
 Expected: FAIL — `Cannot find module './date'`.
 
 - [ ] **Step 3: Write minimal implementation**
@@ -127,7 +127,7 @@ export function isClosedDay(date: Date, hasHoliday: boolean): boolean {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `npm run test -- src/lib/attendance/date.test.ts`
+Run: `pnpm test -- src/lib/attendance/date.test.ts`
 Expected: PASS (5 assertions).
 
 - [ ] **Step 5: Point `check-in.ts` at the shared helper**
@@ -153,7 +153,7 @@ function bangkokDateUtcMidnight(d: Date): Date {
 
 - [ ] **Step 6: Verify check-in.ts still typechecks**
 
-Run: `npm run typecheck`
+Run: `pnpm typecheck`
 Expected: PASS, no errors (and `bangkokDateString` is still referenced, so no "unused" lint error).
 
 - [ ] **Step 7: Commit**
@@ -207,7 +207,7 @@ describe('selectNotCheckedIn', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `npm run test -- src/lib/attendance/live.test.ts`
+Run: `pnpm test -- src/lib/attendance/live.test.ts`
 Expected: FAIL — `selectNotCheckedIn` / `RosterEmployee` not exported.
 
 - [ ] **Step 3: Implement the new types, pure helper, and extended loader**
@@ -400,12 +400,12 @@ export async function getTodayAttendance(): Promise<LiveBoardData> {
 
 - [ ] **Step 4: Run the unit test to verify it passes**
 
-Run: `npm run test -- src/lib/attendance/live.test.ts`
+Run: `pnpm test -- src/lib/attendance/live.test.ts`
 Expected: PASS (3 assertions).
 
 - [ ] **Step 5: Typecheck**
 
-Run: `npm run typecheck`
+Run: `pnpm typecheck`
 Expected: PASS. (`live-client.tsx` still consumes `rows`, `activeCount`, `onLeaveCount`, which all still exist — the new fields are additive, so the client keeps compiling until Task 5.)
 
 - [ ] **Step 6: Commit**
@@ -519,7 +519,7 @@ describe('selectView', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `npm run test -- "src/app/(admin)/admin/attendance/live/filter.test.ts"`
+Run: `pnpm test -- "src/app/(admin)/admin/attendance/live/filter.test.ts"`
 Expected: FAIL — `./filter` not found.
 
 - [ ] **Step 3: Implement the filter module**
@@ -589,7 +589,7 @@ export function selectView(data: LiveBoardData, filter: AttendanceFilter | null)
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `npm run test -- "src/app/(admin)/admin/attendance/live/filter.test.ts"`
+Run: `pnpm test -- "src/app/(admin)/admin/attendance/live/filter.test.ts"`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
@@ -684,7 +684,7 @@ export function StatCard({
 
 - [ ] **Step 2: Typecheck + lint**
 
-Run: `npm run typecheck && npm run lint`
+Run: `pnpm typecheck && pnpm lint`
 Expected: PASS. (Owner page, admin dashboard, and live-client still compile — they pass no `onClick`.)
 
 - [ ] **Step 3: Commit**
@@ -1111,7 +1111,7 @@ function fmtRange(startIso: string, endIso: string): string {
 
 - [ ] **Step 2: Typecheck + lint**
 
-Run: `npm run typecheck && npm run lint`
+Run: `pnpm typecheck && pnpm lint`
 Expected: PASS. (The page still passes only `initial`; it gets `initialFilter` in Task 6 — until then typecheck FAILS on the missing prop, so do Task 6 before re-running. To keep this task self-contained, proceed straight to Task 6, then run typecheck once.)
 
 - [ ] **Step 3: Commit (after Task 6 typechecks)** — see Task 6 Step 3.
@@ -1176,7 +1176,7 @@ export default async function LiveBoardPage({
 
 - [ ] **Step 2: Typecheck + lint + build**
 
-Run: `npm run typecheck && npm run lint && npm run build`
+Run: `pnpm typecheck && pnpm lint && pnpm build`
 Expected: PASS. The board route compiles with the new client props.
 
 - [ ] **Step 3: Commit (Tasks 5 + 6 together — they're interdependent)**
@@ -1317,7 +1317,7 @@ function Figure({
 
 - [ ] **Step 2: Typecheck + lint**
 
-Run: `npm run typecheck && npm run lint`
+Run: `pnpm typecheck && pnpm lint`
 Expected: PASS. (The dashboard passes no hrefs yet, so figures render plainly — unchanged.)
 
 - [ ] **Step 3: Commit**
@@ -1425,7 +1425,7 @@ with:
 
 - [ ] **Step 4: Typecheck + lint + build**
 
-Run: `npm run typecheck && npm run lint && npm run build`
+Run: `pnpm typecheck && pnpm lint && pnpm build`
 Expected: PASS. No remaining bare-boolean `isClosedDay` references; dashboard still renders with `revalidate = 30` (the page reads no `searchParams`, so it stays ISR-cached).
 
 - [ ] **Step 5: Commit**
@@ -1545,7 +1545,7 @@ test.describe('Live board KPI filters', () => {
 
 - [ ] **Step 2: Run the e2e test**
 
-Run: `npm run test:e2e -- admin-attendance-live-filter`
+Run: `pnpm test:e2e -- admin-attendance-live-filter`
 Expected: PASS (3 tests; the not-checked-in test auto-skips on Sundays). If the dev/preview server isn't running per the Playwright config, start it as the other e2e specs require (see `tests/e2e/README.md`).
 
 > If `getByText(presentName)` is flaky because the seeded admin's own roster is large, the names are `e2e-…`-prefixed and unique per run, so the exact-substring assertions remain stable. The dashboard `เข้างานแล้ว` link is matched by its `aria-label` set in Task 7.
@@ -1563,12 +1563,12 @@ git commit -m "test(e2e): live board KPI filters + dashboard deep-link"
 
 - [ ] **Step 1: Run the whole suite**
 
-Run: `npm run test && npm run typecheck && npm run lint && npm run build`
+Run: `pnpm test && pnpm typecheck && pnpm lint && pnpm build`
 Expected: all PASS.
 
 - [ ] **Step 2: Manual smoke (dev server)**
 
-Run: `npm run dev`, then:
+Run: `pnpm dev`, then:
 1. Open `/admin`. Confirm the "การเข้างานวันนี้" hero shows เข้างานแล้ว and ยังไม่เข้า; hovering each underlines the label and shows a pointer.
 2. Click **เข้างานแล้ว** → lands on `/admin/attendance/live?filter=checkedin`, the เข้างานแล้ว card is ring-highlighted, list shows checked-in employees.
 3. Click **ยังไม่มา** card → URL becomes `?filter=notcheckedin`, list shows not-checked-in employees with "ยังไม่เช็คอิน".
