@@ -1,12 +1,13 @@
 import Link from 'next/link';
 
-type Current = 'records' | 'disputed' | 'live' | 'manual';
+type Current = 'records' | 'disputed' | 'live' | 'manual' | 'overtime';
 
 const TABS = [
   { key: 'records', href: '/admin/attendance', label: 'ประวัติ' },
   { key: 'disputed', href: '/admin/attendance/disputed', label: 'ต้องตรวจสอบ' },
   { key: 'live', href: '/admin/attendance/live', label: 'สด' },
   { key: 'manual', href: '/admin/attendance/manual', label: 'คีย์มือ' },
+  { key: 'overtime', href: '/admin/attendance/overtime', label: 'OT' },
 ] as const;
 
 /**
