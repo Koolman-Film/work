@@ -1,3 +1,4 @@
+// biome-ignore-all lint/suspicious/noConsole: seed scripts are CLI tools — console is the output channel
 /**
  * Standalone bank seeder — `pnpm db:seed:banks`.
  *
