@@ -4,6 +4,7 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { type ChangeEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { Input } from '@/components/ui/input';
+import { GeofenceSearch } from './geofence-search';
 import { parseCoordInput } from './parse-coord';
 
 /**
@@ -75,6 +76,16 @@ export function GeofencePicker({
     setLatText(fmt(la));
     setLngText(fmt(lo));
   }, []);
+
+  // Address search → same path as click/drag/typed coords: move the pin + fill
+  // the fields, then recenter the map on the chosen place.
+  const handleGeocodeSelect = useCallback(
+    (la: number, lo: number) => {
+      syncFromMap(la, lo);
+      mapRef.current?.setView([la, lo], 16);
+    },
+    [syncFromMap],
+  );
 
   // Watch the radiusMeters input in the parent form so the preview
   // circle resizes as admin tweaks the number.
@@ -216,6 +227,9 @@ export function GeofencePicker({
 
   return (
     <div className="space-y-3">
+      {/* Address search — jumps the map + fills lat/long via syncFromMap. */}
+      <GeofenceSearch onSelect={handleGeocodeSelect} />
+
       {/* role="application" is the conventional role for an interactive
           map container per ARIA APG. Pairs cleanly with aria-label so SR
           users hear "แผนที่สำหรับเลือกตำแหน่งสาขา" on focus. */}
