@@ -25,6 +25,9 @@ type Initial = {
   workScheduleId: string | null;
   salaryType: 'Monthly' | 'Daily' | 'Hourly';
   baseSalary: string; // already stringified Decimal
+  defaultOtRateType: 'PerHourAmount' | 'Multiplier' | null;
+  defaultOtRatePerHour: string | null;
+  defaultOtMultiplier: string | null;
   status: 'Probation' | 'Active' | 'Archived';
   canCheckIn: boolean;
   hiredAt: string; // YYYY-MM-DD
@@ -222,6 +225,47 @@ export function EmployeeForm({
                       required
                       defaultValue={initial?.baseSalary ?? ''}
                       className="max-w-xs"
+                    />
+                  </FormField>
+                </div>
+
+                {/* Default OT rate — used to prefill OT approvals for this employee */}
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <FormField
+                    label="ประเภทเรท OT"
+                    htmlFor="defaultOtRateType"
+                    hint="ค่าเริ่มต้นต่อคน (ไม่บังคับ)"
+                  >
+                    <select
+                      id="defaultOtRateType"
+                      name="defaultOtRateType"
+                      defaultValue={initial?.defaultOtRateType ?? ''}
+                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                    >
+                      <option value="">— ไม่กำหนด —</option>
+                      <option value="PerHourAmount">฿/ชม.</option>
+                      <option value="Multiplier">×เท่า</option>
+                    </select>
+                  </FormField>
+                  <FormField label="OT บาท/ชม." htmlFor="defaultOtRatePerHour">
+                    <Input
+                      id="defaultOtRatePerHour"
+                      name="defaultOtRatePerHour"
+                      type="number"
+                      step="1"
+                      min={0}
+                      defaultValue={initial?.defaultOtRatePerHour ?? ''}
+                    />
+                  </FormField>
+                  <FormField label="OT ตัวคูณ (×)" htmlFor="defaultOtMultiplier">
+                    <Input
+                      id="defaultOtMultiplier"
+                      name="defaultOtMultiplier"
+                      type="number"
+                      step="0.25"
+                      min={0}
+                      max={9.99}
+                      defaultValue={initial?.defaultOtMultiplier ?? ''}
                     />
                   </FormField>
                 </div>
