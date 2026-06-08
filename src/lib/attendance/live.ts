@@ -1,52 +1,46 @@
 'use server';
 
 /**
- * `getTodayAttendance()` — reused for both the initial Server-Component
- * render and the 30-second polling fallback in the live board client.
+ * `getTodayAttendance()` — reused for both the initial Server-Component render
+ * and the 30-second polling fallback in the live board client.
  *
- * Returns today's CheckIn rows (newest first) PLUS two roster figures the
- * KPI strip needs: the active-employee count (for "ยังไม่มา" = roster −
- * present) and today's OnLeave count (for the "ลา/หยุด" tile).
+ * Returns today's CheckIn rows (newest first) PLUS the two employee lists the
+ * KPI filters need (not-checked-in, on-leave) and the roster figures the KPI
+ * strip shows. The not-checked-in list is a pure diff of the active
+ * `canCheckIn` roster minus everyone "busy" today (checked-in ∪ on-leave). The
+ * shapes + that pure diff live in ./live-shape (this is a Server Actions file,
+ * which may only export async functions at runtime).
  */
 
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
+import { bangkokDateUtcMidnight, isClosedDay } from './date';
+import {
+  type LiveBoardData,
+  type OnLeaveEmployee,
+  type RosterEmployee,
+  selectNotCheckedIn,
+} from './live-shape';
 
-export type LiveAttendanceRow = {
-  id: string;
-  employeeName: string;
-  employeeNickname: string | null;
-  branchName: string;
-  clockInAt: string | null; // ISO
-  clockOutAt: string | null; // ISO
-  checkInStatus: 'Confirmed' | 'Disputed' | 'Rejected' | null;
-  isOverridden: boolean;
-};
-
-export type LiveBoardData = {
-  rows: LiveAttendanceRow[];
-  /** Active (non-archived) employees — the roster size for "ยังไม่มา". */
-  activeCount: number;
-  /** OnLeave attendance rows for today — the "ลา/หยุด" tile. */
-  onLeaveCount: number;
-};
-
-function bangkokDateUtcMidnight(d: Date): Date {
-  const ymd = d.toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
-  return new Date(`${ymd}T00:00:00.000Z`);
-}
+export type {
+  LiveAttendanceRow,
+  LiveBoardData,
+  OnLeaveEmployee,
+  RosterEmployee,
+} from './live-shape';
 
 export async function getTodayAttendance(): Promise<LiveBoardData> {
   await requirePermission('attendance.live-board');
 
   const today = bangkokDateUtcMidnight(new Date());
 
-  const [rows, activeCount, onLeaveCount] = await Promise.all([
+  const [checkInRows, rosterRows, onLeaveRows, holiday] = await Promise.all([
     prisma.attendance.findMany({
       where: { type: 'CheckIn', date: today },
       orderBy: { clockInAt: 'desc' },
       select: {
         id: true,
+        employeeId: true,
         clockInAt: true,
         clockOutAt: true,
         checkInStatus: true,
@@ -62,12 +56,72 @@ export async function getTodayAttendance(): Promise<LiveBoardData> {
         },
       },
     }),
-    prisma.employee.count({ where: { archivedAt: null, status: { not: 'Archived' } } }),
-    prisma.attendance.count({ where: { type: 'OnLeave', date: today, deletedAt: null } }),
+    prisma.employee.findMany({
+      where: { archivedAt: null, status: { not: 'Archived' }, canCheckIn: true },
+      orderBy: [{ branch: { name: 'asc' } }, { firstName: 'asc' }],
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        nickname: true,
+        branch: { select: { name: true } },
+      },
+    }),
+    prisma.attendance.findMany({
+      where: { type: 'OnLeave', date: today, deletedAt: null },
+      orderBy: [{ employee: { branch: { name: 'asc' } } }, { employee: { firstName: 'asc' } }],
+      select: {
+        id: true,
+        employeeId: true,
+        employee: {
+          select: {
+            firstName: true,
+            lastName: true,
+            nickname: true,
+            branch: { select: { name: true } },
+          },
+        },
+        leaveRequest: {
+          select: {
+            startDate: true,
+            endDate: true,
+            leaveType: { select: { name: true } },
+          },
+        },
+      },
+    }),
+    prisma.holiday.findFirst({ where: { date: today, archivedAt: null }, select: { id: true } }),
   ]);
 
+  const closed = isClosedDay(today, holiday !== null);
+
+  const roster: RosterEmployee[] = rosterRows.map((e) => ({
+    id: e.id,
+    employeeName: `${e.firstName} ${e.lastName}`,
+    employeeNickname: e.nickname,
+    branchName: e.branch.name,
+  }));
+
+  // "Busy" = anyone with a CheckIn (the displayed rows) or an OnLeave today.
+  // Derived from the same rows we render, so the checked-in list and the
+  // not-checked-in list can never double-count an employee.
+  const busyEmployeeIds = new Set<string>([
+    ...checkInRows.map((r) => r.employeeId),
+    ...onLeaveRows.map((r) => r.employeeId),
+  ]);
+
+  const onLeave: OnLeaveEmployee[] = onLeaveRows.map((r) => ({
+    id: r.id,
+    employeeName: `${r.employee.firstName} ${r.employee.lastName}`,
+    employeeNickname: r.employee.nickname,
+    branchName: r.employee.branch.name,
+    leaveTypeName: r.leaveRequest?.leaveType.name ?? null,
+    startDate: r.leaveRequest ? r.leaveRequest.startDate.toISOString() : null,
+    endDate: r.leaveRequest ? r.leaveRequest.endDate.toISOString() : null,
+  }));
+
   return {
-    rows: rows.map((r) => ({
+    rows: checkInRows.map((r) => ({
       id: r.id,
       employeeName: `${r.employee.firstName} ${r.employee.lastName}`,
       employeeNickname: r.employee.nickname,
@@ -77,7 +131,10 @@ export async function getTodayAttendance(): Promise<LiveBoardData> {
       checkInStatus: r.checkInStatus,
       isOverridden: r.isOverridden,
     })),
-    activeCount,
-    onLeaveCount,
+    notCheckedIn: selectNotCheckedIn(roster, busyEmployeeIds, closed),
+    onLeave,
+    activeCount: roster.length,
+    onLeaveCount: onLeave.length,
+    isClosedDay: closed,
   };
 }
