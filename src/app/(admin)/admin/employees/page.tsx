@@ -6,6 +6,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { type Column, ResponsiveTable } from '@/components/ui/responsive-table';
 import { StatusBadge, type StatusKey } from '@/components/ui/status-badge';
 import { prisma } from '@/lib/db/prisma';
+import { signAttendancePhotoUrls } from '@/lib/storage/signed-urls';
 import { EmployeeFilters } from './employee-filters';
 
 /**
@@ -97,6 +98,7 @@ export default async function EmployeeListPage({ searchParams }: { searchParams:
         firstName: true,
         lastName: true,
         nickname: true,
+        photoKey: true,
         status: true,
         salaryType: true,
         baseSalary: true,
@@ -116,6 +118,10 @@ export default async function EmployeeListPage({ searchParams }: { searchParams:
     }),
   ]);
 
+  const photoUrls = await signAttendancePhotoUrls(
+    employees.map((e) => e.photoKey).filter((k): k is string => Boolean(k)),
+  );
+
   type Emp = (typeof employees)[number];
   const noFilters = !q && !branchId && !departmentId && status !== 'archived';
 
@@ -123,14 +129,27 @@ export default async function EmployeeListPage({ searchParams }: { searchParams:
     {
       key: 'name',
       header: 'ชื่อ',
-      cell: (e) => (
-        <div>
-          <div className="font-medium text-ink-1">
-            {e.firstName} {e.lastName}
+      cell: (e) => {
+        const url = e.photoKey ? photoUrls.get(e.photoKey) : undefined;
+        const initials = (e.nickname?.[0] ?? e.firstName?.[0] ?? '?').toUpperCase();
+        return (
+          <div className="flex items-center gap-3">
+            <div className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-full bg-gray-100 text-xs font-medium text-ink-3">
+              {url ? (
+                <img src={url} alt="" className="size-full object-cover" />
+              ) : (
+                <span aria-hidden="true">{initials}</span>
+              )}
+            </div>
+            <div>
+              <div className="font-medium text-ink-1">
+                {e.firstName} {e.lastName}
+              </div>
+              {e.nickname && <div className="text-xs text-ink-3">({e.nickname})</div>}
+            </div>
           </div>
-          {e.nickname && <div className="text-xs text-ink-3">({e.nickname})</div>}
-        </div>
-      ),
+        );
+      },
     },
     { key: 'branch', header: 'สาขา', cell: (e) => e.branch.name },
     { key: 'department', header: 'แผนก', cell: (e) => e.department?.name ?? '—' },

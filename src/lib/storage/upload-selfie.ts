@@ -228,3 +228,35 @@ export async function uploadAdvanceReceipt(
   }
   return { key, sizeBytes: blob.size };
 }
+
+/**
+ * Upload a compressed employee profile photo to
+ * `{adminAuthUserId}/employee-photos/{employeeId|new-rand}.jpg`.
+ *
+ * The uploader is the ADMIN editing the employee (their browser Supabase
+ * session satisfies the `path[1] = auth.uid()` RLS — same as
+ * uploadAdvanceReceipt). For an existing employee we key by employeeId
+ * with upsert:true so re-uploads replace in place; on the create form the
+ * id doesn't exist yet, so we use a random suffix and let the server
+ * action persist whatever key it receives.
+ */
+export async function uploadEmployeePhoto(
+  supabase: SupabaseClient,
+  blob: Blob,
+  adminAuthUserId: string,
+  employeeId: string | null,
+): Promise<SelfieUploadResult> {
+  const suffix = employeeId ?? `new-${Math.random().toString(36).slice(2, 10)}`;
+  const key = `${adminAuthUserId}/employee-photos/${suffix}.jpg`;
+  if (blob.size > MAX_BYTES) {
+    throw { kind: 'too-large-after-compress', sizeBytes: blob.size };
+  }
+  const { error } = await supabase.storage.from('attendance-photos').upload(key, blob, {
+    contentType: 'image/jpeg',
+    upsert: true,
+  });
+  if (error) {
+    throw { kind: 'upload-failed', message: error.message };
+  }
+  return { key, sizeBytes: blob.size };
+}

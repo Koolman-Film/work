@@ -4,11 +4,12 @@ import { Prisma } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { z } from 'zod';
 import { auditLog } from '@/lib/audit/log';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
+import { maskBankAccountNumber } from '@/lib/employee/bank';
 import { getSupabaseAdminClient } from '@/lib/supabase/admin';
+import { readForm } from './employee-schema';
 
 /**
  * Employee CRUD Server Actions.
@@ -22,79 +23,6 @@ import { getSupabaseAdminClient } from '@/lib/supabase/admin';
  *   - Salary stored as Prisma Decimal — we cast from string explicitly.
  *   - Hire date stored as @db.Date — strip time component.
  */
-
-const EmployeeSchema = z.object({
-  firstName: z.string().trim().min(1, 'กรุณากรอกชื่อจริง').max(80),
-  lastName: z.string().trim().min(1, 'กรุณากรอกนามสกุล').max(80),
-  nickname: z
-    .string()
-    .trim()
-    .max(40)
-    .optional()
-    .transform((s) => (s ? s : null)),
-
-  branchId: z.string().uuid('กรุณาเลือกสาขาหลัก'),
-  // Multi-select arrives as repeated form values. Zod parses array; we
-  // sanitize to make sure the home branch is included (idempotent).
-  assignedBranchIds: z.array(z.string().uuid()).default([]),
-
-  departmentId: z
-    .string()
-    .optional()
-    .transform((s) => (s && s !== '' ? s : null))
-    .pipe(z.string().uuid().nullable()),
-  accountingGroupId: z
-    .string()
-    .optional()
-    .transform((s) => (s && s !== '' ? s : null))
-    .pipe(z.string().uuid().nullable()),
-  workScheduleId: z
-    .string()
-    .optional()
-    .transform((s) => (s && s !== '' ? s : null))
-    .pipe(z.string().uuid().nullable()),
-
-  salaryType: z.enum(['Monthly', 'Daily', 'Hourly']),
-  baseSalary: z
-    .string()
-    .transform((s) => {
-      const n = Number(s);
-      return Number.isFinite(n) && n >= 0 ? n : NaN;
-    })
-    .refine((n) => Number.isFinite(n), 'เงินเดือนพื้นฐานต้องเป็นตัวเลข'),
-
-  status: z.enum(['Probation', 'Active', 'Archived']),
-  canCheckIn: z
-    .string()
-    .optional()
-    .transform((s) => s === 'on'),
-
-  hiredAt: z
-    .string()
-    .min(1, 'กรุณาเลือกวันเริ่มงาน')
-    .transform((s) => new Date(s))
-    .refine((d) => !Number.isNaN(d.getTime()), 'วันที่ไม่ถูกต้อง'),
-});
-
-function readForm(formData: FormData) {
-  // Multi-value field: getAll returns all entries with the same name.
-  const assignedBranchIds = formData.getAll('assignedBranchIds').map(String).filter(Boolean);
-  return EmployeeSchema.safeParse({
-    firstName: formData.get('firstName'),
-    lastName: formData.get('lastName'),
-    nickname: formData.get('nickname'),
-    branchId: formData.get('branchId'),
-    assignedBranchIds,
-    departmentId: formData.get('departmentId'),
-    accountingGroupId: formData.get('accountingGroupId'),
-    workScheduleId: formData.get('workScheduleId'),
-    salaryType: formData.get('salaryType'),
-    baseSalary: formData.get('baseSalary'),
-    status: formData.get('status'),
-    canCheckIn: formData.get('canCheckIn'),
-    hiredAt: formData.get('hiredAt'),
-  });
-}
 
 /** Ensure home branch is in the assigned set; dedupe. */
 function normalizeAssigned(branchId: string, raw: string[]): string[] {
@@ -145,6 +73,11 @@ export async function createEmployee(formData: FormData) {
           status: data.status,
           canCheckIn: data.canCheckIn,
           hiredAt: data.hiredAt,
+          photoKey: data.photoKey,
+          dateOfBirth: data.dateOfBirth,
+          bankId: data.bankId,
+          bankAccountNumber: data.bankAccountNumber,
+          bankAccountName: data.bankAccountName,
         },
       });
       // Look up the 'staff' system role definition once.
@@ -189,6 +122,11 @@ export async function createEmployee(formData: FormData) {
         status: data.status,
         canCheckIn: data.canCheckIn,
         hiredAt: data.hiredAt.toISOString().slice(0, 10),
+        dateOfBirth: data.dateOfBirth ? data.dateOfBirth.toISOString().slice(0, 10) : null,
+        bankId: data.bankId,
+        bankAccountNumber: maskBankAccountNumber(data.bankAccountNumber),
+        bankAccountName: data.bankAccountName,
+        hasPhoto: data.photoKey !== null,
       },
       metadata: { source: 'admin-ui' },
     });
@@ -241,6 +179,11 @@ export async function updateEmployee(id: string, formData: FormData) {
         status: data.status,
         canCheckIn: data.canCheckIn,
         hiredAt: data.hiredAt,
+        photoKey: data.photoKey,
+        dateOfBirth: data.dateOfBirth,
+        bankId: data.bankId,
+        bankAccountNumber: data.bankAccountNumber,
+        bankAccountName: data.bankAccountName,
       },
     });
 
@@ -264,9 +207,20 @@ export async function updateEmployee(id: string, formData: FormData) {
         status: data.status,
         canCheckIn: data.canCheckIn,
         hiredAt: data.hiredAt.toISOString().slice(0, 10),
+        dateOfBirth: data.dateOfBirth ? data.dateOfBirth.toISOString().slice(0, 10) : null,
+        bankId: data.bankId,
+        bankAccountNumber: maskBankAccountNumber(data.bankAccountNumber),
+        bankAccountName: data.bankAccountName,
+        hasPhoto: data.photoKey !== null,
       },
       metadata: { source: 'admin-ui' },
     });
+
+    // If the photo key changed (re-upload or removal), best-effort delete
+    // the previously stored object so we don't accumulate orphans.
+    if (before.photoKey && before.photoKey !== data.photoKey) {
+      await bestEffortRemovePhoto(before.photoKey);
+    }
   } catch (err: unknown) {
     if (isFkViolation(err)) {
       redirect(
@@ -342,6 +296,7 @@ export async function deleteEmployee(id: string) {
       userId: true,
       firstName: true,
       lastName: true,
+      photoKey: true,
       user: { select: { authUserId: true, lineUserId: true } },
       // NOTE: this _count intentionally counts ALL related rows, including
       // soft-deleted (voided) ones. Voided rows still hold an onDelete:Restrict
@@ -429,6 +384,10 @@ export async function deleteEmployee(id: string) {
       console.error('[deleteEmployee] supabase admin client unavailable', err);
     }
   }
+
+  // Best-effort: remove the profile photo object too (mirrors the auth-user
+  // cleanup above — a failure logs but doesn't reverse the delete).
+  await bestEffortRemovePhoto(emp.photoKey);
 
   revalidatePath('/admin/employees');
   redirect('/admin/employees');
@@ -553,6 +512,20 @@ export async function unlinkLineFromEmployee(id: string): Promise<void> {
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
+/** Best-effort delete a photo object from the attendance-photos bucket. */
+async function bestEffortRemovePhoto(key: string | null): Promise<void> {
+  if (!key) return;
+  try {
+    const sb = getSupabaseAdminClient();
+    const { error } = await sb.storage.from('attendance-photos').remove([key]);
+    if (error) {
+      console.error('[employee] photo remove failed', { key, message: error.message });
+    }
+  } catch (err) {
+    console.error('[employee] photo remove — storage client unavailable', err);
+  }
+}
+
 function serializableEmployee(e: {
   firstName: string;
   lastName: string;
@@ -567,6 +540,11 @@ function serializableEmployee(e: {
   status: string;
   canCheckIn: boolean;
   hiredAt: Date;
+  photoKey: string | null;
+  dateOfBirth: Date | null;
+  bankId: string | null;
+  bankAccountNumber: string | null;
+  bankAccountName: string | null;
 }) {
   return {
     firstName: e.firstName,
@@ -582,6 +560,11 @@ function serializableEmployee(e: {
     status: e.status,
     canCheckIn: e.canCheckIn,
     hiredAt: e.hiredAt.toISOString().slice(0, 10),
+    hasPhoto: e.photoKey !== null,
+    dateOfBirth: e.dateOfBirth ? e.dateOfBirth.toISOString().slice(0, 10) : null,
+    bankId: e.bankId,
+    bankAccountNumber: maskBankAccountNumber(e.bankAccountNumber),
+    bankAccountName: e.bankAccountName,
   };
 }
 

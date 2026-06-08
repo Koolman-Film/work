@@ -68,6 +68,16 @@ export type AdminBellEvent =
       /** YYYY-MM-DD when probation ends. */
       endDate: string;
       daysRemaining: number;
+    }
+  | {
+      // Daily birthday ping from the birthday-reminder cron — one per
+      // (employee, day). daysUntil is 0 (today) or 1 (tomorrow).
+      kind: 'birthday.upcoming';
+      employeeId: string;
+      employeeName: string;
+      /** MM-DD of the birthday. */
+      birthday: string;
+      daysUntil: 0 | 1;
     };
 
 /**

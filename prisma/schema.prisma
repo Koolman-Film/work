@@ -223,6 +223,28 @@ model AccountingGroup {
   employees   Employee[]
 }
 
+/// National bank reference list (BOT-supervised). Seed-managed (no admin
+/// CRUD UI) — see prisma/seed-banks-data.ts. Employees reference a bank to
+/// receive salary / cash-advance transfers.
+model Bank {
+  id         String    @id @default(uuid()) @db.Uuid
+  /// National clearing code, e.g. "004" (KBANK). Unique, stable.
+  code       String    @unique
+  nameTh     String
+  nameEn     String
+  /// Short label shown in dropdowns, e.g. "KBANK".
+  shortName  String?
+  /// Display ordering — common payroll banks first.
+  sortOrder  Int       @default(0)
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  employees  Employee[]
+
+  @@index([archivedAt])
+}
+
 model Branch {
   id               String    @id @default(uuid()) @db.Uuid
   name             String    @unique
@@ -316,6 +338,17 @@ model Employee {
   address           String?
   emergencyContact  String?
 
+  // ─── Profile extras (admin-managed) ────────────────────────────────────
+  /// Storage key within the `attendance-photos` bucket; signed at view-time.
+  photoKey          String?
+  dateOfBirth       DateTime? @db.Date
+
+  /// Salary / advance payout destination.
+  bankId            String?  @db.Uuid
+  bank              Bank?    @relation(fields: [bankId], references: [id], onDelete: Restrict)
+  bankAccountNumber String?
+  bankAccountName   String?
+
   branchId          String   @db.Uuid
   branch            Branch   @relation("HomeBranch", fields: [branchId], references: [id], onDelete: Restrict)
   /// Multi-branch employees (e.g., rotating installers). Includes home branchId.
@@ -353,6 +386,7 @@ model Employee {
   @@index([branchId])
   @@index([departmentId])
   @@index([status])
+  @@index([bankId])
 }
 
 // ─── Attendance ────────────────────────────────────────────────────────────

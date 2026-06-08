@@ -75,6 +75,7 @@ vi.mock('@/lib/line/flex-templates', () => ({
 import { prisma } from '@/lib/db/prisma';
 import { attendanceForceCheckoutEod } from './attendance-force-checkout-eod';
 import { attendanceLateCheck } from './attendance-late-check';
+import { birthdayReminder } from './birthday-reminder';
 import { linePushNotification } from './line-push';
 import { probationReminder } from './probation-reminder';
 
@@ -130,7 +131,7 @@ afterEach(() => {
 // ─── Structural checks ──────────────────────────────────────────────────────
 
 describe('Inngest route wiring', () => {
-  it('all 4 functions are imported by the /api/inngest route', async () => {
+  it('all 5 functions are imported by the /api/inngest route', async () => {
     // We import the route module dynamically because it side-effect-
     // exports the GET/POST/PUT handlers via `serve(...)`; importing
     // the route forces evaluation and proves no top-level throw.
@@ -159,6 +160,11 @@ describe('Function identity + trigger config', () => {
     {
       fn: probationReminder as unknown as InngestFnLike,
       id: 'probation-reminder',
+      trigger: { cron: 'TZ=Asia/Bangkok 0 9 * * *' },
+    },
+    {
+      fn: birthdayReminder as unknown as InngestFnLike,
+      id: 'birthday-reminder',
       trigger: { cron: 'TZ=Asia/Bangkok 0 9 * * *' },
     },
     {
