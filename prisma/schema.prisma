@@ -130,11 +130,15 @@ model User {
   authUserId String?   @unique @db.Uuid // FK to auth.users.id (Supabase-managed; no DB constraint)
   email      String?   @unique // Admin / Superadmin only
   lineUserId String?   @unique // Staff only — set after LIFF link
-  /// Preferred UI language (BCP 47 — 'th', 'en', 'my', 'lo', 'zh-CN').
-  /// NULL until the user explicitly picks a language. When non-null,
-  /// overrides the NEXT_LOCALE cookie on next login so the preference
-  /// follows the user across devices. See src/lib/i18n/config.ts.
+  /// Effective UI language (BCP 47 — 'th','en','my','lo','zh-CN','km').
+  /// Written by BOTH the worker (modal/switcher) and an admin (employee
+  /// edit page). Last write wins. DB-authoritative on LIFF entry — see
+  /// src/lib/i18n/liff-locale.ts. NULL until anyone sets it.
   locale     String?
+  /// When the WORKER explicitly picked a language (modal or switcher).
+  /// NULL ⇒ the LIFF first-run language modal fires. Admin writes to
+  /// `locale` never touch this. See src/lib/i18n/modal-trigger.ts.
+  localeChosenByEmployeeAt DateTime?
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
   archivedAt DateTime?
