@@ -27,7 +27,9 @@ import {
   type TeamCalendarData,
 } from '@/lib/leave/team-calendar-shape';
 import { cn } from '@/lib/utils';
-import { loadAdminCalendar } from './actions';
+import { AdvanceReviewModal, type AdvanceRowVM } from '../advance/advance-review-modal';
+import { LeaveReviewModal, type LeaveRowVM } from '../leave/leave-review-modal';
+import { getAdvanceReviewRow, getLeaveReviewRow, loadAdminCalendar } from './actions';
 
 type Branch = { id: string; name: string };
 
@@ -42,6 +44,10 @@ export function AdminCalendarCard({ branches, initialYm, initialData }: Props) {
   const [branchId, setBranchId] = useState(''); // '' = all branches
   const [data, setData] = useState<TeamCalendarData>(initialData);
   const [isPending, startTransition] = useTransition();
+  const [openLeave, setOpenLeave] = useState<LeaveRowVM | null>(null);
+  const [openAdvance, setOpenAdvance] = useState<AdvanceRowVM | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [rowError, setRowError] = useState<string | null>(null);
 
   const todayYm = useMemo(() => currentMonthYM(), []);
 
@@ -80,6 +86,28 @@ export function AdminCalendarCard({ branches, initialYm, initialData }: Props) {
     const next = e.target.value;
     setBranchId(next);
     reload(ym, next);
+  }
+
+  function onLeaveClick(leaveRequestId: string) {
+    setRowError(null);
+    setBusyId(leaveRequestId);
+    startTransition(async () => {
+      const row = await getLeaveReviewRow(leaveRequestId);
+      setBusyId(null);
+      if (row) setOpenLeave(row);
+      else setRowError('ไม่พบคำขอลานี้ (อาจถูกลบไปแล้ว)');
+    });
+  }
+
+  function onAdvanceClick(cashAdvanceId: string) {
+    setRowError(null);
+    setBusyId(cashAdvanceId);
+    startTransition(async () => {
+      const row = await getAdvanceReviewRow(cashAdvanceId);
+      setBusyId(null);
+      if (row) setOpenAdvance(row);
+      else setRowError('ไม่พบคำขอเบิกนี้ (อาจถูกลบไปแล้ว)');
+    });
   }
 
   return (
@@ -151,10 +179,22 @@ export function AdminCalendarCard({ branches, initialYm, initialData }: Props) {
             grid={grid}
             entries={data.entries}
             holidays={data.holidays}
+            advances={data.advances}
             detailPosition="right"
+            onLeaveClick={onLeaveClick}
+            onAdvanceClick={onAdvanceClick}
+            busyId={busyId}
           />
         </div>
+        {rowError && (
+          <p role="alert" className="mt-2 text-xs font-medium text-danger-deep">
+            {rowError}
+          </p>
+        )}
       </CardBody>
+
+      <LeaveReviewModal row={openLeave} onClose={() => setOpenLeave(null)} />
+      <AdvanceReviewModal row={openAdvance} onClose={() => setOpenAdvance(null)} />
     </Card>
   );
 }
