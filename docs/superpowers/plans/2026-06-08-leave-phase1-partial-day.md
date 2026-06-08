@@ -431,10 +431,12 @@ CREATE UNIQUE INDEX "Attendance_employeeId_date_type_live_key"
   WHERE "deletedAt" IS NULL AND "type" <> 'OnLeave';
 ```
 
-- [ ] **Step 6: Apply the migration locally + regenerate the client**
+- [ ] **Step 6: Apply the hand-authored migration + regenerate the client**
 
-Run: `PATH="/opt/homebrew/bin:$PATH" pnpm db:migrate`
-Expected: migration `0016_partial_day_leave` applied; Prisma Client regenerated. (If a local DB isn't running, start it first — `pnpm db:reset` reseeds.)
+This repo hand-authors numbered migration folders (`0001_…`–`0015_…`) and applies them with `migrate deploy` (NOT `migrate dev`, which would try to invent a timestamp-named migration from schema diff). So:
+
+Run: `PATH="/opt/homebrew/bin:$PATH" pnpm db:deploy && PATH="/opt/homebrew/bin:$PATH" pnpm db:generate`
+Expected: `Applying migration 0016_partial_day_leave` then "All migrations have been successfully applied"; Prisma Client regenerated with the new fields. (`.env.local` must exist in the worktree — already copied by the controller.) Then `pnpm dotenv -e .env.local -- prisma migrate status` should say "Database schema is up to date!".
 
 - [ ] **Step 7: Verify the schema compiles**
 
