@@ -2,5 +2,16 @@
   "_meta": {
     "locale": "th",
     "note": "Thai is the source of truth. Phase 2 will populate this from the current hardcoded UI strings."
+  },
+  "notifications": {
+    "action": { "viewDetails": "ดูรายละเอียด", "viewAttendance": "ดูประวัติเช็คอิน" },
+    "label": { "duration": "ระยะเวลา", "workingDays": "วันทำงาน", "note": "หมายเหตุ", "reason": "เหตุผล" },
+    "workingDaysValue": "{days} วัน",
+    "leaveApproved": { "header": "อนุมัติคำขอลา", "alt": "✅ คำขอลา {type} ของคุณได้รับการอนุมัติ" },
+    "leaveRejected": { "header": "ไม่อนุมัติคำขอลา", "alt": "❌ คำขอลา {type} ของคุณถูกปฏิเสธ" },
+    "advanceApproved": { "header": "อนุมัติคำขอเบิก", "subtitle": "จะหักจากเงินเดือนงวดถัดไป", "alt": "✅ คำขอเบิก ฿{amount} ของคุณได้รับการอนุมัติ" },
+    "advanceRejected": { "header": "ไม่อนุมัติคำขอเบิก", "subtitle": "กรุณาติดต่อแอดมินเพื่อขอข้อมูลเพิ่มเติม", "alt": "❌ คำขอเบิก ฿{amount} ของคุณถูกปฏิเสธ" },
+    "disputeApproved": { "header": "ยืนยันการเช็คอิน", "subtitle": "แอดมินตรวจสอบและยืนยันการเช็คอินที่ต้องตรวจสอบแล้ว", "alt": "✅ เช็คอินวันที่ {date} ของคุณได้รับการยืนยัน" },
+    "disputeRejected": { "header": "ปฏิเสธการเช็คอิน", "subtitle": "แอดมินไม่ยืนยันการเช็คอินวันดังกล่าว", "alt": "❌ เช็คอินวันที่ {date} ของคุณถูกปฏิเสธ" }
   }
 }
