@@ -69,13 +69,13 @@ export function BranchForm({ mode, action, initial, error, extraActions }: Props
             <FormField
               label="รัศมี Geofence (เมตร)"
               htmlFor="radiusMeters"
-              hint="ระยะที่อนุญาตให้เช็คอินจากพิกัดสาขา (50–1000) — ใช้กับ LIFF check-in"
+              hint="ระยะที่อนุญาตให้เช็คอินจากพิกัดสาขา (10–1000) — ใช้กับ LIFF check-in"
             >
               <Input
                 id="radiusMeters"
                 name="radiusMeters"
                 type="number"
-                min={50}
+                min={10}
                 max={1000}
                 step={10}
                 defaultValue={initialRadius}
