@@ -10,6 +10,7 @@ export type EmployeeFormOptions = {
   departments: Array<{ id: string; name: string }>;
   accountingGroups: Array<{ id: string; name: string }>;
   workSchedules: Array<{ id: string; name: string }>;
+  banks: Array<{ id: string; shortName: string | null; nameTh: string }>;
 };
 
 type Initial = {
