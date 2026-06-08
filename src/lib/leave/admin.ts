@@ -12,12 +12,13 @@
  *   - Skip Sundays (Koolman's closed day per v1)
  *   - Skip non-archived Holiday rows whose date falls in the range
  *
- * Duplicate handling:
- *   - The Attendance @@unique([employeeId, date, type]) constraint catches
- *     the case where an OnLeave row already exists (re-approval, or
- *     overlap with a previously-approved leave). We use createMany with
- *     skipDuplicates so the transaction doesn't abort; the audit log
- *     captures the actual count inserted.
+ * Duplicate / overlap handling:
+ *   - The Attendance partial-unique index now EXCLUDES OnLeave, so a date
+ *     may hold multiple OnLeave rows (e.g. a morning-half + an afternoon-half
+ *     from separate requests). Before inserting, approval runs an explicit
+ *     per-date time-overlap guard (segmentsOverlap) and rejects clashing or
+ *     full-day-vs-anything requests, so a unique violation can't occur in
+ *     normal flow. Each request owns its rows (leaveRequestId) for clean void.
  *
  * Audit:
  *   - `leave.approve` / `leave.reject` actions, with before/after status
@@ -32,7 +33,7 @@ import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { sendNotification } from '@/lib/inngest/events';
 import { getLeaveConfig } from './leave-config';
-import { segmentFor, segmentsOverlap } from './units';
+import { formatDaysHours, segmentFor, segmentsOverlap } from './units';
 import { expandHolidaysWithSubstitutes, workingDaysIn } from './working-days';
 
 /** Format a Date's Bangkok wall-clock time as "HH:MM" for segment comparison.
@@ -102,6 +103,7 @@ export async function approveLeaveRequest(input: Input): Promise<ApproveResult> 
       startDate: string;
       endDate: string;
       workingDayCount: number;
+      durationLabel: string;
     } | null;
   } = { data: null };
 
@@ -264,6 +266,7 @@ export async function approveLeaveRequest(input: Input): Promise<ApproveResult> 
         startDate: req.startDate.toISOString().slice(0, 10),
         endDate: req.endDate.toISOString().slice(0, 10),
         workingDayCount: workingDays.length,
+        durationLabel: formatDaysHours(chargedMinutes, cfg),
       };
 
       return {
@@ -285,6 +288,7 @@ export async function approveLeaveRequest(input: Input): Promise<ApproveResult> 
         startDate: notifBox.data.startDate,
         endDate: notifBox.data.endDate,
         workingDays: notifBox.data.workingDayCount,
+        durationLabel: notifBox.data.durationLabel,
         reviewNote: note,
       });
     }

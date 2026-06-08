@@ -71,9 +71,11 @@ export function buildFlexMessage(payload: NotificationPayload, appBaseUrl: strin
         title: `${payload.leaveTypeName}`,
         subtitle: fmtDateRange(payload.startDate, payload.endDate),
         details: [
-          payload.workingDays != null
-            ? { label: 'วันทำงาน', value: `${payload.workingDays} วัน` }
-            : null,
+          payload.durationLabel
+            ? { label: 'ระยะเวลา', value: payload.durationLabel }
+            : payload.workingDays != null
+              ? { label: 'วันทำงาน', value: `${payload.workingDays} วัน` }
+              : null,
           payload.reviewNote ? { label: 'หมายเหตุ', value: payload.reviewNote } : null,
         ],
         actionLabel: 'ดูรายละเอียด',
