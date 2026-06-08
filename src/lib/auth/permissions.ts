@@ -63,6 +63,7 @@ export const PERMISSIONS = {
   'settings.department.manage': 'จัดการแผนก',
   'settings.accounting-group.manage': 'จัดการกลุ่มบัญชี',
   'settings.leave-type.manage': 'จัดการประเภทการลา',
+  'settings.leave-config.manage': 'จัดการการตั้งค่าการลา',
   'settings.holiday.manage': 'จัดการวันหยุด',
   'settings.work-schedule.manage': 'จัดการตารางงาน',
 
@@ -162,6 +163,7 @@ export const PERMISSION_GROUPS: ReadonlyArray<{
       'settings.department.manage',
       'settings.accounting-group.manage',
       'settings.leave-type.manage',
+      'settings.leave-config.manage',
       'settings.holiday.manage',
       'settings.work-schedule.manage',
     ],
