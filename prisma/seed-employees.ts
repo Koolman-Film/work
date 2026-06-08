@@ -9,6 +9,8 @@
  * Run:  npm run db:seed:employees   (uses .env.local — point it at LOCAL dev!)
  */
 
+// biome-ignore-all lint/suspicious/noConsole: seed scripts are CLI tools — console is the output channel
+
 import { Prisma, PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
