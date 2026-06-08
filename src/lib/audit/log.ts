@@ -41,6 +41,7 @@ export type AuditAction =
   | 'user.archive'
   | 'user.delete'
   | 'user.role-change'
+  | 'user.locale-change'
   | 'user.password-reset'
   | 'user.password-change'
   // Granular role/permission management (Phase 1+ — see docs/v2/permissions.md)
