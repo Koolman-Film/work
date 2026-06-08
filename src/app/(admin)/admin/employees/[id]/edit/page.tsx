@@ -2,6 +2,7 @@ import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { PageHeader } from '@/components/ui/page-header';
 import { prisma } from '@/lib/db/prisma';
+import { isLocale } from '@/lib/i18n/config';
 import { resolveStoredImageUrl } from '@/lib/storage/signed-urls';
 import { loadEmployeeFormOptions } from '../../_load-options';
 import { archiveEmployee, deleteEmployee, updateEmployee } from '../../actions';
@@ -9,6 +10,7 @@ import { EmployeeForm } from '../../employee-form';
 import { PairingCard } from '../../pairing-card';
 import { DangerActions } from './danger-actions';
 import { EntitlementsSection } from './entitlements-section';
+import { LocaleDefaultCard } from './locale-default-card';
 
 type Params = Promise<{ id: string }>;
 type SearchParams = Promise<{ error?: string; ok?: string; year?: string }>;
@@ -56,7 +58,7 @@ export default async function EditEmployeePage({
         archivedAt: true,
         inviteToken: true,
         inviteExpiresAt: true,
-        user: { select: { lineUserId: true, authUserId: true } },
+        user: { select: { lineUserId: true, authUserId: true, locale: true } },
       },
     }),
     loadEmployeeFormOptions(),
@@ -134,6 +136,10 @@ export default async function EditEmployeePage({
         belowForm={
           <div className="mt-6 space-y-6">
             <EntitlementsSection employeeId={id} year={year} />
+            <LocaleDefaultCard
+              employeeId={emp.id}
+              currentLocale={isLocale(emp.user.locale) ? emp.user.locale : null}
+            />
             <PairingCard
               employeeId={id}
               employeeName={`${emp.firstName} ${emp.lastName}`.trim()}
