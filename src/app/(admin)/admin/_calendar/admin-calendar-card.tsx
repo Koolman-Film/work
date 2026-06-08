@@ -146,7 +146,13 @@ export function AdminCalendarCard({ branches, initialYm, initialData }: Props) {
           aria-busy={isPending}
           className={cn('transition-opacity', isPending && 'pointer-events-none opacity-60')}
         >
-          <CalendarGrid key={ym} grid={grid} entries={data.entries} holidays={data.holidays} />
+          <CalendarGrid
+            key={ym}
+            grid={grid}
+            entries={data.entries}
+            holidays={data.holidays}
+            detailPosition="right"
+          />
         </div>
       </CardBody>
     </Card>

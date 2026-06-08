@@ -52,9 +52,16 @@ type Props = {
   grid: GridDay[];
   entries: TeamCalendarEntry[];
   holidays: TeamCalendarHoliday[];
+  /**
+   * Day-detail panel placement. 'below' (default) stacks it under the grid —
+   * the mobile/LIFF layout, left untouched. 'right' moves it beside the grid on
+   * lg+ (admin desktop), which shortens the overall height and shrinks the grid
+   * into the narrower column. Grid cell rendering is identical in both.
+   */
+  detailPosition?: 'below' | 'right';
 };
 
-export function CalendarGrid({ grid, entries, holidays }: Props) {
+export function CalendarGrid({ grid, entries, holidays, detailPosition = 'below' }: Props) {
   // Build lookup maps once per props change. The grid re-renders on day
   // selection but the underlying indices don't change, so useMemo keeps
   // the per-cell render cheap (Map.get is O(1)).
@@ -85,102 +92,116 @@ export function CalendarGrid({ grid, entries, holidays }: Props) {
   const selectedHoliday = holidayByDate.get(selected) ?? null;
 
   return (
-    <>
-      {/* Weekday header */}
-      <div className="grid grid-cols-7 gap-1 px-0.5 pb-1.5">
-        {WEEKDAY_LABELS.map((w, i) => (
-          <p
-            key={w}
-            className={cn(
-              'text-center text-[10px] font-medium',
-              // Sunday + Saturday colored to match cell day colors.
-              i === 0 ? 'text-red-500' : 'text-gray-500',
-            )}
-          >
-            {w}
-          </p>
-        ))}
-      </div>
-
-      {/* Day grid */}
-      <div className="grid grid-cols-7 gap-1">
-        {grid.map((cell) => {
-          const dayEntries = entriesByDate.get(cell.date) ?? [];
-          const holiday = holidayByDate.get(cell.date);
-          const isToday = cell.date === todayYmd;
-          const isSelected = cell.date === selected;
-          const dow = new Date(`${cell.date}T00:00:00.000Z`).getUTCDay();
-          const isSunday = dow === 0;
-
-          return (
-            <button
-              key={cell.date}
-              type="button"
-              onClick={() => setSelected(cell.date)}
-              aria-pressed={isSelected}
-              aria-label={`${cell.day}${holiday ? ` ${holiday}` : ''}${
-                dayEntries.length > 0 ? ` (มีลา ${dayEntries.length})` : ''
-              }`}
+    <div
+      className={cn(
+        detailPosition === 'right' &&
+          'lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start lg:gap-5',
+      )}
+    >
+      <div>
+        {/* Weekday header */}
+        <div className="grid grid-cols-7 gap-1 px-0.5 pb-1.5">
+          {WEEKDAY_LABELS.map((w, i) => (
+            <p
+              key={w}
               className={cn(
-                'relative flex aspect-square flex-col rounded-md border p-1 text-left transition',
-                // Out-of-month cells: muted background + ghost text.
-                !cell.inMonth && 'border-transparent bg-transparent text-gray-300',
-                cell.inMonth && !isSelected && 'border-gray-200 bg-white hover:border-primary-200',
-                isSelected && 'border-primary-500 bg-primary-50 ring-2 ring-primary-200',
-                holiday && cell.inMonth && !isSelected && 'border-red-100 bg-red-50/40',
+                'text-center text-[10px] font-medium',
+                // Sunday + Saturday colored to match cell day colors.
+                i === 0 ? 'text-red-500' : 'text-gray-500',
               )}
             >
-              <span
+              {w}
+            </p>
+          ))}
+        </div>
+
+        {/* Day grid */}
+        <div className="grid grid-cols-7 gap-1">
+          {grid.map((cell) => {
+            const dayEntries = entriesByDate.get(cell.date) ?? [];
+            const holiday = holidayByDate.get(cell.date);
+            const isToday = cell.date === todayYmd;
+            const isSelected = cell.date === selected;
+            const dow = new Date(`${cell.date}T00:00:00.000Z`).getUTCDay();
+            const isSunday = dow === 0;
+
+            return (
+              <button
+                key={cell.date}
+                type="button"
+                onClick={() => setSelected(cell.date)}
+                aria-pressed={isSelected}
+                aria-label={`${cell.day}${holiday ? ` ${holiday}` : ''}${
+                  dayEntries.length > 0 ? ` (มีลา ${dayEntries.length})` : ''
+                }`}
                 className={cn(
-                  'text-[11px] font-medium leading-none',
-                  cell.inMonth && isSunday && 'text-red-600',
-                  cell.inMonth && !isSunday && 'text-gray-900',
-                  isToday && cell.inMonth && 'rounded-full bg-primary-600 px-1 text-white',
+                  'relative flex aspect-square flex-col rounded-md border p-1 text-left transition',
+                  // Out-of-month cells: muted background + ghost text.
+                  !cell.inMonth && 'border-transparent bg-transparent text-gray-300',
+                  cell.inMonth &&
+                    !isSelected &&
+                    'border-gray-200 bg-white hover:border-primary-200',
+                  isSelected && 'border-primary-500 bg-primary-50 ring-2 ring-primary-200',
+                  holiday && cell.inMonth && !isSelected && 'border-red-100 bg-red-50/40',
                 )}
               >
-                {cell.day}
-              </span>
-
-              {/* Entry bars — show up to 2 then "+N" */}
-              {cell.inMonth && dayEntries.length > 0 && (
-                <div className="mt-auto flex flex-col gap-0.5">
-                  {dayEntries.slice(0, 2).map((e) => (
-                    <span
-                      key={e.leaveRequestId}
-                      className={cn(
-                        'block truncate rounded-sm px-0.5 text-[9px] leading-tight',
-                        e.status === 'Approved'
-                          ? 'bg-primary-100 text-primary-800'
-                          : // Pending: hatched look via dashed border + lighter bg.
-                            'border border-dashed border-amber-300 bg-amber-50 text-amber-800',
-                        e.isMine && 'ring-1 ring-primary-400',
-                      )}
-                    >
-                      {e.shortLabel}
-                    </span>
-                  ))}
-                  {dayEntries.length > 2 && (
-                    <span className="text-[9px] font-medium leading-none text-gray-500">
-                      +{dayEntries.length - 2}
-                    </span>
-                  )}
-                </div>
-              )}
-
-              {/* Holiday red dot (top-right) — visible even when cell has no entries */}
-              {holiday && cell.inMonth && (
                 <span
-                  aria-hidden="true"
-                  className="absolute right-1 top-1 size-1.5 rounded-full bg-red-500"
-                />
-              )}
-            </button>
-          );
-        })}
+                  className={cn(
+                    'text-[11px] font-medium leading-none',
+                    cell.inMonth && isSunday && 'text-red-600',
+                    cell.inMonth && !isSunday && 'text-gray-900',
+                    isToday && cell.inMonth && 'rounded-full bg-primary-600 px-1 text-white',
+                  )}
+                >
+                  {cell.day}
+                </span>
+
+                {/* Entry bars — show up to 2 then "+N" */}
+                {cell.inMonth && dayEntries.length > 0 && (
+                  <div className="mt-auto flex flex-col gap-0.5">
+                    {dayEntries.slice(0, 2).map((e) => (
+                      <span
+                        key={e.leaveRequestId}
+                        className={cn(
+                          'block truncate rounded-sm px-0.5 text-[9px] leading-tight',
+                          e.status === 'Approved'
+                            ? 'bg-primary-100 text-primary-800'
+                            : // Pending: hatched look via dashed border + lighter bg.
+                              'border border-dashed border-amber-300 bg-amber-50 text-amber-800',
+                          e.isMine && 'ring-1 ring-primary-400',
+                        )}
+                      >
+                        {e.shortLabel}
+                      </span>
+                    ))}
+                    {dayEntries.length > 2 && (
+                      <span className="text-[9px] font-medium leading-none text-gray-500">
+                        +{dayEntries.length - 2}
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {/* Holiday red dot (top-right) — visible even when cell has no entries */}
+                {holiday && cell.inMonth && (
+                  <span
+                    aria-hidden="true"
+                    className="absolute right-1 top-1 size-1.5 rounded-full bg-red-500"
+                  />
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      {/* Detail panel — fills the gap below the grid */}
-      <section className="mt-4 rounded-xl border border-gray-200 bg-white">
+      {/* Detail panel — beside the grid on lg in 'right' mode, below otherwise */}
+      <section
+        className={cn(
+          'rounded-xl border border-gray-200 bg-white',
+          detailPosition === 'right' ? 'mt-4 lg:mt-0' : 'mt-4',
+        )}
+      >
         <header className="border-b border-gray-100 px-4 py-3">
           <p className="text-sm font-semibold text-gray-900">{formatThaiDate(selected)}</p>
           {selectedHoliday && (
@@ -231,7 +252,7 @@ export function CalendarGrid({ grid, entries, holidays }: Props) {
           </ul>
         )}
       </section>
-    </>
+    </div>
   );
 }
 

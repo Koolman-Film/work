@@ -23,7 +23,7 @@ import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { getOrgCalendarData } from '@/lib/leave/team-calendar';
 import { currentMonthYM, parseMonth } from '@/lib/leave/team-calendar-shape';
-import { AdminCalendarCard } from './_calendar/admin-calendar-card';
+import { DashboardCalendarSummary } from './_calendar/dashboard-calendar-summary';
 
 /**
  * Re-render the dashboard at most every 30 seconds.
@@ -92,8 +92,9 @@ export default async function AdminHomePage() {
 
   const today = bangkokDateUtcMidnight(new Date());
   const todayIsSunday = today.getUTCDay() === 0;
+  const todayYmd = today.toISOString().slice(0, 10);
 
-  // Current Bangkok month for the dashboard calendar card.
+  // Current Bangkok month for the compact calendar summary.
   const initialYm = currentMonthYM();
   const calMonth = parseMonth(initialYm);
   if (!calMonth) throw new Error('Could not parse current month — date system broken?');
@@ -110,7 +111,6 @@ export default async function AdminHomePage() {
     pendingLeaveRecent,
     pendingAdvanceRecent,
     onLeaveToday,
-    branchesForCalendar,
     initialCalendar,
   ] = await Promise.all([
     prisma.leaveRequest.count({ where: { status: 'Pending' } }),
@@ -163,11 +163,6 @@ export default async function AdminHomePage() {
         },
       },
     }),
-    prisma.branch.findMany({
-      where: { archivedAt: null },
-      orderBy: { name: 'asc' },
-      select: { id: true, name: true },
-    }),
     getOrgCalendarData({ monthStart: calMonth.start, monthEnd: calMonth.end }),
   ]);
 
@@ -206,7 +201,7 @@ export default async function AdminHomePage() {
       title: `${r.employee.firstName} ${r.employee.lastName}${
         r.employee.nickname ? ` (${r.employee.nickname})` : ''
       }`,
-      subtitle: `ลา${r.leaveType.name} • ${formatRangeShort(r.startDate, r.endDate)}`,
+      subtitle: `${r.leaveType.name} • ${formatRangeShort(r.startDate, r.endDate)}`,
       href: '/admin/leave',
     })),
     ...pendingAdvanceRecent.map<PendingRow>((r) => ({
@@ -221,7 +216,7 @@ export default async function AdminHomePage() {
     })),
   ]
     .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-    .slice(0, 5);
+    .slice(0, 3);
 
   const todayLabel = new Date().toLocaleDateString('th-TH', {
     timeZone: 'Asia/Bangkok',
@@ -335,16 +330,10 @@ export default async function AdminHomePage() {
           </CardHeader>
           <CardBody className="!p-0">
             {onLeaveToday.length === 0 ? (
-              <EmptyState
-                title="ไม่มีพนักงานลาวันนี้"
-                hint={
-                  isClosedDay
-                    ? todayHoliday
-                      ? `${todayHoliday.name} — วันหยุดทุกคน`
-                      : 'วันอาทิตย์ — วันหยุดประจำสัปดาห์'
-                    : 'พนักงานทุกคนพร้อมทำงาน'
-                }
-              />
+              <p className="px-5 py-6 text-sm text-ink-3">
+                ไม่มีพนักงานลาวันนี้
+                {isClosedDay ? (todayHoliday ? ` — ${todayHoliday.name}` : ' — วันอาทิตย์') : ''}
+              </p>
             ) : (
               <ul className="divide-y divide-gray-100">
                 {onLeaveToday.map((a) => (
@@ -374,13 +363,9 @@ export default async function AdminHomePage() {
         </Card>
       </div>
 
-      {/* Work calendar — month leave/holiday view across all branches */}
+      {/* Compact upcoming-leave/holiday agenda — full grid lives at /admin/calendar */}
       <div className="mt-4">
-        <AdminCalendarCard
-          branches={branchesForCalendar}
-          initialYm={initialYm}
-          initialData={initialCalendar}
-        />
+        <DashboardCalendarSummary data={initialCalendar} todayYmd={todayYmd} />
       </div>
     </div>
   );
