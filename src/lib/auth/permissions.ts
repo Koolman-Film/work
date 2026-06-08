@@ -47,6 +47,7 @@ export const PERMISSIONS = {
   'attendance.dispute-resolve': 'อนุมัติ/ปฏิเสธรายการตรวจสอบ',
   'attendance.live-board': 'ดูสถานะการลงเวลาแบบเรียลไทม์',
   'attendance.void': 'ลบ/ยกเลิกรายการลงเวลา',
+  'attendance.overtime.manage': 'จัดการการทำงานล่วงเวลา (OT)',
 
   // ─── Leave ───────────────────────────────────────────────────────────
   'leave.read': 'ดูคำขอลา',
@@ -144,6 +145,7 @@ export const PERMISSION_GROUPS: ReadonlyArray<{
       'attendance.manual-create',
       'attendance.dispute-resolve',
       'attendance.void',
+      'attendance.overtime.manage',
     ],
   },
   {
