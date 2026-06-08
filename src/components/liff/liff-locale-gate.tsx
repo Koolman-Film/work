@@ -40,8 +40,9 @@ export function LiffLocaleGate() {
 
   if (!sync?.paired || !sync.showModal) return null;
 
-  // Preselect priority: admin default (already in sync.preselect when set)
-  // wins; otherwise LINE app language refines the header-based guess.
-  const preselect = sync.preselect !== 'th' ? sync.preselect : (liffLang ?? sync.preselect);
+  // Preselect priority: an explicit admin/effective default always wins (even
+  // when it is 'th'); otherwise the LINE app language refines our guess.
+  const preselect =
+    sync.preselectSource === 'admin' ? sync.preselect : (liffLang ?? sync.preselect);
   return <LanguageModal preselect={preselect} />;
 }
