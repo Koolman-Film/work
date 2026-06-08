@@ -110,6 +110,16 @@ export function AdminCalendarCard({ branches, initialYm, initialData }: Props) {
     });
   }
 
+  // Re-fetch the current month/branch after a review modal closes so the grid +
+  // day-detail reflect any approve/reject/void (the modal's router.refresh() alone
+  // doesn't update this island's local `data` state). Also clears any row error.
+  function closeReview() {
+    setOpenLeave(null);
+    setOpenAdvance(null);
+    setRowError(null);
+    reload(ym, branchId);
+  }
+
   return (
     <Card>
       <CardHeader className="flex-wrap gap-3">
@@ -193,8 +203,8 @@ export function AdminCalendarCard({ branches, initialYm, initialData }: Props) {
         )}
       </CardBody>
 
-      <LeaveReviewModal row={openLeave} onClose={() => setOpenLeave(null)} />
-      <AdvanceReviewModal row={openAdvance} onClose={() => setOpenAdvance(null)} />
+      <LeaveReviewModal row={openLeave} onClose={closeReview} />
+      <AdvanceReviewModal row={openAdvance} onClose={closeReview} />
     </Card>
   );
 }
