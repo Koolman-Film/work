@@ -15,7 +15,12 @@ export type LeaveUnitConfig = {
   afternoonEnd: string;
 };
 
-/** "HH:MM" → minutes since midnight. Assumes app-validated input. */
+/**
+ * "HH:MM" → minutes since midnight. Input MUST be a validated "HH:MM" string
+ * (callers validate upstream — LeaveConfig columns + the leave-config action's
+ * regex, and `<input type=time>`). Malformed input yields NaN by design; this
+ * helper does not guard, to stay pure and cheap.
+ */
 export function minutesOf(hhmm: string): number {
   const [h, m] = hhmm.split(':');
   return Number(h) * 60 + Number(m);
@@ -42,6 +47,8 @@ export function standardDayMinutes(cfg: LeaveUnitConfig): number {
 /**
  * Render minutes as the Thai days+hours+minutes hybrid, using the standard
  * day as the "day" size. Examples (420/day): 600 → "1 วัน 3 ชม.".
+ *
+ * @param minutes Non-negative integer count of minutes.
  */
 export function formatDaysHours(minutes: number, cfg: LeaveUnitConfig): string {
   const perDay = standardDayMinutes(cfg);
