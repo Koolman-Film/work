@@ -1,7 +1,14 @@
 import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import type { Metadata } from 'next';
-import { IBM_Plex_Mono, IBM_Plex_Sans_Thai, Inter } from 'next/font/google';
+import {
+  IBM_Plex_Mono,
+  IBM_Plex_Sans_Thai,
+  Inter,
+  Noto_Sans_Khmer,
+  Noto_Sans_Lao,
+  Noto_Sans_Myanmar,
+} from 'next/font/google';
 import { NextIntlClientProvider } from 'next-intl';
 import { getLocale } from 'next-intl/server';
 import './globals.css';
@@ -23,6 +30,24 @@ const plexMono = IBM_Plex_Mono({
   subsets: ['latin'],
   weight: ['400', '500'],
   variable: '--font-plex-mono',
+  display: 'swap',
+});
+const notoMyanmar = Noto_Sans_Myanmar({
+  subsets: ['myanmar'],
+  weight: ['400', '500', '700'],
+  variable: '--font-noto-myanmar',
+  display: 'swap',
+});
+const notoKhmer = Noto_Sans_Khmer({
+  subsets: ['khmer'],
+  weight: ['400', '500', '700'],
+  variable: '--font-noto-khmer',
+  display: 'swap',
+});
+const notoLao = Noto_Sans_Lao({
+  subsets: ['lao'],
+  weight: ['400', '500', '700'],
+  variable: '--font-noto-lao',
   display: 'swap',
 });
 
@@ -65,7 +90,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const locale = await getLocale();
 
   return (
-    <html lang={locale} className={`${inter.variable} ${plexThai.variable} ${plexMono.variable}`}>
+    <html
+      lang={locale}
+      className={`${inter.variable} ${plexThai.variable} ${plexMono.variable} ${notoMyanmar.variable} ${notoKhmer.variable} ${notoLao.variable}`}
+    >
       <body className="min-h-dvh bg-white text-gray-900 antialiased">
         <NextIntlClientProvider>{children}</NextIntlClientProvider>
         <SpeedInsights />

@@ -57,7 +57,8 @@
   /* Type — display (Inter) added; body Thai-tuned; mono.
      Faces are loaded by next/font in layout.tsx and exposed as these vars. */
   --font-display: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  --font-sans: var(--font-plex-thai), 'Sarabun', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-sans: var(--font-plex-thai), 'Sarabun', var(--font-noto-myanmar),
+    var(--font-noto-khmer), var(--font-noto-lao), ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-mono: var(--font-plex-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
