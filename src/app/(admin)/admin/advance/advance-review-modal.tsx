@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ActionResult } from '@/components/ui/confirm-dialog';
 import { Dropzone } from '@/components/ui/dropzone';
 import { ReviewModal } from '@/components/ui/review-modal';
@@ -77,6 +77,13 @@ export function AdvanceReviewModal({
     clearReceipt();
     onClose();
   }
+
+  // Reset staged receipt whenever the selected row changes (covers open, close,
+  // and switching directly between rows) so a receipt never leaks to another advance.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: clearReceipt is stable enough; keying on row?.id is the intent
+  useEffect(() => {
+    clearReceipt();
+  }, [row?.id]);
 
   /** Upload the receipt (if any) then approve — runs as ReviewModal's onApprove. */
   async function doApprove(): Promise<ActionResult> {
