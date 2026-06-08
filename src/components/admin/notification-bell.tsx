@@ -259,7 +259,7 @@ function renderNotification(n: BellNotification): RenderedKind {
       return {
         emoji: '🎂',
         title:
-          payload.daysUntil === '0'
+          String(payload.daysUntil) === '0'
             ? `วันนี้วันเกิด ${payload.employeeName ?? 'พนักงาน'}`
             : `พรุ่งนี้วันเกิด ${payload.employeeName ?? 'พนักงาน'}`,
         subtitle: `วันเกิด ${payload.birthday ?? ''}`,
