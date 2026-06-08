@@ -19,7 +19,8 @@ import { KpiHero } from '@/components/ui/kpi-hero';
 import { PageHeader } from '@/components/ui/page-header';
 import { Pill } from '@/components/ui/pill';
 import { StatCard } from '@/components/ui/stat-card';
-import { requirePermission } from '@/lib/auth/check-permission';
+import { bangkokDateUtcMidnight, isClosedDay } from '@/lib/attendance/date';
+import { canDo, requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { getOrgCalendarData } from '@/lib/leave/team-calendar';
 import { currentMonthYM, parseMonth } from '@/lib/leave/team-calendar-shape';
@@ -42,16 +43,6 @@ import { DashboardCalendarSummary } from './_calendar/dashboard-calendar-summary
  * are decoration — admins click through to the inbox for the real view.
  */
 export const revalidate = 30;
-
-/**
- * Today as UTC midnight matching @db.Date semantics — same helper as
- * check-in.ts / live.ts. Inlined here to keep the dashboard import graph
- * tiny.
- */
-function bangkokDateUtcMidnight(d: Date): Date {
-  const ymd = d.toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
-  return new Date(`${ymd}T00:00:00.000Z`);
-}
 
 function formatRangeShort(start: Date, end: Date): string {
   const opts: Intl.DateTimeFormatOptions = {
@@ -88,10 +79,10 @@ function formatDateTimeShort(d: Date): string {
 }
 
 export default async function AdminHomePage() {
-  await requirePermission('dashboard.read');
+  const { user } = await requirePermission('dashboard.read');
+  const canViewLiveBoard = await canDo(user, 'attendance.live-board');
 
   const today = bangkokDateUtcMidnight(new Date());
-  const todayIsSunday = today.getUTCDay() === 0;
   const todayYmd = today.toISOString().slice(0, 10);
 
   // Current Bangkok month for the compact calendar summary.
@@ -169,8 +160,8 @@ export default async function AdminHomePage() {
   // "ยังไม่เช็คอินวันนี้" = active employees minus those who've checked in
   // minus those on approved leave today. On Sundays + Holidays this is
   // structurally zero (nobody is expected to work).
-  const isClosedDay = todayIsSunday || todayHoliday !== null;
-  const notCheckedInCount = isClosedDay
+  const closedToday = isClosedDay(today, todayHoliday !== null);
+  const notCheckedInCount = closedToday
     ? 0
     : Math.max(0, activeEmployeeCount - checkedInTodayCount - onLeaveTodayCount);
 
@@ -233,7 +224,7 @@ export default async function AdminHomePage() {
         title="ภาพรวม"
         subtitle={`${todayLabel} · ภาพรวมทุกสาขา`}
         actions={
-          isClosedDay ? (
+          closedToday ? (
             <Pill variant="neutral">
               {todayHoliday ? `วันหยุด: ${todayHoliday.name}` : 'วันอาทิตย์'}
             </Pill>
@@ -251,6 +242,10 @@ export default async function AdminHomePage() {
             notCheckedIn={notCheckedInCount}
             total={activeEmployeeCount}
             leave={onLeaveTodayCount}
+            checkedInHref={canViewLiveBoard ? '/admin/attendance/live?filter=checkedin' : undefined}
+            notCheckedInHref={
+              canViewLiveBoard ? '/admin/attendance/live?filter=notcheckedin' : undefined
+            }
           />
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
@@ -332,7 +327,7 @@ export default async function AdminHomePage() {
             {onLeaveToday.length === 0 ? (
               <p className="px-5 py-6 text-sm text-ink-3">
                 ไม่มีพนักงานลาวันนี้
-                {isClosedDay ? (todayHoliday ? ` — ${todayHoliday.name}` : ' — วันอาทิตย์') : ''}
+                {closedToday ? (todayHoliday ? ` — ${todayHoliday.name}` : ' — วันอาทิตย์') : ''}
               </p>
             ) : (
               <ul className="divide-y divide-gray-100">
