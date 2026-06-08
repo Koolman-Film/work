@@ -4,6 +4,7 @@ import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
 import { FormField } from '@/components/ui/form-field';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import { PhotoField } from './photo-field';
 
 export type EmployeeFormOptions = {
   branches: Array<{ id: string; name: string }>;
@@ -27,6 +28,12 @@ type Initial = {
   status: 'Probation' | 'Active' | 'Archived';
   canCheckIn: boolean;
   hiredAt: string; // YYYY-MM-DD
+  dateOfBirth: string | null; // YYYY-MM-DD
+  bankId: string | null;
+  bankAccountNumber: string | null;
+  bankAccountName: string | null;
+  photoKey: string | null;
+  photoUrl: string | null; // signed URL for preview
 };
 
 type Props =
@@ -39,6 +46,7 @@ type Props =
       extraActions?: React.ReactNode;
       /** Rendered between the form and the action bar (e.g. the LINE pairing card). */
       belowForm?: React.ReactNode;
+      employeeId?: string;
     }
   | {
       mode: 'edit';
@@ -49,6 +57,7 @@ type Props =
       extraActions?: React.ReactNode;
       /** Rendered between the form and the action bar (e.g. the LINE pairing card). */
       belowForm?: React.ReactNode;
+      employeeId?: string;
     };
 
 const selectClasses = cn(
@@ -75,6 +84,7 @@ export function EmployeeForm({
   options,
   extraActions,
   belowForm,
+  employeeId,
 }: Props) {
   const isEdit = mode === 'edit';
 
@@ -98,6 +108,13 @@ export function EmployeeForm({
                 <CardTitle>ข้อมูลพนักงาน</CardTitle>
               </CardHeader>
               <CardBody className="space-y-5">
+                <FormField label="รูปพนักงาน" htmlFor="photoKey" hint="ไม่บังคับ — รองรับ JPG/PNG">
+                  <PhotoField
+                    employeeId={employeeId ?? null}
+                    initialKey={initial?.photoKey ?? null}
+                    initialUrl={initial?.photoUrl ?? null}
+                  />
+                </FormField>
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                   <FormField label="ชื่อจริง" htmlFor="firstName" required>
                     <Input
@@ -125,6 +142,15 @@ export function EmployeeForm({
                     name="nickname"
                     maxLength={40}
                     defaultValue={initial?.nickname ?? ''}
+                    className="max-w-xs"
+                  />
+                </FormField>
+                <FormField label="วันเกิด" htmlFor="dateOfBirth" hint="ไม่บังคับ — ใช้แจ้งเตือนวันเกิด">
+                  <Input
+                    id="dateOfBirth"
+                    name="dateOfBirth"
+                    type="date"
+                    defaultValue={initial?.dateOfBirth ?? ''}
                     className="max-w-xs"
                   />
                 </FormField>
@@ -212,109 +238,159 @@ export function EmployeeForm({
             </Card>
           </div>
 
-          {/* Right column: org assignment */}
-          <Card>
-            <CardHeader>
-              <CardTitle>สังกัด</CardTitle>
-            </CardHeader>
-            <CardBody className="space-y-5">
-              <FormField label="สาขาหลัก" htmlFor="branchId" required hint="สาขาที่พนักงานทำงานเป็นหลัก">
-                <select
-                  id="branchId"
-                  name="branchId"
+          {/* Right column: org assignment + bank */}
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>สังกัด</CardTitle>
+              </CardHeader>
+              <CardBody className="space-y-5">
+                <FormField
+                  label="สาขาหลัก"
+                  htmlFor="branchId"
                   required
-                  defaultValue={initial?.branchId ?? ''}
-                  className={cn(selectClasses, 'max-w-md')}
+                  hint="สาขาที่พนักงานทำงานเป็นหลัก"
                 >
-                  <option value="" disabled>
-                    — เลือกสาขา —
-                  </option>
-                  {options.branches.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.name}
+                  <select
+                    id="branchId"
+                    name="branchId"
+                    required
+                    defaultValue={initial?.branchId ?? ''}
+                    className={cn(selectClasses, 'max-w-md')}
+                  >
+                    <option value="" disabled>
+                      — เลือกสาขา —
                     </option>
-                  ))}
-                </select>
-              </FormField>
+                    {options.branches.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.name}
+                      </option>
+                    ))}
+                  </select>
+                </FormField>
 
-              <FormField
-                label="สาขาที่ทำงานได้ (เพิ่มเติม)"
-                htmlFor="assignedBranchIds"
-                hint="สาขาที่อนุญาตให้พนักงานเช็คอินได้ (นอกเหนือจากสาขาหลัก)"
-              >
-                <div className="flex flex-wrap gap-3 pt-1">
-                  {options.branches.map((b) => {
-                    const checked = initial?.assignedBranchIds.includes(b.id) ?? false;
-                    return (
-                      <label
-                        key={b.id}
-                        className="inline-flex items-center gap-2 rounded-md border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm text-ink-2 hover:bg-gray-100"
-                      >
-                        <input
-                          type="checkbox"
-                          name="assignedBranchIds"
-                          value={b.id}
-                          defaultChecked={checked}
-                          className="size-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500/30"
-                        />
-                        <span>{b.name}</span>
-                      </label>
-                    );
-                  })}
+                <FormField
+                  label="สาขาที่ทำงานได้ (เพิ่มเติม)"
+                  htmlFor="assignedBranchIds"
+                  hint="สาขาที่อนุญาตให้พนักงานเช็คอินได้ (นอกเหนือจากสาขาหลัก)"
+                >
+                  <div className="flex flex-wrap gap-3 pt-1">
+                    {options.branches.map((b) => {
+                      const checked = initial?.assignedBranchIds.includes(b.id) ?? false;
+                      return (
+                        <label
+                          key={b.id}
+                          className="inline-flex items-center gap-2 rounded-md border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm text-ink-2 hover:bg-gray-100"
+                        >
+                          <input
+                            type="checkbox"
+                            name="assignedBranchIds"
+                            value={b.id}
+                            defaultChecked={checked}
+                            className="size-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500/30"
+                          />
+                          <span>{b.name}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </FormField>
+
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                  <FormField label="แผนก" htmlFor="departmentId" hint="ไม่บังคับ">
+                    <select
+                      id="departmentId"
+                      name="departmentId"
+                      defaultValue={initial?.departmentId ?? ''}
+                      className={selectClasses}
+                    >
+                      <option value="">— ไม่ระบุ —</option>
+                      {options.departments.map((d) => (
+                        <option key={d.id} value={d.id}>
+                          {d.name}
+                        </option>
+                      ))}
+                    </select>
+                  </FormField>
+
+                  <FormField label="กลุ่มบัญชี" htmlFor="accountingGroupId" hint="สำหรับ PEAK export">
+                    <select
+                      id="accountingGroupId"
+                      name="accountingGroupId"
+                      defaultValue={initial?.accountingGroupId ?? ''}
+                      className={selectClasses}
+                    >
+                      <option value="">— ไม่ระบุ —</option>
+                      {options.accountingGroups.map((g) => (
+                        <option key={g.id} value={g.id}>
+                          {g.name}
+                        </option>
+                      ))}
+                    </select>
+                  </FormField>
                 </div>
-              </FormField>
 
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                <FormField label="แผนก" htmlFor="departmentId" hint="ไม่บังคับ">
+                <FormField label="ตารางงาน" htmlFor="workScheduleId" hint="ใช้ตรวจสายและคำนวณ OT">
                   <select
-                    id="departmentId"
-                    name="departmentId"
-                    defaultValue={initial?.departmentId ?? ''}
-                    className={selectClasses}
+                    id="workScheduleId"
+                    name="workScheduleId"
+                    defaultValue={initial?.workScheduleId ?? ''}
+                    className={cn(selectClasses, 'max-w-md')}
                   >
                     <option value="">— ไม่ระบุ —</option>
-                    {options.departments.map((d) => (
-                      <option key={d.id} value={d.id}>
-                        {d.name}
+                    {options.workSchedules.map((w) => (
+                      <option key={w.id} value={w.id}>
+                        {w.name}
+                      </option>
+                    ))}
+                  </select>
+                </FormField>
+              </CardBody>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>บัญชีธนาคาร (รับเงินเดือน / เบิกล่วงหน้า)</CardTitle>
+              </CardHeader>
+              <CardBody className="space-y-5">
+                <FormField label="ธนาคาร" htmlFor="bankId" hint="ไม่บังคับ">
+                  <select
+                    id="bankId"
+                    name="bankId"
+                    defaultValue={initial?.bankId ?? ''}
+                    className={cn(selectClasses, 'max-w-md')}
+                  >
+                    <option value="">— ไม่ระบุ —</option>
+                    {options.banks.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.shortName ? `${b.shortName} — ${b.nameTh}` : b.nameTh}
                       </option>
                     ))}
                   </select>
                 </FormField>
 
-                <FormField label="กลุ่มบัญชี" htmlFor="accountingGroupId" hint="สำหรับ PEAK export">
-                  <select
-                    id="accountingGroupId"
-                    name="accountingGroupId"
-                    defaultValue={initial?.accountingGroupId ?? ''}
-                    className={selectClasses}
-                  >
-                    <option value="">— ไม่ระบุ —</option>
-                    {options.accountingGroups.map((g) => (
-                      <option key={g.id} value={g.id}>
-                        {g.name}
-                      </option>
-                    ))}
-                  </select>
-                </FormField>
-              </div>
-
-              <FormField label="ตารางงาน" htmlFor="workScheduleId" hint="ใช้ตรวจสายและคำนวณ OT">
-                <select
-                  id="workScheduleId"
-                  name="workScheduleId"
-                  defaultValue={initial?.workScheduleId ?? ''}
-                  className={cn(selectClasses, 'max-w-md')}
-                >
-                  <option value="">— ไม่ระบุ —</option>
-                  {options.workSchedules.map((w) => (
-                    <option key={w.id} value={w.id}>
-                      {w.name}
-                    </option>
-                  ))}
-                </select>
-              </FormField>
-            </CardBody>
-          </Card>
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                  <FormField label="เลขที่บัญชี" htmlFor="bankAccountNumber" hint="ตัวเลข 8–15 หลัก">
+                    <Input
+                      id="bankAccountNumber"
+                      name="bankAccountNumber"
+                      inputMode="numeric"
+                      maxLength={20}
+                      defaultValue={initial?.bankAccountNumber ?? ''}
+                    />
+                  </FormField>
+                  <FormField label="ชื่อบัญชี" htmlFor="bankAccountName" hint="ชื่อเจ้าของบัญชี">
+                    <Input
+                      id="bankAccountName"
+                      name="bankAccountName"
+                      maxLength={120}
+                      defaultValue={initial?.bankAccountName ?? ''}
+                    />
+                  </FormField>
+                </div>
+              </CardBody>
+            </Card>
+          </div>
         </div>
       </form>
 
