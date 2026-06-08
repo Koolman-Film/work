@@ -62,6 +62,7 @@ async function loadEntriesAndHolidays(args: {
     return {
       entries: [],
       holidays: holidays.map((h) => ({ date: ymd(h.date), name: h.name })),
+      advances: [],
     };
   }
 
@@ -112,6 +113,7 @@ async function loadEntriesAndHolidays(args: {
   return {
     entries,
     holidays: holidays.map((h) => ({ date: ymd(h.date), name: h.name })),
+    advances: [],
   };
 }
 
@@ -133,7 +135,7 @@ export async function getTeamCalendarData(args: {
     where: { id: viewerEmployeeId },
     select: { branchId: true, assignedBranchIds: true },
   });
-  if (!me) return { entries: [], holidays: [] };
+  if (!me) return { entries: [], holidays: [], advances: [] };
 
   const myBranchIds = Array.from(new Set([me.branchId, ...me.assignedBranchIds]));
 

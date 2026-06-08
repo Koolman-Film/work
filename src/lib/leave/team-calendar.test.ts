@@ -11,9 +11,11 @@ import { describe, expect, it } from 'vitest';
 import {
   buildMonthGrid,
   formatThaiMonthLabel,
+  indexAdvancesByDate,
   indexEntriesByDate,
   parseMonth,
   shiftMonth,
+  type TeamCalendarAdvance,
   type TeamCalendarEntry,
 } from './team-calendar-shape';
 
@@ -169,5 +171,33 @@ describe('formatThaiMonthLabel', () => {
   });
   it('formats December', () => {
     expect(formatThaiMonthLabel(2026, 11)).toBe('ธันวาคม 2569');
+  });
+});
+
+describe('indexAdvancesByDate', () => {
+  const base: Omit<TeamCalendarAdvance, 'cashAdvanceId' | 'date'> = {
+    employeeId: 'emp-1',
+    employeeName: 'Alice Smith',
+    shortLabel: 'Alice',
+    amountLabel: '฿1,500.00',
+    status: 'Pending',
+  };
+
+  it('keys an advance on its single anchor day', () => {
+    const idx = indexAdvancesByDate([{ ...base, cashAdvanceId: 'a1', date: '2026-06-08' }]);
+    expect(idx.size).toBe(1);
+    expect(idx.get('2026-06-08')?.length).toBe(1);
+  });
+
+  it('groups multiple advances on the same day', () => {
+    const idx = indexAdvancesByDate([
+      { ...base, cashAdvanceId: 'a1', date: '2026-06-08' },
+      { ...base, cashAdvanceId: 'a2', employeeId: 'emp-2', date: '2026-06-08' },
+    ]);
+    expect(idx.get('2026-06-08')?.length).toBe(2);
+  });
+
+  it('returns an empty map for no advances', () => {
+    expect(indexAdvancesByDate([]).size).toBe(0);
   });
 });
