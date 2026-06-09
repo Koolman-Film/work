@@ -249,5 +249,35 @@
     "saving": "正在保存...",
     "saved": "已保存 ✓",
     "backToCheckin": "← 返回打卡页"
+  },
+  "calendar": {
+    "title": "团队日历",
+    "today": "今天",
+    "nav": {
+      "prevMonth": "上个月",
+      "nextMonth": "下个月"
+    },
+    "footer": {
+      "note": "显示您所在门店的请假申请 • 包含待审批的申请"
+    },
+    "links": {
+      "myLeave": "← 我的请假申请",
+      "checkin": "打卡"
+    },
+    "cell": {
+      "leaveCount": "请假 {count}",
+      "advanceCount": "预支 {count}"
+    },
+    "detail": {
+      "holiday": "假日：{name}",
+      "empty": "今日暂无记录",
+      "emptyHolidayNote": "今日为公共假日",
+      "youSuffix": "（你）",
+      "advanceLabel": "预支 · {amount}"
+    },
+    "status": {
+      "Approved": "已批准",
+      "Pending": "待审批"
+    }
   }
 }

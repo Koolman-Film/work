@@ -13,14 +13,20 @@
  *
  * Tapping a cell selects it and renders a detail panel BELOW the grid
  * (not a modal — modals on a 320px LIFF screen feel disruptive). The
- * panel shows: full Thai date, holiday name if any, then a list of
- * each person on leave with their type + status badge.
+ * panel shows: full date (locale-aware), holiday name if any, then a list
+ * of each person on leave with their type + status badge.
  *
  * Defaults: today is preselected when it's in the visible month;
  * otherwise the first day of the month.
+ *
+ * Weekday header labels and date display are derived via Intl.DateTimeFormat
+ * using the active locale — no Thai month/weekday names are hardcoded.
+ * For the Thai locale, the day-detail header uses Buddhist year (CE+543).
  */
 
+import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
+import type { Locale } from '@/lib/i18n/config';
 import type {
   GridDay,
   TeamCalendarAdvance,
@@ -33,26 +39,119 @@ import type {
 import { indexAdvancesByDate, indexEntriesByDate } from '@/lib/leave/team-calendar-shape';
 import { cn } from '@/lib/utils';
 
-const WEEKDAY_LABELS = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'] as const;
-const THAI_MONTHS = [
-  'มกราคม',
-  'กุมภาพันธ์',
-  'มีนาคม',
-  'เมษายน',
-  'พฤษภาคม',
-  'มิถุนายน',
-  'กรกฎาคม',
-  'สิงหาคม',
-  'กันยายน',
-  'ตุลาคม',
-  'พฤศจิกายน',
-  'ธันวาคม',
-] as const;
+/**
+ * Build the 7 short weekday labels starting from Sunday (index 0).
+ * We pick 7 known Sunday-anchored dates and format each with 'weekday: short'.
+ * The dates 2024-12-29 (Sun) through 2025-01-04 (Sat) are a convenient
+ * fixed reference week that is always in the past and unambiguous.
+ */
+function buildWeekdayLabels(locale: string): string[] {
+  const fmt = new Intl.DateTimeFormat(locale, { weekday: 'short' });
+  // 2024-12-29 = Sunday, +0..+6 gives Sun..Sat.
+  const anchor = new Date(Date.UTC(2024, 11, 29)); // Dec 29 2024 = Sunday UTC
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(anchor);
+    d.setUTCDate(anchor.getUTCDate() + i);
+    return fmt.format(d);
+  });
+}
+
+/** Full locale-aware date for the detail panel header.
+ *
+ * Thai: weekday + day + month-name (Gregorian) + Buddhist year (CE+543).
+ * Others: Intl.DateTimeFormat with { weekday:'long', day:'numeric', month:'long', year:'numeric' }.
+ */
+function formatFullDate(ymd: string, locale: string): string {
+  const [yStr, mStr, dStr] = ymd.split('-');
+  const y = Number(yStr);
+  const m0 = Number(mStr) - 1;
+  const d = Number(dStr);
+
+  if (locale === 'th') {
+    // Use a UTC date so time-zone doesn't shift day numbers.
+    const date = new Date(Date.UTC(y, m0, d));
+    const weekday = new Intl.DateTimeFormat('th-TH-u-ca-gregory', {
+      weekday: 'long',
+      timeZone: 'UTC',
+    }).format(date);
+    const monthName = new Intl.DateTimeFormat('th-TH-u-ca-gregory', {
+      month: 'long',
+      timeZone: 'UTC',
+    }).format(date);
+    const beYear = y + 543;
+    return `${weekday} ${d} ${monthName} ${beYear}`;
+  }
+
+  const date = new Date(Date.UTC(y, m0, d));
+  return new Intl.DateTimeFormat(locale, {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(date);
+}
+
+/** Compact range "1–5 May" / "1–5 พ.ค." style for secondary line on multi-day entries.
+ * Uses Intl so the month name is in the user's locale/script. */
+function formatRangeCompact(start: string, end: string, locale: string): string {
+  const startDay = Number(start.slice(8, 10));
+  const endDay = Number(end.slice(8, 10));
+  const startYM = start.slice(0, 7);
+  const endYM = end.slice(0, 7);
+
+  const [yStr, mStr] = start.split('-');
+  const y = Number(yStr);
+  const m0 = Number(mStr) - 1;
+
+  if (startYM !== endYM) {
+    // Cross-month: show both short dates.
+    return `${formatShortDate(start, locale)} – ${formatShortDate(end, locale)}`;
+  }
+
+  // Same month: "1–5 <month>" using the locale month name.
+  const monthDate = new Date(Date.UTC(y, m0, 1));
+  let monthLabel: string;
+  if (locale === 'th') {
+    monthLabel = new Intl.DateTimeFormat('th-TH-u-ca-gregory', {
+      month: 'short',
+      timeZone: 'UTC',
+    }).format(monthDate);
+  } else {
+    monthLabel = new Intl.DateTimeFormat(locale, {
+      month: 'short',
+      timeZone: 'UTC',
+    }).format(monthDate);
+  }
+  return `${startDay}–${endDay} ${monthLabel}`;
+}
+
+function formatShortDate(ymd: string, locale: string): string {
+  const [yStr, mStr, dStr] = ymd.split('-');
+  const y = Number(yStr);
+  const m0 = Number(mStr) - 1;
+  const d = Number(dStr);
+  const date = new Date(Date.UTC(y, m0, d));
+  if (locale === 'th') {
+    const monthLabel = new Intl.DateTimeFormat('th-TH-u-ca-gregory', {
+      month: 'short',
+      timeZone: 'UTC',
+    }).format(date);
+    return `${d} ${monthLabel}`;
+  }
+  return new Intl.DateTimeFormat(locale, {
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'UTC',
+  }).format(date);
+}
 
 type Props = {
   grid: GridDay[];
   entries: TeamCalendarEntry[];
   holidays: TeamCalendarHoliday[];
+  /** Active locale — used for weekday labels and date formatting. Defaults to 'th'. */
+  locale?: Locale;
   /** Cash-advance markers (admin calendar only). Defaults to none. */
   advances?: TeamCalendarAdvance[];
   /**
@@ -74,12 +173,18 @@ export function CalendarGrid({
   grid,
   entries,
   holidays,
+  locale = 'th',
   advances = [],
   detailPosition = 'below',
   onLeaveClick,
   onAdvanceClick,
   busyId = null,
 }: Props) {
+  const t = useTranslations('calendar');
+
+  // Weekday labels derived from Intl — locale-aware, no hardcoded Thai strings.
+  const weekdayLabels = useMemo(() => buildWeekdayLabels(locale), [locale]);
+
   // Build lookup maps once per props change. The grid re-renders on day
   // selection but the underlying indices don't change, so useMemo keeps
   // the per-cell render cheap (Map.get is O(1)).
@@ -119,9 +224,9 @@ export function CalendarGrid({
       )}
     >
       <div>
-        {/* Weekday header */}
+        {/* Weekday header — locale-aware labels via Intl */}
         <div className="grid grid-cols-7 gap-1 px-0.5 pb-1.5">
-          {WEEKDAY_LABELS.map((w, i) => (
+          {weekdayLabels.map((w, i) => (
             <p
               key={w}
               className={cn(
@@ -153,15 +258,22 @@ export function CalendarGrid({
             const dow = new Date(`${cell.date}T00:00:00.000Z`).getUTCDay();
             const isSunday = dow === 0;
 
+            const leaveAriaCount =
+              dayEntries.length > 0
+                ? ` (${t('cell.leaveCount', { count: dayEntries.length })})`
+                : '';
+            const advanceAriaCount =
+              dayAdvances.length > 0
+                ? ` (${t('cell.advanceCount', { count: dayAdvances.length })})`
+                : '';
+
             return (
               <button
                 key={cell.date}
                 type="button"
                 onClick={() => setSelected(cell.date)}
                 aria-pressed={isSelected}
-                aria-label={`${cell.day}${holiday ? ` ${holiday}` : ''}${
-                  dayEntries.length > 0 ? ` (มีลา ${dayEntries.length})` : ''
-                }${dayAdvances.length > 0 ? ` (เบิก ${dayAdvances.length})` : ''}`}
+                aria-label={`${cell.day}${holiday ? ` ${holiday}` : ''}${leaveAriaCount}${advanceAriaCount}`}
                 className={cn(
                   'relative flex aspect-square flex-col rounded-md border p-1 text-left transition',
                   // Out-of-month cells: muted background + ghost text.
@@ -244,16 +356,20 @@ export function CalendarGrid({
         )}
       >
         <header className="border-b border-gray-100 px-4 py-3">
-          <p className="text-sm font-semibold text-gray-900">{formatThaiDate(selected)}</p>
+          <p className="text-sm font-semibold text-gray-900">{formatFullDate(selected, locale)}</p>
           {selectedHoliday && (
-            <p className="mt-0.5 text-xs font-medium text-red-700">วันหยุด: {selectedHoliday}</p>
+            <p className="mt-0.5 text-xs font-medium text-red-700">
+              {t('detail.holiday', { name: selectedHoliday })}
+            </p>
           )}
         </header>
 
         {selectedEntries.length === 0 && selectedAdvances.length === 0 ? (
           <div className="px-4 py-8 text-center">
-            <p className="text-sm text-gray-500">ไม่มีรายการวันนี้</p>
-            {selectedHoliday && <p className="mt-1 text-xs text-gray-400">เนื่องจากเป็นวันหยุด</p>}
+            <p className="text-sm text-gray-500">{t('detail.empty')}</p>
+            {selectedHoliday && (
+              <p className="mt-1 text-xs text-gray-400">{t('detail.emptyHolidayNote')}</p>
+            )}
           </div>
         ) : (
           <ul className="divide-y divide-gray-100">
@@ -273,7 +389,9 @@ export function CalendarGrid({
                       <p className="truncate text-sm font-medium text-gray-900">
                         {e.employeeName}
                         {e.isMine && (
-                          <span className="ml-1 text-xs font-normal text-primary-600">(คุณ)</span>
+                          <span className="ml-1 text-xs font-normal text-primary-600">
+                            {t('detail.youSuffix')}
+                          </span>
                         )}
                       </p>
                     </div>
@@ -282,12 +400,12 @@ export function CalendarGrid({
                       {e.startDate !== e.endDate && (
                         <span className="text-gray-400">
                           {' '}
-                          · {formatRangeCompact(e.startDate, e.endDate)}
+                          · {formatRangeCompact(e.startDate, e.endDate, locale)}
                         </span>
                       )}
                     </p>
                   </div>
-                  <StatusBadge status={e.status} />
+                  <StatusBadge status={e.status} t={t} />
                 </>
               );
               return (
@@ -316,9 +434,11 @@ export function CalendarGrid({
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-gray-900">{a.employeeName}</p>
-                    <p className="mt-0.5 text-xs text-gray-600">เบิกเงิน · {a.amountLabel}</p>
+                    <p className="mt-0.5 text-xs text-gray-600">
+                      {t('detail.advanceLabel', { amount: a.amountLabel })}
+                    </p>
                   </div>
-                  <StatusBadge status={a.status} />
+                  <StatusBadge status={a.status} t={t} />
                 </>
               );
               return (
@@ -345,48 +465,19 @@ export function CalendarGrid({
   );
 }
 
-function StatusBadge({ status }: { status: 'Pending' | 'Approved' }) {
+type TFn = ReturnType<typeof useTranslations<'calendar'>>;
+
+function StatusBadge({ status, t }: { status: 'Pending' | 'Approved'; t: TFn }) {
   if (status === 'Approved') {
     return (
       <span className="shrink-0 rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-medium text-green-800">
-        อนุมัติแล้ว
+        {t('status.Approved')}
       </span>
     );
   }
   return (
     <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800">
-      รออนุมัติ
+      {t('status.Pending')}
     </span>
   );
-}
-
-/** Full Thai date with Buddhist year — used for the detail panel header. */
-function formatThaiDate(ymd: string): string {
-  const [yStr, mStr, dStr] = ymd.split('-');
-  const y = Number(yStr);
-  const m0 = Number(mStr) - 1;
-  const d = Number(dStr);
-  const weekday = new Date(`${ymd}T00:00:00.000Z`).toLocaleDateString('th-TH', {
-    timeZone: 'UTC',
-    weekday: 'long',
-  });
-  return `${weekday} ${d} ${THAI_MONTHS[m0]} ${y + 543}`;
-}
-
-/** Compact "1–5 พ.ค." style for the secondary line on multi-day entries. */
-function formatRangeCompact(start: string, end: string): string {
-  const startDay = Number(start.slice(8, 10));
-  const endDay = Number(end.slice(8, 10));
-  // If the range crosses months we just show both full dates.
-  if (start.slice(0, 7) !== end.slice(0, 7)) {
-    return `${formatShort(start)} – ${formatShort(end)}`;
-  }
-  const monthLabel = THAI_MONTHS[Number(start.slice(5, 7)) - 1];
-  return `${startDay}–${endDay} ${monthLabel}`;
-}
-
-function formatShort(ymd: string): string {
-  const day = Number(ymd.slice(8, 10));
-  const m0 = Number(ymd.slice(5, 7)) - 1;
-  return `${day} ${THAI_MONTHS[m0]}`;
 }

@@ -260,5 +260,35 @@
     "saving": "กำลังบันทึก...",
     "saved": "บันทึกแล้ว ✓",
     "backToCheckin": "← กลับหน้าเช็คอิน"
+  },
+  "calendar": {
+    "title": "ปฏิทินทีม",
+    "today": "วันนี้",
+    "nav": {
+      "prevMonth": "เดือนก่อนหน้า",
+      "nextMonth": "เดือนถัดไป"
+    },
+    "footer": {
+      "note": "แสดงคำขอลาในสาขาเดียวกับคุณ • รวมที่กำลังรออนุมัติ"
+    },
+    "links": {
+      "myLeave": "← คำขอลาของฉัน",
+      "checkin": "เช็คอิน"
+    },
+    "cell": {
+      "leaveCount": "มีลา {count}",
+      "advanceCount": "เบิก {count}"
+    },
+    "detail": {
+      "holiday": "วันหยุด: {name}",
+      "empty": "ไม่มีรายการวันนี้",
+      "emptyHolidayNote": "เนื่องจากเป็นวันหยุด",
+      "youSuffix": "(คุณ)",
+      "advanceLabel": "เบิกเงิน · {amount}"
+    },
+    "status": {
+      "Approved": "อนุมัติแล้ว",
+      "Pending": "รออนุมัติ"
+    }
   }
 }

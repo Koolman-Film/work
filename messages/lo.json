@@ -249,5 +249,35 @@
     "saving": "ກຳລັງບັນທຶກ...",
     "saved": "ບັນທຶກແລ້ວ ✓",
     "backToCheckin": "← ກັບໄປໜ້າ Check-in"
+  },
+  "calendar": {
+    "title": "ປະຕິທິນທີມ",
+    "today": "ມື້ນີ້",
+    "nav": {
+      "prevMonth": "ເດືອນກ່ອນ",
+      "nextMonth": "ເດືອນຕໍ່ໄປ"
+    },
+    "footer": {
+      "note": "ສະແດງການລາຂອງສາຂາທ່ານ • ລວມທັງທີ່ຍັງລໍຖ້າການອະນຸມັດ"
+    },
+    "links": {
+      "myLeave": "← ຄຳຂໍລາຂອງຂ້ອຍ",
+      "checkin": "Check-in"
+    },
+    "cell": {
+      "leaveCount": "ລາ {count}",
+      "advanceCount": "ເບີກ {count}"
+    },
+    "detail": {
+      "holiday": "ວັນຫຍຸດ: {name}",
+      "empty": "ບໍ່ມີລາຍການໃນມື້ນີ້",
+      "emptyHolidayNote": "ເນື່ອງຈາກເປັນວັນຫຍຸດ",
+      "youSuffix": "(ທ່ານ)",
+      "advanceLabel": "ເບີກເງິນ · {amount}"
+    },
+    "status": {
+      "Approved": "ອະນຸມັດແລ້ວ",
+      "Pending": "ລໍຖ້າອະນຸມັດ"
+    }
   }
 }

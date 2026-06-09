@@ -249,5 +249,35 @@
     "saving": "သိမ်းဆည်းနေသည်...",
     "saved": "သိမ်းဆည်းပြီး ✓",
     "backToCheckin": "← Check-in သို့ ပြန်သွားရန်"
+  },
+  "calendar": {
+    "title": "အဖွဲ့ပြက္ခဒိန်",
+    "today": "ယနေ့",
+    "nav": {
+      "prevMonth": "ယခင်လ",
+      "nextMonth": "နောက်လ"
+    },
+    "footer": {
+      "note": "သင့်ဌာနခွဲ၏ ခွင့်တောင်းမှုများပြသသည် • အတည်မပြုသေးသည်များ ပါဝင်သည်"
+    },
+    "links": {
+      "myLeave": "← ကျွန်ုပ်၏ ခွင့်တောင်းမှုများ",
+      "checkin": "Check-in"
+    },
+    "cell": {
+      "leaveCount": "ခွင့် {count}",
+      "advanceCount": "ငွေကြိုထုတ် {count}"
+    },
+    "detail": {
+      "holiday": "ရုံးပိတ်ရက်: {name}",
+      "empty": "ယနေ့ မည်သည့်မှတ်တမ်းမှ မရှိပါ",
+      "emptyHolidayNote": "ဤရက်သည် ရုံးပိတ်ရက်ဖြစ်သည်",
+      "youSuffix": "(သင်)",
+      "advanceLabel": "ငွေကြိုထုတ် · {amount}"
+    },
+    "status": {
+      "Approved": "အတည်ပြုပြီး",
+      "Pending": "အတည်မပြုရသေး"
+    }
   }
 }
