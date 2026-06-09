@@ -34,6 +34,7 @@
 
 import { type Employee, Prisma } from '@prisma/client';
 import { headers } from 'next/headers';
+import { getTranslations } from 'next-intl/server';
 import { auditLogTx } from '@/lib/audit/log';
 import { requireRole } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
@@ -154,8 +155,11 @@ export async function getCheckInState(): Promise<CheckInState> {
 
 export async function submitCheckIn(input: SubmitCheckInInput): Promise<SubmitCheckInResult> {
   const { user, employee, authUserId } = await requireRole(['Staff']);
+  // Worker-facing strings are localized to the requester's locale (NEXT_LOCALE
+  // cookie). `code` stays the stable machine-readable discriminant.
+  const t = await getTranslations('checkin');
   if (!employee) {
-    return { ok: false, code: 'forbidden', message: 'ไม่พบบัญชีพนักงาน' };
+    return { ok: false, code: 'forbidden', message: t('error.noEmployee') };
   }
 
   // Defensive — requireRole archived-check is for User, not Employee.
@@ -163,7 +167,7 @@ export async function submitCheckIn(input: SubmitCheckInInput): Promise<SubmitCh
     return {
       ok: false,
       code: 'forbidden',
-      message: 'บัญชีนี้ถูกระงับการเช็คอิน — ติดต่อแอดมิน',
+      message: t('error.checkInDisabled'),
     };
   }
 
@@ -183,7 +187,7 @@ export async function submitCheckIn(input: SubmitCheckInInput): Promise<SubmitCh
     return {
       ok: false,
       code: 'already-checked-in',
-      message: 'คุณเช็คอินวันนี้แล้ว',
+      message: t('error.alreadyCheckedIn'),
     };
   }
 
@@ -198,7 +202,7 @@ export async function submitCheckIn(input: SubmitCheckInInput): Promise<SubmitCh
     return {
       ok: false,
       code: 'selfie-required',
-      message: 'สาขาของคุณกำหนดให้ต้องถ่ายเซลฟี่ — กรุณาถ่ายแล้วลองอีกครั้ง',
+      message: t('error.selfieRequired'),
     };
   }
 
@@ -211,7 +215,7 @@ export async function submitCheckIn(input: SubmitCheckInInput): Promise<SubmitCh
     return {
       ok: false,
       code: 'selfie-bad-path',
-      message: 'ลิงก์เซลฟี่ไม่ถูกต้อง',
+      message: t('error.selfieBadPath'),
     };
   }
 
@@ -287,7 +291,7 @@ export async function submitCheckIn(input: SubmitCheckInInput): Promise<SubmitCh
     return {
       ok: false,
       code: 'db-error',
-      message: 'ระบบขัดข้อง กรุณาลองใหม่อีกครั้ง',
+      message: t('error.dbError'),
     };
   }
 
@@ -305,10 +309,27 @@ export async function submitCheckIn(input: SubmitCheckInInput): Promise<SubmitCh
   }
 
   const state = await getCheckInState();
-  const message =
-    verdict.status === 'Confirmed'
-      ? `เช็คอินสำเร็จ${verdict.branchName ? ` ที่${verdict.branchName}` : ''}`
-      : `เช็คอินบันทึกแล้ว แต่ต้องตรวจสอบ: ${disputeReason ?? 'unknown'}`;
+  let message: string;
+  if (verdict.status === 'Confirmed') {
+    message = verdict.branchName
+      ? t('success.checkedInAt', { branch: verdict.branchName })
+      : t('success.checkedIn');
+  } else {
+    // Disputed: translate the reason enum (the Thai `disputeReason` above stays
+    // the single source of truth for the stored row + admin inbox).
+    const r = verdict.reason;
+    const reason =
+      r === 'no-configured-branch'
+        ? t('disputeReason.noConfiguredBranch')
+        : r === 'no-branch-in-range'
+          ? t('disputeReason.noBranchInRange')
+          : r === 'gps-too-imprecise'
+            ? t('disputeReason.gpsTooImprecise')
+            : r === 'impossible-travel'
+              ? t('disputeReason.impossibleTravel')
+              : t('disputeReason.unknown');
+    message = t('success.checkedInDisputed', { reason });
+  }
 
   return { ok: true, state, outcome: verdict.status, message };
 }
@@ -318,11 +339,12 @@ export async function submitCheckOut(): Promise<SubmitCheckInResult> {
   // geofence re-check on the out side. v2 build-plan keeps it minimal in
   // W3b; W3c can layer geofence-out if we decide it's needed.
   const { user, employee } = await requireRole(['Staff']);
+  const t = await getTranslations('checkin');
   if (!employee) {
-    return { ok: false, code: 'forbidden', message: 'ไม่พบบัญชีพนักงาน' };
+    return { ok: false, code: 'forbidden', message: t('error.noEmployee') };
   }
   if (employee.archivedAt || employee.status === 'Archived') {
-    return { ok: false, code: 'forbidden', message: 'บัญชีนี้พ้นสภาพแล้ว' };
+    return { ok: false, code: 'forbidden', message: t('error.archived') };
   }
 
   const now = new Date();
@@ -334,10 +356,10 @@ export async function submitCheckOut(): Promise<SubmitCheckInResult> {
   });
 
   if (!row) {
-    return { ok: false, code: 'not-checked-in', message: 'ยังไม่ได้เช็คอินวันนี้' };
+    return { ok: false, code: 'not-checked-in', message: t('error.notCheckedIn') };
   }
   if (row.clockOutAt) {
-    return { ok: false, code: 'already-checked-out', message: 'คุณเช็คเอาท์วันนี้แล้ว' };
+    return { ok: false, code: 'already-checked-out', message: t('error.alreadyCheckedOut') };
   }
 
   const headerList = await headers();
@@ -364,7 +386,7 @@ export async function submitCheckOut(): Promise<SubmitCheckInResult> {
     });
   } catch (err) {
     console.error('[submitCheckOut] tx failed', err);
-    return { ok: false, code: 'db-error', message: 'ระบบขัดข้อง กรุณาลองใหม่อีกครั้ง' };
+    return { ok: false, code: 'db-error', message: t('error.dbError') };
   }
 
   const state = await getCheckInState();
@@ -373,6 +395,6 @@ export async function submitCheckOut(): Promise<SubmitCheckInResult> {
     state,
     // The shape demands Confirmed/Disputed; check-out is always confirmed.
     outcome: 'Confirmed',
-    message: 'เช็คเอาท์สำเร็จ',
+    message: t('success.checkedOut'),
   };
 }

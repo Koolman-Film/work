@@ -21,6 +21,7 @@
 import { type Employee, Prisma } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
+import { getTranslations } from 'next-intl/server';
 import { auditLog } from '@/lib/audit/log';
 import { requireRole } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
@@ -63,11 +64,14 @@ type SubmitInput = { amount: number };
 
 export async function submitCashAdvance(input: SubmitInput): Promise<SubmitAdvanceResult> {
   const { user, employee } = await requireRole(['Staff']);
+  // Worker-facing strings localized to the requester's locale (NEXT_LOCALE
+  // cookie); `code` stays the stable machine-readable discriminant.
+  const t = await getTranslations('advance');
   if (!employee) {
-    return { ok: false, code: 'forbidden', message: 'ไม่พบบัญชีพนักงาน' };
+    return { ok: false, code: 'forbidden', message: t('errors.noEmployee') };
   }
   if (employee.archivedAt || employee.status === 'Archived') {
-    return { ok: false, code: 'forbidden', message: 'บัญชีพนักงานนี้พ้นสภาพแล้ว' };
+    return { ok: false, code: 'forbidden', message: t('errors.employeeArchived') };
   }
 
   if (
@@ -80,14 +84,14 @@ export async function submitCashAdvance(input: SubmitInput): Promise<SubmitAdvan
     return {
       ok: false,
       code: 'bad-amount',
-      message: 'จำนวนเงินต้องเป็นตัวเลขบวก (สูงสุด 2 ตำแหน่งหลังจุด)',
+      message: t('errors.badAmount'),
     };
   }
   if (input.amount > MAX_AMOUNT) {
     return {
       ok: false,
       code: 'too-large',
-      message: `ขอเบิกได้สูงสุด ฿${MAX_AMOUNT.toLocaleString('th-TH')} ต่อครั้ง`,
+      message: t('errors.tooLarge', { max: MAX_AMOUNT }),
     };
   }
 
@@ -102,7 +106,7 @@ export async function submitCashAdvance(input: SubmitInput): Promise<SubmitAdvan
     return {
       ok: false,
       code: 'pending-exists',
-      message: 'มีคำขอเบิกที่รออนุมัติอยู่แล้ว ยกเลิกหรือรอแอดมินตัดสินใจก่อน',
+      message: t('errors.pendingExists'),
     };
   }
 
@@ -144,14 +148,15 @@ export async function submitCashAdvance(input: SubmitInput): Promise<SubmitAdvan
     return { ok: true, id: created.id };
   } catch (err) {
     console.error('[submitCashAdvance] failed', err);
-    return { ok: false, code: 'db-error', message: 'ระบบขัดข้อง กรุณาลองใหม่อีกครั้ง' };
+    return { ok: false, code: 'db-error', message: t('errors.dbError') };
   }
 }
 
 export async function cancelCashAdvance(id: string): Promise<CancelAdvanceResult> {
   const { user, employee } = await requireRole(['Staff']);
+  const t = await getTranslations('advance');
   if (!employee) {
-    return { ok: false, code: 'forbidden', message: 'ไม่พบบัญชีพนักงาน' };
+    return { ok: false, code: 'forbidden', message: t('errors.noEmployee') };
   }
 
   const row = await prisma.cashAdvance.findUnique({
@@ -159,16 +164,16 @@ export async function cancelCashAdvance(id: string): Promise<CancelAdvanceResult
     select: { id: true, employeeId: true, status: true },
   });
   if (!row) {
-    return { ok: false, code: 'not-found', message: 'ไม่พบคำขอเบิก' };
+    return { ok: false, code: 'not-found', message: t('errors.notFound') };
   }
   if (row.employeeId !== employee.id) {
-    return { ok: false, code: 'forbidden', message: 'คุณไม่ใช่เจ้าของคำขอนี้' };
+    return { ok: false, code: 'forbidden', message: t('errors.notOwner') };
   }
   if (row.status !== 'Pending') {
     return {
       ok: false,
       code: 'not-cancellable',
-      message: 'ยกเลิกได้เฉพาะคำขอที่ยังไม่ได้รับการตรวจสอบ',
+      message: t('errors.notCancellable'),
     };
   }
 
@@ -190,6 +195,6 @@ export async function cancelCashAdvance(id: string): Promise<CancelAdvanceResult
     return { ok: true };
   } catch (err) {
     console.error('[cancelCashAdvance] failed', err);
-    return { ok: false, code: 'forbidden', message: 'ระบบขัดข้อง กรุณาลองใหม่อีกครั้ง' };
+    return { ok: false, code: 'forbidden', message: t('errors.dbError') };
   }
 }

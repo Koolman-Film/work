@@ -31,6 +31,7 @@
 
 import { Prisma } from '@prisma/client';
 import { headers } from 'next/headers';
+import { getTranslations } from 'next-intl/server';
 import { auditLogTx } from '@/lib/audit/log';
 import { prisma } from '@/lib/db/prisma';
 import { verifyPairingToken } from '@/lib/pairing/token';
@@ -52,6 +53,10 @@ export type LinkLineResult =
     };
 
 export async function linkLineToEmployee(input: { pairingToken: string }): Promise<LinkLineResult> {
+  // Worker-facing strings localized to the requester's locale (NEXT_LOCALE
+  // cookie, or Accept-Language pre-login); `code` stays the stable discriminant.
+  const t = await getTranslations('pair');
+
   // 1. Confirm caller has a Supabase session (LIFF just created one).
   const supabase = await createClient();
   const {
@@ -62,7 +67,7 @@ export async function linkLineToEmployee(input: { pairingToken: string }): Promi
     return {
       ok: false,
       code: 'no-session',
-      message: 'No Supabase session — the LINE OIDC sign-in must complete first',
+      message: t('error.noSession'),
     };
   }
 
@@ -76,7 +81,7 @@ export async function linkLineToEmployee(input: { pairingToken: string }): Promi
     return {
       ok: false,
       code: 'invalid-token',
-      message: 'ลิงก์ไม่ถูกต้องหรือถูกแก้ไข',
+      message: t('error.linkInvalidTampered'),
     };
   }
 
@@ -198,14 +203,13 @@ export async function linkLineToEmployee(input: { pairingToken: string }): Promi
     }
 
     const messages: Record<Exclude<LinkLineResult & { ok: false }, never>['code'], string> = {
-      'no-session': 'กรุณาเข้าสู่ระบบใหม่',
-      'invalid-token': 'ลิงก์ไม่ถูกต้อง',
-      'revoked-or-consumed': 'ลิงก์นี้ใช้ไปแล้วหรือถูกยกเลิก ติดต่อแอดมินเพื่อขอลิงก์ใหม่',
-      expired: 'ลิงก์หมดอายุ ติดต่อแอดมินเพื่อขอลิงก์ใหม่',
-      'employee-archived': 'บัญชีพนักงานนี้พ้นสภาพแล้ว',
-      'already-linked': 'บัญชีนี้เชื่อม LINE เรียบร้อยแล้ว',
-      'line-account-in-use':
-        'บัญชีนี้ถูกผูกกับผู้ใช้คนอื่นแล้ว — หากคุณกำลังล็อกอินเป็นแอดมินอยู่ ให้ออกจากระบบก่อนแล้วลองใหม่',
+      'no-session': t('error.noSession'),
+      'invalid-token': t('error.linkInvalid'),
+      'revoked-or-consumed': t('error.linkUsed'),
+      expired: t('error.linkExpired'),
+      'employee-archived': t('error.employeeArchived'),
+      'already-linked': t('error.alreadyLinked'),
+      'line-account-in-use': t('error.accountInUseAdmin'),
     };
     return { ok: false, code: result.code, message: messages[result.code] };
   } catch (err) {
@@ -242,14 +246,14 @@ export async function linkLineToEmployee(input: { pairingToken: string }): Promi
           return {
             ok: false,
             code: 'line-account-in-use',
-            message: 'บัญชี LINE นี้ถูกใช้กับพนักงานคนอื่นแล้ว — ติดต่อแอดมินเพื่อตรวจสอบ',
+            message: t('error.lineInUse'),
           };
         }
         if (target.includes('authuserid')) {
           return {
             ok: false,
             code: 'line-account-in-use',
-            message: 'บัญชีนี้ถูกใช้กับพนักงานคนอื่นแล้ว — ติดต่อแอดมิน',
+            message: t('error.accountInUse'),
           };
         }
       }
@@ -257,7 +261,7 @@ export async function linkLineToEmployee(input: { pairingToken: string }): Promi
         return {
           ok: false,
           code: 'invalid-token',
-          message: 'ไม่พบบัญชีพนักงาน — ติดต่อแอดมินเพื่อขอลิงก์ใหม่',
+          message: t('error.employeeNotFound'),
         };
       }
     }
@@ -265,7 +269,7 @@ export async function linkLineToEmployee(input: { pairingToken: string }): Promi
     return {
       ok: false,
       code: 'invalid-token',
-      message: 'ระบบขัดข้อง กรุณาลองใหม่อีกครั้ง หรือติดต่อแอดมิน',
+      message: t('error.serverError'),
     };
   }
 }

@@ -38,14 +38,22 @@ type LeaveTypeOption = {
 
 type Props = {
   leaveTypes: readonly LeaveTypeOption[];
-  /** YYYY-MM-DD for the date input min — today in Bangkok. */
+  /** YYYY-MM-DD for the date input `min` — earliest back-fileable day (today − 7d). */
   minDate: string;
+  /** YYYY-MM-DD the form pre-fills — today in Bangkok (not the back-date floor). */
+  defaultDate: string;
   leaveConfig: LeaveUnitConfig;
   /** Remaining minutes per leave type id for the current year (null = unlimited). */
   remainingByType: Record<string, number | null>;
 };
 
-export function LeaveNewForm({ leaveTypes, minDate, leaveConfig, remainingByType }: Props) {
+export function LeaveNewForm({
+  leaveTypes,
+  minDate,
+  defaultDate,
+  leaveConfig,
+  remainingByType,
+}: Props) {
   const router = useRouter();
   const t = useTranslations('leave');
   const [pending, startTransition] = useTransition();
@@ -53,8 +61,8 @@ export function LeaveNewForm({ leaveTypes, minDate, leaveConfig, remainingByType
   const [unit, setUnit] = useState<LeaveUnit>('FullDay');
   const [startTime, setStartTime] = useState<string>('13:00');
   const [endTime, setEndTime] = useState<string>('15:00');
-  const [startDate, setStartDate] = useState<string>(minDate);
-  const [endDate, setEndDate] = useState<string>(minDate);
+  const [startDate, setStartDate] = useState<string>(defaultDate);
+  const [endDate, setEndDate] = useState<string>(defaultDate);
   const [reason, setReason] = useState<string>('');
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [attachmentPreviewUrl, setAttachmentPreviewUrl] = useState<string | null>(null);
