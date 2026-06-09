@@ -1,6 +1,41 @@
 {
   "_meta": {
     "locale": "lo",
-    "note": "Lao translations — pending translator. Falls back to en.json keys at runtime until populated."
+    "note": "Lao — AI-DRAFT (profile namespace), pending native review. Other namespaces fall back to en/th until populated."
+  },
+  "profile": {
+    "personalInfo": "ຂໍ້ມູນສ່ວນຕົວ",
+    "jobInfo": "ຂໍ້ມູນວຽກ",
+    "contactAdminToEdit": "(ຕິດຕໍ່ Admin ຫາກຕ້ອງການແກ້ໄຂ)",
+    "field": {
+      "nickname": "ຊື່ຫຼິ້ນ",
+      "phone": "ເບີໂທ",
+      "email": "ອີເມວ (ສຳລັບ HR ຕິດຕໍ່)",
+      "address": "ທີ່ຢູ່",
+      "emergencyContact": "ຜູ້ຕິດຕໍ່ສຸກເສີນ"
+    },
+    "placeholder": {
+      "nickname": "ເຊັ່ນ ຕົງ",
+      "phone": "082-345-6789",
+      "email": "you@example.com",
+      "address": "ບ້ານເລກທີ ຖະໜົນ ບ້ານ ເມືອງ ແຂວງ ລະຫັດໄປສະນີ",
+      "emergencyContact": "ເຊັ່ນ ແມ່ 081-234-5678"
+    },
+    "hint": {
+      "phone": "ເຊັ່ນ 082-345-6789",
+      "emergencyContact": "ຊື່ + ເບີໂທ ເຊັ່ນ 'ແມ່ 081-234-5678'"
+    },
+    "readonly": {
+      "branch": "ສາຂາ",
+      "department": "ພະແນກ",
+      "payType": "ປະເພດການຈ່າຍ",
+      "baseSalary": "ເງິນເດືອນພື້ນຖານ",
+      "startDate": "ວັນເລີ່ມວຽກ"
+    },
+    "salaryType": { "Monthly": "ລາຍເດືອນ", "Daily": "ລາຍວັນ", "Hourly": "ລາຍຊົ່ວໂມງ" },
+    "save": "ບັນທຶກ",
+    "saving": "ກຳລັງບັນທຶກ...",
+    "saved": "ບັນທຶກແລ້ວ ✓",
+    "backToCheckin": "← ກັບໄປໜ້າ Check-in"
   }
 }

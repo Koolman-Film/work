@@ -1,6 +1,41 @@
 {
   "_meta": {
     "locale": "km",
-    "note": "Khmer translations. Populated in Phase 2 from th.json by translator; English-fallback until then."
+    "note": "Khmer — AI-DRAFT (profile namespace), pending native review. Other namespaces fall back to en/th until populated."
+  },
+  "profile": {
+    "personalInfo": "ព័ត៌មានផ្ទាល់ខ្លួន",
+    "jobInfo": "ព័ត៌មានការងារ",
+    "contactAdminToEdit": "(ទាក់ទង Admin ដើម្បីកែ)",
+    "field": {
+      "nickname": "ឈ្មោះហៅក្រៅ",
+      "phone": "លេខទូរស័ព្ទ",
+      "email": "អ៊ីមែល (សម្រាប់ HR ទាក់ទង)",
+      "address": "អាសយដ្ឋាន",
+      "emergencyContact": "ទំនាក់ទំនងពេលអាសន្ន"
+    },
+    "placeholder": {
+      "nickname": "ឧ. តុង",
+      "phone": "082-345-6789",
+      "email": "you@example.com",
+      "address": "ផ្ទះលេខ ផ្លូវ សង្កាត់ ខណ្ឌ ខេត្ត លេខកូដប្រៃសណីយ៍",
+      "emergencyContact": "ឧ. ម្ដាយ 081-234-5678"
+    },
+    "hint": {
+      "phone": "ឧ. 082-345-6789",
+      "emergencyContact": "ឈ្មោះ + ទូរស័ព្ទ ឧ. 'ម្ដាយ 081-234-5678'"
+    },
+    "readonly": {
+      "branch": "សាខា",
+      "department": "ផ្នែក",
+      "payType": "ប្រភេទប្រាក់ខែ",
+      "baseSalary": "ប្រាក់ខែមូលដ្ឋាន",
+      "startDate": "ថ្ងៃចាប់ផ្ដើមការងារ"
+    },
+    "salaryType": { "Monthly": "ប្រចាំខែ", "Daily": "ប្រចាំថ្ងៃ", "Hourly": "ប្រចាំម៉ោង" },
+    "save": "រក្សាទុក",
+    "saving": "កំពុងរក្សាទុក...",
+    "saved": "បានរក្សាទុក ✓",
+    "backToCheckin": "← ត្រឡប់ទៅ Check-in"
   }
 }

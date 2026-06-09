@@ -1,6 +1,41 @@
 {
   "_meta": {
     "locale": "my",
-    "note": "Burmese translations — pending translator. Falls back to en.json keys at runtime until populated."
+    "note": "Burmese — AI-DRAFT (profile namespace), pending native review. Other namespaces fall back to en/th until populated."
+  },
+  "profile": {
+    "personalInfo": "ကိုယ်ရေးအချက်အလက်",
+    "jobInfo": "အလုပ်အချက်အလက်",
+    "contactAdminToEdit": "(ပြင်ဆင်ရန် Admin ကိုဆက်သွယ်ပါ)",
+    "field": {
+      "nickname": "အမည်ပြောင်",
+      "phone": "ဖုန်းနံပါတ်",
+      "email": "အီးမေးလ် (HR ဆက်သွယ်ရန်)",
+      "address": "နေရပ်လိပ်စာ",
+      "emergencyContact": "အရေးပေါ်ဆက်သွယ်ရန်"
+    },
+    "placeholder": {
+      "nickname": "ဥပမာ — တုံ",
+      "phone": "082-345-6789",
+      "email": "you@example.com",
+      "address": "အိမ်အမှတ်၊ လမ်း၊ ရပ်ကွက်၊ မြို့နယ်၊ တိုင်း/ပြည်နယ်၊ စာတိုက်ကုဒ်",
+      "emergencyContact": "ဥပမာ — အမေ 081-234-5678"
+    },
+    "hint": {
+      "phone": "ဥပမာ — 082-345-6789",
+      "emergencyContact": "အမည် + ဖုန်း၊ ဥပမာ 'အမေ 081-234-5678'"
+    },
+    "readonly": {
+      "branch": "ဌာနခွဲ",
+      "department": "ဌာန",
+      "payType": "လစာအမျိုးအစား",
+      "baseSalary": "အခြေခံလစာ",
+      "startDate": "အလုပ်စတင်သည့်နေ့"
+    },
+    "salaryType": { "Monthly": "လစဉ်", "Daily": "နေ့စဉ်", "Hourly": "နာရီအလိုက်" },
+    "save": "သိမ်းဆည်းမည်",
+    "saving": "သိမ်းဆည်းနေသည်...",
+    "saved": "သိမ်းဆည်းပြီး ✓",
+    "backToCheckin": "← Check-in သို့ ပြန်သွားရန်"
   }
 }
