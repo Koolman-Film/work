@@ -99,7 +99,10 @@ export async function submitCashAdvance(input: SubmitInput): Promise<SubmitAdvan
   // time to keep the admin inbox uncluttered + force the employee to make
   // a single best-effort estimate per pay period.
   const pending = await prisma.cashAdvance.findFirst({
-    where: { employeeId: employee.id, status: 'Pending' },
+    // `deletedAt: null` so a voided pending doesn't falsely block; the DB-level
+    // partial unique index (status=Pending AND deletedAt IS NULL) is the real
+    // guard against concurrent double-submits.
+    where: { employeeId: employee.id, status: 'Pending', deletedAt: null },
     select: { id: true },
   });
   if (pending) {
@@ -147,6 +150,10 @@ export async function submitCashAdvance(input: SubmitInput): Promise<SubmitAdvan
     revalidatePath('/liff/advance');
     return { ok: true, id: created.id };
   } catch (err) {
+    // Lost the race for the one-pending slot (partial unique index fired).
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+      return { ok: false, code: 'pending-exists', message: t('errors.pendingExists') };
+    }
     console.error('[submitCashAdvance] failed', err);
     return { ok: false, code: 'db-error', message: t('errors.dbError') };
   }

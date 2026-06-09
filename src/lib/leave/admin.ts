@@ -32,9 +32,20 @@ import { auditLog, auditLogTx } from '@/lib/audit/log';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { sendNotification } from '@/lib/inngest/events';
+import { notifyAdminsInApp } from '@/lib/notifications/in-app-bell';
 import { getLeaveConfig } from './leave-config';
 import { formatDaysHours, type LeaveUnit, segmentFor, segmentsOverlap } from './units';
 import { expandHolidaysWithSubstitutes, parseInputDate, workingDaysIn } from './working-days';
+
+/** Bell display name — prefer nickname. Mirrors leave/actions.ts. */
+function employeeBellName(e: {
+  firstName: string;
+  lastName: string;
+  nickname: string | null;
+}): string {
+  if (e.nickname && e.nickname.trim().length > 0) return e.nickname;
+  return `${e.firstName} ${e.lastName}`.trim();
+}
 
 /** Format a Date's Bangkok wall-clock time as "HH:MM" for segment comparison.
  *  OnLeave rows store clockInAt/clockOutAt as the segment bounds on the date. */
@@ -469,7 +480,14 @@ export async function adminCreateLeaveRequest(
 
   const employee = await prisma.employee.findUnique({
     where: { id: input.employeeId },
-    select: { id: true, archivedAt: true, status: true },
+    select: {
+      id: true,
+      archivedAt: true,
+      status: true,
+      firstName: true,
+      lastName: true,
+      nickname: true,
+    },
   });
   if (!employee) {
     return { ok: false, code: 'employee-not-found', message: 'ไม่พบพนักงาน' };
@@ -593,6 +611,17 @@ export async function adminCreateLeaveRequest(
         reason,
       },
       metadata: { ip, userAgent, source: 'admin-ui' },
+    });
+
+    // Light up the admin bell so OTHER admins see the new Pending request
+    // (the worker LIFF submit does the same). Fire-and-forget.
+    void notifyAdminsInApp({
+      kind: 'leave.submitted',
+      leaveRequestId: created.id,
+      employeeName: employeeBellName(employee),
+      leaveTypeName: lt.name,
+      startDate: input.startDate,
+      endDate: input.endDate,
     });
 
     return { ok: true, id: created.id };

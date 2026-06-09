@@ -569,6 +569,11 @@ model CashAdvance {
   deletedById         String?   @db.Uuid
   deleteReason        String?
 
+  // NOTE: "one active pending advance per employee" is enforced by a PARTIAL
+  // UNIQUE index — CashAdvance_one_active_pending_key ON (employeeId) WHERE
+  // status='Pending' AND deletedAt IS NULL — defined in raw SQL (migration
+  // 0021). Prisma's DSL can't express partial-unique. Do NOT add a plain
+  // @@unique here; it would block legitimate historical non-pending rows.
   @@index([employeeId, status])
   @@index([status])
   @@index([isDeducted])

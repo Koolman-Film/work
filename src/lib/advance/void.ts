@@ -1,7 +1,8 @@
 'use server';
 
+import { Prisma } from '@prisma/client';
 import { headers } from 'next/headers';
-import { auditLogTx, type Prisma } from '@/lib/audit/log';
+import { auditLogTx } from '@/lib/audit/log';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma, prismaRaw } from '@/lib/db/prisma';
 import { assertAdvanceVoidable } from './void-guards';
@@ -80,8 +81,10 @@ export async function voidCashAdvance(id: string, reason: string): Promise<VoidR
 }
 
 /**
- * Restore a voided CashAdvance. No slot/unique concerns here (CashAdvance has
- * no partial unique index), so a simple un-void + audit.
+ * Restore a voided CashAdvance. Since migration 0021 there IS a partial unique
+ * index (one active-pending advance per employee), so restoring a Pending
+ * advance can collide if the employee gained a new active-pending one while
+ * this was voided — surfaced as a clean message below rather than a 500.
  */
 export async function restoreCashAdvance(id: string): Promise<VoidResult> {
   const row = await prismaRaw.cashAdvance.findUnique({
@@ -109,6 +112,13 @@ export async function restoreCashAdvance(id: string): Promise<VoidResult> {
     });
     return { ok: true };
   } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+      return {
+        ok: false,
+        code: 'error',
+        message: 'กู้คืนไม่ได้ — พนักงานคนนี้มีคำขอเบิกที่รออนุมัติอยู่แล้ว',
+      };
+    }
     console.error('[restoreCashAdvance] failed', err);
     return { ok: false, code: 'error', message: 'ระบบขัดข้อง กรุณาลองใหม่' };
   }
