@@ -38,6 +38,7 @@
  *     would race the cookie write.
  */
 
+import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 import { type LinkLineResult, linkLineToEmployee } from '@/lib/auth/link-line-to-employee';
 import { type LiffBootstrapError, liffBootstrap } from '@/lib/liff/init';
@@ -92,10 +93,11 @@ type PhaseState =
   | { phase: 'error'; message: string; canRetry: boolean };
 
 export default function PairClient({ pairingToken }: { pairingToken: string | null }) {
-  const [state, setState] = useState<PhaseState>({
+  const t = useTranslations('pair');
+  const [state, setState] = useState<PhaseState>(() => ({
     phase: 'booting',
-    message: 'กำลังเตรียมการเชื่อมต่อกับ LINE...',
-  });
+    message: t('phase.preparing'),
+  }));
 
   useEffect(() => {
     let cancelled = false;
@@ -103,7 +105,7 @@ export default function PairClient({ pairingToken }: { pairingToken: string | nu
     async function run() {
       try {
         if (cancelled) return;
-        setState({ phase: 'signing-in', message: 'กำลังเข้าสู่ระบบด้วย LINE...' });
+        setState({ phase: 'signing-in', message: t('phase.signingIn') });
 
         // Step 1+2: liff.init + signInWithIdToken.
         // Side effect: liff.init() processes any `?liff.state=` in the
@@ -136,7 +138,7 @@ export default function PairClient({ pairingToken }: { pairingToken: string | nu
 
         // ── Branch A: BINDING flow (first-time pair) ─────────────────
         if (resolvedToken) {
-          setState({ phase: 'linking', message: 'กำลังเชื่อมบัญชีกับ Koolman Work...' });
+          setState({ phase: 'linking', message: t('phase.linking') });
           const result: LinkLineResult = await linkLineToEmployee({
             pairingToken: resolvedToken,
           });
@@ -177,7 +179,7 @@ export default function PairClient({ pairingToken }: { pairingToken: string | nu
         // liffBootstrap succeeded → user is authed. Just navigate.
         // No "success" UI — they shouldn't dwell here; the destination
         // page handles the rest.
-        setState({ phase: 'linking', message: 'กำลังโหลด...' });
+        setState({ phase: 'linking', message: t('phase.loading') });
         window.location.href = destPath;
         return;
       } catch (err) {
@@ -185,14 +187,14 @@ export default function PairClient({ pairingToken }: { pairingToken: string | nu
         const e = err as LiffBootstrapError;
         const message =
           e?.kind === 'not-in-line'
-            ? 'กรุณาเปิดลิงก์นี้ภายในแอป LINE'
+            ? t('error.notInLine')
             : e?.kind === 'no-id-token'
-              ? 'LINE ไม่ส่งข้อมูลยืนยันตัวตน กรุณาลองอีกครั้ง'
+              ? t('error.noIdToken')
               : e?.kind === 'supabase-rejected'
-                ? 'ระบบยืนยันตัวตนปฏิเสธ — โปรดติดต่อแอดมิน'
+                ? t('error.supabaseRejected')
                 : e?.kind === 'misconfigured'
-                  ? 'ระบบยังตั้งค่าไม่สมบูรณ์ — โปรดติดต่อแอดมิน'
-                  : 'ไม่สามารถเชื่อมต่อ LINE ได้';
+                  ? t('error.misconfigured')
+                  : t('error.generic');
         setState({ phase: 'error', message, canRetry: e?.kind === 'no-id-token' });
       }
     }
@@ -201,13 +203,13 @@ export default function PairClient({ pairingToken }: { pairingToken: string | nu
     return () => {
       cancelled = true;
     };
-  }, [pairingToken]);
+  }, [pairingToken, t]);
 
   return (
     <div className="grid min-h-dvh place-items-center px-4 py-12">
       <div className="w-full max-w-sm rounded-xl border border-gray-200 bg-white p-8 shadow-sm">
         <p className="text-center text-sm text-gray-500">Koolman Work</p>
-        <h1 className="mt-1 text-center text-xl font-semibold text-gray-900">เชื่อมบัญชี LINE</h1>
+        <h1 className="mt-1 text-center text-xl font-semibold text-gray-900">{t('title')}</h1>
 
         <div className="mt-6">
           {state.phase === 'booting' ||
@@ -235,6 +237,7 @@ function ProgressBlock({ label }: { label: string }) {
 }
 
 function SuccessBlock({ employeeName }: { employeeName: string }) {
+  const t = useTranslations('pair');
   return (
     <div className="flex flex-col items-center gap-3 text-center">
       <div className="grid h-12 w-12 place-items-center rounded-full bg-green-100 text-green-700">
@@ -251,15 +254,16 @@ function SuccessBlock({ employeeName }: { employeeName: string }) {
           <polyline points="20 6 9 17 4 12" />
         </svg>
       </div>
-      <p className="text-base font-medium text-gray-900">เชื่อมบัญชีสำเร็จ</p>
-      <p className="text-sm text-gray-600">ยินดีต้อนรับ, {employeeName}</p>
-      <p className="text-xs text-gray-500">ขั้นตอนสุดท้าย: เพิ่มเพื่อน Koolman Work เพื่อรับการแจ้งเตือน</p>
-      <p className="text-xs text-gray-400">กำลังพาคุณไปหน้าเพิ่มเพื่อน...</p>
+      <p className="text-base font-medium text-gray-900">{t('success.title')}</p>
+      <p className="text-sm text-gray-600">{t('success.welcome', { name: employeeName })}</p>
+      <p className="text-xs text-gray-500">{t('success.lastStep')}</p>
+      <p className="text-xs text-gray-400">{t('success.redirecting')}</p>
     </div>
   );
 }
 
 function ErrorBlock({ message, canRetry }: { message: string; canRetry: boolean }) {
+  const t = useTranslations('pair');
   return (
     <div className="flex flex-col items-center gap-3 text-center">
       <div className="grid h-12 w-12 place-items-center rounded-full bg-red-100 text-red-700">
@@ -278,7 +282,7 @@ function ErrorBlock({ message, canRetry }: { message: string; canRetry: boolean 
           <line x1="12" y1="16" x2="12.01" y2="16" />
         </svg>
       </div>
-      <p className="text-base font-medium text-gray-900">ไม่สามารถเชื่อมบัญชีได้</p>
+      <p className="text-base font-medium text-gray-900">{t('error.title')}</p>
       <p className="text-sm text-gray-600">{message}</p>
       {canRetry && (
         <button
@@ -286,7 +290,7 @@ function ErrorBlock({ message, canRetry }: { message: string; canRetry: boolean 
           onClick={() => window.location.reload()}
           className="mt-2 rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-700"
         >
-          ลองอีกครั้ง
+          {t('retry')}
         </button>
       )}
     </div>

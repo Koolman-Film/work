@@ -3,16 +3,70 @@
     "locale": "th",
     "note": "Thai is the source of truth. Phase 2 will populate this from the current hardcoded UI strings."
   },
+  "pair": {
+    "title": "เชื่อมบัญชี LINE",
+    "phase": {
+      "preparing": "กำลังเตรียมการเชื่อมต่อกับ LINE...",
+      "signingIn": "กำลังเข้าสู่ระบบด้วย LINE...",
+      "linking": "กำลังเชื่อมบัญชีกับ Koolman Work...",
+      "loading": "กำลังโหลด..."
+    },
+    "success": {
+      "title": "เชื่อมบัญชีสำเร็จ",
+      "welcome": "ยินดีต้อนรับ, {name}",
+      "lastStep": "ขั้นตอนสุดท้าย: เพิ่มเพื่อน Koolman Work เพื่อรับการแจ้งเตือน",
+      "redirecting": "กำลังพาคุณไปหน้าเพิ่มเพื่อน..."
+    },
+    "error": {
+      "title": "ไม่สามารถเชื่อมบัญชีได้",
+      "notInLine": "กรุณาเปิดลิงก์นี้ภายในแอป LINE",
+      "noIdToken": "LINE ไม่ส่งข้อมูลยืนยันตัวตน กรุณาลองอีกครั้ง",
+      "supabaseRejected": "ระบบยืนยันตัวตนปฏิเสธ — โปรดติดต่อแอดมิน",
+      "misconfigured": "ระบบยังตั้งค่าไม่สมบูรณ์ — โปรดติดต่อแอดมิน",
+      "generic": "ไม่สามารถเชื่อมต่อ LINE ได้"
+    },
+    "retry": "ลองอีกครั้ง"
+  },
   "notifications": {
-    "action": { "viewDetails": "ดูรายละเอียด", "viewAttendance": "ดูประวัติเช็คอิน" },
-    "label": { "duration": "ระยะเวลา", "workingDays": "วันทำงาน", "note": "หมายเหตุ", "reason": "เหตุผล" },
+    "action": {
+      "viewDetails": "ดูรายละเอียด",
+      "viewAttendance": "ดูประวัติเช็คอิน"
+    },
+    "label": {
+      "duration": "ระยะเวลา",
+      "workingDays": "วันทำงาน",
+      "note": "หมายเหตุ",
+      "reason": "เหตุผล"
+    },
     "workingDaysValue": "{days} วัน",
-    "leaveApproved": { "header": "อนุมัติคำขอลา", "alt": "✅ คำขอลา {type} ของคุณได้รับการอนุมัติ" },
-    "leaveRejected": { "header": "ไม่อนุมัติคำขอลา", "alt": "❌ คำขอลา {type} ของคุณถูกปฏิเสธ" },
-    "advanceApproved": { "header": "อนุมัติคำขอเบิก", "subtitle": "จะหักจากเงินเดือนงวดถัดไป", "alt": "✅ คำขอเบิก ฿{amount} ของคุณได้รับการอนุมัติ" },
-    "advanceRejected": { "header": "ไม่อนุมัติคำขอเบิก", "subtitle": "กรุณาติดต่อแอดมินเพื่อขอข้อมูลเพิ่มเติม", "alt": "❌ คำขอเบิก ฿{amount} ของคุณถูกปฏิเสธ" },
-    "disputeApproved": { "header": "ยืนยันการเช็คอิน", "subtitle": "แอดมินตรวจสอบและยืนยันการเช็คอินที่ต้องตรวจสอบแล้ว", "alt": "✅ เช็คอินวันที่ {date} ของคุณได้รับการยืนยัน" },
-    "disputeRejected": { "header": "ปฏิเสธการเช็คอิน", "subtitle": "แอดมินไม่ยืนยันการเช็คอินวันดังกล่าว", "alt": "❌ เช็คอินวันที่ {date} ของคุณถูกปฏิเสธ" }
+    "leaveApproved": {
+      "header": "อนุมัติคำขอลา",
+      "alt": "✅ คำขอลา {type} ของคุณได้รับการอนุมัติ"
+    },
+    "leaveRejected": {
+      "header": "ไม่อนุมัติคำขอลา",
+      "alt": "❌ คำขอลา {type} ของคุณถูกปฏิเสธ"
+    },
+    "advanceApproved": {
+      "header": "อนุมัติคำขอเบิก",
+      "subtitle": "จะหักจากเงินเดือนงวดถัดไป",
+      "alt": "✅ คำขอเบิก ฿{amount} ของคุณได้รับการอนุมัติ"
+    },
+    "advanceRejected": {
+      "header": "ไม่อนุมัติคำขอเบิก",
+      "subtitle": "กรุณาติดต่อแอดมินเพื่อขอข้อมูลเพิ่มเติม",
+      "alt": "❌ คำขอเบิก ฿{amount} ของคุณถูกปฏิเสธ"
+    },
+    "disputeApproved": {
+      "header": "ยืนยันการเช็คอิน",
+      "subtitle": "แอดมินตรวจสอบและยืนยันการเช็คอินที่ต้องตรวจสอบแล้ว",
+      "alt": "✅ เช็คอินวันที่ {date} ของคุณได้รับการยืนยัน"
+    },
+    "disputeRejected": {
+      "header": "ปฏิเสธการเช็คอิน",
+      "subtitle": "แอดมินไม่ยืนยันการเช็คอินวันดังกล่าว",
+      "alt": "❌ เช็คอินวันที่ {date} ของคุณถูกปฏิเสธ"
+    }
   },
   "checkin": {
     "greeting": "สวัสดี, {firstName} {lastName}",
@@ -255,7 +309,11 @@
       "baseSalary": "เงินเดือนพื้นฐาน",
       "startDate": "วันเริ่มงาน"
     },
-    "salaryType": { "Monthly": "รายเดือน", "Daily": "รายวัน", "Hourly": "รายชั่วโมง" },
+    "salaryType": {
+      "Monthly": "รายเดือน",
+      "Daily": "รายวัน",
+      "Hourly": "รายชั่วโมง"
+    },
     "save": "บันทึก",
     "saving": "กำลังบันทึก...",
     "saved": "บันทึกแล้ว ✓",

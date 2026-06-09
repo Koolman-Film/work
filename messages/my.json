@@ -3,6 +3,30 @@
     "locale": "my",
     "note": "Burmese — AI-DRAFT (profile namespace), pending native review. Other namespaces fall back to en/th until populated."
   },
+  "pair": {
+    "title": "LINE အကောင့် ချိတ်ဆက်ရန်",
+    "phase": {
+      "preparing": "LINE နှင့် ချိတ်ဆက်ရန် ပြင်ဆင်နေသည်...",
+      "signingIn": "LINE ဖြင့် ဝင်ရောက်နေသည်...",
+      "linking": "သင့်အကောင့်ကို Koolman Work နှင့် ချိတ်ဆက်နေသည်...",
+      "loading": "ဖွင့်နေသည်..."
+    },
+    "success": {
+      "title": "အကောင့် ချိတ်ဆက်ပြီးပါပြီ",
+      "welcome": "ကြိုဆိုပါသည်၊ {name}",
+      "lastStep": "နောက်ဆုံးအဆင့်: အကြောင်းကြားချက်များ ရရှိရန် Koolman Work ကို သူငယ်ချင်းအဖြစ် ထည့်ပါ",
+      "redirecting": "သူငယ်ချင်းထည့်သည့် စာမျက်နှာသို့ ပို့နေသည်..."
+    },
+    "error": {
+      "title": "အကောင့် ချိတ်ဆက်၍မရပါ",
+      "notInLine": "ဤလင့်ခ်ကို LINE app အတွင်းတွင် ဖွင့်ပါ",
+      "noIdToken": "LINE က အထောက်အထား မပေးပို့ပါ — ထပ်မံကြိုးစားပါ",
+      "supabaseRejected": "အထောက်အထားစိစစ်ခြင်း ငြင်းပယ်ခံရသည် — Admin ကို ဆက်သွယ်ပါ",
+      "misconfigured": "စနစ် ပြင်ဆင်မှု မပြည့်စုံသေးပါ — Admin ကို ဆက်သွယ်ပါ",
+      "generic": "LINE နှင့် ချိတ်ဆက်၍မရပါ"
+    },
+    "retry": "ထပ်မံကြိုးစားရန်"
+  },
   "checkin": {
     "greeting": "မင်္ဂလာပါ, {firstName} {lastName}",
     "dateLabel": "{date}",
@@ -244,7 +268,11 @@
       "baseSalary": "အခြေခံလစာ",
       "startDate": "အလုပ်စတင်သည့်နေ့"
     },
-    "salaryType": { "Monthly": "လစဉ်", "Daily": "နေ့စဉ်", "Hourly": "နာရီအလိုက်" },
+    "salaryType": {
+      "Monthly": "လစဉ်",
+      "Daily": "နေ့စဉ်",
+      "Hourly": "နာရီအလိုက်"
+    },
     "save": "သိမ်းဆည်းမည်",
     "saving": "သိမ်းဆည်းနေသည်...",
     "saved": "သိမ်းဆည်းပြီး ✓",

@@ -3,16 +3,70 @@
     "locale": "en",
     "note": "English translations. I will draft these in Phase 2 from th.json."
   },
+  "pair": {
+    "title": "Link your LINE account",
+    "phase": {
+      "preparing": "Preparing the LINE connection...",
+      "signingIn": "Signing in with LINE...",
+      "linking": "Linking your account to Koolman Work...",
+      "loading": "Loading..."
+    },
+    "success": {
+      "title": "Account linked",
+      "welcome": "Welcome, {name}",
+      "lastStep": "Last step: add Koolman Work as a friend to receive notifications",
+      "redirecting": "Taking you to the add-friend page..."
+    },
+    "error": {
+      "title": "Couldn't link your account",
+      "notInLine": "Please open this link inside the LINE app",
+      "noIdToken": "LINE didn't return your identity — please try again",
+      "supabaseRejected": "Authentication was rejected — please contact an admin",
+      "misconfigured": "The system isn't fully configured — please contact an admin",
+      "generic": "Couldn't connect to LINE"
+    },
+    "retry": "Try again"
+  },
   "notifications": {
-    "action": { "viewDetails": "View details", "viewAttendance": "View check-in history" },
-    "label": { "duration": "Duration", "workingDays": "Working days", "note": "Note", "reason": "Reason" },
+    "action": {
+      "viewDetails": "View details",
+      "viewAttendance": "View check-in history"
+    },
+    "label": {
+      "duration": "Duration",
+      "workingDays": "Working days",
+      "note": "Note",
+      "reason": "Reason"
+    },
     "workingDaysValue": "{days} days",
-    "leaveApproved": { "header": "Leave approved", "alt": "✅ Your {type} leave request was approved" },
-    "leaveRejected": { "header": "Leave rejected", "alt": "❌ Your {type} leave request was rejected" },
-    "advanceApproved": { "header": "Advance approved", "subtitle": "Will be deducted from your next payslip", "alt": "✅ Your advance of ฿{amount} was approved" },
-    "advanceRejected": { "header": "Advance rejected", "subtitle": "Please contact an admin for more information", "alt": "❌ Your advance of ฿{amount} was rejected" },
-    "disputeApproved": { "header": "Check-in confirmed", "subtitle": "An admin reviewed and confirmed the flagged check-in", "alt": "✅ Your check-in on {date} was confirmed" },
-    "disputeRejected": { "header": "Check-in rejected", "subtitle": "An admin did not confirm that check-in", "alt": "❌ Your check-in on {date} was rejected" }
+    "leaveApproved": {
+      "header": "Leave approved",
+      "alt": "✅ Your {type} leave request was approved"
+    },
+    "leaveRejected": {
+      "header": "Leave rejected",
+      "alt": "❌ Your {type} leave request was rejected"
+    },
+    "advanceApproved": {
+      "header": "Advance approved",
+      "subtitle": "Will be deducted from your next payslip",
+      "alt": "✅ Your advance of ฿{amount} was approved"
+    },
+    "advanceRejected": {
+      "header": "Advance rejected",
+      "subtitle": "Please contact an admin for more information",
+      "alt": "❌ Your advance of ฿{amount} was rejected"
+    },
+    "disputeApproved": {
+      "header": "Check-in confirmed",
+      "subtitle": "An admin reviewed and confirmed the flagged check-in",
+      "alt": "✅ Your check-in on {date} was confirmed"
+    },
+    "disputeRejected": {
+      "header": "Check-in rejected",
+      "subtitle": "An admin did not confirm that check-in",
+      "alt": "❌ Your check-in on {date} was rejected"
+    }
   },
   "checkin": {
     "greeting": "Hello, {firstName} {lastName}",
@@ -255,7 +309,11 @@
       "baseSalary": "Base salary",
       "startDate": "Start date"
     },
-    "salaryType": { "Monthly": "Monthly", "Daily": "Daily", "Hourly": "Hourly" },
+    "salaryType": {
+      "Monthly": "Monthly",
+      "Daily": "Daily",
+      "Hourly": "Hourly"
+    },
     "save": "Save",
     "saving": "Saving...",
     "saved": "Saved ✓",

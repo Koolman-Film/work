@@ -3,6 +3,30 @@
     "locale": "lo",
     "note": "Lao — AI-DRAFT (profile namespace), pending native review. Other namespaces fall back to en/th until populated."
   },
+  "pair": {
+    "title": "ເຊື່ອມຕໍ່ບັນຊີ LINE",
+    "phase": {
+      "preparing": "ກຳລັງກຽມການເຊື່ອມຕໍ່ກັບ LINE...",
+      "signingIn": "ກຳລັງເຂົ້າສູ່ລະບົບດ້ວຍ LINE...",
+      "linking": "ກຳລັງເຊື່ອມບັນຊີກັບ Koolman Work...",
+      "loading": "ກຳລັງໂຫລດ..."
+    },
+    "success": {
+      "title": "ເຊື່ອມບັນຊີສຳເລັດແລ້ວ",
+      "welcome": "ຍິນດີຕ້ອນຮັບ, {name}",
+      "lastStep": "ຂັ້ນຕອນສຸດທ້າຍ: ເພີ່ມ Koolman Work ເປັນໝູ່ ເພື່ອຮັບການແຈ້ງເຕືອນ",
+      "redirecting": "ກຳລັງພາທ່ານໄປໜ້າເພີ່ມໝູ່..."
+    },
+    "error": {
+      "title": "ບໍ່ສາມາດເຊື່ອມບັນຊີໄດ້",
+      "notInLine": "ກະລຸນາເປີດລິ້ງນີ້ພາຍໃນແອັບ LINE",
+      "noIdToken": "LINE ບໍ່ໄດ້ສົ່ງຂໍ້ມູນຢືນຢັນຕົວຕົນ — ກະລຸນາລອງໃໝ່",
+      "supabaseRejected": "ການຢືນຢັນຕົວຕົນຖືກປະຕິເສດ — ກະລຸນາຕິດຕໍ່ Admin",
+      "misconfigured": "ລະບົບຍັງຕັ້ງຄ່າບໍ່ສົມບູນ — ກະລຸນາຕິດຕໍ່ Admin",
+      "generic": "ບໍ່ສາມາດເຊື່ອມຕໍ່ກັບ LINE ໄດ້"
+    },
+    "retry": "ລອງໃໝ່"
+  },
   "checkin": {
     "greeting": "ສະບາຍດີ, {firstName} {lastName}",
     "dateLabel": "{date}",
@@ -244,7 +268,11 @@
       "baseSalary": "ເງິນເດືອນພື້ນຖານ",
       "startDate": "ວັນເລີ່ມວຽກ"
     },
-    "salaryType": { "Monthly": "ລາຍເດືອນ", "Daily": "ລາຍວັນ", "Hourly": "ລາຍຊົ່ວໂມງ" },
+    "salaryType": {
+      "Monthly": "ລາຍເດືອນ",
+      "Daily": "ລາຍວັນ",
+      "Hourly": "ລາຍຊົ່ວໂມງ"
+    },
     "save": "ບັນທຶກ",
     "saving": "ກຳລັງບັນທຶກ...",
     "saved": "ບັນທຶກແລ້ວ ✓",
