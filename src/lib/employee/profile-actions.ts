@@ -17,6 +17,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
+import { getTranslations } from 'next-intl/server';
 import { auditLog } from '@/lib/audit/log';
 import { requireRole } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
@@ -75,11 +76,14 @@ function normalize(v: string | null | undefined): string | null {
 
 export async function updateOwnProfile(input: UpdateProfileInput): Promise<UpdateProfileResult> {
   const { user, employee } = await requireRole(['Staff']);
+  // Worker-facing strings localized to the requester's locale (NEXT_LOCALE
+  // cookie); `code`/`field` stay the stable machine-readable discriminants.
+  const t = await getTranslations('profile');
   if (!employee) {
-    return { ok: false, code: 'forbidden', message: 'ไม่พบบัญชีพนักงาน' };
+    return { ok: false, code: 'forbidden', message: t('errors.noEmployee') };
   }
   if (employee.archivedAt || employee.status === 'Archived') {
-    return { ok: false, code: 'forbidden', message: 'บัญชีพนักงานนี้พ้นสภาพแล้ว' };
+    return { ok: false, code: 'forbidden', message: t('errors.employeeArchived') };
   }
 
   // Normalize all fields first; validation operates on the normalized form.
@@ -97,7 +101,7 @@ export async function updateOwnProfile(input: UpdateProfileInput): Promise<Updat
       ok: false,
       code: 'too-long',
       field: 'nickname',
-      message: `ชื่อเล่นยาวเกิน ${MAX_NICKNAME} ตัวอักษร`,
+      message: t('errors.nicknameTooLong', { max: MAX_NICKNAME }),
     };
   }
   if (address && address.length > MAX_ADDRESS) {
@@ -105,7 +109,7 @@ export async function updateOwnProfile(input: UpdateProfileInput): Promise<Updat
       ok: false,
       code: 'too-long',
       field: 'address',
-      message: `ที่อยู่ยาวเกิน ${MAX_ADDRESS} ตัวอักษร`,
+      message: t('errors.addressTooLong', { max: MAX_ADDRESS }),
     };
   }
   if (emergencyContact && emergencyContact.length > MAX_EMERGENCY) {
@@ -113,7 +117,7 @@ export async function updateOwnProfile(input: UpdateProfileInput): Promise<Updat
       ok: false,
       code: 'too-long',
       field: 'emergencyContact',
-      message: `ผู้ติดต่อฉุกเฉินยาวเกิน ${MAX_EMERGENCY} ตัวอักษร`,
+      message: t('errors.emergencyTooLong', { max: MAX_EMERGENCY }),
     };
   }
   if (personalEmail && personalEmail.length > MAX_EMAIL) {
@@ -121,7 +125,7 @@ export async function updateOwnProfile(input: UpdateProfileInput): Promise<Updat
       ok: false,
       code: 'too-long',
       field: 'personalEmail',
-      message: 'อีเมลยาวเกินไป',
+      message: t('errors.emailTooLong'),
     };
   }
 
@@ -131,7 +135,7 @@ export async function updateOwnProfile(input: UpdateProfileInput): Promise<Updat
       ok: false,
       code: 'bad-phone',
       field: 'phone',
-      message: 'เบอร์โทรไม่ถูกต้อง (ต้องมี 9-15 หลัก)',
+      message: t('errors.badPhone', { min: MIN_PHONE_DIGITS, max: MAX_PHONE_DIGITS }),
     };
   }
   if (personalEmail && !isValidEmail(personalEmail)) {
@@ -139,7 +143,7 @@ export async function updateOwnProfile(input: UpdateProfileInput): Promise<Updat
       ok: false,
       code: 'bad-email',
       field: 'personalEmail',
-      message: 'รูปแบบอีเมลไม่ถูกต้อง',
+      message: t('errors.badEmail'),
     };
   }
 
@@ -186,7 +190,7 @@ export async function updateOwnProfile(input: UpdateProfileInput): Promise<Updat
     return {
       ok: false,
       code: 'db-error',
-      message: 'ระบบขัดข้อง กรุณาลองใหม่อีกครั้ง',
+      message: t('errors.dbError'),
     };
   }
 }

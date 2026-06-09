@@ -23,7 +23,19 @@
       "noIdToken": "LINE 未返回身份信息 — 请重试",
       "supabaseRejected": "身份验证被拒绝 — 请联系管理员",
       "misconfigured": "系统尚未完成配置 — 请联系管理员",
-      "generic": "无法连接 LINE"
+      "generic": "无法连接 LINE",
+      "noSession": "请重新登录",
+      "linkInvalid": "链接无效",
+      "linkInvalidTampered": "链接无效或已被篡改",
+      "linkUsed": "此链接已被使用或已撤销 — 请联系管理员获取新链接",
+      "linkExpired": "链接已过期 — 请联系管理员获取新链接",
+      "employeeArchived": "该员工账号已停用",
+      "alreadyLinked": "该账号已绑定 LINE",
+      "accountInUseAdmin": "该账号已绑定其他用户 — 如果您正以管理员身份登录，请先退出再试",
+      "lineInUse": "此 LINE 账号已被其他员工使用 — 请联系管理员核查",
+      "accountInUse": "该账号已被其他员工使用 — 请联系管理员",
+      "employeeNotFound": "未找到员工账号 — 请联系管理员获取新链接",
+      "serverError": "出现错误，请重试或联系管理员"
     },
     "retry": "重试"
   },
@@ -59,7 +71,16 @@
       "decodeFailed": "无法读取图片文件",
       "uploadFailed": "自拍上传失败：{detail}",
       "imageTooLarge": "图片过大，请重试",
-      "generic": "发生错误"
+      "generic": "发生错误",
+      "noEmployee": "未找到员工账号",
+      "checkInDisabled": "该账号已被禁止签到 — 请联系管理员",
+      "archived": "该账号已停用",
+      "alreadyCheckedIn": "您今天已签到",
+      "selfieRequired": "您的门店要求自拍 — 请拍摄后重试",
+      "selfieBadPath": "自拍链接无效",
+      "notCheckedIn": "您今天尚未签到",
+      "alreadyCheckedOut": "您今天已签退",
+      "dbError": "出现错误，请重试"
     },
     "quickAction": {
       "leave": "📅 请假申请",
@@ -80,6 +101,19 @@
       "previewAlt": "自拍预览",
       "retake": "重拍",
       "usePhoto": "使用此照片"
+    },
+    "success": {
+      "checkedIn": "签到成功",
+      "checkedInAt": "已在 {branch} 签到",
+      "checkedInDisputed": "签到已记录，但需要审核：{reason}",
+      "checkedOut": "签退成功"
+    },
+    "disputeReason": {
+      "noConfiguredBranch": "尚未设置门店坐标 — 请联系管理员",
+      "noBranchInRange": "不在门店范围内（地理围栏）",
+      "gpsTooImprecise": "GPS 信号不够精确 — 请到空旷处再试",
+      "impossibleTravel": "距离与时间不符 — 需要审核",
+      "unknown": "原因不明"
     }
   },
   "leave": {
@@ -166,6 +200,26 @@
       "irreversible": "此操作不可撤销",
       "keepRequest": "保留申请",
       "confirmCancel": "确认撤销"
+    },
+    "errors": {
+      "noEmployee": "未找到员工账号",
+      "employeeArchived": "该员工账号已停用",
+      "shortReason": "请填写至少 {min} 个字符的理由",
+      "badDateFormat": "日期格式不正确",
+      "endBeforeStart": "结束日期不能早于开始日期",
+      "pastDate": "请假最多可回溯 {days} 天 — 超过此期限请联系管理员补录",
+      "tooFarFuture": "结束日期太远（超过 1 年）",
+      "badLeaveType": "请假类型不正确",
+      "badUnit": "该请假类型不支持所选单位",
+      "partialSingleDay": "部分请假必须为同一天",
+      "partialClosedDay": "休息日不能申请部分请假",
+      "badSegment": "所选时间段无效",
+      "overlap": "您已有与该日期/时间重叠的请假申请",
+      "badAttachment": "附件链接无效",
+      "dbError": "出现错误，请重试",
+      "notFound": "未找到请假申请",
+      "notOwner": "您不是该请假申请的所有者",
+      "notCancellable": "只能取消尚未审核的申请"
     }
   },
   "advance": {
@@ -237,6 +291,17 @@
       "irreversible": "此操作不可撤销",
       "keepRequest": "保留申请",
       "confirmCancel": "确认撤销"
+    },
+    "errors": {
+      "noEmployee": "未找到员工账号",
+      "employeeArchived": "该员工账号已停用",
+      "badAmount": "金额必须为正数（最多 2 位小数）",
+      "tooLarge": "每次最多可借支 ฿{max, number}",
+      "pendingExists": "您已有一笔待审批的借支申请 — 请先取消或等待管理员决定",
+      "dbError": "出现错误，请重试",
+      "notFound": "未找到借支申请",
+      "notOwner": "您不是该申请的所有者",
+      "notCancellable": "只能取消尚未审核的申请"
     }
   },
   "profile": {
@@ -276,7 +341,18 @@
     "save": "保存",
     "saving": "正在保存...",
     "saved": "已保存 ✓",
-    "backToCheckin": "← 返回打卡页"
+    "backToCheckin": "← 返回打卡页",
+    "errors": {
+      "noEmployee": "未找到员工账号",
+      "employeeArchived": "该员工账号已停用",
+      "nicknameTooLong": "昵称太长（超过 {max} 个字符）",
+      "addressTooLong": "地址太长（超过 {max} 个字符）",
+      "emergencyTooLong": "紧急联系人太长（超过 {max} 个字符）",
+      "emailTooLong": "邮箱太长",
+      "badPhone": "电话号码无效（须为 {min}-{max} 位数字）",
+      "badEmail": "邮箱格式无效",
+      "dbError": "出现错误，请重试"
+    }
   },
   "calendar": {
     "title": "团队日历",

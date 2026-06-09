@@ -23,7 +23,19 @@
       "noIdToken": "LINE didn't return your identity — please try again",
       "supabaseRejected": "Authentication was rejected — please contact an admin",
       "misconfigured": "The system isn't fully configured — please contact an admin",
-      "generic": "Couldn't connect to LINE"
+      "generic": "Couldn't connect to LINE",
+      "noSession": "Please sign in again",
+      "linkInvalid": "Invalid link",
+      "linkInvalidTampered": "The link is invalid or has been altered",
+      "linkUsed": "This link has already been used or revoked — contact an admin for a new one",
+      "linkExpired": "The link has expired — contact an admin for a new one",
+      "employeeArchived": "This employee account is no longer active",
+      "alreadyLinked": "This account is already linked to LINE",
+      "accountInUseAdmin": "This account is already linked to someone else — if you are logged in as an admin, log out first and try again",
+      "lineInUse": "This LINE account is already used by another employee — contact an admin to check",
+      "accountInUse": "This account is already used by another employee — contact an admin",
+      "employeeNotFound": "Employee account not found — contact an admin for a new link",
+      "serverError": "Something went wrong. Please try again or contact an admin"
     },
     "retry": "Try again"
   },
@@ -100,7 +112,16 @@
       "decodeFailed": "Could not read the photo file",
       "uploadFailed": "Selfie upload failed: {detail}",
       "imageTooLarge": "Image is too large, please try again",
-      "generic": "An error occurred"
+      "generic": "An error occurred",
+      "noEmployee": "Employee account not found",
+      "checkInDisabled": "This account is blocked from checking in — contact an admin",
+      "archived": "This account is no longer active",
+      "alreadyCheckedIn": "You've already checked in today",
+      "selfieRequired": "Your branch requires a selfie — please take one and try again",
+      "selfieBadPath": "Invalid selfie link",
+      "notCheckedIn": "You haven't checked in today",
+      "alreadyCheckedOut": "You've already checked out today",
+      "dbError": "Something went wrong. Please try again"
     },
     "quickAction": {
       "leave": "📅 Leave request",
@@ -121,6 +142,19 @@
       "previewAlt": "Selfie preview",
       "retake": "Retake",
       "usePhoto": "Use this photo"
+    },
+    "success": {
+      "checkedIn": "Checked in successfully",
+      "checkedInAt": "Checked in at {branch}",
+      "checkedInDisputed": "Check-in recorded, but needs review: {reason}",
+      "checkedOut": "Checked out successfully"
+    },
+    "disputeReason": {
+      "noConfiguredBranch": "Branch location not set yet — contact an admin",
+      "noBranchInRange": "Outside the branch area (geofence)",
+      "gpsTooImprecise": "GPS signal not accurate enough — try an open area",
+      "impossibleTravel": "Distance and time don't match — needs review",
+      "unknown": "Unknown reason"
     }
   },
   "leave": {
@@ -207,6 +241,26 @@
       "irreversible": "This cannot be undone",
       "keepRequest": "Keep request",
       "confirmCancel": "Yes, cancel"
+    },
+    "errors": {
+      "noEmployee": "Employee account not found",
+      "employeeArchived": "This employee account is no longer active",
+      "shortReason": "Please enter a reason of at least {min} characters",
+      "badDateFormat": "Invalid date format",
+      "endBeforeStart": "End date cannot be before the start date",
+      "pastDate": "Leave can be back-dated up to {days} days — for older dates, contact an admin to record it",
+      "tooFarFuture": "End date is too far away (more than 1 year)",
+      "badLeaveType": "Invalid leave type",
+      "badUnit": "This leave type doesn't support the selected unit",
+      "partialSingleDay": "Partial leave must be a single day",
+      "partialClosedDay": "Partial leave isn't allowed on a closed day",
+      "badSegment": "The selected time range is invalid",
+      "overlap": "You already have a leave request overlapping this date/time",
+      "badAttachment": "Invalid attachment link",
+      "dbError": "Something went wrong. Please try again",
+      "notFound": "Leave request not found",
+      "notOwner": "You are not the owner of this leave request",
+      "notCancellable": "Only requests that haven't been reviewed can be cancelled"
     }
   },
   "advance": {
@@ -278,6 +332,17 @@
       "irreversible": "This cannot be undone",
       "keepRequest": "Keep request",
       "confirmCancel": "Yes, cancel"
+    },
+    "errors": {
+      "noEmployee": "Employee account not found",
+      "employeeArchived": "This employee account is no longer active",
+      "badAmount": "Amount must be a positive number (up to 2 decimal places)",
+      "tooLarge": "You can request up to ฿{max, number} per advance",
+      "pendingExists": "You already have a pending advance request — cancel it or wait for the admin decision",
+      "dbError": "Something went wrong. Please try again",
+      "notFound": "Advance request not found",
+      "notOwner": "You are not the owner of this request",
+      "notCancellable": "Only requests that haven't been reviewed can be cancelled"
     }
   },
   "profile": {
@@ -317,7 +382,18 @@
     "save": "Save",
     "saving": "Saving...",
     "saved": "Saved ✓",
-    "backToCheckin": "← Back to check-in"
+    "backToCheckin": "← Back to check-in",
+    "errors": {
+      "noEmployee": "Employee account not found",
+      "employeeArchived": "This employee account is no longer active",
+      "nicknameTooLong": "Nickname is too long (over {max} characters)",
+      "addressTooLong": "Address is too long (over {max} characters)",
+      "emergencyTooLong": "Emergency contact is too long (over {max} characters)",
+      "emailTooLong": "Email is too long",
+      "badPhone": "Invalid phone number (must be {min}-{max} digits)",
+      "badEmail": "Invalid email format",
+      "dbError": "Something went wrong. Please try again"
+    }
   },
   "calendar": {
     "title": "Team calendar",
