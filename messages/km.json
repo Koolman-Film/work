@@ -249,5 +249,35 @@
     "saving": "កំពុងរក្សាទុក...",
     "saved": "បានរក្សាទុក ✓",
     "backToCheckin": "← ត្រឡប់ទៅ Check-in"
+  },
+  "calendar": {
+    "title": "ប្រតិទិនក្រុម",
+    "today": "ថ្ងៃនេះ",
+    "nav": {
+      "prevMonth": "ខែមុន",
+      "nextMonth": "ខែបន្ទាប់"
+    },
+    "footer": {
+      "note": "បង្ហាញការស្នើសុំឈប់សម្រាកក្នុងសាខារបស់អ្នក • រួមទាំងការរង់ចាំការអនុម័ត"
+    },
+    "links": {
+      "myLeave": "← ការស្នើសុំឈប់សម្រាករបស់ខ្ញុំ",
+      "checkin": "Check-in"
+    },
+    "cell": {
+      "leaveCount": "ឈប់សម្រាក {count}",
+      "advanceCount": "ដកប្រាក់ {count}"
+    },
+    "detail": {
+      "holiday": "ថ្ងៃឈប់សម្រាក: {name}",
+      "empty": "មិនមានកំណត់ត្រាសម្រាប់ថ្ងៃនេះ",
+      "emptyHolidayNote": "ដោយសារថ្ងៃនេះជាថ្ងៃឈប់សម្រាករដ្ឋការ",
+      "youSuffix": "(អ្នក)",
+      "advanceLabel": "ដកប្រាក់ · {amount}"
+    },
+    "status": {
+      "Approved": "បានអនុម័ត",
+      "Pending": "រង់ចាំការអនុម័ត"
+    }
   }
 }

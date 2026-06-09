@@ -260,5 +260,35 @@
     "saving": "Saving...",
     "saved": "Saved ✓",
     "backToCheckin": "← Back to check-in"
+  },
+  "calendar": {
+    "title": "Team calendar",
+    "today": "Today",
+    "nav": {
+      "prevMonth": "Previous month",
+      "nextMonth": "Next month"
+    },
+    "footer": {
+      "note": "Shows leave requests in your branch • including pending approvals"
+    },
+    "links": {
+      "myLeave": "← My leave requests",
+      "checkin": "Check-in"
+    },
+    "cell": {
+      "leaveCount": "{count} on leave",
+      "advanceCount": "{count} advance"
+    },
+    "detail": {
+      "holiday": "Holiday: {name}",
+      "empty": "No entries for this day",
+      "emptyHolidayNote": "It is a public holiday",
+      "youSuffix": "(you)",
+      "advanceLabel": "Cash advance · {amount}"
+    },
+    "status": {
+      "Approved": "Approved",
+      "Pending": "Pending"
+    }
   }
 }
