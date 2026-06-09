@@ -3,6 +3,61 @@
     "locale": "zh-CN",
     "note": "Simplified Chinese — AI-DRAFT (profile namespace), pending native review. Other namespaces fall back to en/th until populated."
   },
+  "checkin": {
+    "greeting": "你好，{firstName} {lastName}",
+    "dateLabel": "{date}",
+    "status": {
+      "heading": "今日状态",
+      "checkIn": "上班打卡",
+      "checkOut": "下班打卡",
+      "notCheckedIn": "尚未打卡上班",
+      "checkedOut": "已打卡下班",
+      "disputed": "待核实"
+    },
+    "button": {
+      "checkIn": "上班打卡",
+      "checkOut": "下班打卡",
+      "checkOutOptional": "下班打卡（可选）"
+    },
+    "done": "✓ 今日工作已完成，谢谢！",
+    "phase": {
+      "uploadingSelfie": "正在上传自拍...",
+      "locating": "正在获取位置...",
+      "submitting": "正在保存..."
+    },
+    "error": {
+      "gpsNotSupported": "此浏览器不支持 GPS",
+      "geoPermissionDenied": "请允许此应用访问您的位置",
+      "geoPositionUnavailable": "无法获取位置 — 请移至开阔处重试",
+      "geoTimeout": "获取位置超时 — 请重试",
+      "geoGeneric": "无法确定位置",
+      "sessionExpired": "会话已过期 — 请重新在 LINE 中打开",
+      "decodeFailed": "无法读取图片文件",
+      "uploadFailed": "自拍上传失败：{detail}",
+      "imageTooLarge": "图片过大，请重试",
+      "generic": "发生错误"
+    },
+    "quickAction": {
+      "leave": "📅 请假申请",
+      "advance": "💰 预支申请",
+      "calendar": "🗓️ 团队日历",
+      "profile": "👤 个人资料"
+    },
+    "branches": {
+      "heading": "所分配的分店"
+    },
+    "selfie": {
+      "dialogLabel": "拍摄自拍",
+      "title": "拍摄自拍",
+      "cancel": "取消",
+      "instruction": "请拍摄自拍照以验证身份",
+      "branchRequirement": "您所在分店要求在打卡时拍摄自拍",
+      "openCamera": "📷 打开相机",
+      "previewAlt": "自拍预览",
+      "retake": "重拍",
+      "usePhoto": "使用此照片"
+    }
+  },
   "profile": {
     "personalInfo": "个人信息",
     "jobInfo": "工作信息",

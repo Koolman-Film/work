@@ -3,6 +3,61 @@
     "locale": "lo",
     "note": "Lao — AI-DRAFT (profile namespace), pending native review. Other namespaces fall back to en/th until populated."
   },
+  "checkin": {
+    "greeting": "ສະບາຍດີ, {firstName} {lastName}",
+    "dateLabel": "{date}",
+    "status": {
+      "heading": "ສະຖານະມື້ນີ້",
+      "checkIn": "ເຊັກອິນ",
+      "checkOut": "ເຊັກເອົາ",
+      "notCheckedIn": "ຍັງບໍ່ທັນເຊັກອິນ",
+      "checkedOut": "ເຊັກເອົາແລ້ວ",
+      "disputed": "ກຳລັງກວດສອບ"
+    },
+    "button": {
+      "checkIn": "ເຊັກອິນເຂົ້າວຽກ",
+      "checkOut": "ເຊັກເອົາ",
+      "checkOutOptional": "ເຊັກເອົາອອກຈາກວຽກ (ຖ້າຕ້ອງການ)"
+    },
+    "done": "✓ ສຳເລັດວຽກມື້ນີ້ແລ້ວ ຂອບໃຈຫຼາຍໆ",
+    "phase": {
+      "uploadingSelfie": "ກຳລັງໂຫລດ selfie...",
+      "locating": "ກຳລັງຫາຕຳແໜ່ງ...",
+      "submitting": "ກຳລັງບັນທຶກ..."
+    },
+    "error": {
+      "gpsNotSupported": "Browser ນີ້ບໍ່ຮອງຮັບ GPS",
+      "geoPermissionDenied": "ກະລຸນາອະນຸຍາດໃຫ້ app ເຂົ້າເຖິງຕຳແໜ່ງ",
+      "geoPositionUnavailable": "ບໍ່ສາມາດລະບຸຕຳແໜ່ງໄດ້ — ລອງອອກໄປບ່ອນໂລ່ງ",
+      "geoTimeout": "ການຄົ້ນຫາຕຳແໜ່ງໃຊ້ເວລາດົນເກີນໄປ — ລອງໃໝ່",
+      "geoGeneric": "ເກີດຂໍ້ຜິດພາດໃນການລະບຸຕຳແໜ່ງ",
+      "sessionExpired": "Session ໝົດອາຍຸ — ກະລຸນາເປີດ LINE ໃໝ່",
+      "decodeFailed": "ອ່ານໄຟລ໌ຮູບບໍ່ໄດ້",
+      "uploadFailed": "ໂຫລດ selfie ບໍ່ສຳເລັດ: {detail}",
+      "imageTooLarge": "ຮູບໃຫຍ່ເກີນໄປ ກະລຸນາລອງໃໝ່",
+      "generic": "ເກີດຂໍ້ຜິດພາດ"
+    },
+    "quickAction": {
+      "leave": "📅 ຂໍລາພັກ",
+      "advance": "💰 ຂໍເງິນລ່ວງໜ້າ",
+      "calendar": "🗓️ ປະຕິທິນທີມ",
+      "profile": "👤 ໂປຣໄຟລ໌"
+    },
+    "branches": {
+      "heading": "ສາຂາທີ່ໄດ້ຮັບມອບໝາຍ"
+    },
+    "selfie": {
+      "dialogLabel": "ຖ່າຍ selfie",
+      "title": "ຖ່າຍ selfie",
+      "cancel": "ຍົກເລີກ",
+      "instruction": "ຖ່າຍ selfie ເພື່ອຢືນຢັນຕົວຕົນ",
+      "branchRequirement": "ສາຂາຂອງທ່ານກຳນົດໃຫ້ຕ້ອງຖ່າຍ selfie ໃນຕອນເຊັກອິນ",
+      "openCamera": "📷 ເປີດກ້ອງ",
+      "previewAlt": "ຕົວຢ່າງ selfie",
+      "retake": "ຖ່າຍໃໝ່",
+      "usePhoto": "ໃຊ້ຮູບນີ້"
+    }
+  },
   "profile": {
     "personalInfo": "ຂໍ້ມູນສ່ວນຕົວ",
     "jobInfo": "ຂໍ້ມູນວຽກ",

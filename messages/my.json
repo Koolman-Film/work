@@ -3,6 +3,61 @@
     "locale": "my",
     "note": "Burmese — AI-DRAFT (profile namespace), pending native review. Other namespaces fall back to en/th until populated."
   },
+  "checkin": {
+    "greeting": "မင်္ဂလာပါ, {firstName} {lastName}",
+    "dateLabel": "{date}",
+    "status": {
+      "heading": "ယနေ့အခြေအနေ",
+      "checkIn": "Check-in",
+      "checkOut": "Check-out",
+      "notCheckedIn": "မဝင်ရောက်သေးပါ",
+      "checkedOut": "ထွက်ခွာပြီးပါပြီ",
+      "disputed": "စစ်ဆေးဆဲ"
+    },
+    "button": {
+      "checkIn": "အလုပ်ဝင်မည်",
+      "checkOut": "အလုပ်ထွက်မည်",
+      "checkOutOptional": "အလုပ်ထွက်မည် (လိုချင်လျှင်)"
+    },
+    "done": "✓ ယနေ့အလုပ်ပြီးဆုံးပြီ။ ကျေးဇူးတင်ပါသည်။",
+    "phase": {
+      "uploadingSelfie": "Selfie တင်နေသည်...",
+      "locating": "တည်နေရာရှာနေသည်...",
+      "submitting": "သိမ်းဆည်းနေသည်..."
+    },
+    "error": {
+      "gpsNotSupported": "ဤ browser တွင် GPS မပံ့ပိုးပါ",
+      "geoPermissionDenied": "ကျေးဇူးပြု၍ app အား တည်နေရာသုံးခွင့်ပေးပါ",
+      "geoPositionUnavailable": "တည်နေရာမသိနိုင်ပါ — ပွင့်လင်းသောနေရာသို့ ရွှေ့ကြည့်ပါ",
+      "geoTimeout": "တည်နေရာရှာသည်မှာ ကြာလွန်းသည် — ထပ်မံကြိုးစားပါ",
+      "geoGeneric": "တည်နေရာမသတ်မှတ်နိုင်ပါ",
+      "sessionExpired": "Session သက်တမ်းကုန်ပြီ — LINE တွင် ပြန်ဖွင့်ပါ",
+      "decodeFailed": "ဓာတ်ပုံဖိုင်ဖတ်မရပါ",
+      "uploadFailed": "Selfie တင်မအောင်မြင်ပါ: {detail}",
+      "imageTooLarge": "ပုံကြီးလွန်းသည် — ထပ်မံကြိုးစားပါ",
+      "generic": "အမှားတစ်ခုဖြစ်ပေါ်သည်"
+    },
+    "quickAction": {
+      "leave": "📅 ခွင့်တောင်းခြင်း",
+      "advance": "💰 ငွေကြိုထုတ်ခြင်း",
+      "calendar": "🗓️ အဖွဲ့ပြက္ခဒိန်",
+      "profile": "👤 ပရိုဖိုင်"
+    },
+    "branches": {
+      "heading": "သတ်မှတ်ထားသောဌာနခွဲများ"
+    },
+    "selfie": {
+      "dialogLabel": "Selfie ရိုက်ရန်",
+      "title": "Selfie ရိုက်ရန်",
+      "cancel": "မလုပ်တော့ပါ",
+      "instruction": "မိမိကိုယ်ကို အတည်ပြုရန် selfie ရိုက်ပါ",
+      "branchRequirement": "သင့်ဌာနခွဲတွင် check-in လုပ်သောအခါ selfie ရိုက်ရမည်",
+      "openCamera": "📷 ကင်မရာဖွင့်ရန်",
+      "previewAlt": "Selfie နမူနာ",
+      "retake": "ပြန်ရိုက်ရန်",
+      "usePhoto": "ဤပုံကိုသုံးမည်"
+    }
+  },
   "profile": {
     "personalInfo": "ကိုယ်ရေးအချက်အလက်",
     "jobInfo": "အလုပ်အချက်အလက်",
