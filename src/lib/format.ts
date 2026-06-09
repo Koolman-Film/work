@@ -8,6 +8,10 @@
 
 const thb = new Intl.NumberFormat('th-TH', { maximumFractionDigits: 0 });
 const thaiShortDate = new Intl.DateTimeFormat('th-TH', {
+  // Pin Bangkok — without it, formatting uses the server's timezone, so on a
+  // UTC runtime (Vercel) a date near midnight renders the previous day. The
+  // whole app operates on the Bangkok calendar day.
+  timeZone: 'Asia/Bangkok',
   day: 'numeric',
   month: 'short',
   year: 'numeric',
