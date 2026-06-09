@@ -40,8 +40,13 @@ export default async function NewLeavePage() {
     redirect('/liff/leave?error=no-leave-types');
   }
 
-  // Today's date in YYYY-MM-DD (Bangkok) for the date `min` attribute.
+  // Today's date in YYYY-MM-DD (Bangkok). `todayYmd` seeds the form's default
+  // dates; `minDate` is 7 days earlier so workers can back-file recent leave
+  // (must stay in sync with MAX_BACKDATE_DAYS in ./actions.ts).
   const todayYmd = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
+  const minDate = new Date(`${todayYmd}T00:00:00.000Z`);
+  minDate.setUTCDate(minDate.getUTCDate() - 7);
+  const minDateYmd = minDate.toISOString().slice(0, 10);
   const currentYear = Number(todayYmd.slice(0, 4));
 
   // Remaining balance per leave type for the current year (read-only; falls
@@ -53,7 +58,8 @@ export default async function NewLeavePage() {
   return (
     <LeaveNewForm
       leaveTypes={leaveTypes}
-      minDate={todayYmd}
+      minDate={minDateYmd}
+      defaultDate={todayYmd}
       leaveConfig={leaveConfig}
       remainingByType={remainingByType}
     />

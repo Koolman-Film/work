@@ -11,8 +11,10 @@
  *
  * Validation policy:
  *   - startDate ≤ endDate (else error)
- *   - startDate ≥ today (no back-dating from LIFF; admins can do it
- *     manually if needed via /admin/attendance/manual in a later W).
+ *   - startDate ≥ today − MAX_BACKDATE_DAYS (workers may back-date up to a
+ *     week — "forgot to file yesterday's sick leave". Anything older is an
+ *     admin job: they record it on-behalf via /admin/leave/new, which allows
+ *     any past date — see adminCreateLeaveRequest in ./admin.ts).
  *   - endDate ≤ today + 365d (sanity bound; nobody books a year-long leave)
  *   - reason: required, ≤500 chars
  *   - leaveType must exist + not archived
@@ -29,6 +31,7 @@
 import type { Employee } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
+import { getTranslations } from 'next-intl/server';
 import { auditLog } from '@/lib/audit/log';
 import { requireRole } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
@@ -89,6 +92,8 @@ type SubmitInput = {
 };
 
 const MAX_FUTURE_DAYS = 365;
+/** How far back a worker may self-file leave. Older requires admin on-behalf. */
+const MAX_BACKDATE_DAYS = 7;
 const MIN_REASON_LENGTH = 4;
 
 function todayUtcMidnight(): Date {
@@ -98,11 +103,15 @@ function todayUtcMidnight(): Date {
 
 export async function submitLeaveRequest(input: SubmitInput): Promise<SubmitLeaveResult> {
   const { user, employee, authUserId } = await requireRole(['Staff']);
+  // Worker-facing messages are localized to the requester's locale (resolved
+  // from the NEXT_LOCALE cookie). `code` stays the stable machine-readable
+  // discriminant; `message` is the already-translated string the form shows.
+  const t = await getTranslations('leave');
   if (!employee) {
-    return { ok: false, code: 'forbidden', message: 'ไม่พบบัญชีพนักงาน' };
+    return { ok: false, code: 'forbidden', message: t('errors.noEmployee') };
   }
   if (employee.archivedAt || employee.status === 'Archived') {
-    return { ok: false, code: 'forbidden', message: 'บัญชีพนักงานนี้พ้นสภาพแล้ว' };
+    return { ok: false, code: 'forbidden', message: t('errors.employeeArchived') };
   }
 
   const reason = input.reason.trim();
@@ -110,25 +119,26 @@ export async function submitLeaveRequest(input: SubmitInput): Promise<SubmitLeav
     return {
       ok: false,
       code: 'short-reason',
-      message: 'กรุณากรอกเหตุผลอย่างน้อย 4 ตัวอักษร',
+      message: t('errors.shortReason', { min: MIN_REASON_LENGTH }),
     };
   }
 
   const start = parseInputDate(input.startDate);
   const end = parseInputDate(input.endDate);
   if (!start || !end) {
-    return { ok: false, code: 'bad-dates', message: 'รูปแบบวันที่ไม่ถูกต้อง' };
+    return { ok: false, code: 'bad-dates', message: t('errors.badDateFormat') };
   }
   if (end.getTime() < start.getTime()) {
-    return { ok: false, code: 'bad-dates', message: 'วันที่สิ้นสุดต้องไม่ก่อนวันเริ่มต้น' };
+    return { ok: false, code: 'bad-dates', message: t('errors.endBeforeStart') };
   }
 
   const today = todayUtcMidnight();
-  if (start.getTime() < today.getTime()) {
+  const earliestStart = new Date(today.getTime() - MAX_BACKDATE_DAYS * 86_400_000);
+  if (start.getTime() < earliestStart.getTime()) {
     return {
       ok: false,
       code: 'past-date',
-      message: 'ไม่สามารถส่งคำขอลาย้อนหลังได้ — ติดต่อแอดมินเพื่อบันทึกย้อนหลัง',
+      message: t('errors.pastDate', { days: MAX_BACKDATE_DAYS }),
     };
   }
   const maxFuture = new Date(today.getTime() + MAX_FUTURE_DAYS * 86_400_000);
@@ -136,7 +146,7 @@ export async function submitLeaveRequest(input: SubmitInput): Promise<SubmitLeav
     return {
       ok: false,
       code: 'too-far-future',
-      message: 'วันที่สิ้นสุดไกลเกินไป (มากกว่า 1 ปี)',
+      message: t('errors.tooFarFuture'),
     };
   }
 
@@ -153,7 +163,7 @@ export async function submitLeaveRequest(input: SubmitInput): Promise<SubmitLeav
     },
   });
   if (!lt || lt.archivedAt) {
-    return { ok: false, code: 'bad-leave-type', message: 'ประเภทการลาไม่ถูกต้อง' };
+    return { ok: false, code: 'bad-leave-type', message: t('errors.badLeaveType') };
   }
 
   const unit: LeaveUnit = input.unit ?? 'FullDay';
@@ -162,7 +172,7 @@ export async function submitLeaveRequest(input: SubmitInput): Promise<SubmitLeav
     ((unit === 'HalfMorning' || unit === 'HalfAfternoon') && lt.allowHalfDay) ||
     (unit === 'Hourly' && lt.allowHourly);
   if (!allowed) {
-    return { ok: false, code: 'bad-unit', message: 'ประเภทการลานี้ไม่รองรับหน่วยที่เลือก' };
+    return { ok: false, code: 'bad-unit', message: t('errors.badUnit') };
   }
 
   // Partial units are single-date and must fall on an open weekday. (Sunday is
@@ -171,17 +181,17 @@ export async function submitLeaveRequest(input: SubmitInput): Promise<SubmitLeav
   const isPartial = unit !== 'FullDay';
   if (isPartial) {
     if (start.getTime() !== end.getTime()) {
-      return { ok: false, code: 'bad-segment', message: 'การลาบางส่วนต้องเป็นวันเดียว' };
+      return { ok: false, code: 'bad-segment', message: t('errors.partialSingleDay') };
     }
     if (start.getUTCDay() === 0) {
-      return { ok: false, code: 'bad-segment', message: 'ไม่สามารถลาบางส่วนในวันหยุดได้' };
+      return { ok: false, code: 'bad-segment', message: t('errors.partialClosedDay') };
     }
   }
 
   const cfg = await getLeaveConfig();
   const segment = segmentFor(unit, cfg, input.startTime, input.endTime);
   if (!segment) {
-    return { ok: false, code: 'bad-segment', message: 'ช่วงเวลาที่เลือกไม่ถูกต้อง' };
+    return { ok: false, code: 'bad-segment', message: t('errors.badSegment') };
   }
 
   // Overlap: pull every Pending/Approved request that intersects our date
@@ -204,7 +214,7 @@ export async function submitLeaveRequest(input: SubmitInput): Promise<SubmitLeav
     return segmentsOverlap(segment.startTime, segment.endTime, o.startTime, o.endTime);
   });
   if (conflict) {
-    return { ok: false, code: 'overlap', message: 'มีคำขอลาที่ทับซ้อนช่วงวัน/เวลานี้อยู่แล้ว' };
+    return { ok: false, code: 'overlap', message: t('errors.overlap') };
   }
 
   const headerList = await headers();
@@ -224,7 +234,7 @@ export async function submitLeaveRequest(input: SubmitInput): Promise<SubmitLeav
       return {
         ok: false,
         code: 'bad-attachment-path',
-        message: 'ลิงก์ไฟล์แนบไม่ถูกต้อง',
+        message: t('errors.badAttachment'),
       };
     }
 
@@ -276,14 +286,15 @@ export async function submitLeaveRequest(input: SubmitInput): Promise<SubmitLeav
     return { ok: true, id: created.id };
   } catch (err) {
     console.error('[submitLeaveRequest] failed', err);
-    return { ok: false, code: 'db-error', message: 'ระบบขัดข้อง กรุณาลองใหม่อีกครั้ง' };
+    return { ok: false, code: 'db-error', message: t('errors.dbError') };
   }
 }
 
 export async function cancelLeaveRequest(leaveRequestId: string): Promise<CancelLeaveResult> {
   const { user, employee } = await requireRole(['Staff']);
+  const t = await getTranslations('leave');
   if (!employee) {
-    return { ok: false, code: 'forbidden', message: 'ไม่พบบัญชีพนักงาน' };
+    return { ok: false, code: 'forbidden', message: t('errors.noEmployee') };
   }
 
   const row = await prisma.leaveRequest.findUnique({
@@ -291,18 +302,18 @@ export async function cancelLeaveRequest(leaveRequestId: string): Promise<Cancel
     select: { id: true, employeeId: true, status: true },
   });
   if (!row) {
-    return { ok: false, code: 'not-found', message: 'ไม่พบคำขอลา' };
+    return { ok: false, code: 'not-found', message: t('errors.notFound') };
   }
   if (row.employeeId !== employee.id) {
     // Authorisation: only the request owner can cancel their own request.
     // Admins use a different action (reject) from /admin/leave.
-    return { ok: false, code: 'forbidden', message: 'คุณไม่ใช่เจ้าของคำขอลานี้' };
+    return { ok: false, code: 'forbidden', message: t('errors.notOwner') };
   }
   if (row.status !== 'Pending') {
     return {
       ok: false,
       code: 'not-cancellable',
-      message: 'ยกเลิกได้เฉพาะคำขอที่ยังไม่ได้รับการตรวจสอบ',
+      message: t('errors.notCancellable'),
     };
   }
 
@@ -324,6 +335,6 @@ export async function cancelLeaveRequest(leaveRequestId: string): Promise<Cancel
     return { ok: true };
   } catch (err) {
     console.error('[cancelLeaveRequest] failed', err);
-    return { ok: false, code: 'forbidden', message: 'ระบบขัดข้อง กรุณาลองใหม่อีกครั้ง' };
+    return { ok: false, code: 'forbidden', message: t('errors.dbError') };
   }
 }
