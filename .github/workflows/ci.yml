@@ -17,9 +17,10 @@ on:
     branches: [main]
 
 env:
-  # Pinned Node + pnpm to match local development
+  # Pinned Node to match local development. pnpm version comes from the
+  # `packageManager` field in package.json (pnpm/action-setup@v4 reads it;
+  # passing an explicit `version:` too triggers ERR_PNPM_BAD_PM_VERSION).
   NODE_VERSION: '24'
-  PNPM_VERSION: '10'
 
 jobs:
   lint:
@@ -28,8 +29,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -43,8 +42,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -61,8 +58,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -79,8 +74,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
