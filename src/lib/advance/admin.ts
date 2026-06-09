@@ -16,8 +16,9 @@
  *     change — we just start passing receiptUrl reliably.
  */
 
+import { Prisma } from '@prisma/client';
 import { headers } from 'next/headers';
-import { auditLogTx } from '@/lib/audit/log';
+import { auditLog, auditLogTx } from '@/lib/audit/log';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { sendNotification } from '@/lib/inngest/events';
@@ -240,6 +241,122 @@ export async function rejectCashAdvance(input: RejectInput): Promise<RejectAdvan
     return result;
   } catch (err) {
     console.error('[rejectCashAdvance] tx failed', err);
+    return { ok: false, code: 'db-error', message: 'ระบบขัดข้อง กรุณาลองใหม่อีกครั้ง' };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Admin "record a cash-advance request on behalf of an employee".
+//
+// Mirrors adminCreateLeaveRequest: for the worker whose phone is broken and
+// can't use LIFF, an admin keys in the request here. It lands as **Pending**
+// and flows through the SAME approve path (receipt upload + money-confirm in
+// the review modal), so the audit trail and money controls stay uniform.
+// Same guards as the worker submit: positive ≤2dp amount, ฿100k cap, and only
+// one Pending advance per employee at a time.
+// ---------------------------------------------------------------------------
+
+export type AdminCreateAdvanceResult =
+  | { ok: true; id: string }
+  | {
+      ok: false;
+      code:
+        | 'forbidden'
+        | 'employee-not-found'
+        | 'employee-archived'
+        | 'bad-amount'
+        | 'too-large'
+        | 'pending-exists'
+        | 'db-error';
+      message: string;
+    };
+
+type AdminCreateAdvanceInput = {
+  employeeId: string;
+  amount: number;
+};
+
+/** Same sanity cap as the worker LIFF submit (src/lib/advance/actions.ts). */
+const ADMIN_ADVANCE_MAX_AMOUNT = 100_000;
+
+export async function adminCreateCashAdvance(
+  input: AdminCreateAdvanceInput,
+): Promise<AdminCreateAdvanceResult> {
+  const { user } = await requirePermission('advance.approve');
+
+  const employee = await prisma.employee.findUnique({
+    where: { id: input.employeeId },
+    select: { id: true, archivedAt: true, status: true },
+  });
+  if (!employee) {
+    return { ok: false, code: 'employee-not-found', message: 'ไม่พบพนักงาน' };
+  }
+  if (employee.archivedAt || employee.status === 'Archived') {
+    return { ok: false, code: 'employee-archived', message: 'พนักงานคนนี้พ้นสภาพแล้ว' };
+  }
+
+  // Amount: positive, at most 2 decimal places (mirrors the worker submit).
+  if (
+    !Number.isFinite(input.amount) ||
+    input.amount <= 0 ||
+    Math.round(input.amount * 100) !== input.amount * 100
+  ) {
+    return {
+      ok: false,
+      code: 'bad-amount',
+      message: 'จำนวนเงินต้องเป็นตัวเลขบวก (สูงสุด 2 ตำแหน่งหลังจุด)',
+    };
+  }
+  if (input.amount > ADMIN_ADVANCE_MAX_AMOUNT) {
+    return {
+      ok: false,
+      code: 'too-large',
+      message: `ขอเบิกได้สูงสุด ฿${ADMIN_ADVANCE_MAX_AMOUNT.toLocaleString('th-TH')} ต่อครั้ง`,
+    };
+  }
+
+  // One Pending advance per employee — same rule the worker submit enforces.
+  const pending = await prisma.cashAdvance.findFirst({
+    where: { employeeId: employee.id, status: 'Pending' },
+    select: { id: true },
+  });
+  if (pending) {
+    return {
+      ok: false,
+      code: 'pending-exists',
+      message: 'พนักงานคนนี้มีคำขอเบิกที่รออนุมัติอยู่แล้ว',
+    };
+  }
+
+  const headerList = await headers();
+  const ip =
+    headerList.get('x-forwarded-for')?.split(',')[0]?.trim() ??
+    headerList.get('x-real-ip') ??
+    undefined;
+  const userAgent = headerList.get('user-agent') ?? undefined;
+
+  try {
+    const created = await prisma.cashAdvance.create({
+      data: {
+        employeeId: employee.id,
+        amount: new Prisma.Decimal(input.amount),
+        status: 'Pending',
+      },
+      select: { id: true },
+    });
+
+    auditLog({
+      actorId: user.id,
+      action: 'advance.admin-create',
+      entityType: 'CashAdvance',
+      entityId: created.id,
+      after: { employeeId: employee.id, amount: input.amount.toString() },
+      metadata: { ip, userAgent, source: 'admin-ui' },
+    });
+
+    return { ok: true, id: created.id };
+  } catch (err) {
+    console.error('[adminCreateCashAdvance] failed', err);
     return { ok: false, code: 'db-error', message: 'ระบบขัดข้อง กรุณาลองใหม่อีกครั้ง' };
   }
 }
