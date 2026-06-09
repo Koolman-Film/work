@@ -12,38 +12,27 @@
 
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { getLocale, getTranslations } from 'next-intl/server';
 import { requireRole } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
+import type { Locale } from '@/lib/i18n/config';
+import { formatDate, formatTime } from '@/lib/i18n/format';
 import { resolveStoredImageUrl } from '@/lib/storage/signed-urls';
 import { LeaveDetailActions } from './leave-detail-actions';
 
 type Params = Promise<{ id: string }>;
 
-const STATUS_LABEL: Record<string, { label: string; cls: string }> = {
-  Pending: { label: 'รออนุมัติ', cls: 'bg-amber-100 text-amber-800' },
-  Approved: { label: 'อนุมัติแล้ว', cls: 'bg-green-100 text-green-800' },
-  Rejected: { label: 'ไม่อนุมัติ', cls: 'bg-red-100 text-red-800' },
-  Cancelled: { label: 'ยกเลิก', cls: 'bg-gray-100 text-gray-700' },
+const STATUS_CLS: Record<string, string> = {
+  Pending: 'bg-amber-100 text-amber-800',
+  Approved: 'bg-green-100 text-green-800',
+  Rejected: 'bg-red-100 text-red-800',
+  Cancelled: 'bg-gray-100 text-gray-700',
 };
 
-function formatDate(d: Date): string {
-  return d.toLocaleDateString('th-TH', {
-    timeZone: 'UTC',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
-}
-
-function formatDateTime(d: Date): string {
-  return d.toLocaleString('th-TH', {
-    timeZone: 'Asia/Bangkok',
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+function formatDateTime(d: Date, locale: Locale): string {
+  const datePart = formatDate(d, locale);
+  const timePart = formatTime(d, locale);
+  return `${datePart} ${timePart}`;
 }
 
 export default async function LeaveDetailPage({ params }: { params: Params }) {
@@ -51,22 +40,26 @@ export default async function LeaveDetailPage({ params }: { params: Params }) {
   const { employee } = await requireRole(['Staff']);
   if (!employee) throw new Error('requireRole did not return Employee');
 
-  const row = await prisma.leaveRequest.findUnique({
-    where: { id },
-    select: {
-      id: true,
-      employeeId: true,
-      leaveType: { select: { name: true, isPaid: true } },
-      startDate: true,
-      endDate: true,
-      reason: true,
-      status: true,
-      reviewNote: true,
-      reviewedAt: true,
-      createdAt: true,
-      attachmentUrl: true,
-    },
-  });
+  const [row, t, locale] = await Promise.all([
+    prisma.leaveRequest.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        employeeId: true,
+        leaveType: { select: { name: true, isPaid: true } },
+        startDate: true,
+        endDate: true,
+        reason: true,
+        status: true,
+        reviewNote: true,
+        reviewedAt: true,
+        createdAt: true,
+        attachmentUrl: true,
+      },
+    }),
+    getTranslations('leave'),
+    getLocale(),
+  ]);
 
   if (!row) notFound();
   if (row.employeeId !== employee.id) notFound(); // not your request
@@ -75,42 +68,51 @@ export default async function LeaveDetailPage({ params }: { params: Params }) {
   // view-time so signed URLs always reflect a fresh TTL.
   const resolvedAttachmentUrl = await resolveStoredImageUrl(row.attachmentUrl);
 
-  const badge = STATUS_LABEL[row.status] ?? STATUS_LABEL.Pending;
+  const cls = STATUS_CLS[row.status] ?? STATUS_CLS.Pending;
+  const statusLabel = t(`status.${row.status}` as Parameters<typeof t>[0]);
 
   return (
     <main className="mx-auto max-w-md px-4 pt-8 pb-12">
       <header className="mb-6">
         <Link href="/liff/leave" className="text-sm text-gray-500 hover:text-gray-700">
-          ← กลับ
+          {t('detail.back')}
         </Link>
         <div className="mt-3 flex items-center justify-between gap-3">
-          <h1 className="text-2xl font-semibold text-gray-900">รายละเอียดคำขอลา</h1>
-          {badge && (
-            <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${badge.cls}`}>
-              {badge.label}
-            </span>
-          )}
+          <h1 className="text-2xl font-semibold text-gray-900">{t('detail.title')}</h1>
+          <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${cls}`}>
+            {statusLabel}
+          </span>
         </div>
       </header>
 
       <section className="space-y-1 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-        <DataRow label="ประเภท">
+        <DataRow label={t('detail.field.type')}>
           {row.leaveType.name}
-          {!row.leaveType.isPaid && <span className="ml-2 text-xs text-gray-500">(ไม่จ่ายเงิน)</span>}
+          {!row.leaveType.isPaid && (
+            <span className="ml-2 text-xs text-gray-500">{t('detail.unpaid')}</span>
+          )}
         </DataRow>
-        <DataRow label="ตั้งแต่">{formatDate(row.startDate)}</DataRow>
-        <DataRow label="ถึง">{formatDate(row.endDate)}</DataRow>
-        <DataRow label="ส่งเมื่อ">{formatDateTime(row.createdAt)}</DataRow>
+        <DataRow label={t('detail.field.from')}>
+          {formatDate(row.startDate, locale as Locale)}
+        </DataRow>
+        <DataRow label={t('detail.field.to')}>{formatDate(row.endDate, locale as Locale)}</DataRow>
+        <DataRow label={t('detail.field.submittedAt')}>
+          {formatDateTime(row.createdAt, locale as Locale)}
+        </DataRow>
       </section>
 
       <section className="mt-4 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">เหตุผล</h2>
+        <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">
+          {t('detail.reasonHeading')}
+        </h2>
         <p className="mt-2 whitespace-pre-wrap text-sm text-gray-800">{row.reason}</p>
       </section>
 
       {resolvedAttachmentUrl && (
         <section className="mt-4 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-          <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">ไฟล์แนบ</h2>
+          <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">
+            {t('detail.attachmentHeading')}
+          </h2>
           <a
             href={resolvedAttachmentUrl}
             target="_blank"
@@ -120,7 +122,7 @@ export default async function LeaveDetailPage({ params }: { params: Params }) {
             {/* biome-ignore lint/performance/noImgElement: signed-URL preview can't use next/image */}
             <img
               src={resolvedAttachmentUrl}
-              alt="ไฟล์แนบ"
+              alt={t('detail.attachmentAlt')}
               className="block h-auto w-full"
               loading="lazy"
             />
@@ -132,11 +134,13 @@ export default async function LeaveDetailPage({ params }: { params: Params }) {
       {row.reviewNote && (
         <section className="mt-4 rounded-2xl border border-gray-200 bg-gray-50 p-6">
           <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">
-            หมายเหตุจากแอดมิน
+            {t('detail.adminNoteHeading')}
           </h2>
           <p className="mt-2 whitespace-pre-wrap text-sm text-gray-800">{row.reviewNote}</p>
           {row.reviewedAt && (
-            <p className="mt-2 text-xs text-gray-400">{formatDateTime(row.reviewedAt)}</p>
+            <p className="mt-2 text-xs text-gray-400">
+              {formatDateTime(row.reviewedAt, locale as Locale)}
+            </p>
           )}
         </section>
       )}

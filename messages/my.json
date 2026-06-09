@@ -58,6 +58,92 @@
       "usePhoto": "ဤပုံကိုသုံးမည်"
     }
   },
+  "leave": {
+    "list": {
+      "title": "ကျွန်ုပ်၏ ခွင့်တောင်းချက်များ",
+      "count": "{n} ခု",
+      "newRequest": "+ တောင်းဆိုမှုသစ်",
+      "empty": "ခွင့်တောင်းချက် မရှိသေးပါ",
+      "firstRequest": "ပထမဆုံးတောင်းဆိုမှု ပေးပို့ပါ →",
+      "backToCheckin": "← Check-in သို့ ပြန်သွားရန်",
+      "teamCalendar": "အဖွဲ့ပြက္ခဒိန် ကြည့်ရန် →"
+    },
+    "status": {
+      "Pending": "စောင့်ဆိုင်းဆဲ",
+      "Approved": "အတည်ပြုပြီး",
+      "Rejected": "ငြင်းပယ်ခဲ့သည်",
+      "Cancelled": "ပယ်ဖျက်ပြီး"
+    },
+    "new": {
+      "title": "ခွင့်တောင်းချက် ပေးပို့ရန်",
+      "subtitle": "Admin ထံ တောင်းဆိုမှုပေးပို့ရန် အချက်အလက်များ ဖြည့်ပါ",
+      "field": {
+        "leaveType": "ခွင့်အမျိုးအစား",
+        "unit": "ခွင့်ပုံစံ",
+        "startDate": "စတင်သည့်နေ့",
+        "endDate": "ပြီးဆုံးသည့်နေ့",
+        "date": "ခွင့်ယူမည့်နေ့",
+        "startTime": "မှ",
+        "endTime": "ထိ",
+        "reason": "အကြောင်းပြချက်",
+        "attachment": "ပူးတွဲဖိုင်"
+      },
+      "attachmentHint": "(မဖြစ်မနေမဟုတ် — ဥပမာ ဆရာဝန်ထောက်ခံစာ)",
+      "attachmentDropLabel": "ဓာတ်ပုံ ပူးတွဲရန်",
+      "attachmentFormats": "JPG / PNG / WEBP",
+      "attachmentPreviewAlt": "ပူးတွဲဖိုင် နမူနာ",
+      "attachmentSizeHint": "{kb} KB ဖိသိပ်မဆောင်မီ",
+      "removeAttachment": "ဖျက်ရန်",
+      "unpaid": "(လစာမပါ)",
+      "quotaSuffix": " — ကိုတာ {n} ရက်",
+      "unpaidNote": "မှတ်ချက်: ဤ ခွင့်အမျိုးအစားသည် လစာ မပေးဘဲ ဖြစ်သည်",
+      "unit": {
+        "FullDay": "တစ်ရက်စာ",
+        "HalfMorning": "မနက်ပိုင်း",
+        "HalfAfternoon": "နေ့လည်ပိုင်း",
+        "Hourly": "နာရီအလိုက်"
+      },
+      "preview": "ခန့်မှန်းချက်:",
+      "previewNoSunday": "(တနင်္ဂနွေ မပါ)",
+      "previewAdminNote": "* Admin သည် အတည်ပြုသောအခါ ရုံးပိတ်ရက်များ ပြန်တွက်မည်",
+      "remaining": "ဤနှစ်ကျန်သည်:",
+      "exceedsBalance": "⚠️ ဤတောင်းဆိုမှုသည် ကျန်ရှိသောအခွင့်ထက် ကျော်လွန်သည် — Admin မှ အတည်ပြုချိန် ဆုံးဖြတ်မည်",
+      "reasonPlaceholder": "ဥပမာ — နာမကျန်းဆေးခန်းသွားရန်၊ မဂ်လာပွဲတက်ရန်",
+      "cancel": "မလုပ်တော့ပါ",
+      "submit": "တောင်းဆိုမှု ပေးပို့ရန်",
+      "submitting": "ပေးပို့နေသည်...",
+      "uploading": "တင်နေသည်...",
+      "error": {
+        "sessionExpired": "Session သက်တမ်းကုန်ပြီ — LINE တွင် ပြန်ဖွင့်ပါ",
+        "decodeFailed": "ဓာတ်ပုံဖိုင် ဖတ်မရပါ",
+        "uploadFailed": "ပူးတွဲဖိုင် တင်မအောင်မြင်ပါ: {message}",
+        "tooLarge": "ဖိုင်ကြီးလွန်းသည် — ထပ်မံကြိုးစားပါ",
+        "generic": "အမှားတစ်ခုဖြစ်ပေါ်သည်"
+      }
+    },
+    "detail": {
+      "title": "ခွင့်တောင်းချက် အသေးစိတ်",
+      "back": "← နောက်သို့",
+      "field": {
+        "type": "အမျိုးအစား",
+        "from": "မှ",
+        "to": "ထိ",
+        "submittedAt": "တင်သည့်ရက်"
+      },
+      "unpaid": "(လစာမပါ)",
+      "reasonHeading": "အကြောင်းပြချက်",
+      "attachmentHeading": "ပူးတွဲဖိုင်",
+      "attachmentAlt": "ပူးတွဲဖိုင်",
+      "adminNoteHeading": "Admin မှ မှတ်ချက်"
+    },
+    "actions": {
+      "cancelRequest": "တောင်းဆိုမှု ပယ်ဖျက်ရန်",
+      "confirmPrompt": "ဤတောင်းဆိုမှုကို ပယ်ဖျက်မည်ကို အတည်ပြုပါသလား?",
+      "irreversible": "ပြန်လည်မပြောင်းနိုင်ပါ",
+      "keepRequest": "မပယ်ဖျက်ပါ",
+      "confirmCancel": "အတည်ပြုပယ်ဖျက်မည်"
+    }
+  },
   "profile": {
     "personalInfo": "ကိုယ်ရေးအချက်အလက်",
     "jobInfo": "အလုပ်အချက်အလက်",
