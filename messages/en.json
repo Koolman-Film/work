@@ -13,5 +13,40 @@
     "advanceRejected": { "header": "Advance rejected", "subtitle": "Please contact an admin for more information", "alt": "❌ Your advance of ฿{amount} was rejected" },
     "disputeApproved": { "header": "Check-in confirmed", "subtitle": "An admin reviewed and confirmed the flagged check-in", "alt": "✅ Your check-in on {date} was confirmed" },
     "disputeRejected": { "header": "Check-in rejected", "subtitle": "An admin did not confirm that check-in", "alt": "❌ Your check-in on {date} was rejected" }
+  },
+  "profile": {
+    "personalInfo": "Personal information",
+    "jobInfo": "Employment information",
+    "contactAdminToEdit": "(Contact admin to change)",
+    "field": {
+      "nickname": "Nickname",
+      "phone": "Phone number",
+      "email": "Email (for HR contact)",
+      "address": "Address",
+      "emergencyContact": "Emergency contact"
+    },
+    "placeholder": {
+      "nickname": "e.g. Tong",
+      "phone": "082-345-6789",
+      "email": "you@example.com",
+      "address": "House no., street, sub-district, district, province, postal code",
+      "emergencyContact": "e.g. Mom 081-234-5678"
+    },
+    "hint": {
+      "phone": "e.g. 082-345-6789",
+      "emergencyContact": "Name + phone, e.g. 'Mom 081-234-5678'"
+    },
+    "readonly": {
+      "branch": "Branch",
+      "department": "Department",
+      "payType": "Pay type",
+      "baseSalary": "Base salary",
+      "startDate": "Start date"
+    },
+    "salaryType": { "Monthly": "Monthly", "Daily": "Daily", "Hourly": "Hourly" },
+    "save": "Save",
+    "saving": "Saving...",
+    "saved": "Saved ✓",
+    "backToCheckin": "← Back to check-in"
   }
 }

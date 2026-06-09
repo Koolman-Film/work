@@ -1,6 +1,41 @@
 {
   "_meta": {
     "locale": "zh-CN",
-    "note": "Simplified Chinese translations — pending translator. Falls back to en.json keys at runtime until populated."
+    "note": "Simplified Chinese — AI-DRAFT (profile namespace), pending native review. Other namespaces fall back to en/th until populated."
+  },
+  "profile": {
+    "personalInfo": "个人信息",
+    "jobInfo": "工作信息",
+    "contactAdminToEdit": "(如需修改请联系管理员)",
+    "field": {
+      "nickname": "昵称",
+      "phone": "电话号码",
+      "email": "邮箱（供HR联系）",
+      "address": "地址",
+      "emergencyContact": "紧急联系人"
+    },
+    "placeholder": {
+      "nickname": "例如：阿东",
+      "phone": "082-345-6789",
+      "email": "you@example.com",
+      "address": "门牌号、街道、分区、县区、府/省、邮政编码",
+      "emergencyContact": "例如：妈妈 081-234-5678"
+    },
+    "hint": {
+      "phone": "例如：082-345-6789",
+      "emergencyContact": "姓名 + 电话，例如『妈妈 081-234-5678』"
+    },
+    "readonly": {
+      "branch": "分店",
+      "department": "部门",
+      "payType": "薪资类型",
+      "baseSalary": "基本工资",
+      "startDate": "入职日期"
+    },
+    "salaryType": { "Monthly": "月薪", "Daily": "日薪", "Hourly": "时薪" },
+    "save": "保存",
+    "saving": "正在保存...",
+    "saved": "已保存 ✓",
+    "backToCheckin": "← 返回打卡页"
   }
 }
