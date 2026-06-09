@@ -3,6 +3,30 @@
     "locale": "zh-CN",
     "note": "Simplified Chinese — AI-DRAFT (profile namespace), pending native review. Other namespaces fall back to en/th until populated."
   },
+  "pair": {
+    "title": "绑定 LINE 账号",
+    "phase": {
+      "preparing": "正在准备连接 LINE...",
+      "signingIn": "正在使用 LINE 登录...",
+      "linking": "正在将您的账号绑定到 Koolman Work...",
+      "loading": "正在加载..."
+    },
+    "success": {
+      "title": "账号绑定成功",
+      "welcome": "欢迎，{name}",
+      "lastStep": "最后一步：将 Koolman Work 加为好友以接收通知",
+      "redirecting": "正在带您前往加好友页面..."
+    },
+    "error": {
+      "title": "无法绑定账号",
+      "notInLine": "请在 LINE 应用内打开此链接",
+      "noIdToken": "LINE 未返回身份信息 — 请重试",
+      "supabaseRejected": "身份验证被拒绝 — 请联系管理员",
+      "misconfigured": "系统尚未完成配置 — 请联系管理员",
+      "generic": "无法连接 LINE"
+    },
+    "retry": "重试"
+  },
   "checkin": {
     "greeting": "你好，{firstName} {lastName}",
     "dateLabel": "{date}",
@@ -244,7 +268,11 @@
       "baseSalary": "基本工资",
       "startDate": "入职日期"
     },
-    "salaryType": { "Monthly": "月薪", "Daily": "日薪", "Hourly": "时薪" },
+    "salaryType": {
+      "Monthly": "月薪",
+      "Daily": "日薪",
+      "Hourly": "时薪"
+    },
     "save": "保存",
     "saving": "正在保存...",
     "saved": "已保存 ✓",
