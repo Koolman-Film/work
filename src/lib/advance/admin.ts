@@ -22,6 +22,7 @@ import { auditLog, auditLogTx } from '@/lib/audit/log';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { sendNotification } from '@/lib/inngest/events';
+import { notifyAdminsInApp } from '@/lib/notifications/in-app-bell';
 
 /** Format Prisma.Decimal as a human-friendly currency string for Flex
  *  Message display. Stays in string form across the Inngest event
@@ -33,6 +34,16 @@ function formatAmount(d: { toString(): string }): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(n);
+}
+
+/** Bell display name — prefer nickname. Mirrors advance/actions.ts. */
+function employeeBellName(e: {
+  firstName: string;
+  lastName: string;
+  nickname: string | null;
+}): string {
+  if (e.nickname && e.nickname.trim().length > 0) return e.nickname;
+  return `${e.firstName} ${e.lastName}`.trim();
 }
 
 export type ApproveAdvanceResult =
@@ -286,7 +297,14 @@ export async function adminCreateCashAdvance(
 
   const employee = await prisma.employee.findUnique({
     where: { id: input.employeeId },
-    select: { id: true, archivedAt: true, status: true },
+    select: {
+      id: true,
+      archivedAt: true,
+      status: true,
+      firstName: true,
+      lastName: true,
+      nickname: true,
+    },
   });
   if (!employee) {
     return { ok: false, code: 'employee-not-found', message: 'ไม่พบพนักงาน' };
@@ -315,9 +333,11 @@ export async function adminCreateCashAdvance(
     };
   }
 
-  // One Pending advance per employee — same rule the worker submit enforces.
+  // One ACTIVE pending advance per employee — same rule the worker submit
+  // enforces. `deletedAt: null` so a voided pending doesn't falsely block.
+  // The DB-level partial unique index is the real guard against races.
   const pending = await prisma.cashAdvance.findFirst({
-    where: { employeeId: employee.id, status: 'Pending' },
+    where: { employeeId: employee.id, status: 'Pending', deletedAt: null },
     select: { id: true },
   });
   if (pending) {
@@ -354,8 +374,26 @@ export async function adminCreateCashAdvance(
       metadata: { ip, userAgent, source: 'admin-ui' },
     });
 
+    // Light up the admin bell so OTHER admins see the new Pending advance
+    // (the worker LIFF submit does the same). Fire-and-forget.
+    void notifyAdminsInApp({
+      kind: 'advance.submitted',
+      cashAdvanceId: created.id,
+      employeeName: employeeBellName(employee),
+      amount: formatAmount(input.amount),
+    });
+
     return { ok: true, id: created.id };
   } catch (err) {
+    // Lost the race for the one-pending slot (the partial unique index fired).
+    // Surface the friendly message rather than a generic db-error.
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+      return {
+        ok: false,
+        code: 'pending-exists',
+        message: 'พนักงานคนนี้มีคำขอเบิกที่รออนุมัติอยู่แล้ว',
+      };
+    }
     console.error('[adminCreateCashAdvance] failed', err);
     return { ok: false, code: 'db-error', message: 'ระบบขัดข้อง กรุณาลองใหม่อีกครั้ง' };
   }
