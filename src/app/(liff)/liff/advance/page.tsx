@@ -3,37 +3,25 @@
  */
 
 import Link from 'next/link';
+import { getLocale, getTranslations } from 'next-intl/server';
 import { calculateAdvanceBalance } from '@/lib/advance/balance';
 import { requireRole } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
+import type { Locale } from '@/lib/i18n/config';
+import { formatDate, formatMoney, formatTime } from '@/lib/i18n/format';
 import { BalanceCard } from './balance-card';
 
-const STATUS_LABEL: Record<string, { label: string; cls: string }> = {
-  Pending: { label: 'รออนุมัติ', cls: 'bg-amber-100 text-amber-800' },
-  Approved: { label: 'อนุมัติแล้ว', cls: 'bg-green-100 text-green-800' },
-  Rejected: { label: 'ไม่อนุมัติ', cls: 'bg-red-100 text-red-800' },
-  Cancelled: { label: 'ยกเลิก', cls: 'bg-gray-100 text-gray-700' },
+const STATUS_CLS: Record<string, string> = {
+  Pending: 'bg-amber-100 text-amber-800',
+  Approved: 'bg-green-100 text-green-800',
+  Rejected: 'bg-red-100 text-red-800',
+  Cancelled: 'bg-gray-100 text-gray-700',
 };
 
-function formatMoney(v: unknown): string {
-  const n = Number(v);
-  if (!Number.isFinite(n)) return '—';
-  return new Intl.NumberFormat('th-TH', {
-    style: 'currency',
-    currency: 'THB',
-    maximumFractionDigits: 2,
-  }).format(n);
-}
-
-function formatDateTime(d: Date): string {
-  return d.toLocaleString('th-TH', {
-    timeZone: 'Asia/Bangkok',
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+function formatDateTime(d: Date, locale: Locale): string {
+  const datePart = formatDate(d, locale);
+  const timePart = formatTime(d, locale);
+  return `${datePart} ${timePart}`;
 }
 
 export default async function LiffAdvanceListPage() {
@@ -44,7 +32,7 @@ export default async function LiffAdvanceListPage() {
   // (balance calc). The balance subset is everything Pending OR
   // Approved-but-not-deducted — those are the rows that count against
   // available salary. See src/lib/advance/balance.ts for rationale.
-  const [rows, reservedRows] = await Promise.all([
+  const [rows, reservedRows, t, locale] = await Promise.all([
     prisma.cashAdvance.findMany({
       // `deletedAt: null` is explicit defence-in-depth: the soft-delete client
       // extension already filters top-level reads, but the balance/history of
@@ -69,6 +57,8 @@ export default async function LiffAdvanceListPage() {
       },
       select: { status: true, amount: true },
     }),
+    getTranslations('advance'),
+    getLocale(),
   ]);
 
   const balance = calculateAdvanceBalance({
@@ -87,14 +77,14 @@ export default async function LiffAdvanceListPage() {
     <main className="mx-auto max-w-md px-4 pt-8 pb-12">
       <header className="mb-6 flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">คำขอเบิกของฉัน</h1>
-          <p className="mt-0.5 text-sm text-gray-500">{rows.length} รายการ</p>
+          <h1 className="text-2xl font-semibold text-gray-900">{t('list.title')}</h1>
+          <p className="mt-0.5 text-sm text-gray-500">{t('list.count', { n: rows.length })}</p>
         </div>
         <Link
           href="/liff/advance/new"
           className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-700"
         >
-          + ขอเบิก
+          {t('list.newRequest')}
         </Link>
       </header>
 
@@ -103,23 +93,23 @@ export default async function LiffAdvanceListPage() {
           is the question they're trying to answer, and the list is
           context. */}
       <div className="mb-6">
-        <BalanceCard balance={balance} />
+        <BalanceCard balance={balance} locale={locale as Locale} />
       </div>
 
       {rows.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-12 text-center">
-          <p className="text-sm text-gray-500">ยังไม่มีคำขอเบิก</p>
+          <p className="text-sm text-gray-500">{t('list.empty')}</p>
           <Link
             href="/liff/advance/new"
             className="mt-3 inline-block text-sm font-medium text-primary-700 hover:text-primary-800"
           >
-            ขอเบิกแรก →
+            {t('list.firstRequest')}
           </Link>
         </div>
       ) : (
         <ul className="space-y-2">
           {rows.map((r) => {
-            const badge = STATUS_LABEL[r.status] ?? STATUS_LABEL.Pending;
+            const cls = STATUS_CLS[r.status] ?? STATUS_CLS.Pending;
             return (
               <li key={r.id}>
                 <Link
@@ -129,20 +119,22 @@ export default async function LiffAdvanceListPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="text-lg font-semibold tabular-nums text-gray-900">
-                        {formatMoney(r.amount)}
+                        {formatMoney(r.amount.toString(), locale as Locale)}
                       </p>
                       <p className="mt-0.5 text-xs text-gray-500">
-                        ส่งเมื่อ {formatDateTime(r.requestedAt)}
+                        {t('list.submittedAt', {
+                          datetime: formatDateTime(r.requestedAt, locale as Locale),
+                        })}
                       </p>
                       {r.status === 'Approved' && r.isDeducted && (
-                        <p className="mt-1 text-[10px] text-gray-400">• หักจากเงินเดือนแล้ว</p>
+                        <p className="mt-1 text-[10px] text-gray-400">{t('list.deducted')}</p>
                       )}
                     </div>
-                    {badge && (
+                    {cls && (
                       <span
-                        className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${badge.cls}`}
+                        className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${cls}`}
                       >
-                        {badge.label}
+                        {t(`status.${r.status}`)}
                       </span>
                     )}
                   </div>
@@ -155,7 +147,7 @@ export default async function LiffAdvanceListPage() {
 
       <nav className="mt-8 flex justify-center text-xs">
         <Link href="/liff/check-in" className="text-gray-500 hover:text-gray-700">
-          ← กลับหน้าเช็คอิน
+          {t('list.backToCheckin')}
         </Link>
       </nav>
     </main>

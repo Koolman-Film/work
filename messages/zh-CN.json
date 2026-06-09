@@ -144,6 +144,77 @@
       "confirmCancel": "确认撤销"
     }
   },
+  "advance": {
+    "list": {
+      "title": "我的预支申请",
+      "count": "{n} 条",
+      "newRequest": "+ 申请预支",
+      "empty": "暂无预支申请",
+      "firstRequest": "提交第一条申请 →",
+      "backToCheckin": "← 返回打卡页",
+      "submittedAt": "{datetime} 提交",
+      "deducted": "• 已从工资中扣除"
+    },
+    "status": {
+      "Pending": "待审批",
+      "Approved": "已批准",
+      "Rejected": "已拒绝",
+      "Cancelled": "已取消"
+    },
+    "balance": {
+      "monthlyTitle": "可申请预支额度",
+      "available": "{amount}",
+      "fromBaseSalary": "基本工资 {amount}",
+      "ariaProgress": "已使用工资的 {pct}%",
+      "pending": "待审批",
+      "approvedNotDeducted": "已批准（待扣款）",
+      "overdrawnAlert": "⚠️ 预支超出工资上限 — 下次发薪将全额扣除，可能出现负数。如有疑问请联系管理员",
+      "autoDeductNote": "已批准的预支将在下次发薪时自动扣除",
+      "rateTitle": "您的薪资标准",
+      "ratePerDay": "每天",
+      "ratePerHour": "每小时",
+      "rateNote": "可申请金额取决于本期实际出勤天数/小时数，请联系管理员确认具体额度"
+    },
+    "new": {
+      "title": "申请工资预支",
+      "subtitle": "预支款项将在下次发薪时自动扣除",
+      "field": {
+        "amount": "金额（泰铢）"
+      },
+      "amountPlaceholder": "0.00",
+      "quickAmounts": "快速选择",
+      "note": "每次只能有一条待审批申请。如需再次申请，请等待管理员审批或先撤销当前申请",
+      "noteLabel": "注意：",
+      "cancel": "取消",
+      "submit": "提交申请",
+      "submitting": "提交中...",
+      "error": {
+        "invalidAmount": "请输入有效金额"
+      }
+    },
+    "detail": {
+      "title": "预支申请详情",
+      "back": "← 返回",
+      "amountLabel": "金额",
+      "field": {
+        "submittedAt": "提交时间",
+        "decidedAt": "审批时间",
+        "deductFromSalary": "工资扣款"
+      },
+      "deducted": "已扣除",
+      "notDeducted": "待扣款 — 下次发薪",
+      "receiptHeading": "收据",
+      "receiptAlt": "收据",
+      "receiptFullSize": "查看原图 →"
+    },
+    "actions": {
+      "cancelRequest": "撤销申请",
+      "confirmPrompt": "确认撤销此申请？",
+      "irreversible": "此操作不可撤销",
+      "keepRequest": "保留申请",
+      "confirmCancel": "确认撤销"
+    }
+  },
   "profile": {
     "personalInfo": "个人信息",
     "jobInfo": "工作信息",

@@ -144,6 +144,77 @@
       "confirmCancel": "ຢືນຢັນຍົກເລີກ"
     }
   },
+  "advance": {
+    "list": {
+      "title": "ການຂໍເງິນລ່ວງໜ້າຂອງຂ້ອຍ",
+      "count": "{n} ລາຍການ",
+      "newRequest": "+ ຂໍເງິນລ່ວງໜ້າ",
+      "empty": "ຍັງບໍ່ທັນມີຄຳຂໍເງິນລ່ວງໜ້າ",
+      "firstRequest": "ສົ່ງຄຳຂໍທຳອິດ →",
+      "backToCheckin": "← ກັບໄປໜ້າ Check-in",
+      "submittedAt": "ສົ່ງເມື່ອ {datetime}",
+      "deducted": "• ຫັກຈາກເງິນເດືອນແລ້ວ"
+    },
+    "status": {
+      "Pending": "ລໍຖ້າອະນຸມັດ",
+      "Approved": "ອະນຸມັດແລ້ວ",
+      "Rejected": "ບໍ່ອະນຸມັດ",
+      "Cancelled": "ຍົກເລີກ"
+    },
+    "balance": {
+      "monthlyTitle": "ຍອດເງິນທີ່ຂໍໄດ້",
+      "available": "{amount}",
+      "fromBaseSalary": "ຈາກເງິນເດືອນພື້ນຖານ {amount}",
+      "ariaProgress": "ຂໍໄປແລ້ວ {pct}% ຂອງເງິນເດືອນ",
+      "pending": "ລໍຖ້າອະນຸມັດ",
+      "approvedNotDeducted": "ອະນຸມັດແລ້ວ (ລໍຫັກ)",
+      "overdrawnAlert": "⚠️ ຂໍເກີນເງິນເດືອນ — ງວດໜ້າຈະຫັກຄົບແລະອາດຕິດລົບ ຕິດຕໍ່ Admin ຫາກມີຄຳຖາມ",
+      "autoDeductNote": "ຍອດທີ່ອະນຸມັດແລ້ວຈະຖືກຫັກຈາກເງິນເດືອນງວດຖັດໄປໂດຍອັດຕະໂນມັດ",
+      "rateTitle": "ອັດຕາເງິນເດືອນຂອງທ່ານ",
+      "ratePerDay": "ຕໍ່ວັນ",
+      "ratePerHour": "ຕໍ່ຊົ່ວໂມງ",
+      "rateNote": "ຍອດທີ່ຂໍໄດ້ຂຶ້ນກັບວັນ/ຊົ່ວໂມງທີ່ເຮັດວຽກໃນງວດນີ້ — ສອບຖາມ Admin ເພື່ອຍອດທີ່ແນ່ນອນ"
+    },
+    "new": {
+      "title": "ຂໍເງິນລ່ວງໜ້າ",
+      "subtitle": "ເງິນທີ່ຂໍຈະຖືກຫັກຈາກເງິນເດືອນງວດຖັດໄປໂດຍອັດຕະໂນມັດ",
+      "field": {
+        "amount": "ຈຳນວນເງິນ (ບາດ)"
+      },
+      "amountPlaceholder": "0.00",
+      "quickAmounts": "ທາງເລືອກດ່ວນ",
+      "note": "ສາມາດມີຄຳຂໍທີ່ລໍຖ້າໄດ້ຄັ້ງລະ 1 ລາຍການ ຫາກຕ້ອງການຂໍເພີ່ມຕ້ອງລໍໃຫ້ Admin ຕັດສິນຫຼືຍົກເລີກຄຳຂໍເກົ່າກ່ອນ",
+      "noteLabel": "ໝາຍເຫດ:",
+      "cancel": "ຍົກເລີກ",
+      "submit": "ສົ່ງຄຳຂໍ",
+      "submitting": "ກຳລັງສົ່ງ...",
+      "error": {
+        "invalidAmount": "ກະລຸນາກອກຈຳນວນເງິນທີ່ຖືກຕ້ອງ"
+      }
+    },
+    "detail": {
+      "title": "ລາຍລະອຽດຄຳຂໍເງິນລ່ວງໜ້າ",
+      "back": "← ກັບ",
+      "amountLabel": "ຈຳນວນເງິນ",
+      "field": {
+        "submittedAt": "ສົ່ງເມື່ອ",
+        "decidedAt": "ຕັດສິນໃຈເມື່ອ",
+        "deductFromSalary": "ຫັກຈາກເງິນເດືອນ"
+      },
+      "deducted": "ຫັກແລ້ວ",
+      "notDeducted": "ຍັງບໍ່ຫັກ — ງວດຖັດໄປ",
+      "receiptHeading": "ໃບຮັບເງິນ",
+      "receiptAlt": "ໃບຮັບເງິນ",
+      "receiptFullSize": "ເປີດຂະໜາດເຕັມ →"
+    },
+    "actions": {
+      "cancelRequest": "ຍົກເລີກຄຳຂໍ",
+      "confirmPrompt": "ຢືນຢັນການຍົກເລີກຄຳຂໍນີ້?",
+      "irreversible": "ບໍ່ສາມາດກັບຄືນໄດ້",
+      "keepRequest": "ບໍ່ຍົກເລີກ",
+      "confirmCancel": "ຢືນຢັນຍົກເລີກ"
+    }
+  },
   "profile": {
     "personalInfo": "ຂໍ້ມູນສ່ວນຕົວ",
     "jobInfo": "ຂໍ້ມູນວຽກ",

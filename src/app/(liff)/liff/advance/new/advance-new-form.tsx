@@ -16,12 +16,17 @@
  */
 
 import { useRouter } from 'next/navigation';
+import { useLocale, useTranslations } from 'next-intl';
 import { useState, useTransition } from 'react';
 import { submitCashAdvance } from '@/lib/advance/actions';
+import type { Locale } from '@/lib/i18n/config';
+import { formatMoney } from '@/lib/i18n/format';
 
 const QUICK_AMOUNTS = [500, 1_000, 2_000, 5_000];
 
 export function AdvanceNewForm() {
+  const t = useTranslations('advance');
+  const locale = useLocale() as Locale;
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [amount, setAmount] = useState<string>(''); // string for input fidelity
@@ -39,7 +44,7 @@ export function AdvanceNewForm() {
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (parsed == null) {
-      setError('กรุณากรอกจำนวนเงินที่ถูกต้อง');
+      setError(t('new.error.invalidAmount'));
       return;
     }
     setError(null);
@@ -55,8 +60,8 @@ export function AdvanceNewForm() {
 
   return (
     <main className="mx-auto max-w-md px-4 pt-8 pb-12">
-      <h1 className="text-2xl font-semibold text-gray-900">ขอเบิกเงินล่วงหน้า</h1>
-      <p className="mt-1 text-sm text-gray-500">เงินที่เบิกจะถูกหักจากเงินเดือนงวดถัดไปโดยอัตโนมัติ</p>
+      <h1 className="text-2xl font-semibold text-gray-900">{t('new.title')}</h1>
+      <p className="mt-1 text-sm text-gray-500">{t('new.subtitle')}</p>
 
       <form
         onSubmit={onSubmit}
@@ -70,7 +75,7 @@ export function AdvanceNewForm() {
 
         <div>
           <label htmlFor="amount" className="mb-1.5 block text-sm font-medium text-gray-700">
-            จำนวนเงิน (บาท) <span className="text-red-600">*</span>
+            {t('new.field.amount')} <span className="text-red-600">*</span>
           </label>
           <div className="relative">
             <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-lg font-medium text-gray-400">
@@ -80,7 +85,7 @@ export function AdvanceNewForm() {
               id="amount"
               inputMode="decimal"
               autoComplete="off"
-              placeholder="0.00"
+              placeholder={t('new.amountPlaceholder')}
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               required
@@ -91,7 +96,7 @@ export function AdvanceNewForm() {
 
         {/* Quick-amount chips */}
         <div>
-          <p className="mb-2 text-xs text-gray-500">ตัวเลือกด่วน</p>
+          <p className="mb-2 text-xs text-gray-500">{t('new.quickAmounts')}</p>
           <div className="flex flex-wrap gap-2">
             {QUICK_AMOUNTS.map((n) => (
               <button
@@ -101,15 +106,14 @@ export function AdvanceNewForm() {
                 disabled={pending}
                 className="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
               >
-                ฿{n.toLocaleString('th-TH')}
+                {formatMoney(n, locale)}
               </button>
             ))}
           </div>
         </div>
 
         <div className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
-          <strong>หมายเหตุ:</strong> สามารถมีคำขอที่รออนุมัติได้ครั้งละ 1 รายการ
-          หากต้องการขอเพิ่มต้องรอให้แอดมินตัดสินใจหรือยกเลิกคำขอเดิมก่อน
+          <strong>{t('new.noteLabel')}</strong> {t('new.note')}
         </div>
 
         <div className="flex items-center justify-between gap-2 pt-2">
@@ -119,14 +123,14 @@ export function AdvanceNewForm() {
             disabled={pending}
             className="text-sm text-gray-500 hover:text-gray-700"
           >
-            ยกเลิก
+            {t('new.cancel')}
           </button>
           <button
             type="submit"
             disabled={pending || parsed == null}
             className="rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {pending ? 'กำลังส่ง...' : 'ส่งคำขอ'}
+            {pending ? t('new.submitting') : t('new.submit')}
           </button>
         </div>
       </form>

@@ -8,39 +8,27 @@
 
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { getLocale, getTranslations } from 'next-intl/server';
 import { requireRole } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
+import type { Locale } from '@/lib/i18n/config';
+import { formatDate, formatMoney, formatTime } from '@/lib/i18n/format';
 import { resolveStoredImageUrl } from '@/lib/storage/signed-urls';
 import { AdvanceDetailActions } from './advance-detail-actions';
 
 type Params = Promise<{ id: string }>;
 
-const STATUS_LABEL: Record<string, { label: string; cls: string }> = {
-  Pending: { label: 'รออนุมัติ', cls: 'bg-amber-100 text-amber-800' },
-  Approved: { label: 'อนุมัติแล้ว', cls: 'bg-green-100 text-green-800' },
-  Rejected: { label: 'ไม่อนุมัติ', cls: 'bg-red-100 text-red-800' },
-  Cancelled: { label: 'ยกเลิก', cls: 'bg-gray-100 text-gray-700' },
+const STATUS_CLS: Record<string, string> = {
+  Pending: 'bg-amber-100 text-amber-800',
+  Approved: 'bg-green-100 text-green-800',
+  Rejected: 'bg-red-100 text-red-800',
+  Cancelled: 'bg-gray-100 text-gray-700',
 };
 
-function formatMoney(v: unknown): string {
-  const n = Number(v);
-  if (!Number.isFinite(n)) return '—';
-  return new Intl.NumberFormat('th-TH', {
-    style: 'currency',
-    currency: 'THB',
-    maximumFractionDigits: 2,
-  }).format(n);
-}
-
-function formatDateTime(d: Date): string {
-  return d.toLocaleString('th-TH', {
-    timeZone: 'Asia/Bangkok',
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+function formatDateTime(d: Date, locale: Locale): string {
+  const datePart = formatDate(d, locale);
+  const timePart = formatTime(d, locale);
+  return `${datePart} ${timePart}`;
 }
 
 export default async function AdvanceDetailPage({ params }: { params: Params }) {
@@ -48,19 +36,24 @@ export default async function AdvanceDetailPage({ params }: { params: Params }) 
   const { employee } = await requireRole(['Staff']);
   if (!employee) throw new Error('requireRole did not return Employee');
 
-  const row = await prisma.cashAdvance.findUnique({
-    where: { id },
-    select: {
-      id: true,
-      employeeId: true,
-      amount: true,
-      status: true,
-      requestedAt: true,
-      approvedAt: true,
-      receiptUrl: true,
-      isDeducted: true,
-    },
-  });
+  const [row, t, locale] = await Promise.all([
+    prisma.cashAdvance.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        employeeId: true,
+        amount: true,
+        status: true,
+        requestedAt: true,
+        approvedAt: true,
+        receiptUrl: true,
+        isDeducted: true,
+      },
+    }),
+    getTranslations('advance'),
+    getLocale(),
+  ]);
+
   if (!row) notFound();
   if (row.employeeId !== employee.id) notFound();
 
@@ -69,40 +62,46 @@ export default async function AdvanceDetailPage({ params }: { params: Params }) 
   // pass-through in the second.
   const resolvedReceiptUrl = await resolveStoredImageUrl(row.receiptUrl);
 
-  const badge = STATUS_LABEL[row.status] ?? STATUS_LABEL.Pending;
+  const cls = STATUS_CLS[row.status] ?? STATUS_CLS.Pending;
 
   return (
     <main className="mx-auto max-w-md px-4 pt-8 pb-12">
       <header className="mb-6">
         <Link href="/liff/advance" className="text-sm text-gray-500 hover:text-gray-700">
-          ← กลับ
+          {t('detail.back')}
         </Link>
         <div className="mt-3 flex items-center justify-between gap-3">
-          <h1 className="text-2xl font-semibold text-gray-900">รายละเอียดคำขอเบิก</h1>
-          {badge && (
-            <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${badge.cls}`}>
-              {badge.label}
+          <h1 className="text-2xl font-semibold text-gray-900">{t('detail.title')}</h1>
+          {cls && (
+            <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${cls}`}>
+              {t(`status.${row.status}`)}
             </span>
           )}
         </div>
       </header>
 
       <section className="rounded-2xl border border-gray-200 bg-white p-6 text-center shadow-sm">
-        <p className="text-xs text-gray-500">จำนวนเงิน</p>
+        <p className="text-xs text-gray-500">{t('detail.amountLabel')}</p>
         <p className="mt-2 text-3xl font-bold tabular-nums text-gray-900">
-          {formatMoney(row.amount)}
+          {formatMoney(row.amount.toString(), locale as Locale)}
         </p>
       </section>
 
       <section className="mt-4 space-y-1 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-        <DataRow label="ส่งเมื่อ">{formatDateTime(row.requestedAt)}</DataRow>
-        {row.approvedAt && <DataRow label="ตัดสินใจเมื่อ">{formatDateTime(row.approvedAt)}</DataRow>}
+        <DataRow label={t('detail.field.submittedAt')}>
+          {formatDateTime(row.requestedAt, locale as Locale)}
+        </DataRow>
+        {row.approvedAt && (
+          <DataRow label={t('detail.field.decidedAt')}>
+            {formatDateTime(row.approvedAt, locale as Locale)}
+          </DataRow>
+        )}
         {row.status === 'Approved' && (
-          <DataRow label="หักจากเงินเดือน">
+          <DataRow label={t('detail.field.deductFromSalary')}>
             {row.isDeducted ? (
-              <span className="text-gray-700">หักแล้ว</span>
+              <span className="text-gray-700">{t('detail.deducted')}</span>
             ) : (
-              <span className="text-amber-700">ยังไม่หัก — งวดถัดไป</span>
+              <span className="text-amber-700">{t('detail.notDeducted')}</span>
             )}
           </DataRow>
         )}
@@ -110,7 +109,9 @@ export default async function AdvanceDetailPage({ params }: { params: Params }) 
 
       {resolvedReceiptUrl && (
         <section className="mt-4 rounded-2xl border border-gray-200 bg-gray-50 p-6">
-          <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">ใบเสร็จ</h2>
+          <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">
+            {t('detail.receiptHeading')}
+          </h2>
           <a
             href={resolvedReceiptUrl}
             target="_blank"
@@ -120,7 +121,7 @@ export default async function AdvanceDetailPage({ params }: { params: Params }) 
             {/* biome-ignore lint/performance/noImgElement: signed-URL preview can't use next/image (short TTL + external storage origin) */}
             <img
               src={resolvedReceiptUrl}
-              alt="ใบเสร็จ"
+              alt={t('detail.receiptAlt')}
               className="block h-auto w-full"
               loading="lazy"
             />
@@ -131,7 +132,7 @@ export default async function AdvanceDetailPage({ params }: { params: Params }) 
             rel="noopener noreferrer"
             className="mt-2 inline-block text-xs text-primary-700 underline hover:text-primary-800"
           >
-            เปิดเต็มขนาด →
+            {t('detail.receiptFullSize')}
           </a>
         </section>
       )}
