@@ -69,6 +69,92 @@
       "usePhoto": "Use this photo"
     }
   },
+  "leave": {
+    "list": {
+      "title": "My leave requests",
+      "count": "{n} requests",
+      "newRequest": "+ New request",
+      "empty": "No leave requests yet",
+      "firstRequest": "Submit your first request →",
+      "backToCheckin": "← Back to check-in",
+      "teamCalendar": "View team calendar →"
+    },
+    "status": {
+      "Pending": "Pending",
+      "Approved": "Approved",
+      "Rejected": "Rejected",
+      "Cancelled": "Cancelled"
+    },
+    "new": {
+      "title": "Submit leave request",
+      "subtitle": "Fill in all details to send your request to admin",
+      "field": {
+        "leaveType": "Leave type",
+        "unit": "Leave duration",
+        "startDate": "Start date",
+        "endDate": "End date",
+        "date": "Leave date",
+        "startTime": "From",
+        "endTime": "To",
+        "reason": "Reason",
+        "attachment": "Attachment"
+      },
+      "attachmentHint": "(optional — e.g. medical certificate)",
+      "attachmentDropLabel": "Attach image",
+      "attachmentFormats": "JPG / PNG / WEBP",
+      "attachmentPreviewAlt": "Attachment preview",
+      "attachmentSizeHint": "{kb} KB before compression",
+      "removeAttachment": "Remove",
+      "unpaid": "(unpaid)",
+      "quotaSuffix": " — quota {n} days",
+      "unpaidNote": "Note: this leave type is unpaid",
+      "unit": {
+        "FullDay": "Full day",
+        "HalfMorning": "Half morning",
+        "HalfAfternoon": "Half afternoon",
+        "Hourly": "Hourly"
+      },
+      "preview": "Estimate:",
+      "previewNoSunday": "(Sundays excluded)",
+      "previewAdminNote": "* Admin will recalculate including holidays at approval",
+      "remaining": "Remaining this year:",
+      "exceedsBalance": "⚠️ This request exceeds your remaining balance — admin will review at approval",
+      "reasonPlaceholder": "e.g. sick leave to see a doctor, attending a relative's wedding",
+      "cancel": "Cancel",
+      "submit": "Submit request",
+      "submitting": "Submitting...",
+      "uploading": "Uploading...",
+      "error": {
+        "sessionExpired": "Session expired — please re-open in LINE",
+        "decodeFailed": "Could not read the image file",
+        "uploadFailed": "Attachment upload failed: {message}",
+        "tooLarge": "File is too large, please try again",
+        "generic": "An error occurred"
+      }
+    },
+    "detail": {
+      "title": "Leave request details",
+      "back": "← Back",
+      "field": {
+        "type": "Type",
+        "from": "From",
+        "to": "To",
+        "submittedAt": "Submitted"
+      },
+      "unpaid": "(unpaid)",
+      "reasonHeading": "Reason",
+      "attachmentHeading": "Attachment",
+      "attachmentAlt": "Attachment",
+      "adminNoteHeading": "Note from admin"
+    },
+    "actions": {
+      "cancelRequest": "Cancel request",
+      "confirmPrompt": "Confirm cancellation of this request?",
+      "irreversible": "This cannot be undone",
+      "keepRequest": "Keep request",
+      "confirmCancel": "Yes, cancel"
+    }
+  },
   "profile": {
     "personalInfo": "Personal information",
     "jobInfo": "Employment information",

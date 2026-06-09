@@ -58,6 +58,92 @@
       "usePhoto": "ໃຊ້ຮູບນີ້"
     }
   },
+  "leave": {
+    "list": {
+      "title": "ການຂໍລາພັກຂອງຂ້ອຍ",
+      "count": "{n} ລາຍການ",
+      "newRequest": "+ ສົ່ງຄຳຂໍ",
+      "empty": "ຍັງບໍ່ທັນມີຄຳຂໍລາພັກ",
+      "firstRequest": "ສົ່ງຄຳຂໍທຳອິດ →",
+      "backToCheckin": "← ກັບໄປໜ້າ Check-in",
+      "teamCalendar": "ເບິ່ງປະຕິທິນທີມ →"
+    },
+    "status": {
+      "Pending": "ລໍຖ້າອະນຸມັດ",
+      "Approved": "ອະນຸມັດແລ້ວ",
+      "Rejected": "ບໍ່ອະນຸມັດ",
+      "Cancelled": "ຍົກເລີກ"
+    },
+    "new": {
+      "title": "ສົ່ງຄຳຂໍລາພັກ",
+      "subtitle": "ກະລຸນາຕື່ມຂໍ້ມູນໃຫ້ຄົບເພື່ອສົ່ງໄປຫາ Admin",
+      "field": {
+        "leaveType": "ປະເພດການລາ",
+        "unit": "ຮູບແບບການລາ",
+        "startDate": "ວັນເລີ່ມຕົ້ນ",
+        "endDate": "ວັນສິ້ນສຸດ",
+        "date": "ວັນທີ່ລາ",
+        "startTime": "ຕັ້ງແຕ່",
+        "endTime": "ຈົນຮອດ",
+        "reason": "ເຫດຜົນ",
+        "attachment": "ໄຟລ໌ແນບ"
+      },
+      "attachmentHint": "(ບໍ່ບັງຄັບ — ເຊັ່ນ ໃບຮັບຮອງແພດ)",
+      "attachmentDropLabel": "ແນບຮູບພາບ",
+      "attachmentFormats": "JPG / PNG / WEBP",
+      "attachmentPreviewAlt": "ຕົວຢ່າງໄຟລ໌ແນບ",
+      "attachmentSizeHint": "{kb} KB ກ່ອນການອັດ",
+      "removeAttachment": "ລຶບ",
+      "unpaid": "(ບໍ່ໄດ້ຮັບເງິນ)",
+      "quotaSuffix": " — ໂຄຕ້າ {n} ວັນ",
+      "unpaidNote": "ໝາຍເຫດ: ການລານີ້ບໍ່ໄດ້ຮັບຄ່າຈ້າງ",
+      "unit": {
+        "FullDay": "ເຕັມມື້",
+        "HalfMorning": "ເຄິ່ງເຊົ້າ",
+        "HalfAfternoon": "ເຄິ່ງບ່າຍ",
+        "Hourly": "ລາຍຊົ່ວໂມງ"
+      },
+      "preview": "ປະມານການ:",
+      "previewNoSunday": "(ບໍ່ນັບວັນອາທິດ)",
+      "previewAdminNote": "* Admin ຈະຄຳນວນລວມວັນຫຍຸດອີກຄັ້ງເມື່ອອະນຸມັດ",
+      "remaining": "ຍັງເຫຼືອປີນີ້:",
+      "exceedsBalance": "⚠️ ຄຳຂໍນີ້ເກີນສິດທິ໌ທີ່ຍັງເຫຼືອ — Admin ຈະພິຈາລະນາເມື່ອອະນຸມັດ",
+      "reasonPlaceholder": "ເຊັ່ນ ລາປ່ວຍໄປຫາໝໍ, ລາໄປງານແຕ່ງງານ",
+      "cancel": "ຍົກເລີກ",
+      "submit": "ສົ່ງຄຳຂໍ",
+      "submitting": "ກຳລັງສົ່ງ...",
+      "uploading": "ກຳລັງໂຫລດ...",
+      "error": {
+        "sessionExpired": "Session ໝົດອາຍຸ — ກະລຸນາເປີດ LINE ໃໝ່",
+        "decodeFailed": "ອ່ານໄຟລ໌ຮູບບໍ່ໄດ້",
+        "uploadFailed": "ໂຫລດໄຟລ໌ແນບບໍ່ສຳເລັດ: {message}",
+        "tooLarge": "ໄຟລ໌ໃຫຍ່ເກີນໄປ ກະລຸນາລອງໃໝ່",
+        "generic": "ເກີດຂໍ້ຜິດພາດ"
+      }
+    },
+    "detail": {
+      "title": "ລາຍລະອຽດຄຳຂໍລາພັກ",
+      "back": "← ກັບ",
+      "field": {
+        "type": "ປະເພດ",
+        "from": "ຕັ້ງແຕ່",
+        "to": "ຈົນຮອດ",
+        "submittedAt": "ສົ່ງເມື່ອ"
+      },
+      "unpaid": "(ບໍ່ໄດ້ຮັບເງິນ)",
+      "reasonHeading": "ເຫດຜົນ",
+      "attachmentHeading": "ໄຟລ໌ແນບ",
+      "attachmentAlt": "ໄຟລ໌ແນບ",
+      "adminNoteHeading": "ໝາຍເຫດຈາກ Admin"
+    },
+    "actions": {
+      "cancelRequest": "ຍົກເລີກຄຳຂໍ",
+      "confirmPrompt": "ຢືນຢັນການຍົກເລີກຄຳຂໍນີ້?",
+      "irreversible": "ບໍ່ສາມາດກັບຄືນໄດ້",
+      "keepRequest": "ບໍ່ຍົກເລີກ",
+      "confirmCancel": "ຢືນຢັນຍົກເລີກ"
+    }
+  },
   "profile": {
     "personalInfo": "ຂໍ້ມູນສ່ວນຕົວ",
     "jobInfo": "ຂໍ້ມູນວຽກ",

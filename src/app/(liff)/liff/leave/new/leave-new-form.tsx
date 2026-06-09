@@ -12,6 +12,7 @@
  */
 
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { submitLeaveRequest } from '@/lib/leave/actions';
 import {
@@ -46,6 +47,7 @@ type Props = {
 
 export function LeaveNewForm({ leaveTypes, minDate, leaveConfig, remainingByType }: Props) {
   const router = useRouter();
+  const t = useTranslations('leave');
   const [pending, startTransition] = useTransition();
   const [leaveTypeId, setLeaveTypeId] = useState<string>(leaveTypes[0]?.id ?? '');
   const [unit, setUnit] = useState<LeaveUnit>('FullDay');
@@ -74,20 +76,20 @@ export function LeaveNewForm({ leaveTypes, minDate, leaveConfig, remainingByType
     if (attachmentInputRef.current) attachmentInputRef.current.value = '';
   }
 
-  const selectedType = leaveTypes.find((t) => t.id === leaveTypeId);
+  const selectedType = leaveTypes.find((tp) => tp.id === leaveTypeId);
 
   // Units the selected type permits — the picker only offers these. Memoized
   // so it's a stable dependency for the reset effect below.
   const allowedUnits = useMemo<{ value: LeaveUnit; label: string }[]>(() => {
     const units: { value: LeaveUnit; label: string }[] = [];
-    if (selectedType?.allowFullDay) units.push({ value: 'FullDay', label: 'เต็มวัน' });
+    if (selectedType?.allowFullDay) units.push({ value: 'FullDay', label: t('new.unit.FullDay') });
     if (selectedType?.allowHalfDay) {
-      units.push({ value: 'HalfMorning', label: 'ครึ่งเช้า' });
-      units.push({ value: 'HalfAfternoon', label: 'ครึ่งบ่าย' });
+      units.push({ value: 'HalfMorning', label: t('new.unit.HalfMorning') });
+      units.push({ value: 'HalfAfternoon', label: t('new.unit.HalfAfternoon') });
     }
-    if (selectedType?.allowHourly) units.push({ value: 'Hourly', label: 'รายชั่วโมง' });
+    if (selectedType?.allowHourly) units.push({ value: 'Hourly', label: t('new.unit.Hourly') });
     return units;
-  }, [selectedType]);
+  }, [selectedType, t]);
 
   // Snap `unit` to the first allowed unit whenever the selected type changes,
   // so the picker never shows a disallowed unit.
@@ -133,7 +135,7 @@ export function LeaveNewForm({ leaveTypes, minDate, leaveConfig, remainingByType
           const supabase = createClient();
           const { data: authData } = await supabase.auth.getUser();
           if (!authData.user) {
-            setError('เซสชันหมดอายุ — กรุณาเปิด LINE ใหม่อีกครั้ง');
+            setError(t('new.error.sessionExpired'));
             return;
           }
           const compressed = await compressToJpeg(attachmentFile);
@@ -159,10 +161,10 @@ export function LeaveNewForm({ leaveTypes, minDate, leaveConfig, remainingByType
       } catch (err) {
         const message =
           typeof err === 'object' && err !== null && 'kind' in err
-            ? attachErrMessage(err as { kind: string; message?: string })
+            ? attachErrMessage(err as { kind: string; message?: string }, t)
             : err instanceof Error
               ? err.message
-              : 'เกิดข้อผิดพลาด';
+              : t('new.error.generic');
         setError(message);
       }
     });
@@ -179,8 +181,8 @@ export function LeaveNewForm({ leaveTypes, minDate, leaveConfig, remainingByType
 
   return (
     <main className="mx-auto max-w-md px-4 pt-8 pb-12">
-      <h1 className="text-2xl font-semibold text-gray-900">ส่งคำขอลา</h1>
-      <p className="mt-1 text-sm text-gray-500">กรอกข้อมูลให้ครบเพื่อส่งคำขอไปยังแอดมิน</p>
+      <h1 className="text-2xl font-semibold text-gray-900">{t('new.title')}</h1>
+      <p className="mt-1 text-sm text-gray-500">{t('new.subtitle')}</p>
 
       <form
         onSubmit={onSubmit}
@@ -195,7 +197,7 @@ export function LeaveNewForm({ leaveTypes, minDate, leaveConfig, remainingByType
         {/* Leave type */}
         <div>
           <label htmlFor="leaveTypeId" className="mb-1.5 block text-sm font-medium text-gray-700">
-            ประเภทการลา <span className="text-red-600">*</span>
+            {t('new.field.leaveType')} <span className="text-red-600">*</span>
           </label>
           <select
             id="leaveTypeId"
@@ -204,23 +206,25 @@ export function LeaveNewForm({ leaveTypes, minDate, leaveConfig, remainingByType
             required
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
           >
-            {leaveTypes.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-                {t.isPaid ? '' : ' (ไม่จ่ายเงิน)'}
-                {t.annualQuota != null ? ` — โควต้า ${t.annualQuota} วัน` : ''}
+            {leaveTypes.map((tp) => (
+              <option key={tp.id} value={tp.id}>
+                {tp.name}
+                {tp.isPaid ? '' : ` ${t('new.unpaid')}`}
+                {tp.annualQuota != null ? t('new.quotaSuffix', { n: tp.annualQuota }) : ''}
               </option>
             ))}
           </select>
           {selectedType && !selectedType.isPaid && (
-            <p className="mt-1 text-xs text-amber-700">หมายเหตุ: การลานี้ไม่ได้รับค่าจ้าง</p>
+            <p className="mt-1 text-xs text-amber-700">{t('new.unpaidNote')}</p>
           )}
         </div>
 
         {/* Unit (granularity) — only offered when the type allows >1 option */}
         {allowedUnits.length > 1 && (
           <div>
-            <span className="mb-1.5 block text-sm font-medium text-gray-700">รูปแบบการลา</span>
+            <span className="mb-1.5 block text-sm font-medium text-gray-700">
+              {t('new.field.unit')}
+            </span>
             <div className="flex flex-wrap gap-2">
               {allowedUnits.map((u) => (
                 <button
@@ -245,7 +249,7 @@ export function LeaveNewForm({ leaveTypes, minDate, leaveConfig, remainingByType
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label htmlFor="startDate" className="mb-1.5 block text-sm font-medium text-gray-700">
-                วันเริ่มต้น <span className="text-red-600">*</span>
+                {t('new.field.startDate')} <span className="text-red-600">*</span>
               </label>
               <input
                 id="startDate"
@@ -263,7 +267,7 @@ export function LeaveNewForm({ leaveTypes, minDate, leaveConfig, remainingByType
             </div>
             <div>
               <label htmlFor="endDate" className="mb-1.5 block text-sm font-medium text-gray-700">
-                วันสิ้นสุด <span className="text-red-600">*</span>
+                {t('new.field.endDate')} <span className="text-red-600">*</span>
               </label>
               <input
                 id="endDate"
@@ -279,7 +283,7 @@ export function LeaveNewForm({ leaveTypes, minDate, leaveConfig, remainingByType
         ) : (
           <div>
             <label htmlFor="startDate" className="mb-1.5 block text-sm font-medium text-gray-700">
-              วันที่ลา <span className="text-red-600">*</span>
+              {t('new.field.date')} <span className="text-red-600">*</span>
             </label>
             <input
               id="startDate"
@@ -298,7 +302,7 @@ export function LeaveNewForm({ leaveTypes, minDate, leaveConfig, remainingByType
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label htmlFor="startTime" className="mb-1.5 block text-sm font-medium text-gray-700">
-                ตั้งแต่ <span className="text-red-600">*</span>
+                {t('new.field.startTime')} <span className="text-red-600">*</span>
               </label>
               <input
                 id="startTime"
@@ -311,7 +315,7 @@ export function LeaveNewForm({ leaveTypes, minDate, leaveConfig, remainingByType
             </div>
             <div>
               <label htmlFor="endTime" className="mb-1.5 block text-sm font-medium text-gray-700">
-                ถึง <span className="text-red-600">*</span>
+                {t('new.field.endTime')} <span className="text-red-600">*</span>
               </label>
               <input
                 id="endTime"
@@ -328,13 +332,13 @@ export function LeaveNewForm({ leaveTypes, minDate, leaveConfig, remainingByType
         {/* Charged-amount preview (days + hours) */}
         {chargePreview != null && (
           <p className="rounded-md bg-primary-50 px-3 py-2 text-xs text-primary-800">
-            ประมาณการ: <strong>{formatDaysHours(chargePreview, leaveConfig)}</strong>
+            {t('new.preview')} <strong>{formatDaysHours(chargePreview, leaveConfig)}</strong>
             {unit === 'FullDay' && (
               <>
                 {' '}
-                <span className="text-primary-600">(ไม่นับวันอาทิตย์)</span>
+                <span className="text-primary-600">{t('new.previewNoSunday')}</span>
                 <span className="block text-[10px] text-primary-600/80">
-                  * แอดมินจะคำนวณรวมวันหยุดอีกครั้งเมื่ออนุมัติ
+                  {t('new.previewAdminNote')}
                 </span>
               </>
             )}
@@ -344,19 +348,19 @@ export function LeaveNewForm({ leaveTypes, minDate, leaveConfig, remainingByType
         {/* Remaining balance + over-balance soft-warn */}
         {remaining != null && (
           <p className="text-xs text-gray-500">
-            คงเหลือปีนี้: <strong>{formatDaysHours(remaining, leaveConfig)}</strong>
+            {t('new.remaining')} <strong>{formatDaysHours(remaining, leaveConfig)}</strong>
           </p>
         )}
         {exceeds && (
           <p className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
-            ⚠️ คำขอนี้เกินสิทธิคงเหลือ — แอดมินจะพิจารณาอีกครั้งเมื่ออนุมัติ
+            {t('new.exceedsBalance')}
           </p>
         )}
 
         {/* Reason */}
         <div>
           <label htmlFor="reason" className="mb-1.5 block text-sm font-medium text-gray-700">
-            เหตุผล <span className="text-red-600">*</span>
+            {t('new.field.reason')} <span className="text-red-600">*</span>
           </label>
           <textarea
             id="reason"
@@ -366,7 +370,7 @@ export function LeaveNewForm({ leaveTypes, minDate, leaveConfig, remainingByType
             minLength={4}
             maxLength={500}
             required
-            placeholder="เช่น ลาป่วยไปหาหมอ, ลาไปงานแต่งงานญาติ"
+            placeholder={t('new.reasonPlaceholder')}
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
           />
           <p className="mt-1 text-right text-[10px] text-gray-400">{reason.length}/500</p>
@@ -375,7 +379,8 @@ export function LeaveNewForm({ leaveTypes, minDate, leaveConfig, remainingByType
         {/* Optional attachment — typically a medical certificate */}
         <div>
           <label htmlFor="attachment" className="mb-1.5 block text-sm font-medium text-gray-700">
-            ไฟล์แนบ <span className="text-gray-400">(ไม่บังคับ — เช่น ใบรับรองแพทย์)</span>
+            {t('new.field.attachment')}{' '}
+            <span className="text-gray-400">{t('new.attachmentHint')}</span>
           </label>
 
           {!attachmentPreviewUrl ? (
@@ -397,21 +402,23 @@ export function LeaveNewForm({ leaveTypes, minDate, leaveConfig, remainingByType
                   d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"
                 />
               </svg>
-              <span className="mt-2 font-medium text-gray-700">แนบรูปภาพ</span>
-              <span className="text-xs">JPG / PNG / WEBP</span>
+              <span className="mt-2 font-medium text-gray-700">{t('new.attachmentDropLabel')}</span>
+              <span className="text-xs">{t('new.attachmentFormats')}</span>
             </label>
           ) : (
             <div className="flex items-start gap-3 rounded-lg border border-gray-200 bg-white p-3">
               {/* biome-ignore lint/performance/noImgElement: object-URL preview can't use next/image */}
               <img
                 src={attachmentPreviewUrl}
-                alt="ตัวอย่างไฟล์แนบ"
+                alt={t('new.attachmentPreviewAlt')}
                 className="h-20 w-20 rounded object-cover"
               />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-xs font-medium text-gray-900">{attachmentFile?.name}</p>
                 <p className="mt-0.5 text-[10px] text-gray-500">
-                  {attachmentFile ? `${Math.round(attachmentFile.size / 1024)} KB ก่อนบีบอัด` : ''}
+                  {attachmentFile
+                    ? t('new.attachmentSizeHint', { kb: Math.round(attachmentFile.size / 1024) })
+                    : ''}
                 </p>
                 <button
                   type="button"
@@ -419,7 +426,7 @@ export function LeaveNewForm({ leaveTypes, minDate, leaveConfig, remainingByType
                   disabled={pending}
                   className="mt-1 text-[11px] text-red-600 hover:text-red-700"
                 >
-                  ลบ
+                  {t('new.removeAttachment')}
                 </button>
               </div>
             </div>
@@ -442,14 +449,18 @@ export function LeaveNewForm({ leaveTypes, minDate, leaveConfig, remainingByType
             disabled={pending}
             className="text-sm text-gray-500 hover:text-gray-700"
           >
-            ยกเลิก
+            {t('new.cancel')}
           </button>
           <button
             type="submit"
             disabled={submitDisabled}
             className="rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {pending ? (attachmentFile ? 'กำลังอัปโหลด...' : 'กำลังส่ง...') : 'ส่งคำขอ'}
+            {pending
+              ? attachmentFile
+                ? t('new.uploading')
+                : t('new.submitting')
+              : t('new.submit')}
           </button>
         </div>
       </form>
@@ -457,15 +468,18 @@ export function LeaveNewForm({ leaveTypes, minDate, leaveConfig, remainingByType
   );
 }
 
-function attachErrMessage(e: { kind: string; message?: string }): string {
+function attachErrMessage(
+  e: { kind: string; message?: string },
+  t: ReturnType<typeof useTranslations<'leave'>>,
+): string {
   switch (e.kind) {
     case 'decode-failed':
-      return 'อ่านไฟล์รูปไม่ได้';
+      return t('new.error.decodeFailed');
     case 'upload-failed':
-      return `อัปโหลดไฟล์แนบไม่สำเร็จ: ${e.message ?? ''}`;
+      return t('new.error.uploadFailed', { message: e.message ?? '' });
     case 'too-large-after-compress':
-      return 'ไฟล์ใหญ่เกินไป กรุณาลองใหม่';
+      return t('new.error.tooLarge');
     default:
-      return 'เกิดข้อผิดพลาด';
+      return t('new.error.generic');
   }
 }

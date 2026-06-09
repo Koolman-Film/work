@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useState, useTransition } from 'react';
 import { cancelLeaveRequest } from '@/lib/leave/actions';
 
@@ -15,6 +16,7 @@ import { cancelLeaveRequest } from '@/lib/leave/actions';
 
 export function LeaveDetailActions({ leaveRequestId }: { leaveRequestId: string }) {
   const router = useRouter();
+  const t = useTranslations('leave');
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -39,7 +41,7 @@ export function LeaveDetailActions({ leaveRequestId }: { leaveRequestId: string 
         onClick={() => setConfirming(true)}
         className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm font-medium text-red-700 transition hover:bg-red-50"
       >
-        ยกเลิกคำขอ
+        {t('actions.cancelRequest')}
       </button>
     );
   }
@@ -47,7 +49,8 @@ export function LeaveDetailActions({ leaveRequestId }: { leaveRequestId: string 
   return (
     <div className="space-y-3 rounded-xl border border-red-200 bg-red-50/40 p-4">
       <p className="text-sm text-red-900">
-        ยืนยันการยกเลิกคำขอนี้? <span className="text-xs text-red-700">ไม่สามารถย้อนกลับได้</span>
+        {t('actions.confirmPrompt')}{' '}
+        <span className="text-xs text-red-700">{t('actions.irreversible')}</span>
       </p>
       {error && <p className="text-xs text-red-700">{error}</p>}
       <div className="flex gap-2">
@@ -57,7 +60,7 @@ export function LeaveDetailActions({ leaveRequestId }: { leaveRequestId: string 
           disabled={pending}
           className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
         >
-          ไม่ยกเลิก
+          {t('actions.keepRequest')}
         </button>
         <button
           type="button"
@@ -65,7 +68,7 @@ export function LeaveDetailActions({ leaveRequestId }: { leaveRequestId: string 
           disabled={pending}
           className="flex-1 rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-red-700 disabled:opacity-60"
         >
-          {pending ? '...' : 'ยืนยันยกเลิก'}
+          {pending ? '...' : t('actions.confirmCancel')}
         </button>
       </div>
     </div>

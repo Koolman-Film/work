@@ -58,6 +58,92 @@
       "usePhoto": "ប្រើរូបភាពនេះ"
     }
   },
+  "leave": {
+    "list": {
+      "title": "សំណើចំណាកការងាររបស់ខ្ញុំ",
+      "count": "{n} សំណើ",
+      "newRequest": "+ សំណើថ្មី",
+      "empty": "មិនទាន់មានសំណើចំណាកការងារ",
+      "firstRequest": "ដាក់សំណើដំបូង →",
+      "backToCheckin": "← ត្រឡប់ទៅ Check-in",
+      "teamCalendar": "មើលប្រតិទិនក្រុម →"
+    },
+    "status": {
+      "Pending": "រងចាំការអនុម័ត",
+      "Approved": "បានអនុម័ត",
+      "Rejected": "មិនបានអនុម័ត",
+      "Cancelled": "បោះបង់"
+    },
+    "new": {
+      "title": "ដាក់សំណើចំណាកការងារ",
+      "subtitle": "សូមបំពេញព័ត៌មានឱ្យครប់ដើម្បីផ្ញើទៅ Admin",
+      "field": {
+        "leaveType": "ប្រភេទការចំណាក",
+        "unit": "រូបភាពការចំណាក",
+        "startDate": "ថ្ងៃចាប់ផ្ដើម",
+        "endDate": "ថ្ងៃបញ្ចប់",
+        "date": "ថ្ងៃចំណាក",
+        "startTime": "ពី",
+        "endTime": "ដល់",
+        "reason": "មូលហេតុ",
+        "attachment": "ឯកសារភ្ជាប់"
+      },
+      "attachmentHint": "(មិនចាំបាច់ — ឧ. វិញ្ញាបនប័ត្រពីគ្រូពេទ្យ)",
+      "attachmentDropLabel": "ភ្ជាប់រូបភាព",
+      "attachmentFormats": "JPG / PNG / WEBP",
+      "attachmentPreviewAlt": "ឯកសារភ្ជាប់គំរូ",
+      "attachmentSizeHint": "{kb} KB មុនការបង្រួម",
+      "removeAttachment": "លុប",
+      "unpaid": "(គ្មានប្រាក់ខែ)",
+      "quotaSuffix": " — កូតា {n} ថ្ងៃ",
+      "unpaidNote": "កំណត់ចំណាំ: ការចំណាកប្រភេទនេះគ្មានប្រាក់ខែ",
+      "unit": {
+        "FullDay": "ពេញមួយថ្ងៃ",
+        "HalfMorning": "ព្រឹក",
+        "HalfAfternoon": "រសៀល",
+        "Hourly": "ជាម៉ោង"
+      },
+      "preview": "ការប៉ាន់ស្មាន:",
+      "previewNoSunday": "(មិនរាប់ថ្ងៃអាទិត្យ)",
+      "previewAdminNote": "* Admin នឹងគណនារួមថ្ងៃឈប់ម្ដងទៀតពេលអនុម័ត",
+      "remaining": "នៅសល់ឆ្នាំនេះ:",
+      "exceedsBalance": "⚠️ សំណើនេះលើសសិទ្ធិដែលនៅសល់ — Admin នឹងពិចារណាពេលអនុម័ត",
+      "reasonPlaceholder": "ឧ. ឈឺ​ទៅ​ជួប​គ្រូពេទ្យ, ទៅ​ពិធី​អាពាហ៍ពិពាហ៍",
+      "cancel": "បោះបង់",
+      "submit": "ដាក់សំណើ",
+      "submitting": "កំពុងផ្ញើ...",
+      "uploading": "កំពុងផ្ទុក...",
+      "error": {
+        "sessionExpired": "Session អស় — សូមបើក LINE ឡើងវិញ",
+        "decodeFailed": "មិនអាចអានឯកសាររូបភាពបាន",
+        "uploadFailed": "ផ្ទុកឯកសារភ្ជាប់មិនបាន: {message}",
+        "tooLarge": "ឯកសារធំពេក សូមព្យាយាមម្ដងទៀត",
+        "generic": "មានបញ្ហាកើតឡើង"
+      }
+    },
+    "detail": {
+      "title": "ព័ត៌មានលម្អិតសំណើចំណាកការងារ",
+      "back": "← ត្រឡប់",
+      "field": {
+        "type": "ប្រភេទ",
+        "from": "ពី",
+        "to": "ដល់",
+        "submittedAt": "ដាក់ស្នើនៅ"
+      },
+      "unpaid": "(គ្មានប្រាក់ខែ)",
+      "reasonHeading": "មូលហេតុ",
+      "attachmentHeading": "ឯកសារភ្ជាប់",
+      "attachmentAlt": "ឯកសារភ្ជាប់",
+      "adminNoteHeading": "កំណត់ចំណាំពី Admin"
+    },
+    "actions": {
+      "cancelRequest": "បោះបង់សំណើ",
+      "confirmPrompt": "បញ្ជាក់ការបោះបង់សំណើនេះ?",
+      "irreversible": "មិនអាចដកវិញបាន",
+      "keepRequest": "រក្សាសំណើ",
+      "confirmCancel": "បញ្ជាក់បោះបង់"
+    }
+  },
   "profile": {
     "personalInfo": "ព័ត៌មានផ្ទាល់ខ្លួន",
     "jobInfo": "ព័ត៌មានការងារ",

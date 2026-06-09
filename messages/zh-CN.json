@@ -58,6 +58,92 @@
       "usePhoto": "使用此照片"
     }
   },
+  "leave": {
+    "list": {
+      "title": "我的请假申请",
+      "count": "{n} 条",
+      "newRequest": "+ 新建申请",
+      "empty": "暂无请假申请",
+      "firstRequest": "提交第一条申请 →",
+      "backToCheckin": "← 返回打卡页",
+      "teamCalendar": "查看团队日历 →"
+    },
+    "status": {
+      "Pending": "待审批",
+      "Approved": "已批准",
+      "Rejected": "已拒绝",
+      "Cancelled": "已取消"
+    },
+    "new": {
+      "title": "提交请假申请",
+      "subtitle": "请填写完整信息以将申请发送给管理员",
+      "field": {
+        "leaveType": "假别",
+        "unit": "请假方式",
+        "startDate": "开始日期",
+        "endDate": "结束日期",
+        "date": "请假日期",
+        "startTime": "从",
+        "endTime": "至",
+        "reason": "原因",
+        "attachment": "附件"
+      },
+      "attachmentHint": "（可选 — 如病假证明）",
+      "attachmentDropLabel": "上传图片",
+      "attachmentFormats": "JPG / PNG / WEBP",
+      "attachmentPreviewAlt": "附件预览",
+      "attachmentSizeHint": "{kb} KB（压缩前）",
+      "removeAttachment": "删除",
+      "unpaid": "（无薪）",
+      "quotaSuffix": " — 配额 {n} 天",
+      "unpaidNote": "注意：此假别为无薪假",
+      "unit": {
+        "FullDay": "全天",
+        "HalfMorning": "上午半天",
+        "HalfAfternoon": "下午半天",
+        "Hourly": "按小时"
+      },
+      "preview": "预计：",
+      "previewNoSunday": "（不含周日）",
+      "previewAdminNote": "* 管理员将在审批时重新计算含节假日的天数",
+      "remaining": "本年剩余：",
+      "exceedsBalance": "⚠️ 本次申请超出剩余假期 — 管理员将在审批时进行判断",
+      "reasonPlaceholder": "如：因病就医请病假、参加亲属婚礼",
+      "cancel": "取消",
+      "submit": "提交申请",
+      "submitting": "提交中...",
+      "uploading": "上传中...",
+      "error": {
+        "sessionExpired": "会话已过期 — 请重新在 LINE 中打开",
+        "decodeFailed": "无法读取图片文件",
+        "uploadFailed": "附件上传失败：{message}",
+        "tooLarge": "文件过大，请重试",
+        "generic": "发生错误"
+      }
+    },
+    "detail": {
+      "title": "请假申请详情",
+      "back": "← 返回",
+      "field": {
+        "type": "假别",
+        "from": "开始",
+        "to": "结束",
+        "submittedAt": "提交时间"
+      },
+      "unpaid": "（无薪）",
+      "reasonHeading": "原因",
+      "attachmentHeading": "附件",
+      "attachmentAlt": "附件",
+      "adminNoteHeading": "管理员备注"
+    },
+    "actions": {
+      "cancelRequest": "撤销申请",
+      "confirmPrompt": "确认撤销此申请？",
+      "irreversible": "此操作不可撤销",
+      "keepRequest": "保留申请",
+      "confirmCancel": "确认撤销"
+    }
+  },
   "profile": {
     "personalInfo": "个人信息",
     "jobInfo": "工作信息",

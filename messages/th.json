@@ -69,6 +69,92 @@
       "usePhoto": "ใช้ภาพนี้"
     }
   },
+  "leave": {
+    "list": {
+      "title": "คำขอลาของฉัน",
+      "count": "{n} รายการ",
+      "newRequest": "+ ส่งคำขอ",
+      "empty": "ยังไม่มีคำขอลา",
+      "firstRequest": "ส่งคำขอแรก →",
+      "backToCheckin": "← กลับหน้าเช็คอิน",
+      "teamCalendar": "ดูปฏิทินทีม →"
+    },
+    "status": {
+      "Pending": "รออนุมัติ",
+      "Approved": "อนุมัติแล้ว",
+      "Rejected": "ไม่อนุมัติ",
+      "Cancelled": "ยกเลิก"
+    },
+    "new": {
+      "title": "ส่งคำขอลา",
+      "subtitle": "กรอกข้อมูลให้ครบเพื่อส่งคำขอไปยังแอดมิน",
+      "field": {
+        "leaveType": "ประเภทการลา",
+        "unit": "รูปแบบการลา",
+        "startDate": "วันเริ่มต้น",
+        "endDate": "วันสิ้นสุด",
+        "date": "วันที่ลา",
+        "startTime": "ตั้งแต่",
+        "endTime": "ถึง",
+        "reason": "เหตุผล",
+        "attachment": "ไฟล์แนบ"
+      },
+      "attachmentHint": "(ไม่บังคับ — เช่น ใบรับรองแพทย์)",
+      "attachmentDropLabel": "แนบรูปภาพ",
+      "attachmentFormats": "JPG / PNG / WEBP",
+      "attachmentPreviewAlt": "ตัวอย่างไฟล์แนบ",
+      "attachmentSizeHint": "{kb} KB ก่อนบีบอัด",
+      "removeAttachment": "ลบ",
+      "unpaid": "(ไม่จ่ายเงิน)",
+      "quotaSuffix": " — โควต้า {n} วัน",
+      "unpaidNote": "หมายเหตุ: การลานี้ไม่ได้รับค่าจ้าง",
+      "unit": {
+        "FullDay": "เต็มวัน",
+        "HalfMorning": "ครึ่งเช้า",
+        "HalfAfternoon": "ครึ่งบ่าย",
+        "Hourly": "รายชั่วโมง"
+      },
+      "preview": "ประมาณการ:",
+      "previewNoSunday": "(ไม่นับวันอาทิตย์)",
+      "previewAdminNote": "* แอดมินจะคำนวณรวมวันหยุดอีกครั้งเมื่ออนุมัติ",
+      "remaining": "คงเหลือปีนี้:",
+      "exceedsBalance": "⚠️ คำขอนี้เกินสิทธิคงเหลือ — แอดมินจะพิจารณาอีกครั้งเมื่ออนุมัติ",
+      "reasonPlaceholder": "เช่น ลาป่วยไปหาหมอ, ลาไปงานแต่งงานญาติ",
+      "cancel": "ยกเลิก",
+      "submit": "ส่งคำขอ",
+      "submitting": "กำลังส่ง...",
+      "uploading": "กำลังอัปโหลด...",
+      "error": {
+        "sessionExpired": "เซสชันหมดอายุ — กรุณาเปิด LINE ใหม่อีกครั้ง",
+        "decodeFailed": "อ่านไฟล์รูปไม่ได้",
+        "uploadFailed": "อัปโหลดไฟล์แนบไม่สำเร็จ: {message}",
+        "tooLarge": "ไฟล์ใหญ่เกินไป กรุณาลองใหม่",
+        "generic": "เกิดข้อผิดพลาด"
+      }
+    },
+    "detail": {
+      "title": "รายละเอียดคำขอลา",
+      "back": "← กลับ",
+      "field": {
+        "type": "ประเภท",
+        "from": "ตั้งแต่",
+        "to": "ถึง",
+        "submittedAt": "ส่งเมื่อ"
+      },
+      "unpaid": "(ไม่จ่ายเงิน)",
+      "reasonHeading": "เหตุผล",
+      "attachmentHeading": "ไฟล์แนบ",
+      "attachmentAlt": "ไฟล์แนบ",
+      "adminNoteHeading": "หมายเหตุจากแอดมิน"
+    },
+    "actions": {
+      "cancelRequest": "ยกเลิกคำขอ",
+      "confirmPrompt": "ยืนยันการยกเลิกคำขอนี้?",
+      "irreversible": "ไม่สามารถย้อนกลับได้",
+      "keepRequest": "ไม่ยกเลิก",
+      "confirmCancel": "ยืนยันยกเลิก"
+    }
+  },
   "profile": {
     "personalInfo": "ข้อมูลส่วนตัว",
     "jobInfo": "ข้อมูลงาน",
