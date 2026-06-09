@@ -28,13 +28,13 @@
  */
 
 import { headers } from 'next/headers';
-import { auditLogTx } from '@/lib/audit/log';
+import { auditLog, auditLogTx } from '@/lib/audit/log';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { sendNotification } from '@/lib/inngest/events';
 import { getLeaveConfig } from './leave-config';
-import { formatDaysHours, segmentFor, segmentsOverlap } from './units';
-import { expandHolidaysWithSubstitutes, workingDaysIn } from './working-days';
+import { formatDaysHours, type LeaveUnit, segmentFor, segmentsOverlap } from './units';
+import { expandHolidaysWithSubstitutes, parseInputDate, workingDaysIn } from './working-days';
 
 /** Format a Date's Bangkok wall-clock time as "HH:MM" for segment comparison.
  *  OnLeave rows store clockInAt/clockOutAt as the segment bounds on the date. */
@@ -403,6 +403,201 @@ export async function rejectLeaveRequest(input: Input): Promise<RejectResult> {
     return result;
   } catch (err) {
     console.error('[rejectLeaveRequest] tx failed', err);
+    return { ok: false, code: 'db-error', message: 'ระบบขัดข้อง กรุณาลองใหม่อีกครั้ง' };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Admin "record leave on behalf of an employee".
+//
+// Workers can only self-file leave up to MAX_BACKDATE_DAYS in the past (see
+// ./actions.ts). For anything older — the employee was off sick three weeks
+// ago and nobody filed it — an admin records it here, with NO lower date
+// bound. The created request lands as **Pending**, so it flows through the
+// SAME review/approve path as everything else (the admin then approves it in
+// the inbox, which expands it into Attendance(OnLeave) rows). That keeps the
+// "intent → fact" state machine and the audit trail uniform; this action only
+// fills the gap that workers can't reach.
+// ---------------------------------------------------------------------------
+
+export type AdminCreateLeaveResult =
+  | { ok: true; id: string }
+  | {
+      ok: false;
+      code:
+        | 'forbidden'
+        | 'employee-not-found'
+        | 'employee-archived'
+        | 'bad-dates'
+        | 'too-far-future'
+        | 'bad-leave-type'
+        | 'bad-unit'
+        | 'bad-segment'
+        | 'overlap'
+        | 'short-reason'
+        | 'db-error';
+      message: string;
+    };
+
+type AdminCreateLeaveInput = {
+  employeeId: string;
+  leaveTypeId: string;
+  /** YYYY-MM-DD. No lower bound — admins may back-date arbitrarily. */
+  startDate: string;
+  /** YYYY-MM-DD (inclusive). */
+  endDate: string;
+  reason: string;
+  /** Defaults to FullDay. Partial units must be a single open weekday. */
+  unit?: LeaveUnit;
+  /** "HH:MM" — required for Hourly; ignored for halves (derived). */
+  startTime?: string | null;
+  endTime?: string | null;
+};
+
+const ADMIN_MAX_FUTURE_DAYS = 365;
+const ADMIN_MIN_REASON_LENGTH = 4;
+
+export async function adminCreateLeaveRequest(
+  input: AdminCreateLeaveInput,
+): Promise<AdminCreateLeaveResult> {
+  const { user } = await requirePermission('leave.approve');
+
+  const reason = input.reason.trim();
+  if (reason.length < ADMIN_MIN_REASON_LENGTH) {
+    return { ok: false, code: 'short-reason', message: 'กรุณากรอกเหตุผลอย่างน้อย 4 ตัวอักษร' };
+  }
+
+  const employee = await prisma.employee.findUnique({
+    where: { id: input.employeeId },
+    select: { id: true, archivedAt: true, status: true },
+  });
+  if (!employee) {
+    return { ok: false, code: 'employee-not-found', message: 'ไม่พบพนักงาน' };
+  }
+  if (employee.archivedAt || employee.status === 'Archived') {
+    return { ok: false, code: 'employee-archived', message: 'พนักงานคนนี้พ้นสภาพแล้ว' };
+  }
+
+  const start = parseInputDate(input.startDate);
+  const end = parseInputDate(input.endDate);
+  if (!start || !end) {
+    return { ok: false, code: 'bad-dates', message: 'รูปแบบวันที่ไม่ถูกต้อง' };
+  }
+  if (end.getTime() < start.getTime()) {
+    return { ok: false, code: 'bad-dates', message: 'วันที่สิ้นสุดต้องไม่ก่อนวันเริ่มต้น' };
+  }
+  // Deliberately NO past-date floor — back-dating is the point. Still cap the
+  // future so a typo'd year can't book a request a decade out.
+  const todayYmd = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
+  const today = new Date(`${todayYmd}T00:00:00.000Z`);
+  const maxFuture = new Date(today.getTime() + ADMIN_MAX_FUTURE_DAYS * 86_400_000);
+  if (end.getTime() > maxFuture.getTime()) {
+    return { ok: false, code: 'too-far-future', message: 'วันที่สิ้นสุดไกลเกินไป (มากกว่า 1 ปี)' };
+  }
+
+  const lt = await prisma.leaveType.findUnique({
+    where: { id: input.leaveTypeId },
+    select: {
+      id: true,
+      name: true,
+      archivedAt: true,
+      allowFullDay: true,
+      allowHalfDay: true,
+      allowHourly: true,
+    },
+  });
+  if (!lt || lt.archivedAt) {
+    return { ok: false, code: 'bad-leave-type', message: 'ประเภทการลาไม่ถูกต้อง' };
+  }
+
+  const unit: LeaveUnit = input.unit ?? 'FullDay';
+  const allowed =
+    (unit === 'FullDay' && lt.allowFullDay) ||
+    ((unit === 'HalfMorning' || unit === 'HalfAfternoon') && lt.allowHalfDay) ||
+    (unit === 'Hourly' && lt.allowHourly);
+  if (!allowed) {
+    return { ok: false, code: 'bad-unit', message: 'ประเภทการลานี้ไม่รองรับหน่วยที่เลือก' };
+  }
+
+  const isPartial = unit !== 'FullDay';
+  if (isPartial) {
+    if (start.getTime() !== end.getTime()) {
+      return { ok: false, code: 'bad-segment', message: 'การลาบางส่วนต้องเป็นวันเดียว' };
+    }
+    if (start.getUTCDay() === 0) {
+      return { ok: false, code: 'bad-segment', message: 'ไม่สามารถลาบางส่วนในวันหยุดได้' };
+    }
+  }
+
+  const cfg = await getLeaveConfig();
+  const segment = segmentFor(unit, cfg, input.startTime, input.endTime);
+  if (!segment) {
+    return { ok: false, code: 'bad-segment', message: 'ช่วงเวลาที่เลือกไม่ถูกต้อง' };
+  }
+
+  // Overlap guard mirrors submitLeaveRequest: reject when a day conflicts with
+  // an existing Pending/Approved request. Two disjoint partials on a shared
+  // date are fine; any full-day overlap (either side) is a conflict.
+  const overlaps = await prisma.leaveRequest.findMany({
+    where: {
+      employeeId: employee.id,
+      status: { in: ['Pending', 'Approved'] },
+      deletedAt: null,
+      startDate: { lte: end },
+      endDate: { gte: start },
+    },
+    select: { unit: true, startTime: true, endTime: true },
+  });
+  const conflict = overlaps.some((o) => {
+    if (unit === 'FullDay' || o.unit === 'FullDay') return true;
+    return segmentsOverlap(segment.startTime, segment.endTime, o.startTime, o.endTime);
+  });
+  if (conflict) {
+    return { ok: false, code: 'overlap', message: 'มีคำขอลาที่ทับซ้อนช่วงวัน/เวลานี้อยู่แล้ว' };
+  }
+
+  const headerList = await headers();
+  const ip =
+    headerList.get('x-forwarded-for')?.split(',')[0]?.trim() ??
+    headerList.get('x-real-ip') ??
+    undefined;
+  const userAgent = headerList.get('user-agent') ?? undefined;
+
+  try {
+    const created = await prisma.leaveRequest.create({
+      data: {
+        employeeId: employee.id,
+        leaveTypeId: lt.id,
+        startDate: start,
+        endDate: end,
+        reason,
+        status: 'Pending',
+        unit,
+        startTime: segment.startTime,
+        endTime: segment.endTime,
+      },
+      select: { id: true },
+    });
+
+    auditLog({
+      actorId: user.id,
+      action: 'leave.admin-create',
+      entityType: 'LeaveRequest',
+      entityId: created.id,
+      after: {
+        employeeId: employee.id,
+        leaveTypeId: lt.id,
+        startDate: input.startDate,
+        endDate: input.endDate,
+        unit,
+        reason,
+      },
+      metadata: { ip, userAgent, source: 'admin-ui' },
+    });
+
+    return { ok: true, id: created.id };
+  } catch (err) {
+    console.error('[adminCreateLeaveRequest] failed', err);
     return { ok: false, code: 'db-error', message: 'ระบบขัดข้อง กรุณาลองใหม่อีกครั้ง' };
   }
 }
