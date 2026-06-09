@@ -95,6 +95,7 @@ export type AuditAction =
   | 'attendance.restore'
   // Leave & advance
   | 'leave.submit'
+  | 'leave.admin-create'
   | 'leave.approve'
   | 'leave.reject'
   | 'leave.cancel'
