@@ -137,6 +137,14 @@ export default async function AdminLeaveInboxPage({
         >
           🗑️ ถังขยะ
         </Link>
+        {/* Record leave on behalf of an employee — the only path that allows
+            back-dating beyond the worker self-file window. */}
+        <Link
+          href="/admin/leave/new"
+          className="ml-auto rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-primary-700"
+        >
+          + บันทึกการลา (ย้อนหลัง)
+        </Link>
       </div>
 
       <Card>
