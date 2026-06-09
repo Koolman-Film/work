@@ -28,22 +28,40 @@ export function Dialog({ open, onClose, title, children, dismissable = true, cla
   const panelRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
 
+  // Body-scroll lock + initial focus. Keyed on `open` ONLY — these must run
+  // when the modal opens, never on subsequent re-renders. (Earlier this shared
+  // an effect with the Esc handler below, whose `onClose`/`dismissable` deps
+  // change identity on every parent render — e.g. a controlled note <textarea>
+  // calling setState per keystroke. That re-ran `.focus()` on each keystroke
+  // and yanked focus out of the field after one character.)
   useEffect(() => {
     if (!open) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    // Move focus into the panel (first focusable, else the panel itself).
-    panelRef.current
-      ?.querySelector<HTMLElement>('[data-autofocus],button,textarea,input,select,a[href]')
-      ?.focus();
+    // Honor an explicit [data-autofocus] target first; otherwise fall back to
+    // the first focusable control. (A bare querySelector list returns the first
+    // match in DOM order, which would prefer an attachment link over the note
+    // field it's meant to land on.)
+    const panel = panelRef.current;
+    const target =
+      panel?.querySelector<HTMLElement>('[data-autofocus]') ??
+      panel?.querySelector<HTMLElement>('button,textarea,input,select,a[href]');
+    target?.focus();
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [open]);
+
+  // Esc-to-close. Depends on the live `dismissable`/`onClose`, but registering
+  // a keydown listener has no focus side effects, so re-subscribing when those
+  // identities change is harmless.
+  useEffect(() => {
+    if (!open) return;
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape' && dismissable) onClose();
     }
     window.addEventListener('keydown', onKey);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener('keydown', onKey);
-    };
+    return () => window.removeEventListener('keydown', onKey);
   }, [open, dismissable, onClose]);
 
   if (!open) return null;
