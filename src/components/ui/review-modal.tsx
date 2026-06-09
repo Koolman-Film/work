@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { type ReactNode, useEffect, useId, useState, useTransition } from 'react';
+import { type ReactNode, useEffect, useId, useRef, useState, useTransition } from 'react';
 import { Button } from './button';
 import type { ActionResult } from './confirm-dialog';
 import { Dialog } from './dialog';
@@ -48,6 +48,13 @@ export function ReviewModal({
   const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const voidRef = useRef<HTMLTextAreaElement>(null);
+
+  // Focus the void-reason field when its step opens. (Dialog's autofocus only
+  // fires on open; the void textarea appears later, on a step transition.)
+  useEffect(() => {
+    if (mode === 'void') voidRef.current?.focus();
+  }, [mode]);
 
   // Controlled component: reset internal step/inputs whenever the modal closes,
   // so reopening for a different row never shows a stale mode/note/error.
@@ -139,8 +146,8 @@ export function ReviewModal({
             เหตุผลที่ลบ <span className="text-danger">*</span>
           </label>
           <textarea
+            ref={voidRef}
             id={`${noteId}-void`}
-            data-autofocus
             rows={3}
             value={reason}
             disabled={pending}
