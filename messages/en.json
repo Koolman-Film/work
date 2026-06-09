@@ -155,6 +155,77 @@
       "confirmCancel": "Yes, cancel"
     }
   },
+  "advance": {
+    "list": {
+      "title": "My advance requests",
+      "count": "{n} requests",
+      "newRequest": "+ Request advance",
+      "empty": "No advance requests yet",
+      "firstRequest": "Make your first request →",
+      "backToCheckin": "← Back to check-in",
+      "submittedAt": "Submitted {datetime}",
+      "deducted": "• Deducted from salary"
+    },
+    "status": {
+      "Pending": "Pending",
+      "Approved": "Approved",
+      "Rejected": "Rejected",
+      "Cancelled": "Cancelled"
+    },
+    "balance": {
+      "monthlyTitle": "Available advance",
+      "available": "{amount}",
+      "fromBaseSalary": "From base salary {amount}",
+      "ariaProgress": "{pct}% of salary used",
+      "pending": "Pending",
+      "approvedNotDeducted": "Approved (awaiting deduction)",
+      "overdrawnAlert": "⚠️ Advance exceeds salary — next payroll will deduct the full amount and may go negative. Contact admin if you have questions.",
+      "autoDeductNote": "Approved advances will be automatically deducted from your next payslip.",
+      "rateTitle": "Your salary rate",
+      "ratePerDay": "per day",
+      "ratePerHour": "per hour",
+      "rateNote": "Available amount depends on days/hours worked this period — contact admin for an exact figure."
+    },
+    "new": {
+      "title": "Request cash advance",
+      "subtitle": "The advance will be automatically deducted from your next payslip.",
+      "field": {
+        "amount": "Amount (Baht)"
+      },
+      "amountPlaceholder": "0.00",
+      "quickAmounts": "Quick amounts",
+      "note": "Only one pending request is allowed at a time. To submit another, wait for admin to decide or cancel the existing request first.",
+      "noteLabel": "Note:",
+      "cancel": "Cancel",
+      "submit": "Submit request",
+      "submitting": "Submitting...",
+      "error": {
+        "invalidAmount": "Please enter a valid amount"
+      }
+    },
+    "detail": {
+      "title": "Advance request details",
+      "back": "← Back",
+      "amountLabel": "Amount",
+      "field": {
+        "submittedAt": "Submitted",
+        "decidedAt": "Decided",
+        "deductFromSalary": "Salary deduction"
+      },
+      "deducted": "Deducted",
+      "notDeducted": "Pending — next payroll",
+      "receiptHeading": "Receipt",
+      "receiptAlt": "Receipt",
+      "receiptFullSize": "View full size →"
+    },
+    "actions": {
+      "cancelRequest": "Cancel request",
+      "confirmPrompt": "Confirm cancellation of this request?",
+      "irreversible": "This cannot be undone",
+      "keepRequest": "Keep request",
+      "confirmCancel": "Yes, cancel"
+    }
+  },
   "profile": {
     "personalInfo": "Personal information",
     "jobInfo": "Employment information",

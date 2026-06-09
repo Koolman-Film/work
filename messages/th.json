@@ -155,6 +155,77 @@
       "confirmCancel": "ยืนยันยกเลิก"
     }
   },
+  "advance": {
+    "list": {
+      "title": "คำขอเบิกของฉัน",
+      "count": "{n} รายการ",
+      "newRequest": "+ ขอเบิก",
+      "empty": "ยังไม่มีคำขอเบิก",
+      "firstRequest": "ขอเบิกแรก →",
+      "backToCheckin": "← กลับหน้าเช็คอิน",
+      "submittedAt": "ส่งเมื่อ {datetime}",
+      "deducted": "• หักจากเงินเดือนแล้ว"
+    },
+    "status": {
+      "Pending": "รออนุมัติ",
+      "Approved": "อนุมัติแล้ว",
+      "Rejected": "ไม่อนุมัติ",
+      "Cancelled": "ยกเลิก"
+    },
+    "balance": {
+      "monthlyTitle": "ยอดเงินเดือนที่เบิกได้",
+      "available": "{amount}",
+      "fromBaseSalary": "จากเงินเดือนพื้นฐาน {amount}",
+      "ariaProgress": "เบิกไปแล้ว {pct}% ของเงินเดือน",
+      "pending": "รออนุมัติ",
+      "approvedNotDeducted": "อนุมัติแล้ว (รอหัก)",
+      "overdrawnAlert": "⚠️ เบิกเกินเงินเดือน — งวดหน้าหักครบและอาจติดลบ ติดต่อแอดมินหากมีคำถาม",
+      "autoDeductNote": "ยอดที่อนุมัติแล้วจะถูกหักจากเงินเดือนงวดถัดไปอัตโนมัติ",
+      "rateTitle": "อัตราเงินเดือนของคุณ",
+      "ratePerDay": "ต่อวัน",
+      "ratePerHour": "ต่อชั่วโมง",
+      "rateNote": "ยอดที่เบิกได้ขึ้นกับวัน/ชั่วโมงที่ทำงานในงวดนี้ — สอบถามแอดมินเพื่อยอดที่แน่นอน"
+    },
+    "new": {
+      "title": "ขอเบิกเงินล่วงหน้า",
+      "subtitle": "เงินที่เบิกจะถูกหักจากเงินเดือนงวดถัดไปโดยอัตโนมัติ",
+      "field": {
+        "amount": "จำนวนเงิน (บาท)"
+      },
+      "amountPlaceholder": "0.00",
+      "quickAmounts": "ตัวเลือกด่วน",
+      "note": "สามารถมีคำขอที่รออนุมัติได้ครั้งละ 1 รายการ หากต้องการขอเพิ่มต้องรอให้แอดมินตัดสินใจหรือยกเลิกคำขอเดิมก่อน",
+      "noteLabel": "หมายเหตุ:",
+      "cancel": "ยกเลิก",
+      "submit": "ส่งคำขอ",
+      "submitting": "กำลังส่ง...",
+      "error": {
+        "invalidAmount": "กรุณากรอกจำนวนเงินที่ถูกต้อง"
+      }
+    },
+    "detail": {
+      "title": "รายละเอียดคำขอเบิก",
+      "back": "← กลับ",
+      "amountLabel": "จำนวนเงิน",
+      "field": {
+        "submittedAt": "ส่งเมื่อ",
+        "decidedAt": "ตัดสินใจเมื่อ",
+        "deductFromSalary": "หักจากเงินเดือน"
+      },
+      "deducted": "หักแล้ว",
+      "notDeducted": "ยังไม่หัก — งวดถัดไป",
+      "receiptHeading": "ใบเสร็จ",
+      "receiptAlt": "ใบเสร็จ",
+      "receiptFullSize": "เปิดเต็มขนาด →"
+    },
+    "actions": {
+      "cancelRequest": "ยกเลิกคำขอ",
+      "confirmPrompt": "ยืนยันการยกเลิกคำขอนี้?",
+      "irreversible": "ไม่สามารถย้อนกลับได้",
+      "keepRequest": "ไม่ยกเลิก",
+      "confirmCancel": "ยืนยันยกเลิก"
+    }
+  },
   "profile": {
     "personalInfo": "ข้อมูลส่วนตัว",
     "jobInfo": "ข้อมูลงาน",
