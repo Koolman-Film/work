@@ -11,9 +11,9 @@
 
 import { useLocale, useTranslations } from 'next-intl';
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
+import type { UpdateProfileInput } from '@/lib/employee/profile-actions';
 import type { Locale } from '@/lib/i18n/config';
 import { formatDate, formatMoney } from '@/lib/i18n/format';
-import type { UpdateProfileInput } from '@/lib/employee/profile-actions';
 import { ProfileForm } from './profile-form';
 
 export type ProfileViewData = {
@@ -92,7 +92,10 @@ export function ProfileView({
         <CardBody className="space-y-2 text-sm">
           <ReadOnlyRow label={t('readonly.branch')} value={employee.branchName} />
           <ReadOnlyRow label={t('readonly.department')} value={employee.departmentName ?? '—'} />
-          <ReadOnlyRow label={t('readonly.payType')} value={t(`salaryType.${employee.salaryType}`)} />
+          <ReadOnlyRow
+            label={t('readonly.payType')}
+            value={t(`salaryType.${employee.salaryType}`)}
+          />
           <ReadOnlyRow
             label={t('readonly.baseSalary')}
             value={formatMoney(employee.baseSalary, locale)}
