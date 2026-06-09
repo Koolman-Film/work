@@ -21,6 +21,7 @@
  *     existing geolocation grant — two prompts is worse than one tap.
  */
 
+import { useTranslations } from 'next-intl';
 import { useId, useRef, useState } from 'react';
 
 type Props = {
@@ -32,6 +33,7 @@ type Props = {
 };
 
 export function SelfieStep({ onConfirm, onCancel }: Props) {
+  const t = useTranslations('checkin');
   const fileInputId = useId();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [captured, setCaptured] = useState<File | null>(null);
@@ -65,7 +67,7 @@ export function SelfieStep({ onConfirm, onCancel }: Props) {
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="ถ่ายเซลฟี่"
+      aria-label={t('selfie.dialogLabel')}
       className="fixed inset-0 z-50 flex flex-col bg-black"
     >
       {/* Header */}
@@ -75,9 +77,9 @@ export function SelfieStep({ onConfirm, onCancel }: Props) {
           onClick={onCancel}
           className="rounded-md px-3 py-1.5 text-sm hover:bg-white/10"
         >
-          ยกเลิก
+          {t('selfie.cancel')}
         </button>
-        <p className="text-sm font-medium">ถ่ายเซลฟี่</p>
+        <p className="text-sm font-medium">{t('selfie.title')}</p>
         <span className="w-[60px]" /> {/* spacer to balance the cancel button */}
       </header>
 
@@ -105,14 +107,14 @@ export function SelfieStep({ onConfirm, onCancel }: Props) {
                   d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Z"
                 />
               </svg>
-              <p className="mt-4 text-base font-medium text-white">ถ่ายเซลฟี่เพื่อยืนยันตัวตน</p>
-              <p className="mt-2 text-sm text-white/60">สาขาของคุณกำหนดให้ต้องถ่ายเซลฟี่ในตอนเช็คอิน</p>
+              <p className="mt-4 text-base font-medium text-white">{t('selfie.instruction')}</p>
+              <p className="mt-2 text-sm text-white/60">{t('selfie.branchRequirement')}</p>
             </div>
             <label
               htmlFor={fileInputId}
               className="mt-8 cursor-pointer rounded-full bg-white px-8 py-3 text-base font-semibold text-gray-900 shadow-lg active:scale-95"
             >
-              📷 เปิดกล้อง
+              {t('selfie.openCamera')}
             </label>
           </>
         ) : (
@@ -120,7 +122,7 @@ export function SelfieStep({ onConfirm, onCancel }: Props) {
             {/* biome-ignore lint/performance/noImgElement: object-URL preview can't use next/image */}
             <img
               src={previewUrl}
-              alt="ตัวอย่างเซลฟี่"
+              alt={t('selfie.previewAlt')}
               className="max-h-[60vh] w-full rounded-2xl object-contain"
             />
             <div className="mt-6 flex w-full gap-3">
@@ -129,14 +131,14 @@ export function SelfieStep({ onConfirm, onCancel }: Props) {
                 onClick={retake}
                 className="flex-1 rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-sm font-medium text-white hover:bg-white/20"
               >
-                ถ่ายใหม่
+                {t('selfie.retake')}
               </button>
               <button
                 type="button"
                 onClick={confirm}
                 className="flex-1 rounded-xl bg-primary-600 px-4 py-3 text-sm font-semibold text-white shadow-lg hover:bg-primary-700"
               >
-                ใช้ภาพนี้
+                {t('selfie.usePhoto')}
               </button>
             </div>
           </div>

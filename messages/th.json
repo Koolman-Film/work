@@ -14,6 +14,61 @@
     "disputeApproved": { "header": "ยืนยันการเช็คอิน", "subtitle": "แอดมินตรวจสอบและยืนยันการเช็คอินที่ต้องตรวจสอบแล้ว", "alt": "✅ เช็คอินวันที่ {date} ของคุณได้รับการยืนยัน" },
     "disputeRejected": { "header": "ปฏิเสธการเช็คอิน", "subtitle": "แอดมินไม่ยืนยันการเช็คอินวันดังกล่าว", "alt": "❌ เช็คอินวันที่ {date} ของคุณถูกปฏิเสธ" }
   },
+  "checkin": {
+    "greeting": "สวัสดี, {firstName} {lastName}",
+    "dateLabel": "{date}",
+    "status": {
+      "heading": "สถานะวันนี้",
+      "checkIn": "เช็คอิน",
+      "checkOut": "เช็คเอาท์",
+      "notCheckedIn": "ยังไม่ได้เช็คอิน",
+      "checkedOut": "เช็คเอาท์แล้ว",
+      "disputed": "ตรวจสอบ"
+    },
+    "button": {
+      "checkIn": "เช็คอินเข้างาน",
+      "checkOut": "เช็คเอาท์",
+      "checkOutOptional": "เช็คเอาท์ออกจากงาน (ถ้าต้องการ)"
+    },
+    "done": "✓ เสร็จสิ้นวันนี้แล้ว ขอบคุณค่ะ",
+    "phase": {
+      "uploadingSelfie": "กำลังอัปโหลดเซลฟี่...",
+      "locating": "กำลังหาตำแหน่ง...",
+      "submitting": "กำลังบันทึก..."
+    },
+    "error": {
+      "gpsNotSupported": "เบราว์เซอร์นี้ไม่รองรับ GPS",
+      "geoPermissionDenied": "กรุณาอนุญาตให้แอปเข้าถึงตำแหน่ง",
+      "geoPositionUnavailable": "ไม่สามารถระบุตำแหน่งได้ — ลองออกที่โล่ง",
+      "geoTimeout": "ค้นหาตำแหน่งใช้เวลานานเกินไป — ลองอีกครั้ง",
+      "geoGeneric": "เกิดข้อผิดพลาดในการระบุตำแหน่ง",
+      "sessionExpired": "เซสชันหมดอายุ — กรุณาเปิด LINE ใหม่อีกครั้ง",
+      "decodeFailed": "อ่านไฟล์รูปไม่ได้",
+      "uploadFailed": "อัปโหลดเซลฟี่ไม่สำเร็จ: {detail}",
+      "imageTooLarge": "รูปใหญ่เกินไป กรุณาลองใหม่",
+      "generic": "เกิดข้อผิดพลาด"
+    },
+    "quickAction": {
+      "leave": "📅 คำขอลา",
+      "advance": "💰 ขอเบิก",
+      "calendar": "🗓️ ปฏิทินทีม",
+      "profile": "👤 โปรไฟล์"
+    },
+    "branches": {
+      "heading": "สาขาที่ได้รับมอบหมาย"
+    },
+    "selfie": {
+      "dialogLabel": "ถ่ายเซลฟี่",
+      "title": "ถ่ายเซลฟี่",
+      "cancel": "ยกเลิก",
+      "instruction": "ถ่ายเซลฟี่เพื่อยืนยันตัวตน",
+      "branchRequirement": "สาขาของคุณกำหนดให้ต้องถ่ายเซลฟี่ในตอนเช็คอิน",
+      "openCamera": "📷 เปิดกล้อง",
+      "previewAlt": "ตัวอย่างเซลฟี่",
+      "retake": "ถ่ายใหม่",
+      "usePhoto": "ใช้ภาพนี้"
+    }
+  },
   "profile": {
     "personalInfo": "ข้อมูลส่วนตัว",
     "jobInfo": "ข้อมูลงาน",

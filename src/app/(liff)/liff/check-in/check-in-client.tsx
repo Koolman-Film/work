@@ -32,8 +32,11 @@
  *     "re-open in LINE" hint.
  */
 
+import { useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { type CheckInState, submitCheckIn, submitCheckOut } from '@/lib/attendance/check-in';
+import type { Locale } from '@/lib/i18n/config';
+import { formatTime } from '@/lib/i18n/format';
 import { compressToJpeg, uploadSelfie } from '@/lib/storage/upload-selfie';
 import { createClient } from '@/lib/supabase/browser';
 import { SelfieStep } from './selfie-step';
@@ -74,24 +77,11 @@ const GEO_OPTIONS: PositionOptions = {
 
 async function getPosition(): Promise<GeolocationPosition> {
   if (!('geolocation' in navigator)) {
-    throw new Error('เบราว์เซอร์นี้ไม่รองรับ GPS');
+    throw new Error('GPS_NOT_SUPPORTED');
   }
   return new Promise((resolve, reject) => {
     navigator.geolocation.getCurrentPosition(resolve, reject, GEO_OPTIONS);
   });
-}
-
-function geoErrorMessage(err: GeolocationPositionError): string {
-  switch (err.code) {
-    case err.PERMISSION_DENIED:
-      return 'กรุณาอนุญาตให้แอปเข้าถึงตำแหน่ง';
-    case err.POSITION_UNAVAILABLE:
-      return 'ไม่สามารถระบุตำแหน่งได้ — ลองออกที่โล่ง';
-    case err.TIMEOUT:
-      return 'ค้นหาตำแหน่งใช้เวลานานเกินไป — ลองอีกครั้ง';
-    default:
-      return 'เกิดข้อผิดพลาดในการระบุตำแหน่ง';
-  }
 }
 
 export default function CheckInClient({
@@ -103,8 +93,23 @@ export default function CheckInClient({
   initialState,
   dateLine,
 }: Props) {
+  const t = useTranslations('checkin');
+  const locale = useLocale() as Locale;
   const [state, setStateLocal] = useState<CheckInState>(initialState);
   const [phase, setPhase] = useState<Phase>({ kind: 'idle' });
+
+  function geoErrorMessage(err: GeolocationPositionError): string {
+    switch (err.code) {
+      case err.PERMISSION_DENIED:
+        return t('error.geoPermissionDenied');
+      case err.POSITION_UNAVAILABLE:
+        return t('error.geoPositionUnavailable');
+      case err.TIMEOUT:
+        return t('error.geoTimeout');
+      default:
+        return t('error.geoGeneric');
+    }
+  }
 
   /**
    * Core check-in pipeline (after any selfie capture is complete).
@@ -122,7 +127,7 @@ export default function CheckInClient({
         if (!authData.user) {
           setPhase({
             kind: 'error',
-            message: 'เซสชันหมดอายุ — กรุณาเปิด LINE ใหม่อีกครั้ง',
+            message: t('error.sessionExpired'),
           });
           return;
         }
@@ -151,20 +156,22 @@ export default function CheckInClient({
       // Narrow the various error shapes — GeolocationPositionError from
       // the Web API, our own SelfieUploadError object shape, generic
       // Error fallback.
-      let message = 'เกิดข้อผิดพลาด';
+      let message = t('error.generic');
       if (err instanceof GeolocationPositionError) {
         message = geoErrorMessage(err);
+      } else if (err instanceof Error && err.message === 'GPS_NOT_SUPPORTED') {
+        message = t('error.gpsNotSupported');
       } else if (typeof err === 'object' && err !== null && 'kind' in err) {
         // Shape from upload-selfie.ts
         const e = err as { kind: string; message?: string };
         message =
           e.kind === 'decode-failed'
-            ? 'อ่านไฟล์รูปไม่ได้'
+            ? t('error.decodeFailed')
             : e.kind === 'upload-failed'
-              ? `อัปโหลดเซลฟี่ไม่สำเร็จ: ${e.message ?? ''}`
+              ? t('error.uploadFailed', { detail: e.message ?? '' })
               : e.kind === 'too-large-after-compress'
-                ? 'รูปใหญ่เกินไป กรุณาลองใหม่'
-                : 'เกิดข้อผิดพลาด';
+                ? t('error.imageTooLarge')
+                : t('error.generic');
       } else if (err instanceof Error) {
         message = err.message;
       }
@@ -206,7 +213,7 @@ export default function CheckInClient({
         setPhase({ kind: 'error', message: result.message });
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'เกิดข้อผิดพลาด';
+      const message = err instanceof Error ? err.message : t('error.generic');
       setPhase({ kind: 'error', message });
     }
   }
@@ -255,27 +262,29 @@ export default function CheckInClient({
         <div className="space-y-1">
           <p className="text-sm text-gray-500">{dateLine}</p>
           <h1 className="text-2xl font-semibold text-gray-900">
-            สวัสดี, {employeeFirstName} {employeeLastName}
+            {t('greeting', { firstName: employeeFirstName, lastName: employeeLastName })}
           </h1>
         </div>
 
         {/* Today's status card */}
         <section className="mt-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-          <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">สถานะวันนี้</h2>
+          <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">
+            {t('status.heading')}
+          </h2>
           <div className="mt-3 space-y-2 text-sm">
             <StatusRow
-              label="เช็คอิน"
+              label={t('status.checkIn')}
               value={
                 state.clockInAt
-                  ? `${formatTimeBkk(state.clockInAt)}${state.branchName ? ` • ${state.branchName}` : ''}`
-                  : 'ยังไม่ได้เช็คอิน'
+                  ? `${formatTime(new Date(state.clockInAt), locale)}${state.branchName ? ` • ${state.branchName}` : ''}`
+                  : t('status.notCheckedIn')
               }
               tone={state.clockInAt ? 'on' : 'off'}
-              badge={state.checkInStatus === 'Disputed' ? 'ตรวจสอบ' : null}
+              badge={state.checkInStatus === 'Disputed' ? t('status.disputed') : null}
             />
             <StatusRow
-              label="เช็คเอาท์"
-              value={state.hasCheckedOut ? 'เช็คเอาท์แล้ว' : '—'}
+              label={t('status.checkOut')}
+              value={state.hasCheckedOut ? t('status.checkedOut') : '—'}
               tone={state.hasCheckedOut ? 'on' : 'off'}
               badge={null}
             />
@@ -286,7 +295,7 @@ export default function CheckInClient({
         <section className="mt-6">
           {mode === 'check-in' && (
             <PrimaryButton
-              label={isBusy ? '...' : 'เช็คอินเข้างาน'}
+              label={isBusy ? '...' : t('button.checkIn')}
               onClick={onCheckIn}
               disabled={isBusy}
               tone="primary"
@@ -294,7 +303,7 @@ export default function CheckInClient({
           )}
           {mode === 'check-out' && (
             <PrimaryButton
-              label={isBusy ? '...' : 'เช็คเอาท์'}
+              label={isBusy ? '...' : t('button.checkOut')}
               onClick={onCheckOut}
               disabled={isBusy}
               tone="secondary"
@@ -303,7 +312,7 @@ export default function CheckInClient({
           {mode === 'done' && (
             <>
               <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-4 text-center text-sm text-green-800">
-                ✓ เสร็จสิ้นวันนี้แล้ว ขอบคุณค่ะ
+                {t('done')}
               </div>
               {/* Optional check-out — for branches where requireCheckOut=false,
                   the day "ends" at check-in, but motivated employees can still
@@ -317,7 +326,7 @@ export default function CheckInClient({
                   disabled={isBusy}
                   className="mt-3 w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-600 transition hover:border-gray-300 hover:text-gray-800 disabled:opacity-60"
                 >
-                  {isBusy ? '...' : 'เช็คเอาท์ออกจากงาน (ถ้าต้องการ)'}
+                  {isBusy ? '...' : t('button.checkOutOptional')}
                 </button>
               )}
             </>
@@ -325,9 +334,9 @@ export default function CheckInClient({
 
           {/* Live phase feedback under the button */}
           <div className="mt-3 min-h-[1.5rem] text-center text-xs text-gray-500">
-            {phase.kind === 'uploading-selfie' && 'กำลังอัปโหลดเซลฟี่...'}
-            {phase.kind === 'locating' && 'กำลังหาตำแหน่ง...'}
-            {phase.kind === 'submitting' && 'กำลังบันทึก...'}
+            {phase.kind === 'uploading-selfie' && t('phase.uploadingSelfie')}
+            {phase.kind === 'locating' && t('phase.locating')}
+            {phase.kind === 'submitting' && t('phase.submitting')}
             {phase.kind === 'success' && (
               <span className={phase.outcome === 'Confirmed' ? 'text-green-700' : 'text-amber-700'}>
                 {phase.message}
@@ -345,25 +354,25 @@ export default function CheckInClient({
             href="/liff/leave"
             className="rounded-xl border border-gray-200 bg-white px-3 py-3 text-center text-sm font-medium text-gray-700 shadow-sm transition hover:border-primary-200 hover:text-primary-700"
           >
-            📅 คำขอลา
+            {t('quickAction.leave')}
           </a>
           <a
             href="/liff/advance"
             className="rounded-xl border border-gray-200 bg-white px-3 py-3 text-center text-sm font-medium text-gray-700 shadow-sm transition hover:border-primary-200 hover:text-primary-700"
           >
-            💰 ขอเบิก
+            {t('quickAction.advance')}
           </a>
           <a
             href="/liff/calendar"
             className="rounded-xl border border-gray-200 bg-white px-3 py-3 text-center text-sm font-medium text-gray-700 shadow-sm transition hover:border-primary-200 hover:text-primary-700"
           >
-            🗓️ ปฏิทินทีม
+            {t('quickAction.calendar')}
           </a>
           <a
             href="/liff/profile"
             className="rounded-xl border border-gray-200 bg-white px-3 py-3 text-center text-sm font-medium text-gray-700 shadow-sm transition hover:border-primary-200 hover:text-primary-700"
           >
-            👤 โปรไฟล์
+            {t('quickAction.profile')}
           </a>
         </section>
 
@@ -371,7 +380,7 @@ export default function CheckInClient({
         {branches.length > 0 && (
           <section className="mt-8">
             <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">
-              สาขาที่ได้รับมอบหมาย
+              {t('branches.heading')}
             </h2>
             <ul className="mt-2 space-y-1 text-sm text-gray-700">
               {branches.map((b) => (
@@ -437,13 +446,4 @@ function PrimaryButton({
       {label}
     </button>
   );
-}
-
-/** Format an ISO timestamp as HH:mm in Asia/Bangkok. */
-function formatTimeBkk(iso: string): string {
-  return new Date(iso).toLocaleTimeString('th-TH', {
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: 'Asia/Bangkok',
-  });
 }

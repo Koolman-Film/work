@@ -14,6 +14,61 @@
     "disputeApproved": { "header": "Check-in confirmed", "subtitle": "An admin reviewed and confirmed the flagged check-in", "alt": "✅ Your check-in on {date} was confirmed" },
     "disputeRejected": { "header": "Check-in rejected", "subtitle": "An admin did not confirm that check-in", "alt": "❌ Your check-in on {date} was rejected" }
   },
+  "checkin": {
+    "greeting": "Hello, {firstName} {lastName}",
+    "dateLabel": "{date}",
+    "status": {
+      "heading": "Today's status",
+      "checkIn": "Check-in",
+      "checkOut": "Check-out",
+      "notCheckedIn": "Not checked in yet",
+      "checkedOut": "Checked out",
+      "disputed": "Under review"
+    },
+    "button": {
+      "checkIn": "Check in",
+      "checkOut": "Check out",
+      "checkOutOptional": "Check out (optional)"
+    },
+    "done": "✓ All done for today. Thank you!",
+    "phase": {
+      "uploadingSelfie": "Uploading selfie...",
+      "locating": "Getting your location...",
+      "submitting": "Saving..."
+    },
+    "error": {
+      "gpsNotSupported": "This browser does not support GPS",
+      "geoPermissionDenied": "Please allow location access for this app",
+      "geoPositionUnavailable": "Location unavailable — try moving to an open area",
+      "geoTimeout": "Location took too long — please try again",
+      "geoGeneric": "Could not determine location",
+      "sessionExpired": "Session expired — please re-open in LINE",
+      "decodeFailed": "Could not read the photo file",
+      "uploadFailed": "Selfie upload failed: {detail}",
+      "imageTooLarge": "Image is too large, please try again",
+      "generic": "An error occurred"
+    },
+    "quickAction": {
+      "leave": "📅 Leave request",
+      "advance": "💰 Cash advance",
+      "calendar": "🗓️ Team calendar",
+      "profile": "👤 Profile"
+    },
+    "branches": {
+      "heading": "Assigned branches"
+    },
+    "selfie": {
+      "dialogLabel": "Take selfie",
+      "title": "Take selfie",
+      "cancel": "Cancel",
+      "instruction": "Take a selfie to verify your identity",
+      "branchRequirement": "Your branch requires a selfie at check-in",
+      "openCamera": "📷 Open camera",
+      "previewAlt": "Selfie preview",
+      "retake": "Retake",
+      "usePhoto": "Use this photo"
+    }
+  },
   "profile": {
     "personalInfo": "Personal information",
     "jobInfo": "Employment information",

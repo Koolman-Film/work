@@ -3,6 +3,61 @@
     "locale": "km",
     "note": "Khmer — AI-DRAFT (profile namespace), pending native review. Other namespaces fall back to en/th until populated."
   },
+  "checkin": {
+    "greeting": "សួស្តី, {firstName} {lastName}",
+    "dateLabel": "{date}",
+    "status": {
+      "heading": "ស្ថានភាពថ្ងៃនេះ",
+      "checkIn": "ចូលធ្វើការ",
+      "checkOut": "ចេញពីការងារ",
+      "notCheckedIn": "មិនទាន់បានចុះឈ្មោះចូល",
+      "checkedOut": "បានចេញរួចហើយ",
+      "disputed": "កំពុងពិនិត្យ"
+    },
+    "button": {
+      "checkIn": "ចូលធ្វើការ",
+      "checkOut": "ចេញពីការងារ",
+      "checkOutOptional": "ចេញពីការងារ (ប្រសិនបើចង់)"
+    },
+    "done": "✓ រួចរាល់ការងារថ្ងៃនេះហើយ។ អរគុណ!",
+    "phase": {
+      "uploadingSelfie": "កំពុងផ្ទុករូប selfie...",
+      "locating": "កំពុងស្វែងរកទីតាំង...",
+      "submitting": "កំពុងរក្សាទុក..."
+    },
+    "error": {
+      "gpsNotSupported": "browser នេះមិនគាំទ្រ GPS",
+      "geoPermissionDenied": "សូមអនុញ្ញាតឱ្យ app ចូលប្រើទីតាំង",
+      "geoPositionUnavailable": "មិនអាចកំណត់ទីតាំងបាន — សូមទៅកន្លែងទំហំ",
+      "geoTimeout": "ការស្វែងរកទីតាំងចំណាយពេលយូរ — សូមព្យាយាមម្ដងទៀត",
+      "geoGeneric": "មានបញ្ហាក្នុងការកំណត់ទីតាំង",
+      "sessionExpired": "Session អស់ — សូមបើក LINE ឡើងវិញ",
+      "decodeFailed": "មិនអាចអានឯកសាររូបភាពបាន",
+      "uploadFailed": "ផ្ទុករូប selfie មិនបាន: {detail}",
+      "imageTooLarge": "រូបភាពធំពេក សូមព្យាយាមម្ដងទៀត",
+      "generic": "មានបញ្ហាកើតឡើង"
+    },
+    "quickAction": {
+      "leave": "📅 សំណើចំណាកការងារ",
+      "advance": "💰 សំណើប្រាក់គ្រោង",
+      "calendar": "🗓️ ប្រតិទិនក្រុម",
+      "profile": "👤 គណនី"
+    },
+    "branches": {
+      "heading": "សាខាដែលបានចាត់តាំង"
+    },
+    "selfie": {
+      "dialogLabel": "ថតរូប selfie",
+      "title": "ថតរូប selfie",
+      "cancel": "បោះបង់",
+      "instruction": "ថតរូប selfie ដើម្បីបញ្ជាក់អត្តសញ្ញាណ",
+      "branchRequirement": "សាខារបស់អ្នកតម្រូវឱ្យថតរូប selfie នៅពេលចូលធ្វើការ",
+      "openCamera": "📷 បើកកាមេរ៉ា",
+      "previewAlt": "រូបភាព selfie គំរូ",
+      "retake": "ថតឡើងវិញ",
+      "usePhoto": "ប្រើរូបភាពនេះ"
+    }
+  },
   "profile": {
     "personalInfo": "ព័ត៌មានផ្ទាល់ខ្លួន",
     "jobInfo": "ព័ត៌មានការងារ",
