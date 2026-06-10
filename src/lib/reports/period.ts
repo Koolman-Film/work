@@ -7,8 +7,13 @@ const YM = /^\d{4}-\d{2}$/;
 
 export type ReportPeriod = { from: string; to: string; month: string | null };
 
+/** Split a validated "YYYY-MM" into numeric year/month. */
+function splitYm(ym: string): [number, number] {
+  return [Number(ym.slice(0, 4)), Number(ym.slice(5, 7))];
+}
+
 function monthBounds(ym: string): { from: string; to: string } {
-  const [y, m] = ym.split('-').map(Number);
+  const [y, m] = splitYm(ym);
   const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
   return { from: `${ym}-01`, to: `${ym}-${String(last).padStart(2, '0')}` };
 }
@@ -27,7 +32,7 @@ export function resolveReportPeriod(
 
 /** prev/next month strings for the picker ("2026-06" → "2026-05"/"2026-07"). */
 export function adjacentMonths(ym: string): { prev: string; next: string } {
-  const [y, m] = ym.split('-').map(Number);
+  const [y, m] = splitYm(ym);
   const fmt = (yy: number, mm: number) => `${yy}-${String(mm).padStart(2, '0')}`;
   return {
     prev: m === 1 ? fmt(y - 1, 12) : fmt(y, m - 1),
