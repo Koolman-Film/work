@@ -32,6 +32,20 @@
  *   - No proration for mid-month start/end — full month assumed. The
  *     calc-time will let us add a proration helper later without
  *     changing the function signature.
+ *   - **Leave deductions (deductLeave):** over-quota leave amounts that
+ *     were frozen at leave-approval time (LeaveRequest.deductAmount).
+ *     The future payroll pipeline MUST sweep:
+ *       SELECT deductAmount FROM LeaveRequest
+ *       WHERE status = 'Approved'
+ *         AND deletedAt IS NULL
+ *         AND deductedInPayrollId IS NULL
+ *         AND employeeId = <employeeId>
+ *         AND [leave falls within pay-period month]
+ *     and pass the results as `leaveDeductions`. In the same DB
+ *     transaction that creates the Payroll row, the pipeline must stamp
+ *     `deductedInPayrollId` on each swept LeaveRequest — this is the
+ *     once-only idempotency contract (re-running the pipeline will find
+ *     no un-stamped rows for the same month).
  */
 
 import Decimal from 'decimal.js';
@@ -63,6 +77,15 @@ export type RecurringDeductionForPayroll = {
   monthlyAmount: string | number | Decimal;
 };
 
+/**
+ * A single over-quota leave deduction that was frozen at leave-approval
+ * time (LeaveRequest.deductAmount). The pipeline sweeps un-stamped rows
+ * and passes them here; see the module doc-comment for the sweep contract.
+ */
+export type LeaveDeductionForPayroll = {
+  amount: string | number | Decimal;
+};
+
 export type ConfigForPayroll = {
   ssoRate: string | number | Decimal;
   ssoSalaryCap: string | number | Decimal;
@@ -77,6 +100,11 @@ export type CalcInput = {
   attendances: readonly AttendanceForPayroll[];
   advances: readonly AdvanceForPayroll[];
   recurringDeductions: readonly RecurringDeductionForPayroll[];
+  /**
+   * Over-quota leave deductions frozen at approval time. Omit (or pass
+   * an empty array) when none apply — `deductLeave` will be 0.
+   */
+  leaveDeductions?: readonly LeaveDeductionForPayroll[];
   config: ConfigForPayroll;
   /** YYYY-MM string of the pay-period month. Currently only used for traceability in the output. */
   month: string;
@@ -104,6 +132,8 @@ export type PayrollDraft = {
   deductAdvance: Decimal;
   deductAttendance: Decimal;
   deductDebt: Decimal;
+  /** Sum of over-quota leave deductions for the period. */
+  deductLeave: Decimal;
 
   netPay: Decimal;
 
@@ -194,6 +224,11 @@ export function calcPayroll(input: CalcInput): PayrollDraft {
     .plus(toDec(input.config.earlyLeaveDeduction).times(earlyLeaveCount))
     .toDecimalPlaces(2);
 
+  // Leave deductions — over-quota leave amounts frozen at approval time.
+  const deductLeave = sumDec(
+    (input.leaveDeductions ?? []).map((d) => ({ value: d.amount })),
+  ).toDecimalPlaces(2);
+
   // Net = income - deductions. We allow negative (would mean the
   // employee somehow owes the company more than their salary), but
   // surface it as an error case the caller can choose to handle —
@@ -204,6 +239,7 @@ export function calcPayroll(input: CalcInput): PayrollDraft {
     .minus(deductAdvance)
     .minus(deductAttendance)
     .minus(deductDebt)
+    .minus(deductLeave)
     .toDecimalPlaces(2);
 
   return {
@@ -215,6 +251,7 @@ export function calcPayroll(input: CalcInput): PayrollDraft {
     deductAdvance,
     deductAttendance,
     deductDebt,
+    deductLeave,
     netPay,
     breakdown: { absentCount, lateCount, earlyLeaveCount },
   };

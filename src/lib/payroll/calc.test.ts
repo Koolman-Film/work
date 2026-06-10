@@ -187,6 +187,30 @@ describe('calcPayroll — V1 fixtures', () => {
     ).toThrow(PayrollCalcError);
   });
 
+  // CASE 9: leave deductions (over-quota leave) are summed into deductLeave
+  // and subtracted from netPay.
+  // 500.00 + 250 = 750.00 deducted.
+  it('CASE 9 — sums leaveDeductions into deductLeave and subtracts from net', () => {
+    const baseline = calcPayroll(baseInput());
+    const withLeave = calcPayroll(
+      baseInput({
+        leaveDeductions: [{ amount: '500.00' }, { amount: 250 }],
+      }),
+    );
+    expect(withLeave.deductLeave.toFixed(2)).toBe('750.00');
+    // netPay must be exactly 750 less than the baseline (no-leave) draft
+    expect(withLeave.netPay.toFixed(2)).toBe(baseline.netPay.minus(new Decimal('750')).toFixed(2));
+  });
+
+  // CASE 10: backward compat — omitting leaveDeductions keeps deductLeave=0
+  // and netPay identical to the pre-feature baseline.
+  it('CASE 10 — omitted leaveDeductions defaults to 0, netPay unchanged', () => {
+    const baseline = calcPayroll(baseInput());
+    expect(baseline.deductLeave.toFixed(2)).toBe('0.00');
+    // Confirm netPay is still the same as CASE 1
+    expect(baseline.netPay.toString()).toBe('29250');
+  });
+
   // Decimal-precision sanity — make sure 0.05 × 15000 doesn't drift to
   // 749.9999999... due to floating-point bugs. The whole point of
   // using decimal.js is this case.
