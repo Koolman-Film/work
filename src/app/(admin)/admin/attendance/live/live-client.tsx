@@ -15,6 +15,7 @@
 import { useRouter } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Avatar } from '@/components/ui/avatar';
 import { EmptyState } from '@/components/ui/empty-state';
 import { StatCard } from '@/components/ui/stat-card';
 import { getTodayAttendance } from '@/lib/attendance/live';
@@ -258,7 +259,7 @@ function Chip({ row }: { row: LiveAttendanceRow }) {
     <div
       className={`flex items-center gap-2.5 rounded-lg border border-gray-200 border-l-4 ${chipRail(row)} bg-white px-3 py-2 shadow-sm`}
     >
-      <Avatar name={row.employeeName} />
+      <Avatar name={row.employeeName} src={row.photoUrl} size="sm" />
       <div className="min-w-0 flex-1">
         <p className="truncate text-xs font-medium text-ink-1">
           {row.employeeName}
@@ -276,7 +277,7 @@ function Chip({ row }: { row: LiveAttendanceRow }) {
 function RosterChip({ person }: { person: RosterEmployee }) {
   return (
     <div className="flex items-center gap-2.5 rounded-lg border border-gray-200 border-l-4 border-l-slate-300 bg-white px-3 py-2 shadow-sm">
-      <Avatar name={person.employeeName} />
+      <Avatar name={person.employeeName} src={person.photoUrl} size="sm" />
       <div className="min-w-0 flex-1">
         <p className="truncate text-xs font-medium text-ink-1">
           {person.employeeName}
@@ -293,7 +294,7 @@ function RosterChip({ person }: { person: RosterEmployee }) {
 function LeaveChip({ person }: { person: OnLeaveEmployee }) {
   return (
     <div className="flex items-center gap-2.5 rounded-lg border border-gray-200 border-l-4 border-l-amber-400 bg-white px-3 py-2 shadow-sm">
-      <Avatar name={person.employeeName} />
+      <Avatar name={person.employeeName} src={person.photoUrl} size="sm" />
       <div className="min-w-0 flex-1">
         <p className="truncate text-xs font-medium text-ink-1">
           {person.employeeName}
@@ -307,14 +308,6 @@ function LeaveChip({ person }: { person: OnLeaveEmployee }) {
         </p>
       </div>
     </div>
-  );
-}
-
-function Avatar({ name }: { name: string }) {
-  return (
-    <span className="grid size-8 shrink-0 place-items-center rounded-full bg-primary-100 font-display text-[11px] font-bold text-primary-700">
-      {initials(name)}
-    </span>
   );
 }
 
@@ -371,11 +364,6 @@ function groupByBranch<T extends { branchName: string }>(
   return [...map.entries()]
     .sort((a, b) => a[0].localeCompare(b[0], 'th'))
     .map(([branch, list]) => ({ branch, rows: list }));
-}
-
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/);
-  return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase() || '?';
 }
 
 function fmtTime(iso: string): string {

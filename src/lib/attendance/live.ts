@@ -14,6 +14,7 @@
 
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
+import { signAttendancePhotoUrls } from '@/lib/storage/signed-urls';
 import { bangkokDateUtcMidnight, isClosedDay } from './date';
 import {
   type LiveBoardData,
@@ -51,6 +52,7 @@ export async function getTodayAttendance(): Promise<LiveBoardData> {
             firstName: true,
             lastName: true,
             nickname: true,
+            photoKey: true,
             branch: { select: { name: true } },
           },
         },
@@ -64,6 +66,7 @@ export async function getTodayAttendance(): Promise<LiveBoardData> {
         firstName: true,
         lastName: true,
         nickname: true,
+        photoKey: true,
         branch: { select: { name: true } },
       },
     }),
@@ -78,6 +81,7 @@ export async function getTodayAttendance(): Promise<LiveBoardData> {
             firstName: true,
             lastName: true,
             nickname: true,
+            photoKey: true,
             branch: { select: { name: true } },
           },
         },
@@ -95,10 +99,23 @@ export async function getTodayAttendance(): Promise<LiveBoardData> {
 
   const closed = isClosedDay(today, holiday !== null);
 
+  // One batched signing call for every photo on the board. Because this runs
+  // on every fetch — including the client's 30s poll — URLs are re-signed
+  // before their TTL can lapse, so the board never shows expired images.
+  const photoUrls = await signAttendancePhotoUrls(
+    [
+      ...checkInRows.map((r) => r.employee.photoKey),
+      ...rosterRows.map((e) => e.photoKey),
+      ...onLeaveRows.map((r) => r.employee.photoKey),
+    ].filter((k): k is string => Boolean(k)),
+  );
+  const photoUrl = (key: string | null) => (key ? (photoUrls.get(key) ?? null) : null);
+
   const roster: RosterEmployee[] = rosterRows.map((e) => ({
     id: e.id,
     employeeName: `${e.firstName} ${e.lastName}`,
     employeeNickname: e.nickname,
+    photoUrl: photoUrl(e.photoKey),
     branchName: e.branch.name,
   }));
 
@@ -120,6 +137,7 @@ export async function getTodayAttendance(): Promise<LiveBoardData> {
       id: r.id,
       employeeName: `${r.employee.firstName} ${r.employee.lastName}`,
       employeeNickname: r.employee.nickname,
+      photoUrl: photoUrl(r.employee.photoKey),
       branchName: r.employee.branch.name,
       leaveTypeName: r.leaveRequest?.leaveType.name ?? null,
       startDate: r.leaveRequest ? r.leaveRequest.startDate.toISOString() : null,
@@ -133,6 +151,7 @@ export async function getTodayAttendance(): Promise<LiveBoardData> {
       id: r.id,
       employeeName: `${r.employee.firstName} ${r.employee.lastName}`,
       employeeNickname: r.employee.nickname,
+      photoUrl: photoUrl(r.employee.photoKey),
       branchName: r.checkInBranch?.name ?? r.employee.branch.name,
       clockInAt: r.clockInAt ? r.clockInAt.toISOString() : null,
       clockOutAt: r.clockOutAt ? r.clockOutAt.toISOString() : null,
