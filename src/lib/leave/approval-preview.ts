@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/db/prisma';
-import { remainingMinutes, resolveGrantedMinutes } from './balance';
+import { remainingMinutes, resolveGrantedMinutes, usedMinutes } from './balance';
 import { getLeaveConfig } from './leave-config';
 import { deductionForOverQuota, overQuotaMinutesFor, perMinuteRate } from './over-quota';
 import { standardDayMinutes } from './units';
@@ -42,17 +42,7 @@ export async function overQuotaPreview(
   ]);
   const std = standardDayMinutes(cfg);
   const granted = resolveGrantedMinutes(type.annualQuota, ent, std);
-  const usedRows = await prisma.leaveRequest.findMany({
-    where: {
-      employeeId,
-      leaveTypeId,
-      status: 'Approved',
-      deletedAt: null,
-      startDate: { gte: new Date(Date.UTC(year, 0, 1)), lt: new Date(Date.UTC(year + 1, 0, 1)) },
-    },
-    select: { chargedMinutes: true },
-  });
-  const used = usedRows.reduce((s, r) => s + (r.chargedMinutes ?? 0), 0);
+  const used = await usedMinutes(employeeId, leaveTypeId, year);
   const remaining = remainingMinutes(
     {
       grantedMinutes: granted,

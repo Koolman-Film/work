@@ -33,7 +33,7 @@ import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { sendNotification } from '@/lib/inngest/events';
 import { notifyAdminsInApp } from '@/lib/notifications/in-app-bell';
-import { remainingMinutes, resolveGrantedMinutes } from './balance';
+import { remainingMinutes, resolveGrantedMinutes, usedMinutes } from './balance';
 import { getLeaveConfig } from './leave-config';
 import { asNameByLocale } from './localized-name';
 import { deductionForOverQuota, overQuotaMinutesFor, perMinuteRate } from './over-quota';
@@ -241,6 +241,13 @@ export async function approveLeaveRequest(input: Input): Promise<ApproveResult> 
       // ── Entitlement check (frozen at approval) ─────────────────────────
       const chargedMinutes = segment.minutes * targetDates.length;
       const year = req.startDate.getUTCFullYear();
+
+      // Serialize concurrent approvals for the same employee+type+year so two
+      // admins can't both read the same `used` sum and jointly slip under the
+      // quota without freezing a deduction (tx runs at ReadCommitted). The
+      // advisory xact lock releases automatically at commit/rollback and only
+      // ever contends on the same (employee, type, year) triple.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`${req.employeeId}:${req.leaveTypeId}:${year}`}))`;
       const std = standardDayMinutes(cfg);
       const ent = await tx.leaveEntitlement.findUnique({
         where: {
@@ -253,20 +260,7 @@ export async function approveLeaveRequest(input: Input): Promise<ApproveResult> 
         select: { grantedMinutes: true, carryoverMinutes: true, adjustmentMinutes: true },
       });
       const granted = resolveGrantedMinutes(req.leaveType.annualQuota, ent, std);
-      const usedRows = await tx.leaveRequest.findMany({
-        where: {
-          employeeId: req.employeeId,
-          leaveTypeId: req.leaveTypeId,
-          status: 'Approved',
-          deletedAt: null,
-          startDate: {
-            gte: new Date(Date.UTC(year, 0, 1)),
-            lt: new Date(Date.UTC(year + 1, 0, 1)),
-          },
-        },
-        select: { chargedMinutes: true },
-      });
-      const used = usedRows.reduce((s, r) => s + (r.chargedMinutes ?? 0), 0);
+      const used = await usedMinutes(req.employeeId, req.leaveTypeId, year, tx);
       const remaining = remainingMinutes(
         {
           grantedMinutes: granted,

@@ -2,6 +2,10 @@ import { prisma } from '@/lib/db/prisma';
 import { getLeaveConfig } from './leave-config';
 import { standardDayMinutes } from './units';
 
+/** Transaction client compatible with both the extended `prisma` client and a
+ *  plain `Prisma.TransactionClient`. Mirrors the pattern used in audit/log.ts. */
+type TxClient = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
+
 export type EntitlementForBalance = {
   grantedMinutes: number | null;
   carryoverMinutes: number;
@@ -29,15 +33,20 @@ export function resolveGrantedMinutes(
 
 /** Σ chargedMinutes of an employee's Approved, non-deleted leave of one type,
  *  bucketed by the request's startDate year. (Year-spanning multi-day leave
- *  counts wholly in its start year — documented limitation.) */
+ *  counts wholly in its start year — documented limitation.)
+ *
+ *  Accepts an optional `db` param (a Prisma transaction client) so callers
+ *  inside a transaction can reuse the same client and participate in advisory
+ *  locks / consistent reads. Defaults to the module-level `prisma` client. */
 export async function usedMinutes(
   employeeId: string,
   leaveTypeId: string,
   year: number,
+  db: TxClient = prisma,
 ): Promise<number> {
   const start = new Date(Date.UTC(year, 0, 1));
   const end = new Date(Date.UTC(year + 1, 0, 1));
-  const rows = await prisma.leaveRequest.findMany({
+  const rows = await db.leaveRequest.findMany({
     where: {
       employeeId,
       leaveTypeId,
