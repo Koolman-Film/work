@@ -56,6 +56,7 @@
       "reason": "Reason"
     },
     "workingDaysValue": "{days} days",
+    "leaveApprovedDeduction": "Note: over-quota leave — {amount} will be deducted from your pay",
     "leaveApproved": {
       "header": "Leave approved",
       "alt": "✅ Your {type} leave request was approved"

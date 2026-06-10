@@ -23,7 +23,7 @@
 import type { messagingApi } from '@line/bot-sdk';
 import { createTranslator } from 'next-intl';
 import type { Locale } from '@/lib/i18n/config';
-import { formatDate } from '@/lib/i18n/format';
+import { formatDate, formatMoney } from '@/lib/i18n/format';
 import { getMessages } from '@/lib/i18n/messages';
 import type { NotificationPayload } from '@/lib/inngest/events';
 import { localizedLeaveTypeName } from '@/lib/leave/localized-name';
@@ -107,6 +107,10 @@ export function buildFlexMessage(
               : null,
           payload.reviewNote ? { label: t('label.note'), value: payload.reviewNote } : null,
         ],
+        notice:
+          typeof payload.deductAmount === 'number' && payload.deductAmount > 0
+            ? t('leaveApprovedDeduction', { amount: formatMoney(payload.deductAmount, locale) })
+            : null,
         actionLabel: t('action.viewDetails'),
         actionUri: `${appBaseUrl}/liff/leave/${payload.leaveRequestId}`,
       });
@@ -211,6 +215,8 @@ function approvedRejectedBubble(args: {
   title: string;
   subtitle: string;
   details: ReadonlyArray<{ label: string; value: string } | null>;
+  /** Optional one-line warning under the details (e.g. over-quota deduction). */
+  notice?: string | null;
   actionLabel: string;
   actionUri: string;
 }): FlexBubble {
@@ -274,6 +280,18 @@ function approvedRejectedBubble(args: {
                 spacing: 'sm' as const,
                 margin: 'md' as const,
                 contents: detailRows,
+              },
+            ]
+          : []),
+        ...(args.notice
+          ? [
+              {
+                type: 'text' as const,
+                text: args.notice,
+                size: 'sm' as const,
+                color: RED,
+                wrap: true,
+                margin: 'md' as const,
               },
             ]
           : []),

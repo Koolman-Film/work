@@ -53,6 +53,9 @@ export type NotificationPayload =
        *  workingDays in the flex message, where they are rendered in the
        *  recipient's locale. Omitted on reject. */
       duration?: { days: number; hours: number; mins: number } | null;
+      /** Frozen salary deduction (baht) for over-quota leave on a DeductPay
+       *  type; null/absent when within quota. Approved-kind only. */
+      deductAmount?: number | null;
       reviewNote: string | null;
     }
   | {
