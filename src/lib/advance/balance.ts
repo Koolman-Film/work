@@ -42,6 +42,9 @@ export type AdvanceBalanceInput = {
     status: 'Pending' | 'Approved';
     amount: Prisma.Decimal | string | number;
   }>;
+  /** Earned-so-far this payroll period for Daily/Hourly; when provided the
+   *  rate-based variant gains available/overdrawn. */
+  periodEarnings?: number | null;
 };
 
 export type AdvanceBalance =
@@ -61,6 +64,9 @@ export type AdvanceBalance =
       pending: number;
       approvedNotDeducted: number;
       reserved: number;
+      earnings: number | null; // null when periodEarnings not supplied (V1)
+      available: number | null; // null when earnings unknown; can go negative if admin over-approves
+      overdrawn: boolean; // true when available is known and < 0
     };
 
 /** Coerce Prisma.Decimal | string | number to a JS number. */
@@ -96,6 +102,8 @@ export function calculateAdvanceBalance(input: AdvanceBalanceInput): AdvanceBala
     };
   }
 
+  const earnings = input.periodEarnings ?? null;
+  const available = earnings == null ? null : earnings - reserved;
   return {
     kind: 'rate-based',
     salaryType: input.salaryType,
@@ -103,5 +111,8 @@ export function calculateAdvanceBalance(input: AdvanceBalanceInput): AdvanceBala
     pending,
     approvedNotDeducted,
     reserved,
+    earnings,
+    available,
+    overdrawn: available != null && available < 0,
   };
 }
