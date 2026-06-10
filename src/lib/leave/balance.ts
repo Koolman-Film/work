@@ -132,6 +132,79 @@ export async function getOrSeedEntitlements(
   return rows;
 }
 
+/** Bulk variant of remainingByTypeForEmployee for report pages: one groupBy
+ *  for the whole year's used minutes instead of employees × types queries.
+ *  Returns employeeId → (leaveTypeId → remaining minutes | null). */
+export async function remainingByTypeForEmployees(
+  employeeIds: readonly string[],
+  year: number,
+): Promise<Record<string, Record<string, number | null>>> {
+  if (employeeIds.length === 0) return {};
+
+  const std = standardDayMinutes(await getLeaveConfig());
+  const types = await prisma.leaveType.findMany({
+    where: { archivedAt: null },
+    select: { id: true, annualQuota: true },
+  });
+  const ents = await prisma.leaveEntitlement.findMany({
+    where: { employeeId: { in: [...employeeIds] }, periodYear: year },
+    select: {
+      employeeId: true,
+      leaveTypeId: true,
+      grantedMinutes: true,
+      carryoverMinutes: true,
+      adjustmentMinutes: true,
+    },
+  });
+
+  const jan1 = new Date(Date.UTC(year, 0, 1));
+  const nextJan1 = new Date(Date.UTC(year + 1, 0, 1));
+  // NOTE: groupBy bypasses the soft-delete Prisma extension — the explicit
+  // deletedAt: null filter below is load-bearing (not just defence-in-depth).
+  const usedRows = await prisma.leaveRequest.groupBy({
+    by: ['employeeId', 'leaveTypeId'],
+    where: {
+      employeeId: { in: [...employeeIds] },
+      status: 'Approved',
+      deletedAt: null,
+      startDate: { gte: jan1, lt: nextJan1 },
+    },
+    _sum: { chargedMinutes: true },
+  });
+
+  // Build lookup: employeeId:leaveTypeId → used minutes
+  const usedBy = new Map<string, number>();
+  for (const r of usedRows) {
+    usedBy.set(`${r.employeeId}:${r.leaveTypeId}`, r._sum.chargedMinutes ?? 0);
+  }
+
+  // Build lookup: employeeId:leaveTypeId → entitlement row
+  const entBy = new Map<string, (typeof ents)[number]>();
+  for (const e of ents) {
+    entBy.set(`${e.employeeId}:${e.leaveTypeId}`, e);
+  }
+
+  const out: Record<string, Record<string, number | null>> = {};
+  for (const empId of employeeIds) {
+    const byType: Record<string, number | null> = {};
+    for (const t of types) {
+      const ent = entBy.get(`${empId}:${t.id}`) ?? null;
+      const granted = resolveGrantedMinutes(t.annualQuota, ent, std);
+      const used = usedBy.get(`${empId}:${t.id}`) ?? 0;
+      byType[t.id] = remainingMinutes(
+        {
+          grantedMinutes: granted,
+          carryoverMinutes: ent?.carryoverMinutes ?? 0,
+          adjustmentMinutes: ent?.adjustmentMinutes ?? 0,
+        },
+        used,
+      );
+    }
+    out[empId] = byType;
+  }
+  return out;
+}
+
 /** Read-only remaining-per-type for the LIFF form. Does NOT seed rows (an
  *  employee viewing the form shouldn't write). Falls back to the type's
  *  annualQuota default when no entitlement row exists. Returns a record

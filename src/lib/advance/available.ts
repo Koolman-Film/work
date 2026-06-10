@@ -15,8 +15,10 @@ import { payrollPeriodFor, periodEarnings } from './period-earnings';
  * @param excludeAdvanceId omit one advance from "reserved" — pass the id of
  *   the advance being approved so it doesn't count against itself.
  *
- * Perf: 3-4 queries per call — fine for form/approval; report code must NOT
- * loop this over all employees (reports use their own aggregations).
+ * Perf: 3-4 queries per call — fine for form/approval; report code should
+ * avoid looping this over all employees; advanceReport
+ * (src/lib/reports/queries.ts) deliberately accepts the per-employee cost for
+ * current-cap columns — bounded by headcount and parallelized.
  */
 export async function advanceBalanceFor(
   employeeId: string,

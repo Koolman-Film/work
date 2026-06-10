@@ -16,7 +16,7 @@ import 'server-only';
  */
 import { advanceBalanceFor } from '@/lib/advance/available';
 import { prisma } from '@/lib/db/prisma';
-import { remainingByTypeForEmployee } from '@/lib/leave/balance';
+import { remainingByTypeForEmployees } from '@/lib/leave/balance';
 
 const utc = (ymd: string) => new Date(`${ymd}T00:00:00.000Z`);
 
@@ -69,6 +69,9 @@ export async function advanceReport(
         employeeId: { in: ids },
         deletedAt: null,
         status: 'Approved',
+        // approvedAt is a real timestamp; this UTC-midnight window matches the owner-dashboard
+        // convention (bangkokMonthStartUtc → T00:00:00.000Z). Approvals 00:00–07:00 Bangkok on a
+        // boundary day bucket into the previous period — known 7h skew, accepted for an advisory report.
         approvedAt: { gte: utc(period.from), lt: new Date(utc(period.to).getTime() + 86_400_000) },
       },
       _sum: { amount: true },
@@ -82,17 +85,14 @@ export async function advanceReport(
   const inPeriodBy = new Map(inPeriod.map((g) => [g.employeeId, Number(g._sum.amount ?? 0)]));
   const outstandingBy = new Map(outstanding.map((g) => [g.employeeId, Number(g._sum.amount ?? 0)]));
 
-  const rows: AdvanceReportRow[] = [];
-  for (const e of employees) {
-    const balance = await advanceBalanceFor(e.id);
-    rows.push({
-      employeeId: e.id,
-      name: displayName(e),
-      approvedInPeriod: inPeriodBy.get(e.id) ?? 0,
-      outstandingNow: outstandingBy.get(e.id) ?? 0,
-      availableNow: balance.available,
-    });
-  }
+  const balances = await Promise.all(employees.map((e) => advanceBalanceFor(e.id)));
+  const rows: AdvanceReportRow[] = employees.map((e, i) => ({
+    employeeId: e.id,
+    name: displayName(e),
+    approvedInPeriod: inPeriodBy.get(e.id) ?? 0,
+    outstandingNow: outstandingBy.get(e.id) ?? 0,
+    availableNow: balances[i]!.available,
+  }));
   return rows;
 }
 
@@ -182,6 +182,11 @@ export type LeaveReportRow = {
   remainingByType: Record<string, number | null>;
 };
 
+/**
+ * @param year Entitlement year for the remaining columns. Custom ranges
+ *   spanning two calendar years still get one year's remaining (the year
+ *   passed by the caller, typically the range's start year).
+ */
 export async function leaveReport(
   period: { from: string; to: string },
   filter: EmployeeFilter,
@@ -206,6 +211,8 @@ export async function leaveReport(
       employeeId: { in: ids },
       status: 'Approved',
       deletedAt: null,
+      // Bucketed by startDate — month-spanning leave counts wholly in its start month,
+      // matching usedMinutes' year convention (documented limitation).
       startDate: { gte: utc(period.from), lte: utc(period.to) },
     },
     _sum: { chargedMinutes: true, overQuotaMinutes: true, deductAmount: true },
@@ -218,9 +225,8 @@ export async function leaveReport(
       deductAmount: Number(g._sum.deductAmount ?? 0),
     });
   }
-  const rows: LeaveReportRow[] = [];
-  for (const e of employees) {
-    const remaining = await remainingByTypeForEmployee(e.id, year);
+  const remainingAll = await remainingByTypeForEmployees(ids, year);
+  const rows: LeaveReportRow[] = employees.map((e) => {
     const byType: Record<string, LeaveReportCell> = {};
     for (const t of types) {
       byType[t.id] = cellBy.get(`${e.id}:${t.id}`) ?? {
@@ -229,12 +235,12 @@ export async function leaveReport(
         deductAmount: 0,
       };
     }
-    rows.push({
+    return {
       employeeId: e.id,
       name: displayName(e),
       byType,
-      remainingByType: remaining,
-    });
-  }
+      remainingByType: remainingAll[e.id] ?? {},
+    };
+  });
   return { rows, types };
 }
