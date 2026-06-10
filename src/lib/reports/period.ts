@@ -5,6 +5,20 @@
 const YMD = /^\d{4}-\d{2}-\d{2}$/;
 const YM = /^\d{4}-\d{2}$/;
 
+/** True iff the string is a real calendar date (no JS rollover, no Invalid Date).
+ *  Belt-and-braces: round-trip via ISO string to catch both NaN and silent
+ *  day-overflows (JS Date does NOT roll over ISO date strings — they yield
+ *  Invalid Date — but the startsWith check guards future-proof). */
+function isValidYmd(s: string): boolean {
+  const d = new Date(`${s}T00:00:00.000Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().startsWith(s);
+}
+
+/** True iff YYYY-MM is a real month (01–12). */
+function isValidYm(ym: string): boolean {
+  return isValidYmd(`${ym}-01`);
+}
+
 export type ReportPeriod = { from: string; to: string; month: string | null };
 
 /** Split a validated "YYYY-MM" into numeric year/month. */
@@ -23,10 +37,18 @@ export function resolveReportPeriod(
   todayYmd: string,
 ): ReportPeriod {
   const { from, to, m } = params;
-  if (from && to && YMD.test(from) && YMD.test(to) && from <= to) {
+  if (
+    from &&
+    to &&
+    YMD.test(from) &&
+    YMD.test(to) &&
+    isValidYmd(from) &&
+    isValidYmd(to) &&
+    from <= to
+  ) {
     return { from, to, month: null };
   }
-  const ym = m && YM.test(m) ? m : todayYmd.slice(0, 7);
+  const ym = m && YM.test(m) && isValidYm(m) ? m : todayYmd.slice(0, 7);
   return { ...monthBounds(ym), month: ym };
 }
 

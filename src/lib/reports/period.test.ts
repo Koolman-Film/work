@@ -32,6 +32,28 @@ describe('resolveReportPeriod', () => {
       '2026-06',
     );
   });
+  it('m=2026-13 (invalid month) falls back to current month', () => {
+    expect(resolveReportPeriod({ m: '2026-13' }, today).month).toBe('2026-06');
+  });
+  it('from=2026-02-30 (impossible date) falls back to current month', () => {
+    expect(resolveReportPeriod({ from: '2026-02-30', to: '2026-03-05' }, today).month).toBe(
+      '2026-06',
+    );
+  });
+  it('leap year m=2024-02 gives to 2024-02-29', () => {
+    expect(resolveReportPeriod({ m: '2024-02' }, today)).toEqual({
+      from: '2024-02-01',
+      to: '2024-02-29',
+      month: '2024-02',
+    });
+  });
+  it('m=2026-07 gives to 2026-07-31', () => {
+    expect(resolveReportPeriod({ m: '2026-07' }, today)).toEqual({
+      from: '2026-07-01',
+      to: '2026-07-31',
+      month: '2026-07',
+    });
+  });
 });
 
 describe('adjacentMonths', () => {
