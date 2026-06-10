@@ -18,6 +18,7 @@ export default async function LeaveTypeListPage({ searchParams }: { searchParams
       name: true,
       isPaid: true,
       annualQuota: true,
+      overQuotaPolicy: true,
       _count: { select: { requests: true } },
     },
   });
@@ -45,11 +46,23 @@ export default async function LeaveTypeListPage({ searchParams }: { searchParams
     {
       key: 'annualQuota',
       header: 'โควต้า/ปี',
-      cell: (t) => (
-        <span className="tabular-nums text-ink-2">
-          {t.annualQuota != null ? `${t.annualQuota} วัน` : 'ไม่จำกัด'}
-        </span>
-      ),
+      cell: (t) =>
+        t.annualQuota != null ? (
+          <span className="inline-flex items-center gap-1.5">
+            <span className="tabular-nums text-ink-2">{t.annualQuota} วัน</span>
+            {t.overQuotaPolicy === 'Block' ? (
+              <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
+                บล็อก
+              </span>
+            ) : (
+              <span className="rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-800">
+                หักเงิน
+              </span>
+            )}
+          </span>
+        ) : (
+          <span className="tabular-nums text-ink-2">ไม่จำกัด</span>
+        ),
     },
     {
       key: 'requests',
