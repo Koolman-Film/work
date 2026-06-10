@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { type RosterEmployee, selectNotCheckedIn } from './live-shape';
 
 const roster: RosterEmployee[] = [
-  { id: 'e1', employeeName: 'A A', employeeNickname: null, branchName: 'สาขา 1' },
-  { id: 'e2', employeeName: 'B B', employeeNickname: 'บี', branchName: 'สาขา 1' },
-  { id: 'e3', employeeName: 'C C', employeeNickname: null, branchName: 'สาขา 2' },
+  { id: 'e1', employeeName: 'A A', employeeNickname: null, photoUrl: null, branchName: 'สาขา 1' },
+  { id: 'e2', employeeName: 'B B', employeeNickname: 'บี', photoUrl: null, branchName: 'สาขา 1' },
+  { id: 'e3', employeeName: 'C C', employeeNickname: null, photoUrl: null, branchName: 'สาขา 2' },
 ];
 
 describe('selectNotCheckedIn', () => {

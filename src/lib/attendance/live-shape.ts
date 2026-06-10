@@ -10,6 +10,8 @@ export type LiveAttendanceRow = {
   id: string;
   employeeName: string;
   employeeNickname: string | null;
+  /** Signed profile-photo URL (re-signed on every fetch/poll); null = no photo. */
+  photoUrl: string | null;
   branchName: string;
   clockInAt: string | null; // ISO
   clockOutAt: string | null; // ISO
@@ -22,6 +24,8 @@ export type RosterEmployee = {
   id: string;
   employeeName: string;
   employeeNickname: string | null;
+  /** Signed profile-photo URL (re-signed on every fetch/poll); null = no photo. */
+  photoUrl: string | null;
   branchName: string;
 };
 
