@@ -24,6 +24,8 @@ import 'server-only';
 
 import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
+import type { Locale } from '@/lib/i18n/config';
+import { localizedLeaveTypeName } from './localized-name';
 import {
   type TeamCalendarAdvance,
   type TeamCalendarData,
@@ -53,8 +55,11 @@ async function loadEntriesAndHolidays(args: {
   monthStart: Date;
   monthEnd: Date;
   viewerEmployeeId: string | null;
+  /** Resolve LeaveType names for this locale; omit for the canonical (Thai)
+   *  name — the admin views are intentionally untranslated. */
+  locale?: Locale;
 }): Promise<TeamCalendarData> {
-  const { employees, monthStart, monthEnd, viewerEmployeeId } = args;
+  const { employees, monthStart, monthEnd, viewerEmployeeId, locale } = args;
 
   const holidaysPromise = prisma.holiday.findMany({
     where: { archivedAt: null, date: { gte: monthStart, lte: monthEnd } },
@@ -87,7 +92,7 @@ async function loadEntriesAndHolidays(args: {
         startDate: true,
         endDate: true,
         status: true,
-        leaveType: { select: { name: true } },
+        leaveType: { select: { name: true, nameByLocale: true } },
       },
       // Chronological within a day so the detail panel reads top-to-bottom.
       orderBy: [{ startDate: 'asc' }, { createdAt: 'asc' }],
@@ -106,7 +111,9 @@ async function loadEntriesAndHolidays(args: {
         employeeId: l.employeeId,
         employeeName: fullName,
         shortLabel: short,
-        leaveTypeName: l.leaveType.name,
+        leaveTypeName: locale
+          ? localizedLeaveTypeName(l.leaveType.name, l.leaveType.nameByLocale, locale)
+          : l.leaveType.name,
         status: l.status as 'Pending' | 'Approved',
         startDate: ymd(l.startDate),
         endDate: ymd(l.endDate),
@@ -133,8 +140,10 @@ export async function getTeamCalendarData(args: {
   viewerEmployeeId: string;
   monthStart: Date;
   monthEnd: Date;
+  /** Viewer locale for LeaveType display names (worker-facing). */
+  locale?: Locale;
 }): Promise<TeamCalendarData> {
-  const { viewerEmployeeId, monthStart, monthEnd } = args;
+  const { viewerEmployeeId, monthStart, monthEnd, locale } = args;
 
   const me = await prisma.employee.findUnique({
     where: { id: viewerEmployeeId },
@@ -153,7 +162,13 @@ export async function getTeamCalendarData(args: {
     select: { id: true, firstName: true, lastName: true, nickname: true },
   });
 
-  return loadEntriesAndHolidays({ employees: teammates, monthStart, monthEnd, viewerEmployeeId });
+  return loadEntriesAndHolidays({
+    employees: teammates,
+    monthStart,
+    monthEnd,
+    viewerEmployeeId,
+    locale,
+  });
 }
 
 /**

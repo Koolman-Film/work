@@ -39,15 +39,20 @@ export type NotificationPayload =
       leaveRequestId: string;
       employeeFirstName: string;
       leaveTypeName: string;
+      /** Per-locale leave type names (LeaveType.nameByLocale); the flex
+       *  template picks the recipient-locale name, falling back to
+       *  leaveTypeName. Optional so older in-flight events still render. */
+      leaveTypeNameByLocale?: Record<string, string> | null;
       /** YYYY-MM-DD */
       startDate: string;
       /** YYYY-MM-DD */
       endDate: string;
       /** Working days expanded (approved) — null on reject. */
       workingDays: number | null;
-      /** Preformatted days+hours duration ("1 วัน 3 ชม.") for approved leave;
-       *  preferred over workingDays in the flex message. Omitted on reject. */
-      durationLabel?: string | null;
+      /** Days+hours duration parts for approved leave; preferred over
+       *  workingDays in the flex message, where they are rendered in the
+       *  recipient's locale. Omitted on reject. */
+      duration?: { days: number; hours: number; mins: number } | null;
       reviewNote: string | null;
     }
   | {
