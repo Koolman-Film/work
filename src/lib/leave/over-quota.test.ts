@@ -24,7 +24,7 @@ describe('overQuotaMinutesFor', () => {
   it('partially over → only the excess', () => {
     expect(overQuotaMinutesFor(840, 420)).toBe(420);
   });
-  it('negative remaining (historical over-approval) → whole charge is over', () => {
+  it('negative remaining clamps to 0 — current charge is fully over, no retro-charge', () => {
     expect(overQuotaMinutesFor(420, -100)).toBe(420);
   });
 });
