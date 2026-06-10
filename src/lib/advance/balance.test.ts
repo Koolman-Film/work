@@ -89,7 +89,7 @@ describe('calculateAdvanceBalance — Monthly', () => {
 });
 
 describe('calculateAdvanceBalance — Daily / Hourly', () => {
-  it("returns 'rate-based' shape without an 'available' figure for Daily", () => {
+  it("returns 'rate-based' shape with available=null when periodEarnings not supplied", () => {
     const r = calculateAdvanceBalance({
       baseSalary: 500,
       salaryType: 'Daily',
@@ -100,8 +100,9 @@ describe('calculateAdvanceBalance — Daily / Hourly', () => {
       expect(r.salaryType).toBe('Daily');
       expect(r.ratePerPeriod).toBe(500);
       expect(r.reserved).toBe(200);
-      // No `available` field — we don't claim to know.
-      expect('available' in r).toBe(false);
+      // available is null — we don't know earnings without periodEarnings
+      expect(r.available).toBeNull();
+      expect(r.overdrawn).toBe(false);
     }
   });
 
@@ -116,5 +117,29 @@ describe('calculateAdvanceBalance — Daily / Hourly', () => {
     expect(r.ratePerPeriod).toBe(75);
     expect(r.pending).toBe(0);
     expect(r.approvedNotDeducted).toBe(0);
+  });
+});
+
+describe('calculateAdvanceBalance rate-based availability', () => {
+  it('with periodEarnings: available = earnings − reserved', () => {
+    const b = calculateAdvanceBalance({
+      baseSalary: 400,
+      salaryType: 'Daily',
+      reservedAdvances: [{ status: 'Pending', amount: 1000 }],
+      periodEarnings: 4000,
+    });
+    expect(b.kind).toBe('rate-based');
+    if (b.kind === 'rate-based') {
+      expect(b.available).toBe(3000);
+      expect(b.overdrawn).toBe(false);
+    }
+  });
+  it('without periodEarnings: available is null (V1 behavior preserved)', () => {
+    const b = calculateAdvanceBalance({
+      baseSalary: 400,
+      salaryType: 'Hourly',
+      reservedAdvances: [],
+    });
+    if (b.kind === 'rate-based') expect(b.available).toBeNull();
   });
 });
