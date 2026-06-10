@@ -106,6 +106,25 @@ export function segmentFor(
 }
 
 /**
+ * Human label for what a leave request will actually charge, matching the
+ * worker-side estimate and the approval notification: FullDay multi-day →
+ * "3 วัน", half-afternoon → "5 ชม.", hourly → "2 ชม. 30 น.". Partial units
+ * occupy a single date, so workingDays is 0 or 1 for them. Falls back to the
+ * plain working-day count when the stored times are invalid.
+ */
+export function leaveDurationLabel(
+  unit: LeaveUnit,
+  workingDays: number,
+  cfg: LeaveUnitConfig,
+  startTime?: string | null,
+  endTime?: string | null,
+): string {
+  const seg = segmentFor(unit, cfg, startTime, endTime);
+  if (!seg) return `${workingDays} วัน`;
+  return formatDaysHours(seg.minutes * workingDays, cfg);
+}
+
+/**
  * Half-open [start, end) overlap test for two same-date segments. A null
  * start/end means "whole day", which overlaps everything.
  */
