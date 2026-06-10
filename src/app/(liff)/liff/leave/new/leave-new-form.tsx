@@ -12,8 +12,10 @@
  */
 
 import { useRouter } from 'next/navigation';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
+import type { Locale } from '@/lib/i18n/config';
+import { formatMoney } from '@/lib/i18n/format';
 import { submitLeaveRequest } from '@/lib/leave/actions';
 import {
   formatDurationParts,
@@ -35,6 +37,7 @@ type LeaveTypeOption = {
   allowFullDay: boolean;
   allowHalfDay: boolean;
   allowHourly: boolean;
+  overQuotaPolicy: 'Block' | 'DeductPay';
 };
 
 type Props = {
@@ -46,6 +49,8 @@ type Props = {
   leaveConfig: LeaveUnitConfig;
   /** Remaining minutes per leave type id for the current year (null = unlimited). */
   remainingByType: Record<string, number | null>;
+  /** Per-minute deduction rate (Baht) derived from employee salary on the server. */
+  ratePerMinute: number;
 };
 
 export function LeaveNewForm({
@@ -54,10 +59,12 @@ export function LeaveNewForm({
   defaultDate,
   leaveConfig,
   remainingByType,
+  ratePerMinute,
 }: Props) {
   const router = useRouter();
   const t = useTranslations('leave');
   const tUnits = useTranslations('units');
+  const locale = useLocale() as Locale;
   // Locale-aware "1 วัน 3 ชม." / "1 day 3 hr" renderer for charge/balance lines.
   const fmtDuration = (minutes: number) =>
     formatDurationParts(splitDaysHours(minutes, leaveConfig), {
@@ -65,6 +72,7 @@ export function LeaveNewForm({
       hour: (n) => tUnits('hour', { n }),
       min: (n) => tUnits('min', { n }),
     });
+  const fmtMoney = (v: number) => formatMoney(v, locale);
   const [pending, startTransition] = useTransition();
   const [leaveTypeId, setLeaveTypeId] = useState<string>(leaveTypes[0]?.id ?? '');
   const [unit, setUnit] = useState<LeaveUnit>('FullDay');
@@ -136,6 +144,10 @@ export function LeaveNewForm({
   // Soft-warn only — never blocks submission (admin decides at approval).
   const remaining = remainingByType[leaveTypeId] ?? null;
   const exceeds = remaining != null && chargePreview != null && chargePreview > remaining;
+  const overMinutes =
+    remaining != null && chargePreview != null
+      ? Math.max(0, chargePreview - Math.max(0, remaining))
+      : 0;
 
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -368,9 +380,14 @@ export function LeaveNewForm({
             {t('new.remaining')} <strong>{fmtDuration(remaining)}</strong>
           </p>
         )}
-        {exceeds && (
+        {exceeds && selectedType && (
           <p className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
-            {t('new.exceedsBalance')}
+            {selectedType.overQuotaPolicy === 'Block'
+              ? t('new.exceedsBlock')
+              : t('new.exceedsDeduct', {
+                  over: fmtDuration(overMinutes),
+                  amount: fmtMoney(overMinutes * ratePerMinute),
+                })}
           </p>
         )}
 

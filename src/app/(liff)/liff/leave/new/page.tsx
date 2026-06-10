@@ -14,12 +14,14 @@ import type { Locale } from '@/lib/i18n/config';
 import { remainingByTypeForEmployee } from '@/lib/leave/balance';
 import { getLeaveConfig } from '@/lib/leave/leave-config';
 import { localizedLeaveTypeName } from '@/lib/leave/localized-name';
+import { perMinuteRate } from '@/lib/leave/over-quota';
+import { standardDayMinutes } from '@/lib/leave/units';
 import { LeaveNewForm } from './leave-new-form';
 
 export default async function NewLeavePage() {
   const { employee } = await requireRole(['Staff']);
 
-  const [rawLeaveTypes, leaveConfig, locale] = await Promise.all([
+  const [rawLeaveTypes, leaveConfig, locale, payCfg] = await Promise.all([
     prisma.leaveType.findMany({
       where: { archivedAt: null },
       orderBy: { name: 'asc' },
@@ -32,10 +34,12 @@ export default async function NewLeavePage() {
         allowFullDay: true,
         allowHalfDay: true,
         allowHourly: true,
+        overQuotaPolicy: true,
       },
     }),
     getLeaveConfig(),
     getLocale() as Promise<Locale>,
+    prisma.payrollConfig.findFirstOrThrow({ select: { workingDaysPerMonth: true } }),
   ]);
 
   // Resolve display names to the viewer's locale here so the client form
@@ -44,6 +48,17 @@ export default async function NewLeavePage() {
     ...lt,
     name: localizedLeaveTypeName(lt.name, nameByLocale, locale),
   }));
+
+  // Per-minute deduction rate for over-quota preview. Falls back to 0 when
+  // employee row is missing (edge case: Superadmin viewing the page).
+  const ratePerMinute = employee
+    ? perMinuteRate(
+        employee.salaryType,
+        Number(employee.baseSalary),
+        payCfg.workingDaysPerMonth,
+        standardDayMinutes(leaveConfig),
+      )
+    : 0;
 
   if (leaveTypes.length === 0) {
     // Defensive: if admin hasn't seeded any LeaveType yet, send the
@@ -74,6 +89,7 @@ export default async function NewLeavePage() {
       defaultDate={todayYmd}
       leaveConfig={leaveConfig}
       remainingByType={remainingByType}
+      ratePerMinute={ratePerMinute}
     />
   );
 }
