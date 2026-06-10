@@ -10,6 +10,7 @@
  */
 
 import { useLocale, useTranslations } from 'next-intl';
+import { Avatar } from '@/components/ui/avatar';
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
 import type { UpdateProfileInput } from '@/lib/employee/profile-actions';
 import type { Locale } from '@/lib/i18n/config';
@@ -20,6 +21,8 @@ export type ProfileViewData = {
   firstName: string;
   lastName: string;
   nickname: string | null;
+  /** Signed URL of the admin-managed profile photo; null = no photo. */
+  photoUrl: string | null;
   shortId: string;
   branchName: string;
   departmentName: string | null;
@@ -44,7 +47,6 @@ export function ProfileView({
     employee.nickname && employee.nickname.trim().length > 0
       ? employee.nickname
       : employee.firstName;
-  const initials = (displayName[0] ?? '?').toUpperCase();
 
   return (
     <main className="mx-auto max-w-md px-4 pt-6 pb-12">
@@ -52,9 +54,7 @@ export function ProfileView({
       <Card className="mb-4">
         <CardBody className="!py-5">
           <div className="flex items-center gap-3">
-            <span className="grid size-14 shrink-0 place-items-center rounded-full bg-primary-100 text-lg font-bold text-primary-700">
-              {initials}
-            </span>
+            <Avatar name={displayName} src={employee.photoUrl} size="lg" />
             <div className="min-w-0 flex-1">
               <p className="truncate text-base font-semibold text-gray-900">
                 {employee.firstName} {employee.lastName}
