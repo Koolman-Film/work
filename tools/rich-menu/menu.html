@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8" />
+    <!--
+      Koolman Work — LINE rich menu (universal multilingual).
+      Rendered to a 2500×1686 PNG by shoot.mjs. Edit a label / add a language
+      here, re-run the script, re-upload. Brand tokens = Sapphire Editorial
+      (src/app/globals.css). Fonts = the app's shipped stack + Noto Sans SC.
+    -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=Noto+Sans+Myanmar:wght@400;500;700&family=Noto+Sans+Lao:wght@400;500;700&family=Noto+Sans+Khmer:wght@400;500;700&family=Noto+Sans+SC:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --blue: #3955e8;
+        --blue-soft: #f0f5ff;
+        --blue-200: #c7d8ff;
+        --amber: #f59e0b;
+        --amber-soft: #fffbeb;
+        --green: #10b981;
+        --green-soft: #ecfdf5;
+        --slate: #334155;
+        --slate-soft: #f1f5f9;
+        --red: #ef4444;
+        --ink1: #0f172a;
+        --ink3: #64748b;
+        --bg: #f8fafc;
+        /* Latin first → Inter for Latin/numerals; each script falls through to
+           its own family via per-glyph fallback. */
+        --sans: 'Inter', 'IBM Plex Sans Thai', 'Noto Sans Myanmar',
+          'Noto Sans Lao', 'Noto Sans Khmer', 'Noto Sans SC', sans-serif;
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { background: #fff; }
+      #menu {
+        width: 2500px;
+        height: 1686px;
+        background: var(--bg);
+        font-family: var(--sans);
+        display: grid;
+        grid-template-rows: 843px 843px;
+        grid-template-columns: repeat(3, 1fr);
+        overflow: hidden;
+      }
+      .cell { padding: 22px; }
+      .banner { grid-column: 1 / 4; }
+      .card {
+        width: 100%;
+        height: 100%;
+        border-radius: 40px;
+        position: relative;
+        overflow: hidden;
+        display: flex;
+      }
+      /* ---- decorative dot grid + plus marks (brand flavor) ---- */
+      .dots {
+        position: absolute;
+        width: 150px; height: 110px;
+        background-image: radial-gradient(currentColor 8px, transparent 9px);
+        background-size: 38px 38px;
+        opacity: 0.18;
+      }
+      .plus { position: absolute; font-weight: 700; opacity: 0.22; }
+
+      /* ================= BANNER ================= */
+      .banner .card {
+        background: linear-gradient(110deg, var(--blue-soft) 0%, #e6edff 100%);
+        align-items: center;
+        padding: 0 190px;
+        gap: 60px;
+      }
+      .banner .copy { flex: 1; }
+      .banner .pin-emblem {
+        width: 230px; height: 230px; border-radius: 50%;
+        background: #dbe6ff; display: grid; place-items: center;
+        margin-bottom: 36px;
+      }
+      .banner h1 {
+        font-family: 'IBM Plex Sans Thai', var(--sans);
+        font-weight: 600; font-size: 122px; line-height: 1;
+        color: var(--ink1); letter-spacing: -1px;
+      }
+      .banner .uline { height: 12px; width: 280px; border-radius: 99px; background: var(--blue); margin: 30px 0 28px; }
+      .banner .sub { font-size: 88px; font-weight: 500; color: var(--ink3); line-height: 1.45; max-width: 1560px; }
+      .banner .phone {
+        width: 520px; height: 720px; border-radius: 62px;
+        background: #1e293b; padding: 18px; flex: none;
+        box-shadow: 0 40px 80px -30px rgba(57, 85, 232, 0.5);
+        position: relative;
+      }
+      .banner .screen {
+        width: 100%; height: 100%; border-radius: 46px; overflow: hidden;
+        background: #eef2f7; position: relative;
+      }
+      .banner .road { position: absolute; background: #fff; }
+      .banner .green-blob { position: absolute; background: #d9f0dd; border-radius: 40px; }
+      .banner .map-pin {
+        position: absolute; left: 50%; top: 44%; transform: translate(-50%, -50%);
+      }
+      .banner .checkbadge {
+        position: absolute; right: -34px; bottom: 70px;
+        width: 150px; height: 150px; border-radius: 50%;
+        background: var(--blue); display: grid; place-items: center;
+        border: 12px solid #fff;
+        box-shadow: 0 18px 40px -10px rgba(57, 85, 232, 0.6);
+      }
+      .banner .bubble {
+        position: absolute; right: -10px; top: 30px;
+        background: var(--blue); color: #fff; font-weight: 700; font-size: 40px;
+        padding: 18px 34px; border-radius: 24px 24px 24px 6px; letter-spacing: 1px;
+      }
+
+      /* ================= TILES ================= */
+      .tile .card {
+        flex-direction: column; align-items: center; justify-content: center;
+        text-align: center; gap: 0; border: 2px solid rgba(15, 23, 42, 0.05);
+      }
+      .tile .icon-wrap {
+        width: 250px; height: 250px; border-radius: 56px;
+        display: grid; place-items: center; margin-bottom: 46px;
+        position: relative;
+      }
+      .tile h2 {
+        font-family: 'IBM Plex Sans Thai', var(--sans);
+        font-weight: 600; font-size: 104px; line-height: 1; color: var(--ink1);
+      }
+      .tile .uline { height: 10px; width: 120px; border-radius: 99px; margin: 26px 0 30px; }
+      .tile .sub { font-size: 48px; font-weight: 500; color: var(--ink3); max-width: 740px; line-height: 1.5; }
+
+      .t-leave .card { background: var(--amber-soft); }
+      .t-leave .icon-wrap { background: #fdebc8; color: var(--amber); }
+      .t-leave .uline { background: var(--amber); }
+      .t-adv .card { background: var(--green-soft); }
+      .t-adv .icon-wrap { background: #cdeede; color: var(--green); }
+      .t-adv .uline { background: var(--green); }
+      .t-cal .card { background: var(--slate-soft); }
+      .t-cal .icon-wrap { background: #e2e8f0; color: var(--slate); }
+      .t-cal .uline { background: var(--slate); }
+      .sub .t { white-space: nowrap; }
+      svg { display: block; }
+    </style>
+  </head>
+  <body>
+    <div id="menu">
+      <!-- ============ CHECK-IN BANNER ============ -->
+      <div class="cell banner">
+        <div class="card">
+          <span class="dots" style="left: 1480px; top: 60px; color: var(--blue)"></span>
+          <span class="plus" style="left: 760px; top: 90px; color: var(--blue); font-size: 70px">+</span>
+          <span class="plus" style="right: 640px; bottom: 120px; color: var(--amber); font-size: 54px">+</span>
+          <div class="copy">
+            <div class="pin-emblem">
+              <svg width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="#3955e8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" fill="#c7d8ff" />
+                <circle cx="12" cy="10" r="3" fill="#fff" />
+              </svg>
+            </div>
+            <h1>เข้างาน</h1>
+            <div class="uline"></div>
+            <div class="sub"><span class="t">Check-in</span> · <span class="t">အလုပ်ဝင်</span> · <span class="t">ເຂົ້າວຽກ</span><br /><span class="t">签到</span> · <span class="t">ចូលធ្វើការ</span></div>
+          </div>
+          <div class="phone">
+            <div class="screen">
+              <div class="road" style="left: 0; top: 130px; width: 100%; height: 28px"></div>
+              <div class="road" style="left: 0; bottom: 200px; width: 100%; height: 22px"></div>
+              <div class="road" style="left: 150px; top: 0; width: 26px; height: 100%"></div>
+              <div class="road" style="right: 120px; top: 0; width: 20px; height: 100%"></div>
+              <div class="green-blob" style="left: 30px; bottom: 60px; width: 150px; height: 110px"></div>
+              <div class="green-blob" style="right: 40px; top: 40px; width: 120px; height: 90px"></div>
+              <svg class="map-pin" width="150" height="150" viewBox="0 0 24 24" fill="#3955e8" stroke="#fff" stroke-width="1.5" stroke-linejoin="round">
+                <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
+                <circle cx="12" cy="10" r="3" fill="#fff" />
+              </svg>
+              <div class="checkbadge">
+                <svg width="84" height="84" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+              </div>
+            </div>
+            <div class="bubble">CHECK IN</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============ LEAVE ============ -->
+      <div class="cell tile t-leave">
+        <div class="card">
+          <span class="dots" style="left: 40px; top: 40px; color: var(--amber)"></span>
+          <div class="icon-wrap">
+            <!-- clipboard-check (distinct from a calendar) + person -->
+            <svg width="150" height="150" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <rect width="8" height="4" x="8" y="2" rx="1" />
+              <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+              <path d="m9 14 2 2 4-4" />
+            </svg>
+          </div>
+          <h2>ขอลา</h2>
+          <div class="uline"></div>
+          <div class="sub"><span class="t">Leave</span> · <span class="t">ခွင့်ယူ</span> · <span class="t">ລາພັກ</span><br /><span class="t">请假</span> · <span class="t">សុំច្បាប់</span></div>
+        </div>
+      </div>
+
+      <!-- ============ ADVANCE ============ -->
+      <div class="cell tile t-adv">
+        <div class="card">
+          <span class="dots" style="right: 40px; top: 40px; color: var(--green)"></span>
+          <div class="icon-wrap">
+            <!-- wallet -->
+            <svg width="150" height="150" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 1-1 1v3a1 1 0 0 1-1 1H5a2 2 0 0 1-2-2V5" />
+              <path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4" />
+            </svg>
+          </div>
+          <h2>ขอเบิก</h2>
+          <div class="uline"></div>
+          <div class="sub"><span class="t">Advance</span> · <span class="t">ငွေကြိုထုတ်</span> · <span class="t">ເບີກເງິນ</span><br /><span class="t">预支</span> · <span class="t">បើកប្រាក់</span></div>
+        </div>
+      </div>
+
+      <!-- ============ CALENDAR ============ -->
+      <div class="cell tile t-cal">
+        <div class="card">
+          <span class="dots" style="left: 40px; bottom: 40px; color: var(--slate)"></span>
+          <div class="icon-wrap">
+            <!-- calendar-days -->
+            <svg width="150" height="150" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M8 2v4M16 2v4" />
+              <rect width="18" height="18" x="3" y="4" rx="2" />
+              <path d="M3 10h18" />
+              <path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01" />
+            </svg>
+          </div>
+          <h2>ปฏิทิน</h2>
+          <div class="uline"></div>
+          <div class="sub"><span class="t">Calendar</span> · <span class="t">ပြက္ခဒိန်</span> · <span class="t">ປະຕິທິນ</span><br /><span class="t">日历</span> · <span class="t">ប្រតិទិន</span></div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
