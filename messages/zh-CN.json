@@ -250,7 +250,8 @@
     },
     "balance": {
       "monthlyTitle": "可申请预支额度",
-      "available": "{amount}",
+      "available": "可借支金额",
+      "earned": "本期收入",
       "fromBaseSalary": "基本工资 {amount}",
       "ariaProgress": "已使用工资的 {pct}%",
       "pending": "待审批",
@@ -271,6 +272,7 @@
       "amountPlaceholder": "0.00",
       "quickAmounts": "快速选择",
       "note": "每次只能有一条待审批申请。如需再次申请，请等待管理员审批或先撤销当前申请",
+      "exceedsCap": "超出可借支额度（剩余 {available}），申请可能被拒绝",
       "noteLabel": "注意：",
       "cancel": "取消",
       "submit": "提交申请",

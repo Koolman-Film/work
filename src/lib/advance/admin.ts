@@ -18,6 +18,7 @@
 
 import { Prisma } from '@prisma/client';
 import { headers } from 'next/headers';
+import { advanceBalanceFor } from '@/lib/advance/available';
 import { auditLog, auditLogTx } from '@/lib/audit/log';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
@@ -50,7 +51,7 @@ export type ApproveAdvanceResult =
   | { ok: true }
   | {
       ok: false;
-      code: 'forbidden' | 'not-found' | 'not-pending' | 'db-error';
+      code: 'forbidden' | 'not-found' | 'not-pending' | 'over-cap' | 'db-error';
       message: string;
     };
 
@@ -99,6 +100,36 @@ export async function approveCashAdvance(input: ApproveInput): Promise<ApproveAd
   const approveNotifBox: {
     data: { recipientUserId: string; employeeFirstName: string; amount: string } | null;
   } = { data: null };
+
+  // Hard cap: "การเบิก ไม่เกินเงินเดือน". Checked BEFORE the tx because
+  // advanceBalanceFor uses the global prisma client (not the tx). Small
+  // TOCTOU window between this read and the update below — the partial-unique
+  // one-Pending-per-employee index is the structural backstop against the
+  // double-spend race (see src/lib/advance/available.ts). Not-found /
+  // not-pending stay the tx's responsibility; we only guard a live Pending row.
+  const capRow = await prisma.cashAdvance.findUnique({
+    where: { id: input.cashAdvanceId },
+    select: { id: true, status: true, amount: true, employeeId: true },
+  });
+  if (capRow && capRow.status === 'Pending') {
+    // Exclude this advance from its own reserved sum — it is the Pending
+    // row being decided.
+    const balance = await advanceBalanceFor(capRow.employeeId, capRow.id);
+    const available = balance.available; // both variants expose it (rate-based may be null)
+    if (available != null && Number(capRow.amount) > available) {
+      return {
+        ok: false,
+        code: 'over-cap',
+        message: `เกินวงเงินที่เบิกได้ (คงเหลือ ฿${available.toLocaleString('th-TH', { minimumFractionDigits: 2 })})`,
+      };
+    }
+    if (available == null) {
+      // Rate-based employee with no computable earnings shouldn't happen
+      // (advanceBalanceFor always computes for rate-based), but never block on
+      // a missing number — log and let the admin decide.
+      console.warn('[approveCashAdvance] available=null for', capRow.employeeId);
+    }
+  }
 
   try {
     const result = await prisma.$transaction<ApproveAdvanceResult>(async (tx) => {

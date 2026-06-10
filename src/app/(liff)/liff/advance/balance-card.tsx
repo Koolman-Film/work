@@ -2,8 +2,8 @@
  * Salary balance card for /liff/advance.
  *
  * Two layouts: Monthly (the common case — cap + reserved + available)
- * and rate-based (Daily / Hourly — rate + reserved only, no "available"
- * because we don't know the period yet).
+ * and rate-based (Daily / Hourly — rate + reserved, plus earned/available
+ * when period earnings are computable from attendance).
  *
  * Server Component — pure presentational, takes the precomputed
  * AdvanceBalance object. Calculation lives in lib/advance/balance.ts.
@@ -100,8 +100,9 @@ export async function BalanceCard({ balance, locale }: Props) {
     );
   }
 
-  // Daily / Hourly: show the rate + reserved, but no "available" — see
-  // balance.ts for the reasoning.
+  // Daily / Hourly: rate + reserved, plus — when period earnings are
+  // computable from attendance — earned-this-period and available, mirroring
+  // the monthly breakdown. See balance.ts for the earnings semantics.
   const rateLabel =
     balance.salaryType === 'Daily' ? t('balance.ratePerDay') : t('balance.ratePerHour');
   return (
@@ -128,6 +129,29 @@ export async function BalanceCard({ balance, locale }: Props) {
             {formatMoney(balance.approvedNotDeducted, locale)}
           </dd>
         </div>
+        {balance.earnings != null && (
+          <>
+            <div>
+              <dt className="text-xs text-gray-500">{t('balance.earned')}</dt>
+              <dd className="mt-0.5 font-medium tabular-nums text-gray-900">
+                {formatMoney(balance.earnings, locale)}
+              </dd>
+            </div>
+            {balance.available != null && (
+              <div>
+                <dt className="text-xs text-gray-500">{t('balance.available')}</dt>
+                <dd
+                  className={[
+                    'mt-0.5 font-medium tabular-nums',
+                    balance.overdrawn ? 'text-red-700' : 'text-gray-900',
+                  ].join(' ')}
+                >
+                  {formatMoney(balance.available, locale)}
+                </dd>
+              </div>
+            )}
+          </>
+        )}
       </dl>
     </section>
   );
