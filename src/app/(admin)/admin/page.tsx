@@ -95,9 +95,9 @@ export default async function AdminHomePage() {
   const [
     pendingLeaveCount,
     pendingAdvanceCount,
-    checkedInTodayCount,
+    checkedInTodayRows,
     activeEmployeeCount,
-    onLeaveTodayCount,
+    onLeaveTodayRows,
     todayHoliday,
     pendingLeaveRecent,
     pendingAdvanceRecent,
@@ -106,19 +106,21 @@ export default async function AdminHomePage() {
   ] = await Promise.all([
     prisma.leaveRequest.count({ where: { status: 'Pending' } }),
     prisma.cashAdvance.count({ where: { status: 'Pending' } }),
-    prisma.attendance.count({ where: { type: 'CheckIn', date: today } }),
+    prisma.attendance.findMany({
+      where: { type: 'CheckIn', date: today },
+      distinct: ['employeeId'],
+      select: { employeeId: true },
+    }),
     prisma.employee.count({
       where: { archivedAt: null, status: { not: 'Archived' }, canCheckIn: true },
     }),
     // Distinct by employee: a date can hold two OnLeave rows (two halves), so
     // count people on leave, not rows.
-    prisma.attendance
-      .findMany({
-        where: { type: 'OnLeave', date: today },
-        distinct: ['employeeId'],
-        select: { employeeId: true },
-      })
-      .then((rows) => rows.length),
+    prisma.attendance.findMany({
+      where: { type: 'OnLeave', date: today, deletedAt: null },
+      distinct: ['employeeId'],
+      select: { employeeId: true },
+    }),
     prisma.holiday.findFirst({
       where: { date: today, archivedAt: null },
       select: { name: true },
@@ -148,7 +150,7 @@ export default async function AdminHomePage() {
       },
     }),
     prisma.attendance.findMany({
-      where: { type: 'OnLeave', date: today },
+      where: { type: 'OnLeave', date: today, deletedAt: null },
       distinct: ['employeeId'],
       orderBy: { employee: { firstName: 'asc' } },
       select: {
@@ -166,13 +168,20 @@ export default async function AdminHomePage() {
     getOrgCalendarData({ monthStart: calMonth.start, monthEnd: calMonth.end }),
   ]);
 
-  // "ยังไม่เช็คอินวันนี้" = active employees minus those who've checked in
-  // minus those on approved leave today. On Sundays + Holidays this is
-  // structurally zero (nobody is expected to work).
+  // "ยังไม่เช็คอินวันนี้" = active employees minus everyone "busy" today
+  // (checked-in ∪ on-leave). Set union, not subtraction: a half-day leave can
+  // coexist with a check-in on the same date, and plain arithmetic would
+  // double-subtract that employee (same approach as the live board's
+  // selectNotCheckedIn). On Sundays + Holidays this is structurally zero
+  // (nobody is expected to work).
+  const checkedInTodayCount = checkedInTodayRows.length;
+  const onLeaveTodayCount = onLeaveTodayRows.length;
+  const busyTodayCount = new Set([
+    ...checkedInTodayRows.map((r) => r.employeeId),
+    ...onLeaveTodayRows.map((r) => r.employeeId),
+  ]).size;
   const closedToday = isClosedDay(today, todayHoliday !== null);
-  const notCheckedInCount = closedToday
-    ? 0
-    : Math.max(0, activeEmployeeCount - checkedInTodayCount - onLeaveTodayCount);
+  const notCheckedInCount = closedToday ? 0 : Math.max(0, activeEmployeeCount - busyTodayCount);
 
   // Merge leave + advance pending into a unified chronological list (top 5).
   type PendingRow =
