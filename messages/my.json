@@ -8,6 +8,9 @@
     "hour": "{n} နာရီ",
     "min": "{n} မိနစ်"
   },
+  "notifications": {
+    "leaveApprovedDeduction": "မှတ်ချက် — သတ်မှတ်ခွင့်ထက်ကျော်သောကြောင့် လစာမှ {amount} ဖြတ်တောက်ပါမည်"
+  },
   "pair": {
     "title": "LINE အကောင့် ချိတ်ဆက်ရန်",
     "phase": {

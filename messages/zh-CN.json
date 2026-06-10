@@ -8,6 +8,9 @@
     "hour": "{n} 小时",
     "min": "{n} 分钟"
   },
+  "notifications": {
+    "leaveApprovedDeduction": "注意：请假超出额度，将从工资中扣除 {amount}"
+  },
   "pair": {
     "title": "绑定 LINE 账号",
     "phase": {

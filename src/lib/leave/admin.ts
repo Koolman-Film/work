@@ -33,14 +33,18 @@ import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { sendNotification } from '@/lib/inngest/events';
 import { notifyAdminsInApp } from '@/lib/notifications/in-app-bell';
+import { remainingMinutes, resolveGrantedMinutes } from './balance';
 import { getLeaveConfig } from './leave-config';
 import { asNameByLocale } from './localized-name';
+import { deductionForOverQuota, overQuotaMinutesFor, perMinuteRate } from './over-quota';
 import {
   type DurationParts,
+  formatDaysHours,
   type LeaveUnit,
   segmentFor,
   segmentsOverlap,
   splitDaysHours,
+  standardDayMinutes,
 } from './units';
 import { expandHolidaysWithSubstitutes, parseInputDate, workingDaysIn } from './working-days';
 
@@ -69,7 +73,13 @@ export type ApproveResult =
   | { ok: true; attendanceRowsCreated: number; workingDays: number }
   | {
       ok: false;
-      code: 'forbidden' | 'not-found' | 'not-pending' | 'short-note' | 'db-error';
+      code:
+        | 'forbidden'
+        | 'not-found'
+        | 'not-pending'
+        | 'short-note'
+        | 'over-quota-block'
+        | 'db-error';
       message: string;
     };
 
@@ -123,6 +133,7 @@ export async function approveLeaveRequest(input: Input): Promise<ApproveResult> 
       endDate: string;
       workingDayCount: number;
       duration: DurationParts;
+      deductAmount: number | null;
     } | null;
   } = { data: null };
 
@@ -140,8 +151,12 @@ export async function approveLeaveRequest(input: Input): Promise<ApproveResult> 
           unit: true,
           startTime: true,
           endTime: true,
-          employee: { select: { firstName: true, userId: true } },
-          leaveType: { select: { name: true, nameByLocale: true } },
+          employee: {
+            select: { firstName: true, userId: true, salaryType: true, baseSalary: true },
+          },
+          leaveType: {
+            select: { name: true, nameByLocale: true, annualQuota: true, overQuotaPolicy: true },
+          },
         },
       });
 
@@ -223,6 +238,67 @@ export async function approveLeaveRequest(input: Input): Promise<ApproveResult> 
         };
       }
 
+      // ── Entitlement check (frozen at approval) ─────────────────────────
+      const chargedMinutes = segment.minutes * targetDates.length;
+      const year = req.startDate.getUTCFullYear();
+      const std = standardDayMinutes(cfg);
+      const ent = await tx.leaveEntitlement.findUnique({
+        where: {
+          employeeId_leaveTypeId_periodYear: {
+            employeeId: req.employeeId,
+            leaveTypeId: req.leaveTypeId,
+            periodYear: year,
+          },
+        },
+        select: { grantedMinutes: true, carryoverMinutes: true, adjustmentMinutes: true },
+      });
+      const granted = resolveGrantedMinutes(req.leaveType.annualQuota, ent, std);
+      const usedRows = await tx.leaveRequest.findMany({
+        where: {
+          employeeId: req.employeeId,
+          leaveTypeId: req.leaveTypeId,
+          status: 'Approved',
+          deletedAt: null,
+          startDate: {
+            gte: new Date(Date.UTC(year, 0, 1)),
+            lt: new Date(Date.UTC(year + 1, 0, 1)),
+          },
+        },
+        select: { chargedMinutes: true },
+      });
+      const used = usedRows.reduce((s, r) => s + (r.chargedMinutes ?? 0), 0);
+      const remaining = remainingMinutes(
+        {
+          grantedMinutes: granted,
+          carryoverMinutes: ent?.carryoverMinutes ?? 0,
+          adjustmentMinutes: ent?.adjustmentMinutes ?? 0,
+        },
+        used,
+      );
+      const overQuota = overQuotaMinutesFor(chargedMinutes, remaining);
+
+      if (overQuota > 0 && req.leaveType.overQuotaPolicy === 'Block') {
+        return {
+          ok: false as const,
+          code: 'over-quota-block' as const,
+          message: `เกินสิทธิคงเหลือ (เหลือ ${formatDaysHours(Math.max(0, remaining ?? 0), cfg)}) — ประเภทการลานี้ไม่อนุญาตให้เกินสิทธิ`,
+        };
+      }
+
+      let deductAmount: number | null = null;
+      if (overQuota > 0) {
+        const payCfg = await tx.payrollConfig.findFirstOrThrow({
+          select: { workingDaysPerMonth: true },
+        });
+        const rate = perMinuteRate(
+          req.employee.salaryType,
+          Number(req.employee.baseSalary),
+          payCfg.workingDaysPerMonth,
+          std,
+        );
+        deductAmount = deductionForOverQuota(overQuota, rate);
+      }
+
       // Partial leaves carry the segment as clockInAt/clockOutAt so the live
       // board can show the window and OT can reconcile. Build the BANGKOK
       // instant (+07:00, no DST in Thailand) so it renders as the chosen wall-
@@ -245,7 +321,6 @@ export async function approveLeaveRequest(input: Input): Promise<ApproveResult> 
       }));
 
       const inserted = await tx.attendance.createMany({ data: attendanceRows });
-      const chargedMinutes = segment.minutes * targetDates.length;
 
       // Mark the LeaveRequest itself approved.
       await tx.leaveRequest.update({
@@ -256,6 +331,8 @@ export async function approveLeaveRequest(input: Input): Promise<ApproveResult> 
           reviewedAt: new Date(),
           reviewNote: note,
           chargedMinutes,
+          overQuotaMinutes: overQuota > 0 ? overQuota : null,
+          deductAmount,
         },
       });
 
@@ -270,6 +347,8 @@ export async function approveLeaveRequest(input: Input): Promise<ApproveResult> 
           reviewNote: note,
           unit: req.unit,
           chargedMinutes,
+          overQuotaMinutes: overQuota,
+          deductAmount,
           attendanceRowsCreated: inserted.count,
           workingDays: workingDays.length,
           dates: workingDays.map((d) => d.toISOString().slice(0, 10)),
@@ -287,6 +366,7 @@ export async function approveLeaveRequest(input: Input): Promise<ApproveResult> 
         endDate: req.endDate.toISOString().slice(0, 10),
         workingDayCount: workingDays.length,
         duration: splitDaysHours(chargedMinutes, cfg),
+        deductAmount,
       };
 
       return {
@@ -310,6 +390,7 @@ export async function approveLeaveRequest(input: Input): Promise<ApproveResult> 
         endDate: notifBox.data.endDate,
         workingDays: notifBox.data.workingDayCount,
         duration: notifBox.data.duration,
+        deductAmount: notifBox.data.deductAmount,
         reviewNote: note,
       });
     }

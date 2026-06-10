@@ -8,6 +8,9 @@
     "hour": "{n} ម៉ោង",
     "min": "{n} នាទី"
   },
+  "notifications": {
+    "leaveApprovedDeduction": "ចំណាំ៖ ឈប់សម្រាកលើសសិទ្ធិ នឹងត្រូវកាត់ប្រាក់ {amount}"
+  },
   "pair": {
     "title": "ភ្ជាប់គណនី LINE",
     "phase": {

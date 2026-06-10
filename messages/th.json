@@ -56,6 +56,7 @@
       "reason": "เหตุผล"
     },
     "workingDaysValue": "{days} วัน",
+    "leaveApprovedDeduction": "หมายเหตุ: ลาเกินสิทธิ จะถูกหักเงิน {amount}",
     "leaveApproved": {
       "header": "อนุมัติคำขอลา",
       "alt": "✅ คำขอลา {type} ของคุณได้รับการอนุมัติ"

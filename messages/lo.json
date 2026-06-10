@@ -8,6 +8,9 @@
     "hour": "{n} ຊົ່ວໂມງ",
     "min": "{n} ນາທີ"
   },
+  "notifications": {
+    "leaveApprovedDeduction": "ໝາຍເຫດ: ລາພັກເກີນສິດທິ ຈະຖືກຫັກເງິນ {amount}"
+  },
   "pair": {
     "title": "ເຊື່ອມຕໍ່ບັນຊີ LINE",
     "phase": {
