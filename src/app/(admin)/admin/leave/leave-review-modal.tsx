@@ -5,6 +5,20 @@ import { STATUS_ICON, StatusBadge, type StatusKey } from '@/components/ui/status
 import { approveLeaveRequest, rejectLeaveRequest } from '@/lib/leave/admin';
 import { voidLeaveRequest } from '@/lib/leave/void';
 
+/** Server-computed over-quota preview for a Pending row (UX only — the
+ *  approve server action re-checks and is the real Block guard). */
+export type LeaveOverQuotaVM = {
+  policy: 'Block' | 'DeductPay';
+  /** Thai "1 วัน 3 ชม.", or 'ไม่จำกัด' for unlimited quota. */
+  remainingLabel: string;
+  /** Minutes beyond the entitlement as a Thai label; null when within quota. */
+  overLabel: string | null;
+  /** ฿ estimate at today's salary; 0 when within quota. */
+  estimatedDeduction: number;
+  /** Block-policy request that exceeds quota — approve is disabled. */
+  blocksApproval: boolean;
+};
+
 export type LeaveRowVM = {
   id: string;
   status: 'Pending' | 'Approved' | 'Rejected' | 'Cancelled';
@@ -24,6 +38,8 @@ export type LeaveRowVM = {
   reviewNote: string | null;
   reviewedAt: string | null;
   attachmentUrl: string | null;
+  /** null for non-Pending rows (no preview computed). */
+  overQuota: LeaveOverQuotaVM | null;
 };
 
 function Badge({ row }: { row: LeaveRowVM }) {
@@ -61,6 +77,7 @@ export function LeaveReviewModal({
           ? (n) => approveLeaveRequest({ leaveRequestId: row.id, note: n })
           : undefined
       }
+      approveDisabled={row?.overQuota?.blocksApproval}
       onReject={
         isPending && row
           ? (n) => rejectLeaveRequest({ leaveRequestId: row.id, note: n })
@@ -133,6 +150,33 @@ function LeaveBody({ row }: { row: LeaveRowVM }) {
               loading="lazy"
             />
           </a>
+        </div>
+      )}
+      {/* Over-quota preview (Pending only) — sits directly above the note field. */}
+      {row.overQuota && (
+        <div
+          className={
+            row.overQuota.overLabel
+              ? 'rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800'
+              : 'rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-600'
+          }
+        >
+          <p>สิทธิคงเหลือ: {row.overQuota.remainingLabel}</p>
+          {row.overQuota.overLabel && (
+            <>
+              <p className="font-medium">เกินสิทธิ {row.overQuota.overLabel}</p>
+              {row.overQuota.blocksApproval ? (
+                <p className="text-red-700">ประเภทการลานี้ไม่อนุญาตให้อนุมัติเกินสิทธิ</p>
+              ) : (
+                <p>
+                  หากอนุมัติ จะหักเงินเดือนประมาณ ฿
+                  {row.overQuota.estimatedDeduction.toLocaleString('th-TH', {
+                    minimumFractionDigits: 2,
+                  })}
+                </p>
+              )}
+            </>
+          )}
         </div>
       )}
       {row.status !== 'Pending' && row.reviewNote && (

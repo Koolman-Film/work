@@ -30,6 +30,7 @@ import {
   formatLeaveRange,
   LEAVE_SELECT,
   LEAVE_STATUS_INFO,
+  leaveOverQuotaVM,
 } from './leave-row-vm';
 
 type SearchParams = Promise<{ status?: string; trash?: string }>;
@@ -92,15 +93,21 @@ export default async function AdminLeaveInboxPage({
   const expandedHolidays = expandHolidaysWithSubstitutes(holidays.map((h) => h.date));
   const vm: LeaveRowVM[] = isTrash
     ? []
-    : rows.map((r) =>
-        buildLeaveRowVM(r, {
-          attachmentUrl: resolveAttachment(r.attachmentUrl),
-          workingDays: workingDaysIn({
+    : await Promise.all(
+        rows.map(async (r) => {
+          const workingDays = workingDaysIn({
             startDate: r.startDate,
             endDate: r.endDate,
             holidays: expandedHolidays,
-          }).length,
-          cfg: leaveCfg,
+          }).length;
+          return buildLeaveRowVM(r, {
+            attachmentUrl: resolveAttachment(r.attachmentUrl),
+            workingDays,
+            cfg: leaveCfg,
+            // Pending rows only (helper returns null otherwise) — the review
+            // modal shows remaining/over-quota numbers before approve.
+            overQuota: await leaveOverQuotaVM(r, workingDays, leaveCfg),
+          });
         }),
       );
 

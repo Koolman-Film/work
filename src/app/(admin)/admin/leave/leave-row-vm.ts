@@ -1,12 +1,22 @@
 import 'server-only';
 
 import type { StatusKey } from '@/components/ui/status-badge';
-import { type LeaveUnit, type LeaveUnitConfig, leaveDurationLabel } from '@/lib/leave/units';
-import type { LeaveRowVM } from './leave-review-modal';
+import { overQuotaPreview } from '@/lib/leave/approval-preview';
+import {
+  formatDaysHours,
+  type LeaveUnit,
+  type LeaveUnitConfig,
+  leaveDurationLabel,
+  segmentFor,
+  standardDayMinutes,
+} from '@/lib/leave/units';
+import type { LeaveOverQuotaVM, LeaveRowVM } from './leave-review-modal';
 
 /** Prisma select covering every field `buildLeaveRowVM` reads. */
 export const LEAVE_SELECT = {
   id: true,
+  employeeId: true,
+  leaveTypeId: true,
   startDate: true,
   endDate: true,
   unit: true,
@@ -71,6 +81,8 @@ export function formatLeaveDateTime(d: Date): string {
 /** Shape returned by a Prisma findMany/findUnique using LEAVE_SELECT. */
 export type LeaveRecord = {
   id: string;
+  employeeId: string;
+  leaveTypeId: string;
   startDate: Date;
   endDate: Date;
   unit: LeaveUnit;
@@ -98,9 +110,48 @@ export type LeaveRecord = {
  * synchronous and free of storage/db imports (the page batches signing; the
  * single-record action signs one).
  */
+/**
+ * Compute the over-quota preview VM for one PENDING record (null otherwise —
+ * decided rows are read-only, so the 4-5 preview queries would be wasted).
+ * The charge estimate mirrors `leaveDurationLabel`: per-day segment minutes ×
+ * working days, falling back to the standard day when the stored times are
+ * invalid. The server action (`approveLeaveRequest`) remains the real guard.
+ */
+export async function leaveOverQuotaVM(
+  r: Pick<
+    LeaveRecord,
+    'status' | 'employeeId' | 'leaveTypeId' | 'unit' | 'startTime' | 'endTime' | 'startDate'
+  >,
+  workingDays: number,
+  cfg: LeaveUnitConfig,
+): Promise<LeaveOverQuotaVM | null> {
+  if (r.status !== 'Pending') return null;
+  const seg = segmentFor(r.unit, cfg, r.startTime, r.endTime);
+  const chargedMinutes = (seg?.minutes ?? standardDayMinutes(cfg)) * workingDays;
+  const p = await overQuotaPreview(
+    r.employeeId,
+    r.leaveTypeId,
+    r.startDate.getUTCFullYear(),
+    chargedMinutes,
+  );
+  return {
+    policy: p.policy,
+    remainingLabel:
+      p.remaining === null ? 'ไม่จำกัด' : formatDaysHours(Math.max(0, p.remaining), cfg),
+    overLabel: p.overQuotaMinutes > 0 ? formatDaysHours(p.overQuotaMinutes, cfg) : null,
+    estimatedDeduction: p.estimatedDeduction,
+    blocksApproval: p.policy === 'Block' && p.overQuotaMinutes > 0,
+  };
+}
+
 export function buildLeaveRowVM(
   r: LeaveRecord,
-  deps: { attachmentUrl: string | null; workingDays: number; cfg: LeaveUnitConfig },
+  deps: {
+    attachmentUrl: string | null;
+    workingDays: number;
+    cfg: LeaveUnitConfig;
+    overQuota: LeaveOverQuotaVM | null;
+  },
 ): LeaveRowVM {
   const info = LEAVE_STATUS_INFO[r.status] ?? { label: r.status, key: 'neutral' as StatusKey };
   return {
@@ -122,5 +173,6 @@ export function buildLeaveRowVM(
     reviewNote: r.reviewNote ?? null,
     reviewedAt: r.reviewedAt ? formatLeaveDateTime(r.reviewedAt) : null,
     attachmentUrl: deps.attachmentUrl,
+    overQuota: deps.overQuota,
   };
 }
