@@ -46,6 +46,18 @@ describe('buildFlexMessage localization', () => {
   });
 });
 
+describe('buildFlexMessage deduction notice', () => {
+  it('includes the formatted deductAmount when provided', () => {
+    const m = buildFlexMessage({ ...leaveApproved, deductAmount: 123.45 }, 'https://x', 'en');
+    expect(JSON.stringify(m)).toContain('123.45');
+  });
+
+  it('does not include a deduction string when deductAmount is absent', () => {
+    const m = buildFlexMessage(leaveApproved, 'https://x', 'en');
+    expect(JSON.stringify(m)).not.toContain('deducted');
+  });
+});
+
 // Regression guard: every notification kind must render non-empty, fully
 // resolved chrome in both th and en (no missing-key fallout — a missing
 // key would surface as a raw dotted path like "leaveApproved.header").
