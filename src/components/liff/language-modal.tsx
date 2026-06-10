@@ -6,9 +6,13 @@ import { LOCALE_LABELS, LOCALES, type Locale } from '@/lib/i18n/config';
 import { cn } from '@/lib/utils';
 
 /**
- * First-run language picker. Big autonym buttons (never flags). Pre-selected
+ * Language picker modal. Big autonym buttons (never flags). Pre-selected
  * to the best guess; one tap confirms. Writes via setLocale (which stamps
- * localeChosenByEmployeeAt, so this never reappears).
+ * localeChosenByEmployeeAt, so the first-run prompt never reappears).
+ *
+ * Two callers:
+ *   - First-run gate (no `onClose`): not dismissible — the worker must pick.
+ *   - Header switcher (`onClose` given): backdrop tap / Esc cancels freely.
  *
  * The header + confirm button are intentionally NOT driven by next-intl `t()`:
  * this modal runs BEFORE the worker has chosen a locale, so it must read in
@@ -25,7 +29,7 @@ const PICKER_CHROME: Record<Locale, { title: string; ok: string }> = {
   km: { title: 'ជ្រើសរើសភាសា', ok: 'យល់ព្រម' },
 };
 
-export function LanguageModal({ preselect }: { preselect: Locale }) {
+export function LanguageModal({ preselect, onClose }: { preselect: Locale; onClose?: () => void }) {
   const [selected, setSelected] = useState<Locale>(preselect);
   const [done, setDone] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -38,6 +42,7 @@ export function LanguageModal({ preselect }: { preselect: Locale }) {
     startTransition(async () => {
       await setLocale(selected);
       setDone(true);
+      onClose?.();
     });
   }
 
@@ -47,6 +52,14 @@ export function LanguageModal({ preselect }: { preselect: Locale }) {
       aria-modal="true"
       aria-label={chrome.title}
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center"
+      onClick={(e) => {
+        // Backdrop tap only — clicks inside the sheet bubble up with a
+        // different target, so they don't dismiss.
+        if (e.target === e.currentTarget) onClose?.();
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') onClose?.();
+      }}
     >
       <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl">
         <h2 className="text-center text-base font-semibold text-gray-900">{chrome.title}</h2>
