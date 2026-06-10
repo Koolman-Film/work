@@ -17,6 +17,7 @@ import { requireRole } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
 import type { Locale } from '@/lib/i18n/config';
 import { formatDate, formatTime } from '@/lib/i18n/format';
+import { localizedLeaveTypeName } from '@/lib/leave/localized-name';
 import { resolveStoredImageUrl } from '@/lib/storage/signed-urls';
 import { LeaveDetailActions } from './leave-detail-actions';
 
@@ -46,7 +47,7 @@ export default async function LeaveDetailPage({ params }: { params: Params }) {
       select: {
         id: true,
         employeeId: true,
-        leaveType: { select: { name: true, isPaid: true } },
+        leaveType: { select: { name: true, nameByLocale: true, isPaid: true } },
         startDate: true,
         endDate: true,
         reason: true,
@@ -87,7 +88,7 @@ export default async function LeaveDetailPage({ params }: { params: Params }) {
 
       <section className="space-y-1 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
         <DataRow label={t('detail.field.type')}>
-          {row.leaveType.name}
+          {localizedLeaveTypeName(row.leaveType.name, row.leaveType.nameByLocale, locale as Locale)}
           {!row.leaveType.isPaid && (
             <span className="ml-2 text-xs text-gray-500">{t('detail.unpaid')}</span>
           )}

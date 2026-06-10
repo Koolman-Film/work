@@ -2,12 +2,14 @@ import { describe, expect, it } from 'vitest';
 import {
   afternoonMinutes,
   formatDaysHours,
+  formatDurationParts,
   type LeaveUnitConfig,
   leaveDurationLabel,
   minutesOf,
   morningMinutes,
   segmentFor,
   segmentsOverlap,
+  splitDaysHours,
   standardDayMinutes,
   windowMinutes,
 } from './units';
@@ -138,5 +140,24 @@ describe('segmentsOverlap', () => {
 
   it('genuine overlap is detected', () => {
     expect(segmentsOverlap('09:00', '11:00', '10:00', '12:00')).toBe(true);
+  });
+});
+
+describe('splitDaysHours + formatDurationParts', () => {
+  it('splits minutes into days/hours/mins using the standard day', () => {
+    expect(splitDaysHours(0, CFG)).toEqual({ days: 0, hours: 0, mins: 0 });
+    expect(splitDaysHours(600, CFG)).toEqual({ days: 1, hours: 3, mins: 0 }); // 420 + 180
+    expect(splitDaysHours(630, CFG)).toEqual({ days: 1, hours: 3, mins: 30 });
+  });
+
+  it('renders with caller-supplied unit labels (locale-aware path)', () => {
+    const en = {
+      day: (n: number) => `${n} ${n === 1 ? 'day' : 'days'}`,
+      hour: (n: number) => `${n} hr`,
+      min: (n: number) => `${n} min`,
+    };
+    expect(formatDurationParts(splitDaysHours(600, CFG), en)).toBe('1 day 3 hr');
+    expect(formatDurationParts(splitDaysHours(630, CFG), en)).toBe('1 day 3 hr 30 min');
+    expect(formatDurationParts(splitDaysHours(0, CFG), en)).toBe('0 hr');
   });
 });

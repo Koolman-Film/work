@@ -1,11 +1,14 @@
 'use server';
 
+import { Prisma } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { auditLog } from '@/lib/audit/log';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
+
+const WORKER_NAME_LOCALES = ['en', 'my', 'lo', 'zh-CN', 'km'] as const;
 
 const Schema = z.object({
   name: z.string().trim().min(1, 'กรุณากรอกชื่อประเภทการลา').max(80),
@@ -40,6 +43,20 @@ const Schema = z.object({
     .transform((v) => v === 'on'),
 });
 
+/** Collect optional per-locale name inputs (name_en, name_my, …) into the
+ *  nameByLocale JSON map; blank inputs are dropped. Empty map → null so the
+ *  column reads as "no translations" rather than {}. */
+function readNameByLocale(formData: FormData): Record<string, string> | null {
+  const out: Record<string, string> = {};
+  for (const code of WORKER_NAME_LOCALES) {
+    const raw = formData.get(`name_${code}`);
+    if (typeof raw !== 'string') continue;
+    const v = raw.trim().slice(0, 80);
+    if (v !== '') out[code] = v;
+  }
+  return Object.keys(out).length > 0 ? out : null;
+}
+
 function readForm(formData: FormData) {
   return Schema.safeParse({
     name: formData.get('name'),
@@ -62,6 +79,7 @@ function isUniqueViolation(err: unknown): boolean {
 
 type ParsedData = {
   name: string;
+  nameByLocale: Record<string, string> | null;
   isPaid: boolean;
   annualQuota: number | null;
   allowFullDay: boolean;
@@ -69,9 +87,13 @@ type ParsedData = {
   allowHourly: boolean;
 };
 
-function normalize(parsed: z.infer<typeof Schema>): ParsedData {
+function normalize(
+  parsed: z.infer<typeof Schema>,
+  nameByLocale: Record<string, string> | null,
+): ParsedData {
   return {
     name: parsed.name,
+    nameByLocale,
     isPaid: parsed.isPaid ?? false,
     annualQuota: parsed.annualQuota ?? null,
     allowFullDay: parsed.allowFullDay ?? false,
@@ -90,7 +112,7 @@ export async function createLeaveType(formData: FormData) {
     );
   }
 
-  const data = normalize(parsed.data);
+  const data = normalize(parsed.data, readNameByLocale(formData));
 
   if (!data.allowFullDay && !data.allowHalfDay && !data.allowHourly) {
     redirect(
@@ -99,7 +121,9 @@ export async function createLeaveType(formData: FormData) {
   }
 
   try {
-    const created = await prisma.leaveType.create({ data });
+    const created = await prisma.leaveType.create({
+      data: { ...data, nameByLocale: data.nameByLocale ?? Prisma.DbNull },
+    });
     auditLog({
       actorId: user.id,
       action: 'leaveType.create',
@@ -134,7 +158,7 @@ export async function updateLeaveType(id: string, formData: FormData) {
   const before = await prisma.leaveType.findUnique({ where: { id } });
   if (!before) redirect('/admin/settings/leave-types');
 
-  const data = normalize(parsed.data);
+  const data = normalize(parsed.data, readNameByLocale(formData));
 
   if (!data.allowFullDay && !data.allowHalfDay && !data.allowHourly) {
     redirect(
@@ -143,7 +167,10 @@ export async function updateLeaveType(id: string, formData: FormData) {
   }
 
   try {
-    await prisma.leaveType.update({ where: { id }, data });
+    await prisma.leaveType.update({
+      where: { id },
+      data: { ...data, nameByLocale: data.nameByLocale ?? Prisma.DbNull },
+    });
     auditLog({
       actorId: user.id,
       action: 'leaveType.update',
@@ -151,6 +178,7 @@ export async function updateLeaveType(id: string, formData: FormData) {
       entityId: id,
       before: {
         name: before.name,
+        nameByLocale: before.nameByLocale,
         isPaid: before.isPaid,
         annualQuota: before.annualQuota,
         allowFullDay: before.allowFullDay,

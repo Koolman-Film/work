@@ -3,6 +3,11 @@
     "locale": "en",
     "note": "English translations. I will draft these in Phase 2 from th.json."
   },
+  "units": {
+    "day": "{n, plural, one {# day} other {# days}}",
+    "hour": "{n} hr",
+    "min": "{n} min"
+  },
   "pair": {
     "title": "Link your LINE account",
     "phase": {
