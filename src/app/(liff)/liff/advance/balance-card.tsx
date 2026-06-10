@@ -106,7 +106,12 @@ export async function BalanceCard({ balance, locale }: Props) {
   const rateLabel =
     balance.salaryType === 'Daily' ? t('balance.ratePerDay') : t('balance.ratePerHour');
   return (
-    <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+    <section
+      className={[
+        'rounded-2xl border bg-white p-5 shadow-sm',
+        balance.overdrawn ? 'border-red-300' : 'border-gray-200',
+      ].join(' ')}
+    >
       <p className="text-xs font-medium uppercase tracking-wider text-gray-500">
         {t('balance.rateTitle')}
       </p>
@@ -153,6 +158,12 @@ export async function BalanceCard({ balance, locale }: Props) {
           </>
         )}
       </dl>
+
+      {balance.overdrawn && (
+        <p role="alert" className="mt-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">
+          {t('balance.overdrawnAlert')}
+        </p>
+      )}
     </section>
   );
 }

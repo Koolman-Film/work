@@ -1,6 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { describe, expect, it } from 'vitest';
-import { calculateAdvanceBalance } from './balance';
+import { calculateAdvanceBalance, isOverCap } from './balance';
 
 describe('calculateAdvanceBalance — Monthly', () => {
   it('treats baseSalary as the available cap when there are no reserved advances', () => {
@@ -117,6 +117,20 @@ describe('calculateAdvanceBalance — Daily / Hourly', () => {
     expect(r.ratePerPeriod).toBe(75);
     expect(r.pending).toBe(0);
     expect(r.approvedNotDeducted).toBe(0);
+  });
+});
+
+describe('isOverCap', () => {
+  it('returns true when amount exceeds available', () => {
+    expect(isOverCap(5_000, 4_000)).toBe(true);
+  });
+
+  it('returns false when amount equals available (not over)', () => {
+    expect(isOverCap(4_000, 4_000)).toBe(false);
+  });
+
+  it('returns false when available is null (rate-based uncomputable earnings)', () => {
+    expect(isOverCap(5_000, null)).toBe(false);
   });
 });
 
