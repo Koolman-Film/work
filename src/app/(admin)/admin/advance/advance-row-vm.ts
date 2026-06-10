@@ -1,11 +1,13 @@
 import 'server-only';
 
 import type { StatusKey } from '@/components/ui/status-badge';
-import type { AdvanceRowVM } from './advance-review-modal';
+import { advanceBalanceFor } from '@/lib/advance/available';
+import type { AdvanceGuardVM, AdvanceRowVM } from './advance-review-modal';
 
 /** Prisma select covering every field `buildAdvanceRowVM` reads. */
 export const ADVANCE_SELECT = {
   id: true,
+  employeeId: true,
   amount: true,
   status: true,
   requestedAt: true,
@@ -58,6 +60,7 @@ export function formatAdvanceDateTime(d: Date): string {
  */
 export type AdvanceRecord = {
   id: string;
+  employeeId: string;
   amount: unknown; // Prisma.Decimal
   status: 'Pending' | 'Approved' | 'Rejected' | 'Cancelled';
   requestedAt: Date;
@@ -73,13 +76,34 @@ export type AdvanceRecord = {
 };
 
 /**
+ * "Can this Pending advance be approved within the salary cap?" — the
+ * number the review modal shows and the approveDisabled gate. Mirrors
+ * leaveOverQuotaVM: computed server-side per Pending row (one Pending per
+ * employee is enforced by a unique index, so this is ≈ one call per
+ * employee with a live request). Non-Pending rows get null.
+ *
+ * Pass the advance's own id as excludeAdvanceId so the request being
+ * decided doesn't count against itself.
+ */
+export async function advanceGuardVM(
+  r: Pick<AdvanceRecord, 'id' | 'status' | 'employeeId' | 'amount'>,
+): Promise<AdvanceGuardVM | null> {
+  if (r.status !== 'Pending') return null;
+  const balance = await advanceBalanceFor(r.employeeId, r.id);
+  return {
+    available: balance.available,
+    overCap: balance.available != null && Number(r.amount) > balance.available,
+  };
+}
+
+/**
  * Build the client-facing review VM for one cash-advance record.
  * Caller supplies the resolved receipt URL (page batches signing; the
- * single-record action signs one).
+ * single-record action signs one) and the cap guard (null for decided rows).
  */
 export function buildAdvanceRowVM(
   r: AdvanceRecord,
-  deps: { receiptUrl: string | null },
+  deps: { receiptUrl: string | null; advanceGuard: AdvanceGuardVM | null },
 ): AdvanceRowVM {
   const info = ADVANCE_STATUS_INFO[r.status] ?? { label: r.status, key: 'neutral' as StatusKey };
   return {
@@ -95,5 +119,6 @@ export function buildAdvanceRowVM(
     submitted: formatAdvanceDateTime(r.requestedAt),
     decidedAt: r.approvedAt ? formatAdvanceDateTime(r.approvedAt) : null,
     receiptUrl: deps.receiptUrl,
+    advanceGuard: deps.advanceGuard,
   };
 }

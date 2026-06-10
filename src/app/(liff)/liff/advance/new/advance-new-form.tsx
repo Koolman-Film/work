@@ -24,7 +24,7 @@ import { formatMoney } from '@/lib/i18n/format';
 
 const QUICK_AMOUNTS = [500, 1_000, 2_000, 5_000];
 
-export function AdvanceNewForm() {
+export function AdvanceNewForm({ available }: { available: number | null }) {
   const t = useTranslations('advance');
   const locale = useLocale() as Locale;
   const router = useRouter();
@@ -92,6 +92,13 @@ export function AdvanceNewForm() {
               className="w-full rounded-md border border-gray-300 py-3 pr-3 pl-8 text-right text-lg font-semibold tabular-nums shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
             />
           </div>
+          {/* Over-cap warning — informational only, submission stays allowed.
+              The hard rule lives server-side at APPROVAL (advance/admin.ts). */}
+          {available != null && parsed != null && parsed > available && (
+            <p className="mt-2 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              {t('new.exceedsCap', { available: formatMoney(available, locale) })}
+            </p>
+          )}
         </div>
 
         {/* Quick-amount chips */}

@@ -10,6 +10,15 @@ import { voidCashAdvance } from '@/lib/advance/void';
 import { compressToJpeg, uploadAdvanceReceipt } from '@/lib/storage/upload-selfie';
 import { createClient } from '@/lib/supabase/browser';
 
+/** Salary-cap guard for a Pending advance — null for decided rows.
+ *  `available` may be null for rate-based employees when earnings can't be
+ *  computed (no number shown; approval not blocked client-side — the server
+ *  guard still has the final say). */
+export type AdvanceGuardVM = {
+  available: number | null;
+  overCap: boolean;
+};
+
 export type AdvanceRowVM = {
   id: string;
   status: 'Pending' | 'Approved' | 'Rejected' | 'Cancelled';
@@ -23,6 +32,7 @@ export type AdvanceRowVM = {
   submitted: string;
   decidedAt: string | null;
   receiptUrl: string | null;
+  advanceGuard: AdvanceGuardVM | null;
 };
 
 function Badge({ row }: { row: AdvanceRowVM }) {
@@ -118,6 +128,7 @@ export function AdvanceReviewModal({
       moneyConfirm={isPending && row ? { amountLabel: row.amount } : undefined}
       approveLabel={row ? `อนุมัติ ${row.amount}` : 'อนุมัติ'}
       onApprove={isPending ? doApprove : undefined}
+      approveDisabled={row?.advanceGuard?.overCap}
       onReject={isPending && row ? () => rejectCashAdvance({ cashAdvanceId: row.id }) : undefined}
       onVoid={row ? (reason) => voidCashAdvance(row.id, reason) : undefined}
     >
@@ -138,6 +149,21 @@ export function AdvanceReviewModal({
             {row.department ? ` • ${row.department}` : ''} — ส่งเมื่อ {row.submitted}
             {row.decidedAt && ` • ตัดสินใจเมื่อ ${row.decidedAt}`}
           </p>
+
+          {/* Salary-cap guard — "การเบิก ไม่เกินเงินเดือน" is hard at approval */}
+          {row.advanceGuard && row.advanceGuard.available != null && (
+            <p
+              className={
+                row.advanceGuard.overCap
+                  ? 'text-sm font-medium text-red-700'
+                  : 'text-sm text-gray-600'
+              }
+            >
+              วงเงินคงเหลือ ฿
+              {row.advanceGuard.available.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+              {row.advanceGuard.overCap && ' — คำขอนี้เกินวงเงิน ไม่สามารถอนุมัติได้'}
+            </p>
+          )}
 
           {isPending ? (
             <div>

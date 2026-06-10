@@ -289,7 +289,8 @@
     },
     "balance": {
       "monthlyTitle": "Available advance",
-      "available": "{amount}",
+      "available": "Available to draw",
+      "earned": "Earned this period",
       "fromBaseSalary": "From base salary {amount}",
       "ariaProgress": "{pct}% of salary used",
       "pending": "Pending",
@@ -310,6 +311,7 @@
       "amountPlaceholder": "0.00",
       "quickAmounts": "Quick amounts",
       "note": "Only one pending request is allowed at a time. To submit another, wait for admin to decide or cancel the existing request first.",
+      "exceedsCap": "Exceeds your available amount ({available} left). The request may be rejected.",
       "noteLabel": "Note:",
       "cancel": "Cancel",
       "submit": "Submit request",

@@ -18,7 +18,7 @@ import { currentMonthYM, parseMonth, type TeamCalendarData } from '@/lib/leave/t
 import { expandHolidaysWithSubstitutes, workingDaysIn } from '@/lib/leave/working-days';
 import { resolveStoredImageUrl } from '@/lib/storage/signed-urls';
 import type { AdvanceRowVM } from '../advance/advance-review-modal';
-import { ADVANCE_SELECT, buildAdvanceRowVM } from '../advance/advance-row-vm';
+import { ADVANCE_SELECT, advanceGuardVM, buildAdvanceRowVM } from '../advance/advance-row-vm';
 import type { LeaveRowVM } from '../leave/leave-review-modal';
 import { buildLeaveRowVM, LEAVE_SELECT, leaveOverQuotaVM } from '../leave/leave-row-vm';
 
@@ -82,5 +82,9 @@ export async function getAdvanceReviewRow(cashAdvanceId: string): Promise<Advanc
   });
   if (!row) return null;
 
-  return buildAdvanceRowVM(row, { receiptUrl: await resolveStoredImageUrl(row.receiptUrl) });
+  const [receiptUrl, advanceGuard] = await Promise.all([
+    resolveStoredImageUrl(row.receiptUrl),
+    advanceGuardVM(row),
+  ]);
+  return buildAdvanceRowVM(row, { receiptUrl, advanceGuard });
 }

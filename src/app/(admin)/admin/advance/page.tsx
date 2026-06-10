@@ -20,6 +20,7 @@ import { AdvanceInbox, type AdvanceRowVM } from './advance-inbox';
 import {
   ADVANCE_SELECT,
   ADVANCE_STATUS_INFO,
+  advanceGuardVM,
   buildAdvanceRowVM,
   formatAdvanceDateTime,
   formatAdvanceMoney,
@@ -73,9 +74,19 @@ export default async function AdminAdvanceInboxPage({
     return signedReceiptUrls.get(value) ?? null;
   }
 
+  // advanceGuardVM only does work for Pending rows (decided rows → null), and
+  // one-Pending-per-employee is index-enforced, so this is ≈ one balance read
+  // per employee with a live request — fine for a 100-row page.
   const vm: AdvanceRowVM[] = isTrash
     ? []
-    : rows.map((r) => buildAdvanceRowVM(r, { receiptUrl: resolveReceipt(r.receiptUrl) }));
+    : await Promise.all(
+        rows.map(async (r) =>
+          buildAdvanceRowVM(r, {
+            receiptUrl: resolveReceipt(r.receiptUrl),
+            advanceGuard: await advanceGuardVM(r),
+          }),
+        ),
+      );
 
   return (
     <div className="px-4 py-6 sm:px-6 lg:px-8">

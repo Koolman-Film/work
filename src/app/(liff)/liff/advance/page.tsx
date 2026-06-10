@@ -4,7 +4,7 @@
 
 import Link from 'next/link';
 import { getLocale, getTranslations } from 'next-intl/server';
-import { calculateAdvanceBalance } from '@/lib/advance/balance';
+import { advanceBalanceFor } from '@/lib/advance/available';
 import { requireRole } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
 import type { Locale } from '@/lib/i18n/config';
@@ -28,11 +28,10 @@ export default async function LiffAdvanceListPage() {
   const { employee } = await requireRole(['Staff']);
   if (!employee) throw new Error('requireRole did not return Employee');
 
-  // Fetch in parallel: the full list (UI), and the "reserved" subset
-  // (balance calc). The balance subset is everything Pending OR
-  // Approved-but-not-deducted — those are the rows that count against
-  // available salary. See src/lib/advance/balance.ts for rationale.
-  const [rows, reservedRows, t, locale] = await Promise.all([
+  // Fetch in parallel: the full list (UI) and the balance (the shared
+  // advanceBalanceFor helper — same numbers the admin approval guard sees,
+  // including period earnings for Daily/Hourly employees).
+  const [rows, balance, t, locale] = await Promise.all([
     prisma.cashAdvance.findMany({
       // `deletedAt: null` is explicit defence-in-depth: the soft-delete client
       // extension already filters top-level reads, but the balance/history of
@@ -49,29 +48,10 @@ export default async function LiffAdvanceListPage() {
         isDeducted: true,
       },
     }),
-    prisma.cashAdvance.findMany({
-      where: {
-        employeeId: employee.id,
-        deletedAt: null, // exclude voided advances from reserved-balance calc
-        OR: [{ status: 'Pending' }, { status: 'Approved', isDeducted: false }],
-      },
-      select: { status: true, amount: true },
-    }),
+    advanceBalanceFor(employee.id),
     getTranslations('advance'),
     getLocale(),
   ]);
-
-  const balance = calculateAdvanceBalance({
-    baseSalary: employee.baseSalary,
-    salaryType: employee.salaryType,
-    // Type-cast: Prisma's AdvanceStatus enum includes Rejected/Cancelled
-    // too, but our `where` clause filtered those out. The balance helper
-    // only handles Pending/Approved.
-    reservedAdvances: reservedRows as Array<{
-      status: 'Pending' | 'Approved';
-      amount: (typeof reservedRows)[number]['amount'];
-    }>,
-  });
 
   return (
     <main className="mx-auto max-w-md px-4 pt-8 pb-12">
