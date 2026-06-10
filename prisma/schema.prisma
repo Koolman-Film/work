@@ -102,6 +102,12 @@ enum LeaveUnit {
   Hourly
 }
 
+/// What happens when an approved leave would exceed the year's entitlement.
+enum OverQuotaPolicy {
+  Block     // over-quota requests cannot be approved (e.g. vacation)
+  DeductPay // approval allowed; the over-quota portion is salary-deducted
+}
+
 enum AdvanceStatus {
   Pending
   Approved
@@ -482,6 +488,7 @@ model LeaveType {
   nameByLocale Json?
   isPaid      Boolean   @default(true)
   annualQuota Int?      // null = unlimited (e.g., unpaid leave)
+  overQuotaPolicy OverQuotaPolicy @default(DeductPay)
   allowFullDay Boolean  @default(true)
   allowHalfDay Boolean  @default(false)
   allowHourly  Boolean  @default(false)
@@ -536,6 +543,12 @@ model LeaveRequest {
   startTime      String?   // "HH:MM" — set for HalfMorning/HalfAfternoon/Hourly
   endTime        String?
   chargedMinutes Int?      // frozen at approval; the amount deducted from balance
+  /// Minutes beyond the year entitlement, frozen at approval (0/null = within quota).
+  overQuotaMinutes    Int?
+  /// Money value of overQuotaMinutes at the employee's per-minute rate, frozen at approval.
+  deductAmount        Decimal?  @db.Decimal(12, 2)
+  /// Payroll row that swept this deduction (null = not yet deducted). Mirrors CashAdvance.
+  deductedInPayrollId String?   @db.Uuid
   reason        String
   attachmentUrl String?   // medical certificate / supporting doc
   status        LeaveStatus
@@ -615,6 +628,7 @@ model Payroll {
   deductSso        Decimal       @db.Decimal(12, 2) @default(0)
   deductAdvance    Decimal       @db.Decimal(12, 2) @default(0)
   deductAttendance Decimal       @db.Decimal(12, 2) @default(0)
+  deductLeave      Decimal       @db.Decimal(12, 2) @default(0)
   /// Per requirement.docx §4 Deduct_Debt
   deductDebt       Decimal       @db.Decimal(12, 2) @default(0)
 
