@@ -106,9 +106,10 @@ export const SYSTEM_ROLES: Record<
       // attach existing roles to their branch's team members.
       'role.read',
       'role.assign',
-      // Audit + dashboard
+      // Audit + dashboard + reports
       'audit.read',
       'dashboard.read',
+      'report.read',
     ],
   },
   staff: {

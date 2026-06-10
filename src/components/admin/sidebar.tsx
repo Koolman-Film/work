@@ -3,6 +3,7 @@
 import type { LucideIcon } from 'lucide-react';
 import {
   Banknote,
+  BarChart3,
   Calculator,
   Calendar,
   CalendarDays,
@@ -52,6 +53,7 @@ const SECTIONS: ReadonlyArray<{ label: string; items: ReadonlyArray<NavItem> }> 
       { href: '/admin/leave', label: 'คำขอลา', Icon: Calendar, enabled: true },
       { href: '/admin/advance', label: 'คำขอเบิก', Icon: Banknote, enabled: true },
       { href: '/admin/attendance', label: 'ลงเวลา', Icon: Clock, enabled: true },
+      { href: '/admin/reports', label: 'รายงาน', Icon: BarChart3, enabled: true },
     ],
   },
   {
