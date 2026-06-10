@@ -7,22 +7,26 @@
  */
 
 import { redirect } from 'next/navigation';
+import { getLocale } from 'next-intl/server';
 import { requireRole } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
+import type { Locale } from '@/lib/i18n/config';
 import { remainingByTypeForEmployee } from '@/lib/leave/balance';
 import { getLeaveConfig } from '@/lib/leave/leave-config';
+import { localizedLeaveTypeName } from '@/lib/leave/localized-name';
 import { LeaveNewForm } from './leave-new-form';
 
 export default async function NewLeavePage() {
   const { employee } = await requireRole(['Staff']);
 
-  const [leaveTypes, leaveConfig] = await Promise.all([
+  const [rawLeaveTypes, leaveConfig, locale] = await Promise.all([
     prisma.leaveType.findMany({
       where: { archivedAt: null },
       orderBy: { name: 'asc' },
       select: {
         id: true,
         name: true,
+        nameByLocale: true,
         isPaid: true,
         annualQuota: true,
         allowFullDay: true,
@@ -31,7 +35,15 @@ export default async function NewLeavePage() {
       },
     }),
     getLeaveConfig(),
+    getLocale() as Promise<Locale>,
   ]);
+
+  // Resolve display names to the viewer's locale here so the client form
+  // stays a dumb renderer (its option labels are already final strings).
+  const leaveTypes = rawLeaveTypes.map(({ nameByLocale, ...lt }) => ({
+    ...lt,
+    name: localizedLeaveTypeName(lt.name, nameByLocale, locale),
+  }));
 
   if (leaveTypes.length === 0) {
     // Defensive: if admin hasn't seeded any LeaveType yet, send the

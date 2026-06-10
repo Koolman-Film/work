@@ -3,6 +3,11 @@
     "locale": "km",
     "note": "Khmer — AI-DRAFT (profile namespace), pending native review. Other namespaces fall back to en/th until populated."
   },
+  "units": {
+    "day": "{n} ថ្ងៃ",
+    "hour": "{n} ម៉ោង",
+    "min": "{n} នាទី"
+  },
   "pair": {
     "title": "ភ្ជាប់គណនី LINE",
     "phase": {

@@ -34,7 +34,14 @@ import { prisma } from '@/lib/db/prisma';
 import { sendNotification } from '@/lib/inngest/events';
 import { notifyAdminsInApp } from '@/lib/notifications/in-app-bell';
 import { getLeaveConfig } from './leave-config';
-import { formatDaysHours, type LeaveUnit, segmentFor, segmentsOverlap } from './units';
+import { asNameByLocale } from './localized-name';
+import {
+  type DurationParts,
+  type LeaveUnit,
+  segmentFor,
+  segmentsOverlap,
+  splitDaysHours,
+} from './units';
 import { expandHolidaysWithSubstitutes, parseInputDate, workingDaysIn } from './working-days';
 
 /** Bell display name — prefer nickname. Mirrors leave/actions.ts. */
@@ -111,10 +118,11 @@ export async function approveLeaveRequest(input: Input): Promise<ApproveResult> 
       recipientUserId: string;
       employeeFirstName: string;
       leaveTypeName: string;
+      leaveTypeNameByLocale: Record<string, string> | null;
       startDate: string;
       endDate: string;
       workingDayCount: number;
-      durationLabel: string;
+      duration: DurationParts;
     } | null;
   } = { data: null };
 
@@ -133,7 +141,7 @@ export async function approveLeaveRequest(input: Input): Promise<ApproveResult> 
           startTime: true,
           endTime: true,
           employee: { select: { firstName: true, userId: true } },
-          leaveType: { select: { name: true } },
+          leaveType: { select: { name: true, nameByLocale: true } },
         },
       });
 
@@ -274,10 +282,11 @@ export async function approveLeaveRequest(input: Input): Promise<ApproveResult> 
         recipientUserId: req.employee.userId,
         employeeFirstName: req.employee.firstName,
         leaveTypeName: req.leaveType.name,
+        leaveTypeNameByLocale: asNameByLocale(req.leaveType.nameByLocale),
         startDate: req.startDate.toISOString().slice(0, 10),
         endDate: req.endDate.toISOString().slice(0, 10),
         workingDayCount: workingDays.length,
-        durationLabel: formatDaysHours(chargedMinutes, cfg),
+        duration: splitDaysHours(chargedMinutes, cfg),
       };
 
       return {
@@ -296,10 +305,11 @@ export async function approveLeaveRequest(input: Input): Promise<ApproveResult> 
         leaveRequestId: input.leaveRequestId,
         employeeFirstName: notifBox.data.employeeFirstName,
         leaveTypeName: notifBox.data.leaveTypeName,
+        leaveTypeNameByLocale: notifBox.data.leaveTypeNameByLocale,
         startDate: notifBox.data.startDate,
         endDate: notifBox.data.endDate,
         workingDays: notifBox.data.workingDayCount,
-        durationLabel: notifBox.data.durationLabel,
+        duration: notifBox.data.duration,
         reviewNote: note,
       });
     }
@@ -338,6 +348,7 @@ export async function rejectLeaveRequest(input: Input): Promise<RejectResult> {
       recipientUserId: string;
       employeeFirstName: string;
       leaveTypeName: string;
+      leaveTypeNameByLocale: Record<string, string> | null;
       startDate: string;
       endDate: string;
     } | null;
@@ -353,7 +364,7 @@ export async function rejectLeaveRequest(input: Input): Promise<RejectResult> {
           startDate: true,
           endDate: true,
           employee: { select: { firstName: true, userId: true } },
-          leaveType: { select: { name: true } },
+          leaveType: { select: { name: true, nameByLocale: true } },
         },
       });
       if (!req) return { ok: false as const, code: 'not-found' as const, message: 'ไม่พบคำขอลา' };
@@ -389,6 +400,7 @@ export async function rejectLeaveRequest(input: Input): Promise<RejectResult> {
         recipientUserId: req.employee.userId,
         employeeFirstName: req.employee.firstName,
         leaveTypeName: req.leaveType.name,
+        leaveTypeNameByLocale: asNameByLocale(req.leaveType.nameByLocale),
         startDate: req.startDate.toISOString().slice(0, 10),
         endDate: req.endDate.toISOString().slice(0, 10),
       };
@@ -402,6 +414,7 @@ export async function rejectLeaveRequest(input: Input): Promise<RejectResult> {
         leaveRequestId: input.leaveRequestId,
         employeeFirstName: rejectNotifBox.data.employeeFirstName,
         leaveTypeName: rejectNotifBox.data.leaveTypeName,
+        leaveTypeNameByLocale: rejectNotifBox.data.leaveTypeNameByLocale,
         startDate: rejectNotifBox.data.startDate,
         endDate: rejectNotifBox.data.endDate,
         workingDays: null,

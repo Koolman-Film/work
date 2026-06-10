@@ -68,14 +68,17 @@ export default async function LiffCalendarPage({ searchParams }: { searchParams:
     throw new Error('Could not parse current month — date system broken?');
   }
 
-  const [{ entries, holidays }, t, locale] = await Promise.all([
+  // Locale first — the calendar loader needs it to resolve LeaveType
+  // display names to the viewer's language.
+  const locale = (await getLocale()) as Locale;
+  const [{ entries, holidays }, t] = await Promise.all([
     getTeamCalendarData({
       viewerEmployeeId: employee.id,
       monthStart: parsed.start,
       monthEnd: parsed.end,
+      locale,
     }),
     getTranslations('calendar'),
-    getLocale(),
   ]);
 
   const grid = buildMonthGrid(parsed.year, parsed.month0);

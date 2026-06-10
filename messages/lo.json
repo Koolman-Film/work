@@ -3,6 +3,11 @@
     "locale": "lo",
     "note": "Lao — AI-DRAFT (profile namespace), pending native review. Other namespaces fall back to en/th until populated."
   },
+  "units": {
+    "day": "{n} ວັນ",
+    "hour": "{n} ຊົ່ວໂມງ",
+    "min": "{n} ນາທີ"
+  },
   "pair": {
     "title": "ເຊື່ອມຕໍ່ບັນຊີ LINE",
     "phase": {

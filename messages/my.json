@@ -3,6 +3,11 @@
     "locale": "my",
     "note": "Burmese — AI-DRAFT (profile namespace), pending native review. Other namespaces fall back to en/th until populated."
   },
+  "units": {
+    "day": "{n} ရက်",
+    "hour": "{n} နာရီ",
+    "min": "{n} မိနစ်"
+  },
   "pair": {
     "title": "LINE အကောင့် ချိတ်ဆက်ရန်",
     "phase": {

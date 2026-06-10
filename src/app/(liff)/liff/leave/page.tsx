@@ -12,6 +12,7 @@ import { getLocale, getTranslations } from 'next-intl/server';
 import { requireRole } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
 import type { Locale } from '@/lib/i18n/config';
+import { localizedLeaveTypeName } from '@/lib/leave/localized-name';
 
 const STATUS_CLS: Record<string, string> = {
   Pending: 'bg-amber-100 text-amber-800',
@@ -59,7 +60,7 @@ export default async function LiffLeaveListPage() {
       take: 50,
       select: {
         id: true,
-        leaveType: { select: { name: true } },
+        leaveType: { select: { name: true, nameByLocale: true } },
         startDate: true,
         endDate: true,
         reason: true,
@@ -109,7 +110,13 @@ export default async function LiffLeaveListPage() {
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-gray-900">{r.leaveType.name}</p>
+                      <p className="text-sm font-medium text-gray-900">
+                        {localizedLeaveTypeName(
+                          r.leaveType.name,
+                          r.leaveType.nameByLocale,
+                          locale as Locale,
+                        )}
+                      </p>
                       <p className="mt-1 text-xs text-gray-600">
                         {formatRange(r.startDate, r.endDate, locale as Locale)}
                       </p>

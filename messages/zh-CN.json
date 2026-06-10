@@ -3,6 +3,11 @@
     "locale": "zh-CN",
     "note": "Simplified Chinese — AI-DRAFT (profile namespace), pending native review. Other namespaces fall back to en/th until populated."
   },
+  "units": {
+    "day": "{n} 天",
+    "hour": "{n} 小时",
+    "min": "{n} 分钟"
+  },
   "pair": {
     "title": "绑定 LINE 账号",
     "phase": {
