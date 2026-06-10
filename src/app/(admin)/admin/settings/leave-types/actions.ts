@@ -1,6 +1,6 @@
 'use server';
 
-import { Prisma } from '@prisma/client';
+import { OverQuotaPolicy, Prisma } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
@@ -41,14 +41,7 @@ const Schema = z.object({
     .literal('on')
     .optional()
     .transform((v) => v === 'on'),
-  overQuotaPolicy: z
-    .string()
-    .refine((v) => v === 'Block' || v === 'DeductPay', {
-      message: 'ค่า overQuotaPolicy ไม่ถูกต้อง',
-    })
-    .transform((v) => v as 'Block' | 'DeductPay')
-    .optional()
-    .default('DeductPay'),
+  overQuotaPolicy: z.nativeEnum(OverQuotaPolicy).optional().default(OverQuotaPolicy.DeductPay),
 });
 
 /** Collect optional per-locale name inputs (name_en, name_my, …) into the
