@@ -49,7 +49,7 @@ export function LeaveInbox({ rows }: { rows: LeaveRowVM[] }) {
                     {row.isPaid ? '' : <span className="text-ink-3">(ไม่จ่าย)</span>}
                   </p>
                   <p className="mt-0.5 text-ink-3">
-                    {row.range} • {row.workingDays} วันทำงาน
+                    {row.range} • {row.durationLabel}
                   </p>
                 </div>
               </div>
