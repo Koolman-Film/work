@@ -9,6 +9,10 @@ import { cleanupE2eRecords, e2eId, prisma } from './helpers/db';
  * generated Attendance(OnLeave) rows; restore brings both back.
  */
 test.describe('voidLeaveRequest cascade', () => {
+  // Deferred until the session seam exists (see header) — direct server-action
+  // calls throw `cookies() outside a request scope` under the Playwright runner.
+  test.fixme(true, 'deferred: needs session-injection helper for server actions');
+
   test.afterAll(async () => {
     await cleanupE2eRecords();
   });

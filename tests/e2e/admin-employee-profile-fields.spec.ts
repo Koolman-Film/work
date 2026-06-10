@@ -43,7 +43,7 @@ test.describe('Employee profile fields', () => {
     // ── Edit (change bank + account) ────────────────────────────────
     await page.getByLabel('ธนาคาร').selectOption({ index: 2 }); // second bank
     await page.getByLabel('เลขที่บัญชี').fill('9876543210');
-    await page.getByRole('button', { name: 'บันทึก' }).click();
+    await page.locator('button[form="employee-form"]', { hasText: 'บันทึก' }).click();
     await page.waitForURL(/\/edit\?ok=1/);
     await expect(page.getByLabel('เลขที่บัญชี')).toHaveValue('9876543210');
 
@@ -52,7 +52,7 @@ test.describe('Employee profile fields', () => {
     await page.getByLabel('ธนาคาร').selectOption({ value: '' }); // — ไม่ระบุ —
     await page.getByLabel('เลขที่บัญชี').fill('');
     await page.getByLabel('ชื่อบัญชี').fill('');
-    await page.getByRole('button', { name: 'บันทึก' }).click();
+    await page.locator('button[form="employee-form"]', { hasText: 'บันทึก' }).click();
     await page.waitForURL(/\/edit\?ok=1/);
 
     await expect(page.getByLabel('วันเกิด')).toHaveValue('');
