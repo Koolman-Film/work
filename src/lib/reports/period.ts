@@ -1,0 +1,36 @@
+/** Report period resolution: ?m=YYYY-MM (month mode, default current Bangkok
+ *  month) or ?from=YYYY-MM-DD&to=YYYY-MM-DD (custom range, month=null).
+ *  Pure — callers pass today's Bangkok YYYY-MM-DD. */
+
+const YMD = /^\d{4}-\d{2}-\d{2}$/;
+const YM = /^\d{4}-\d{2}$/;
+
+export type ReportPeriod = { from: string; to: string; month: string | null };
+
+function monthBounds(ym: string): { from: string; to: string } {
+  const [y, m] = ym.split('-').map(Number);
+  const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  return { from: `${ym}-01`, to: `${ym}-${String(last).padStart(2, '0')}` };
+}
+
+export function resolveReportPeriod(
+  params: { m?: string; from?: string; to?: string },
+  todayYmd: string,
+): ReportPeriod {
+  const { from, to, m } = params;
+  if (from && to && YMD.test(from) && YMD.test(to) && from <= to) {
+    return { from, to, month: null };
+  }
+  const ym = m && YM.test(m) ? m : todayYmd.slice(0, 7);
+  return { ...monthBounds(ym), month: ym };
+}
+
+/** prev/next month strings for the picker ("2026-06" → "2026-05"/"2026-07"). */
+export function adjacentMonths(ym: string): { prev: string; next: string } {
+  const [y, m] = ym.split('-').map(Number);
+  const fmt = (yy: number, mm: number) => `${yy}-${String(mm).padStart(2, '0')}`;
+  return {
+    prev: m === 1 ? fmt(y - 1, 12) : fmt(y, m - 1),
+    next: m === 12 ? fmt(y + 1, 1) : fmt(y, m + 1),
+  };
+}
