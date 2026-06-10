@@ -20,6 +20,9 @@ type Props = {
   /** When set, approve runs an in-modal "ยืนยัน ฿amount?" step first. */
   moneyConfirm?: { amountLabel: string };
   approveLabel?: string;
+  /** Render approve visually disabled and not clickable (reject stays live).
+   *  Used when a policy forbids approval (e.g. over-quota Block leave). */
+  approveDisabled?: boolean;
   /** Omit approve/reject for read-only (decided) rows. */
   onApprove?: Handler;
   onReject?: Handler;
@@ -39,6 +42,7 @@ export function ReviewModal({
   note,
   moneyConfirm,
   approveLabel = 'อนุมัติ',
+  approveDisabled,
   onApprove,
   onReject,
   onVoid,
@@ -95,6 +99,7 @@ export function ReviewModal({
   }
 
   function clickApprove() {
+    if (approveDisabled) return;
     if (note?.required && !noteValue.trim()) {
       setError('กรุณาระบุหมายเหตุ');
       return;
@@ -208,7 +213,7 @@ export function ReviewModal({
               variant="approve"
               size="sm"
               onClick={clickApprove}
-              disabled={pending}
+              disabled={pending || approveDisabled}
             >
               {pending ? '…' : approveLabel}
             </Button>

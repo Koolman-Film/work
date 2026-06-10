@@ -20,7 +20,7 @@ import { resolveStoredImageUrl } from '@/lib/storage/signed-urls';
 import type { AdvanceRowVM } from '../advance/advance-review-modal';
 import { ADVANCE_SELECT, buildAdvanceRowVM } from '../advance/advance-row-vm';
 import type { LeaveRowVM } from '../leave/leave-review-modal';
-import { buildLeaveRowVM, LEAVE_SELECT } from '../leave/leave-row-vm';
+import { buildLeaveRowVM, LEAVE_SELECT, leaveOverQuotaVM } from '../leave/leave-row-vm';
 
 export async function loadAdminCalendar(input: {
   ym: string;
@@ -65,6 +65,7 @@ export async function getLeaveReviewRow(leaveRequestId: string): Promise<LeaveRo
     attachmentUrl: await resolveStoredImageUrl(row.attachmentUrl),
     workingDays,
     cfg,
+    overQuota: await leaveOverQuotaVM(row, workingDays, cfg),
   });
 }
 
