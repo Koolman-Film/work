@@ -9,6 +9,7 @@
 
 import { requireRole } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
+import { resolveStoredImageUrl } from '@/lib/storage/signed-urls';
 import { ProfileView } from './profile-view';
 
 export default async function LiffProfilePage() {
@@ -28,6 +29,7 @@ export default async function LiffProfilePage() {
       personalEmail: true,
       address: true,
       emergencyContact: true,
+      photoKey: true,
       salaryType: true,
       baseSalary: true,
       hiredAt: true,
@@ -39,12 +41,16 @@ export default async function LiffProfilePage() {
     throw new Error('Employee row vanished between auth + read — race condition?');
   }
 
+  // Admin-managed photo; page renders per-request so the signed URL is fresh.
+  const photoUrl = await resolveStoredImageUrl(fullEmployee.photoKey);
+
   return (
     <ProfileView
       employee={{
         firstName: fullEmployee.firstName,
         lastName: fullEmployee.lastName,
         nickname: fullEmployee.nickname,
+        photoUrl,
         shortId: fullEmployee.id.slice(0, 8),
         branchName: fullEmployee.branch.name,
         departmentName: fullEmployee.department?.name ?? null,

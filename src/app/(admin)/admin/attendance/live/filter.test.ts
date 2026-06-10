@@ -7,6 +7,7 @@ function row(over: Partial<LiveAttendanceRow>): LiveAttendanceRow {
     id: 'r',
     employeeName: 'A A',
     employeeNickname: null,
+    photoUrl: null,
     branchName: 'สาขา 1',
     clockInAt: '2026-06-08T01:00:00.000Z', // 08:00 Bangkok → not late
     clockOutAt: null,
@@ -22,12 +23,15 @@ const outRow = row({ id: 'out', clockOutAt: '2026-06-08T10:00:00.000Z' });
 
 const data: LiveBoardData = {
   rows: [present, lateRow, outRow],
-  notCheckedIn: [{ id: 'n1', employeeName: 'N N', employeeNickname: null, branchName: 'สาขา 1' }],
+  notCheckedIn: [
+    { id: 'n1', employeeName: 'N N', employeeNickname: null, photoUrl: null, branchName: 'สาขา 1' },
+  ],
   onLeave: [
     {
       id: 'l1',
       employeeName: 'L L',
       employeeNickname: null,
+      photoUrl: null,
       branchName: 'สาขา 2',
       leaveTypeName: 'ลาป่วย',
       startDate: '2026-06-08T00:00:00.000Z',

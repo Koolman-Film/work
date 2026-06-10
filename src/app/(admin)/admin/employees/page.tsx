@@ -1,5 +1,6 @@
 import type { Prisma } from '@prisma/client';
 import Link from 'next/link';
+import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageHeader } from '@/components/ui/page-header';
@@ -131,17 +132,9 @@ export default async function EmployeeListPage({ searchParams }: { searchParams:
       header: 'ชื่อ',
       cell: (e) => {
         const url = e.photoKey ? photoUrls.get(e.photoKey) : undefined;
-        const initials = (e.nickname?.[0] ?? e.firstName?.[0] ?? '?').toUpperCase();
         return (
           <div className="flex items-center gap-3">
-            <div className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-full bg-gray-100 text-xs font-medium text-ink-3">
-              {url ? (
-                // biome-ignore lint/performance/noImgElement: signed storage URL (short-lived, per-request); next/image optimization/caching doesn't apply
-                <img src={url} alt="" className="size-full object-cover" />
-              ) : (
-                <span aria-hidden="true">{initials}</span>
-              )}
-            </div>
+            <Avatar name={e.nickname ?? e.firstName} src={url ?? null} />
             <div>
               <div className="font-medium text-ink-1">
                 {e.firstName} {e.lastName}
