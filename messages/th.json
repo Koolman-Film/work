@@ -3,6 +3,11 @@
     "locale": "th",
     "note": "Thai is the source of truth. Phase 2 will populate this from the current hardcoded UI strings."
   },
+  "units": {
+    "day": "{n} วัน",
+    "hour": "{n} ชม.",
+    "min": "{n} น."
+  },
   "pair": {
     "title": "เชื่อมบัญชี LINE",
     "phase": {

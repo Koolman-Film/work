@@ -476,6 +476,10 @@ model Attendance {
 model LeaveType {
   id          String    @id @default(uuid()) @db.Uuid
   name        String    @unique // "ลาป่วย", "ลากิจ", "ลาพักร้อน"
+  /// Optional per-locale display names for worker-facing UI, keyed by app
+  /// locale ({"en": "Personal leave", "my": "..."}). Missing/blank locales
+  /// fall back to `name` (the Thai canonical name the admin UI shows).
+  nameByLocale Json?
   isPaid      Boolean   @default(true)
   annualQuota Int?      // null = unlimited (e.g., unpaid leave)
   allowFullDay Boolean  @default(true)

@@ -44,25 +44,60 @@ export function standardDayMinutes(cfg: LeaveUnitConfig): number {
   return morningMinutes(cfg) + afternoonMinutes(cfg);
 }
 
+/** Minutes split into days+hours+minutes, using the standard day as the "day" size. */
+export type DurationParts = { days: number; hours: number; mins: number };
+
 /**
- * Render minutes as the Thai days+hours+minutes hybrid, using the standard
- * day as the "day" size. Examples (420/day): 600 → "1 วัน 3 ชม.".
+ * Split minutes into the days+hours+minutes hybrid, using the standard
+ * day as the "day" size. Examples (420/day): 600 → {days:1, hours:3, mins:0}.
  *
  * @param minutes Non-negative integer count of minutes.
  */
-export function formatDaysHours(minutes: number, cfg: LeaveUnitConfig): string {
+export function splitDaysHours(minutes: number, cfg: LeaveUnitConfig): DurationParts {
   const perDay = standardDayMinutes(cfg);
   const days = Math.floor(minutes / perDay);
   const rem = minutes - days * perDay;
   const hours = Math.floor(rem / 60);
   const mins = rem - hours * 60;
+  return { days, hours, mins };
+}
 
-  const parts: string[] = [];
-  if (days > 0) parts.push(`${days} วัน`);
-  if (hours > 0) parts.push(`${hours} ชม.`);
-  if (mins > 0) parts.push(`${mins} น.`);
-  if (parts.length === 0) return '0 ชม.';
-  return parts.join(' ');
+/** Per-unit label renderers, e.g. {day: n => `${n} days`}. Lets callers plug
+ *  in next-intl `t('day', {n})` so the units follow the viewer's locale. */
+export type DurationUnitLabels = {
+  day: (n: number) => string;
+  hour: (n: number) => string;
+  min: (n: number) => string;
+};
+
+/** Render duration parts with caller-supplied unit labels ("1 วัน 3 ชม." / "1 day 3 hr"). */
+export function formatDurationParts(parts: DurationParts, labels: DurationUnitLabels): string {
+  const out: string[] = [];
+  if (parts.days > 0) out.push(labels.day(parts.days));
+  if (parts.hours > 0) out.push(labels.hour(parts.hours));
+  if (parts.mins > 0) out.push(labels.min(parts.mins));
+  if (out.length === 0) return labels.hour(0);
+  return out.join(' ');
+}
+
+const THAI_UNIT_LABELS: DurationUnitLabels = {
+  day: (n) => `${n} วัน`,
+  hour: (n) => `${n} ชม.`,
+  min: (n) => `${n} น.`,
+};
+
+/**
+ * Render minutes as the Thai days+hours+minutes hybrid, using the standard
+ * day as the "day" size. Examples (420/day): 600 → "1 วัน 3 ชม.".
+ *
+ * Thai-only — for the admin UI, which is intentionally untranslated.
+ * Worker-facing surfaces use splitDaysHours + formatDurationParts with
+ * locale-aware labels instead.
+ *
+ * @param minutes Non-negative integer count of minutes.
+ */
+export function formatDaysHours(minutes: number, cfg: LeaveUnitConfig): string {
+  return formatDurationParts(splitDaysHours(minutes, cfg), THAI_UNIT_LABELS);
 }
 
 export type LeaveUnit = 'FullDay' | 'HalfMorning' | 'HalfAfternoon' | 'Hourly';

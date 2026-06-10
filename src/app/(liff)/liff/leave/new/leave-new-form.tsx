@@ -16,10 +16,11 @@ import { useTranslations } from 'next-intl';
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { submitLeaveRequest } from '@/lib/leave/actions';
 import {
-  formatDaysHours,
+  formatDurationParts,
   type LeaveUnit,
   type LeaveUnitConfig,
   segmentFor,
+  splitDaysHours,
   standardDayMinutes,
 } from '@/lib/leave/units';
 import { parseInputDate, workingDaysIn } from '@/lib/leave/working-days';
@@ -56,6 +57,14 @@ export function LeaveNewForm({
 }: Props) {
   const router = useRouter();
   const t = useTranslations('leave');
+  const tUnits = useTranslations('units');
+  // Locale-aware "1 วัน 3 ชม." / "1 day 3 hr" renderer for charge/balance lines.
+  const fmtDuration = (minutes: number) =>
+    formatDurationParts(splitDaysHours(minutes, leaveConfig), {
+      day: (n) => tUnits('day', { n }),
+      hour: (n) => tUnits('hour', { n }),
+      min: (n) => tUnits('min', { n }),
+    });
   const [pending, startTransition] = useTransition();
   const [leaveTypeId, setLeaveTypeId] = useState<string>(leaveTypes[0]?.id ?? '');
   const [unit, setUnit] = useState<LeaveUnit>('FullDay');
@@ -340,7 +349,7 @@ export function LeaveNewForm({
         {/* Charged-amount preview (days + hours) */}
         {chargePreview != null && (
           <p className="rounded-md bg-primary-50 px-3 py-2 text-xs text-primary-800">
-            {t('new.preview')} <strong>{formatDaysHours(chargePreview, leaveConfig)}</strong>
+            {t('new.preview')} <strong>{fmtDuration(chargePreview)}</strong>
             {unit === 'FullDay' && (
               <>
                 {' '}
@@ -356,7 +365,7 @@ export function LeaveNewForm({
         {/* Remaining balance + over-balance soft-warn */}
         {remaining != null && (
           <p className="text-xs text-gray-500">
-            {t('new.remaining')} <strong>{formatDaysHours(remaining, leaveConfig)}</strong>
+            {t('new.remaining')} <strong>{fmtDuration(remaining)}</strong>
           </p>
         )}
         {exceeds && (

@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 
 type Initial = {
   name: string;
+  nameByLocale: Record<string, string> | null;
   isPaid: boolean;
   annualQuota: number | null;
   allowFullDay: boolean;
@@ -28,6 +29,15 @@ type Props =
       error?: string | null;
       extraActions?: React.ReactNode;
     };
+
+/** Non-Thai locales workers can pick — th uses the canonical `name`. */
+const WORKER_LOCALES = [
+  { code: 'en', label: 'English' },
+  { code: 'my', label: 'မြန်မာ (พม่า)' },
+  { code: 'lo', label: 'ລາວ (ลาว)' },
+  { code: 'zh-CN', label: '中文 (จีน)' },
+  { code: 'km', label: 'ខ្មែរ (เขมร)' },
+] as const;
 
 export function LeaveTypeForm({ mode, action, initial, error, extraActions }: Props) {
   return (
@@ -53,6 +63,29 @@ export function LeaveTypeForm({ mode, action, initial, error, extraActions }: Pr
                 defaultValue={initial?.name ?? ''}
                 autoFocus
               />
+            </FormField>
+
+            {/* Per-locale names for the worker LIFF UI. Optional — any locale
+                left blank falls back to the Thai name above. The admin UI
+                itself always shows the Thai name. */}
+            <FormField
+              label="ชื่อแปลสำหรับพนักงาน"
+              htmlFor="name_en"
+              hint="แสดงในหน้าจอพนักงานตามภาษาที่เลือก — เว้นว่างเพื่อใช้ชื่อภาษาไทย"
+            >
+              <div className="space-y-2">
+                {WORKER_LOCALES.map((l) => (
+                  <div key={l.code} className="flex items-center gap-3">
+                    <span className="w-28 shrink-0 text-xs text-gray-500">{l.label}</span>
+                    <Input
+                      id={`name_${l.code}`}
+                      name={`name_${l.code}`}
+                      maxLength={80}
+                      defaultValue={initial?.nameByLocale?.[l.code] ?? ''}
+                    />
+                  </div>
+                ))}
+              </div>
             </FormField>
 
             {/* isPaid — checkbox with explicit "ลาแบบจ่ายเงิน" label */}

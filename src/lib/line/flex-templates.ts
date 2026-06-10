@@ -26,6 +26,8 @@ import type { Locale } from '@/lib/i18n/config';
 import { formatDate } from '@/lib/i18n/format';
 import { getMessages } from '@/lib/i18n/messages';
 import type { NotificationPayload } from '@/lib/inngest/events';
+import { localizedLeaveTypeName } from '@/lib/leave/localized-name';
+import { formatDurationParts } from '@/lib/leave/units';
 
 type FlexMessage = messagingApi.FlexMessage;
 type FlexBubble = messagingApi.FlexBubble;
@@ -66,21 +68,37 @@ export function buildFlexMessage(
   // biome-ignore lint/suspicious/noExplicitAny: use-intl IntlMessages requires any-valued records
   const notifMessages = getMessages(locale).notifications as Record<string, any>;
   const t = createTranslator({ locale, messages: notifMessages });
+  // Separate translator for the shared `units` namespace ("{n} วัน" / "# days").
+  // biome-ignore lint/suspicious/noExplicitAny: use-intl IntlMessages requires any-valued records
+  const unitMessages = getMessages(locale).units as Record<string, any>;
+  const tUnits = createTranslator({ locale, messages: unitMessages });
   let bubble: FlexBubble;
   let altText: string;
 
   switch (payload.kind) {
-    case 'leave.approved':
-      altText = t('leaveApproved.alt', { type: payload.leaveTypeName });
+    case 'leave.approved': {
+      const typeName = localizedLeaveTypeName(
+        payload.leaveTypeName,
+        payload.leaveTypeNameByLocale,
+        locale,
+      );
+      const durationLabel = payload.duration
+        ? formatDurationParts(payload.duration, {
+            day: (n) => tUnits('day', { n }),
+            hour: (n) => tUnits('hour', { n }),
+            min: (n) => tUnits('min', { n }),
+          })
+        : null;
+      altText = t('leaveApproved.alt', { type: typeName });
       bubble = approvedRejectedBubble({
         accent: GREEN,
         headerEmoji: '✅',
         headerText: t('leaveApproved.header'),
-        title: payload.leaveTypeName,
+        title: typeName,
         subtitle: fmtDateRange(payload.startDate, payload.endDate, locale),
         details: [
-          payload.durationLabel
-            ? { label: t('label.duration'), value: payload.durationLabel }
+          durationLabel
+            ? { label: t('label.duration'), value: durationLabel }
             : payload.workingDays != null
               ? {
                   label: t('label.workingDays'),
@@ -93,14 +111,20 @@ export function buildFlexMessage(
         actionUri: `${appBaseUrl}/liff/leave/${payload.leaveRequestId}`,
       });
       break;
+    }
 
-    case 'leave.rejected':
-      altText = t('leaveRejected.alt', { type: payload.leaveTypeName });
+    case 'leave.rejected': {
+      const typeName = localizedLeaveTypeName(
+        payload.leaveTypeName,
+        payload.leaveTypeNameByLocale,
+        locale,
+      );
+      altText = t('leaveRejected.alt', { type: typeName });
       bubble = approvedRejectedBubble({
         accent: RED,
         headerEmoji: '❌',
         headerText: t('leaveRejected.header'),
-        title: payload.leaveTypeName,
+        title: typeName,
         subtitle: fmtDateRange(payload.startDate, payload.endDate, locale),
         details: [
           payload.reviewNote ? { label: t('label.reason'), value: payload.reviewNote } : null,
@@ -109,6 +133,7 @@ export function buildFlexMessage(
         actionUri: `${appBaseUrl}/liff/leave/${payload.leaveRequestId}`,
       });
       break;
+    }
 
     case 'advance.approved':
       altText = t('advanceApproved.alt', { amount: payload.amount });

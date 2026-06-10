@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/ui/page-header';
 import { prisma } from '@/lib/db/prisma';
+import { asNameByLocale } from '@/lib/leave/localized-name';
 import { archiveLeaveType, updateLeaveType } from '../../actions';
 import { LeaveTypeForm } from '../../leave-type-form';
 
@@ -23,6 +24,7 @@ export default async function EditLeaveTypePage({
     select: {
       id: true,
       name: true,
+      nameByLocale: true,
       isPaid: true,
       annualQuota: true,
       archivedAt: true,
@@ -52,6 +54,7 @@ export default async function EditLeaveTypePage({
           action={update}
           initial={{
             name: row.name,
+            nameByLocale: asNameByLocale(row.nameByLocale),
             isPaid: row.isPaid,
             annualQuota: row.annualQuota,
             allowFullDay: row.allowFullDay,
