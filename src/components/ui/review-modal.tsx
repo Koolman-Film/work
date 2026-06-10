@@ -25,6 +25,8 @@ type Props = {
   onReject?: Handler;
   /** Footer "ลบรายการ" → in-modal required-reason step. */
   onVoid?: (reason: string) => Promise<ActionResult>;
+  /** Extra classes for the Dialog panel (e.g. `sm:max-w-2xl` for wide bodies). */
+  panelClassName?: string;
 };
 
 type Mode = 'review' | 'confirm-approve' | 'void';
@@ -40,6 +42,7 @@ export function ReviewModal({
   onApprove,
   onReject,
   onVoid,
+  panelClassName,
 }: Props) {
   const router = useRouter();
   const noteId = useId();
@@ -112,7 +115,13 @@ export function ReviewModal({
   }
 
   return (
-    <Dialog open={open} onClose={() => !pending && close()} title={title} dismissable={!pending}>
+    <Dialog
+      open={open}
+      onClose={() => !pending && close()}
+      title={title}
+      dismissable={!pending}
+      className={panelClassName}
+    >
       {/* Detail body is hidden during the void-reason step to keep focus. */}
       {mode !== 'void' && <div className="mt-2">{children}</div>}
 
@@ -164,7 +173,7 @@ export function ReviewModal({
         </p>
       )}
 
-      {mode === 'review' && (
+      {mode === 'review' && (onApprove || onReject || onVoid) && (
         <DialogFooter
           leading={
             onVoid ? (
