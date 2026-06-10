@@ -1,6 +1,7 @@
 import 'server-only';
 
 import type { StatusKey } from '@/components/ui/status-badge';
+import { type LeaveUnit, type LeaveUnitConfig, leaveDurationLabel } from '@/lib/leave/units';
 import type { LeaveRowVM } from './leave-review-modal';
 
 /** Prisma select covering every field `buildLeaveRowVM` reads. */
@@ -8,6 +9,9 @@ export const LEAVE_SELECT = {
   id: true,
   startDate: true,
   endDate: true,
+  unit: true,
+  startTime: true,
+  endTime: true,
   reason: true,
   status: true,
   reviewNote: true,
@@ -69,6 +73,9 @@ export type LeaveRecord = {
   id: string;
   startDate: Date;
   endDate: Date;
+  unit: LeaveUnit;
+  startTime: string | null;
+  endTime: string | null;
   reason: string;
   status: 'Pending' | 'Approved' | 'Rejected' | 'Cancelled';
   reviewNote: string | null;
@@ -93,7 +100,7 @@ export type LeaveRecord = {
  */
 export function buildLeaveRowVM(
   r: LeaveRecord,
-  deps: { attachmentUrl: string | null; workingDays: number },
+  deps: { attachmentUrl: string | null; workingDays: number; cfg: LeaveUnitConfig },
 ): LeaveRowVM {
   const info = LEAVE_STATUS_INFO[r.status] ?? { label: r.status, key: 'neutral' as StatusKey };
   return {
@@ -109,6 +116,7 @@ export function buildLeaveRowVM(
     isPaid: r.leaveType.isPaid,
     range: formatLeaveRange(r.startDate, r.endDate),
     workingDays: deps.workingDays,
+    durationLabel: leaveDurationLabel(r.unit, deps.workingDays, deps.cfg, r.startTime, r.endTime),
     submitted: formatLeaveDateTime(r.createdAt),
     reason: r.reason,
     reviewNote: r.reviewNote ?? null,

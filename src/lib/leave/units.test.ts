@@ -3,6 +3,7 @@ import {
   afternoonMinutes,
   formatDaysHours,
   type LeaveUnitConfig,
+  leaveDurationLabel,
   minutesOf,
   morningMinutes,
   segmentFor,
@@ -87,6 +88,37 @@ describe('segmentFor', () => {
   it('returns null for hourly without valid times', () => {
     expect(segmentFor('Hourly', CFG)).toBeNull();
     expect(segmentFor('Hourly', CFG, '16:00', '14:00')).toBeNull(); // end ≤ start
+  });
+});
+
+describe('leaveDurationLabel', () => {
+  // CFG: morning 3h + afternoon 4h = 7h standard day.
+  it('full-day single date → whole days, not hours', () => {
+    expect(leaveDurationLabel('FullDay', 1, CFG)).toBe('1 วัน');
+  });
+
+  it('full-day multi-day range → working-day count', () => {
+    expect(leaveDurationLabel('FullDay', 3, CFG)).toBe('3 วัน');
+  });
+
+  it('half-afternoon shows the afternoon window hours, NOT "1 วัน" (regression)', () => {
+    expect(leaveDurationLabel('HalfAfternoon', 1, CFG)).toBe('4 ชม.');
+  });
+
+  it('half-morning shows the morning window hours', () => {
+    expect(leaveDurationLabel('HalfMorning', 1, CFG)).toBe('3 ชม.');
+  });
+
+  it('hourly uses the request times', () => {
+    expect(leaveDurationLabel('Hourly', 1, CFG, '10:00', '12:30')).toBe('2 ชม. 30 น.');
+  });
+
+  it('zero working days (closed day) → zero charge', () => {
+    expect(leaveDurationLabel('HalfAfternoon', 0, CFG)).toBe('0 ชม.');
+  });
+
+  it('falls back to the day count when stored times are invalid', () => {
+    expect(leaveDurationLabel('Hourly', 1, CFG, '12:00', '10:00')).toBe('1 วัน');
   });
 });
 

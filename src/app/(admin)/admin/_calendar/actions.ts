@@ -12,6 +12,7 @@
 
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
+import { getLeaveConfig } from '@/lib/leave/leave-config';
 import { getOrgCalendarData } from '@/lib/leave/team-calendar';
 import { currentMonthYM, parseMonth, type TeamCalendarData } from '@/lib/leave/team-calendar-shape';
 import { expandHolidaysWithSubstitutes, workingDaysIn } from '@/lib/leave/working-days';
@@ -46,9 +47,10 @@ export async function loadAdminCalendar(input: {
 export async function getLeaveReviewRow(leaveRequestId: string): Promise<LeaveRowVM | null> {
   await requirePermission('leave.approve');
 
-  const [row, holidays] = await Promise.all([
+  const [row, holidays, cfg] = await Promise.all([
     prisma.leaveRequest.findUnique({ where: { id: leaveRequestId }, select: LEAVE_SELECT }),
     prisma.holiday.findMany({ where: { archivedAt: null }, select: { date: true } }),
+    getLeaveConfig(),
   ]);
   if (!row) return null;
 
@@ -62,6 +64,7 @@ export async function getLeaveReviewRow(leaveRequestId: string): Promise<LeaveRo
   return buildLeaveRowVM(row, {
     attachmentUrl: await resolveStoredImageUrl(row.attachmentUrl),
     workingDays,
+    cfg,
   });
 }
 

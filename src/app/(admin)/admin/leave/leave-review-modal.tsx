@@ -18,6 +18,7 @@ export type LeaveRowVM = {
   isPaid: boolean;
   range: string;
   workingDays: number;
+  durationLabel: string;
   submitted: string;
   reason: string;
   reviewNote: string | null;
@@ -102,8 +103,8 @@ function LeaveBody({ row }: { row: LeaveRowVM }) {
           <dd className="text-ink-2">{row.range}</dd>
         </div>
         <div>
-          <dt className="text-xs text-ink-4">วันทำงานที่จะบันทึก</dt>
-          <dd className="font-medium text-ink-1">{row.workingDays} วัน</dd>
+          <dt className="text-xs text-ink-4">เวลาที่จะบันทึก</dt>
+          <dd className="font-medium text-ink-1">{row.durationLabel}</dd>
         </div>
       </dl>
       {row.status === 'Pending' && row.workingDays === 0 && (

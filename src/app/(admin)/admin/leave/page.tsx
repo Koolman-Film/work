@@ -18,6 +18,8 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { PageHeader } from '@/components/ui/page-header';
 import { StatusBadge, type StatusKey } from '@/components/ui/status-badge';
 import { prisma, prismaRaw } from '@/lib/db/prisma';
+import { getLeaveConfig } from '@/lib/leave/leave-config';
+import { leaveDurationLabel } from '@/lib/leave/units';
 import { restoreLeaveRequest } from '@/lib/leave/void';
 import { expandHolidaysWithSubstitutes, workingDaysIn } from '@/lib/leave/working-days';
 import { signAttendancePhotoUrls } from '@/lib/storage/signed-urls';
@@ -54,7 +56,7 @@ export default async function AdminLeaveInboxPage({
     return { status: 'Pending' as const };
   })();
 
-  const [rows, holidays] = await Promise.all([
+  const [rows, holidays, leaveCfg] = await Promise.all([
     isTrash
       ? prismaRaw.leaveRequest.findMany({
           where: { deletedAt: { not: null } },
@@ -72,6 +74,7 @@ export default async function AdminLeaveInboxPage({
       where: { archivedAt: null },
       select: { date: true, name: true },
     }),
+    getLeaveConfig(),
   ]);
 
   const attachmentKeys = rows
@@ -97,6 +100,7 @@ export default async function AdminLeaveInboxPage({
             endDate: r.endDate,
             holidays: expandedHolidays,
           }).length,
+          cfg: leaveCfg,
         }),
       );
 
@@ -202,7 +206,8 @@ export default async function AdminLeaveInboxPage({
                           {r.leaveType.isPaid ? '' : <span className="text-ink-3">(ไม่จ่าย)</span>}
                         </p>
                         <p className="mt-0.5 text-ink-3">
-                          {formatLeaveRange(r.startDate, r.endDate)} • {wd.length} วันทำงาน
+                          {formatLeaveRange(r.startDate, r.endDate)} •{' '}
+                          {leaveDurationLabel(r.unit, wd.length, leaveCfg, r.startTime, r.endTime)}
                         </p>
                         <p className="mt-0.5 text-[10px] text-ink-4">
                           ส่งเมื่อ {formatLeaveDateTime(r.createdAt)}
