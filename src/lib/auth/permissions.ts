@@ -86,6 +86,9 @@ export const PERMISSIONS = {
   'payroll.run': 'รันคำนวณเงินเดือน',
   'payroll.publish': 'เผยแพร่เงินเดือน',
 
+  // ─── Reports ─────────────────────────────────────────────────────────
+  'report.read': 'ดูรายงานสรุป',
+
   // ─── LIFF (employee-facing actions) ──────────────────────────────────
   'liff.check-in': 'เช็คอิน/เช็คเอาท์',
   'liff.leave-submit': 'ยื่นคำขอลา',
@@ -190,6 +193,11 @@ export const PERMISSION_GROUPS: ReadonlyArray<{
     key: 'liff',
     label: 'LIFF (สำหรับพนักงาน)',
     permissions: ['liff.check-in', 'liff.leave-submit', 'liff.advance-submit', 'liff.profile-edit'],
+  },
+  {
+    key: 'report',
+    label: 'รายงาน',
+    permissions: ['report.read'],
   },
   {
     key: 'misc',
