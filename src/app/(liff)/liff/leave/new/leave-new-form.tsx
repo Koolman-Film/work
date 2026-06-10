@@ -17,6 +17,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import type { Locale } from '@/lib/i18n/config';
 import { formatMoney } from '@/lib/i18n/format';
 import { submitLeaveRequest } from '@/lib/leave/actions';
+import { deductionForOverQuota, overQuotaMinutesFor } from '@/lib/leave/over-quota';
 import {
   formatDurationParts,
   type LeaveUnit,
@@ -144,10 +145,7 @@ export function LeaveNewForm({
   // Soft-warn only — never blocks submission (admin decides at approval).
   const remaining = remainingByType[leaveTypeId] ?? null;
   const exceeds = remaining != null && chargePreview != null && chargePreview > remaining;
-  const overMinutes =
-    remaining != null && chargePreview != null
-      ? Math.max(0, chargePreview - Math.max(0, remaining))
-      : 0;
+  const overMinutes = chargePreview != null ? overQuotaMinutesFor(chargePreview, remaining) : 0;
 
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -386,7 +384,7 @@ export function LeaveNewForm({
               ? t('new.exceedsBlock')
               : t('new.exceedsDeduct', {
                   over: fmtDuration(overMinutes),
-                  amount: fmtMoney(overMinutes * ratePerMinute),
+                  amount: fmtMoney(deductionForOverQuota(overMinutes, ratePerMinute)),
                 })}
           </p>
         )}

@@ -50,7 +50,8 @@ export default async function NewLeavePage() {
   }));
 
   // Per-minute deduction rate for over-quota preview. Falls back to 0 when
-  // employee row is missing (edge case: Superadmin viewing the page).
+  // employee row is missing — Staff user with a missing employee row — data-integrity gap;
+  // remainingByType is empty too, so the warning never fires and the 0 rate is never shown.
   const ratePerMinute = employee
     ? perMinuteRate(
         employee.salaryType,
