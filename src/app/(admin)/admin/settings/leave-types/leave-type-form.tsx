@@ -9,6 +9,7 @@ type Initial = {
   nameByLocale: Record<string, string> | null;
   isPaid: boolean;
   annualQuota: number | null;
+  overQuotaPolicy: 'Block' | 'DeductPay';
   allowFullDay: boolean;
   allowHalfDay: boolean;
   allowHourly: boolean;
@@ -123,6 +124,22 @@ export function LeaveTypeForm({ mode, action, initial, error, extraActions }: Pr
                 placeholder="เช่น 30"
                 defaultValue={initial?.annualQuota?.toString() ?? ''}
               />
+            </FormField>
+
+            <FormField
+              label="เมื่อลาเกินสิทธิ"
+              htmlFor="overQuotaPolicy"
+              hint="มีผลเฉพาะประเภทที่กำหนดโควต้าต่อปี"
+            >
+              <select
+                id="overQuotaPolicy"
+                name="overQuotaPolicy"
+                defaultValue={initial?.overQuotaPolicy ?? 'DeductPay'}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm"
+              >
+                <option value="DeductPay">อนุมัติได้ แต่หักเงินเดือนส่วนที่เกิน</option>
+                <option value="Block">ไม่อนุญาต (อนุมัติเกินสิทธิไม่ได้)</option>
+              </select>
             </FormField>
 
             <FormField

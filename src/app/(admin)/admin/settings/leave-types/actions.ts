@@ -41,6 +41,14 @@ const Schema = z.object({
     .literal('on')
     .optional()
     .transform((v) => v === 'on'),
+  overQuotaPolicy: z
+    .string()
+    .refine((v) => v === 'Block' || v === 'DeductPay', {
+      message: 'ค่า overQuotaPolicy ไม่ถูกต้อง',
+    })
+    .transform((v) => v as 'Block' | 'DeductPay')
+    .optional()
+    .default('DeductPay'),
 });
 
 /** Collect optional per-locale name inputs (name_en, name_my, …) into the
@@ -62,6 +70,7 @@ function readForm(formData: FormData) {
     name: formData.get('name'),
     isPaid: formData.get('isPaid') ?? undefined,
     annualQuota: formData.get('annualQuota'),
+    overQuotaPolicy: formData.get('overQuotaPolicy') ?? undefined,
     allowFullDay: formData.get('allowFullDay') ?? undefined,
     allowHalfDay: formData.get('allowHalfDay') ?? undefined,
     allowHourly: formData.get('allowHourly') ?? undefined,
@@ -82,6 +91,7 @@ type ParsedData = {
   nameByLocale: Record<string, string> | null;
   isPaid: boolean;
   annualQuota: number | null;
+  overQuotaPolicy: 'Block' | 'DeductPay';
   allowFullDay: boolean;
   allowHalfDay: boolean;
   allowHourly: boolean;
@@ -96,6 +106,7 @@ function normalize(
     nameByLocale,
     isPaid: parsed.isPaid ?? false,
     annualQuota: parsed.annualQuota ?? null,
+    overQuotaPolicy: parsed.overQuotaPolicy,
     allowFullDay: parsed.allowFullDay ?? false,
     allowHalfDay: parsed.allowHalfDay ?? false,
     allowHourly: parsed.allowHourly ?? false,
@@ -181,6 +192,7 @@ export async function updateLeaveType(id: string, formData: FormData) {
         nameByLocale: before.nameByLocale,
         isPaid: before.isPaid,
         annualQuota: before.annualQuota,
+        overQuotaPolicy: before.overQuotaPolicy,
         allowFullDay: before.allowFullDay,
         allowHalfDay: before.allowHalfDay,
         allowHourly: before.allowHourly,
