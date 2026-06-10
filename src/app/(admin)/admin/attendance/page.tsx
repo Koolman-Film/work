@@ -9,6 +9,12 @@
  * sidebar link now lands on records (the historical view); admin jumps
  * to /live or /disputed via the top-right buttons.
  *
+ * Clicking a row opens a detail modal (selfie + geofence map + every
+ * recorded fact, same design as the /disputed pane); the row's void or
+ * restore action lives in that modal's footer. The page stays a Server
+ * Component — it builds serializable VMs (attendance-row-vm.ts) and the
+ * AttendanceRecordsTable client island owns the selection state.
+ *
  * Deduction columns from the spec wireframe are deliberately omitted —
  * payroll math lands in Phase 2. The column slot is reserved (visually
  * by leaving table room) so Phase 2 can drop it in without re-layout.
@@ -21,14 +27,14 @@
 
 import type { AttType } from '@prisma/client';
 import Link from 'next/link';
-import { RestoreButton, VoidDialog } from '@/components/admin/void-dialog';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageHeader } from '@/components/ui/page-header';
-import { type Column, ResponsiveTable } from '@/components/ui/responsive-table';
-import { restoreAttendance, voidAttendance } from '@/lib/attendance/void';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma, prismaRaw } from '@/lib/db/prisma';
+import { signAttendancePhotoUrls } from '@/lib/storage/signed-urls';
+import { buildAttendanceRowVM, RECORD_SELECT, TYPE_LABELS } from './attendance-row-vm';
 import { AttendanceTabs } from './attendance-tabs';
+import { AttendanceRecordsTable } from './records-table';
 
 type SearchParams = Promise<{
   ym?: string; // YYYY-MM, default current month
@@ -36,22 +42,6 @@ type SearchParams = Promise<{
   type?: string; // attendance type or 'all'
   trash?: string; // '1' = show recently-deleted (void) rows
 }>;
-
-const TYPE_LABELS: Record<string, { label: string; cls: string }> = {
-  CheckIn: { label: 'เช็คอิน', cls: 'bg-green-100 text-green-800' },
-  CheckOut: { label: 'เช็คเอาท์', cls: 'bg-blue-100 text-blue-800' },
-  Late: { label: 'มาสาย', cls: 'bg-amber-100 text-amber-800' },
-  EarlyLeave: { label: 'ออกก่อน', cls: 'bg-amber-100 text-amber-800' },
-  Absent: { label: 'ขาดงาน', cls: 'bg-red-100 text-red-800' },
-  OnLeave: { label: 'ลา', cls: 'bg-primary-100 text-primary-800' },
-};
-
-const SOURCE_LABELS: Record<string, string> = {
-  Liff: 'LINE',
-  Excel: 'Excel',
-  Manual: 'คีย์มือ',
-  Both: 'Liff+Excel',
-};
 
 function currentMonthYM(): string {
   return new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' }).slice(0, 7);
@@ -77,31 +67,6 @@ function shiftMonth(ym: string, delta: 1 | -1): string {
   const mo = p.start.getUTCMonth();
   const next = new Date(Date.UTC(y, mo + delta, 1));
   return `${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, '0')}`;
-}
-
-function formatDate(d: Date): string {
-  return d.toLocaleDateString('th-TH', {
-    timeZone: 'UTC',
-    day: 'numeric',
-    month: 'short',
-  });
-}
-
-function formatTime(d: Date | null): string {
-  if (!d) return '—';
-  return d.toLocaleTimeString('th-TH', {
-    timeZone: 'Asia/Bangkok',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
-function formatDuration(min: number | null): string {
-  if (min == null) return '—';
-  if (min < 60) return `${min} นาที`;
-  const h = Math.floor(min / 60);
-  const m = min % 60;
-  return m === 0 ? `${h} ชม.` : `${h} ชม. ${m} นาที`;
 }
 
 export default async function AttendanceRecordsPage({
@@ -130,42 +95,21 @@ export default async function AttendanceRecordsPage({
     ...(employeeFilter ? { employeeId: employeeFilter } : {}),
     ...(typeFilter ? { type: typeFilter } : {}),
   };
-  const rowSelect = {
-    id: true,
-    date: true,
-    type: true,
-    source: true,
-    durationMinutes: true,
-    clockInAt: true,
-    clockOutAt: true,
-    checkInStatus: true,
-    disputeReason: true,
-    deletedAt: true,
-    deleteReason: true,
-    employee: {
-      select: {
-        firstName: true,
-        lastName: true,
-        nickname: true,
-      },
-    },
-    checkInBranch: { select: { name: true } },
-  } as const;
 
   // Pull rows + employee list + disputed count in parallel.
-  const [rows, employees, disputedCount] = await Promise.all([
+  const [records, employees, disputedCount] = await Promise.all([
     isTrash
       ? prismaRaw.attendance.findMany({
           where: { ...baseWhere, deletedAt: { not: null } },
           orderBy: { deletedAt: 'desc' },
           take: 200,
-          select: rowSelect,
+          select: RECORD_SELECT,
         })
       : prisma.attendance.findMany({
           where: baseWhere,
           orderBy: [{ date: 'desc' }, { clockInAt: 'desc' }],
           take: 200,
-          select: rowSelect,
+          select: RECORD_SELECT,
         }),
     prisma.employee.findMany({
       where: { archivedAt: null },
@@ -181,6 +125,18 @@ export default async function AttendanceRecordsPage({
       where: { type: 'CheckIn', checkInStatus: 'Disputed', deletedAt: null },
     }),
   ]);
+
+  // Batch-sign all selfie keys in one Storage call, then build the VMs the
+  // client table + detail modal consume.
+  const selfieKeys = records
+    .map((r) => r.checkInSelfieUrl)
+    .filter((k): k is string => !!k && k.length > 0);
+  const signedSelfieUrls = await signAttendancePhotoUrls(selfieKeys);
+  const rows = records.map((r) =>
+    buildAttendanceRowVM(r, {
+      selfieUrl: r.checkInSelfieUrl ? (signedSelfieUrls.get(r.checkInSelfieUrl) ?? null) : null,
+    }),
+  );
 
   // Build URL helpers preserving other filters when changing one.
   function urlWith(updates: Record<string, string | null>) {
@@ -205,78 +161,12 @@ export default async function AttendanceRecordsPage({
     year: 'numeric',
   });
 
-  const columns: Column<(typeof rows)[number]>[] = [
-    { key: 'date', header: 'วันที่', cell: (r) => formatDate(r.date) },
-    {
-      key: 'employee',
-      header: 'พนักงาน',
-      cell: (r) => (
-        <span className="font-medium text-ink-1">
-          {r.employee.firstName} {r.employee.lastName}
-          {r.employee.nickname && <span className="text-ink-3"> ({r.employee.nickname})</span>}
-        </span>
-      ),
-    },
-    {
-      key: 'type',
-      header: 'ประเภท',
-      cell: (r) => {
-        const m = TYPE_LABELS[r.type] ?? { label: r.type, cls: 'bg-gray-100 text-gray-700' };
-        return (
-          <span className="inline-flex items-center gap-1">
-            <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${m.cls}`}>
-              {m.label}
-            </span>
-            {r.checkInStatus === 'Disputed' && (
-              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800">
-                ⚠ ตรวจสอบ
-              </span>
-            )}
-          </span>
-        );
-      },
-    },
-    {
-      key: 'time',
-      header: 'เวลา',
-      cell: (r) =>
-        r.type === 'CheckIn' || r.type === 'CheckOut' ? (
-          <span className="mono text-xs text-ink-2">
-            {formatTime(r.clockInAt)}
-            {r.clockOutAt && ` – ${formatTime(r.clockOutAt)}`}
-          </span>
-        ) : (
-          '—'
-        ),
-    },
-    { key: 'duration', header: 'ระยะเวลา', cell: (r) => formatDuration(r.durationMinutes) },
-    {
-      key: 'source',
-      header: 'ที่มา',
-      cell: (r) => (
-        <span className="text-xs text-ink-3">
-          {SOURCE_LABELS[r.source] ?? r.source}
-          {r.checkInBranch && <span className="text-ink-4"> • {r.checkInBranch.name}</span>}
-        </span>
-      ),
-    },
-    {
-      key: 'note',
-      header: 'หมายเหตุ',
-      cell: (r) => (
-        <span className="text-xs text-ink-3">
-          {(isTrash ? r.deleteReason : r.disputeReason) ?? '—'}
-        </span>
-      ),
-    },
-  ];
-
   return (
     <div className="px-4 py-6 sm:px-6 lg:px-8">
       <PageHeader
         breadcrumb="ลงเวลา"
         title="ประวัติการลงเวลา"
-        subtitle="ดูข้อมูลการเช็คอิน/ลา/ขาด/สาย ของพนักงาน"
+        subtitle="ดูข้อมูลการเช็คอิน/ลา/ขาด/สาย ของพนักงาน — คลิกแถวเพื่อดูรายละเอียด"
       />
       <AttendanceTabs current="records" disputedCount={disputedCount} />
 
@@ -349,40 +239,9 @@ export default async function AttendanceRecordsPage({
         )}
       </div>
 
-      <ResponsiveTable
-        columns={columns}
+      <AttendanceRecordsTable
         rows={rows}
-        rowKey={(r) => r.id}
-        actions={(r) =>
-          isTrash ? (
-            <div className="flex flex-col items-end gap-0.5">
-              <RestoreButton
-                action={async () => {
-                  'use server';
-                  return restoreAttendance(r.id);
-                }}
-              />
-              {r.deleteReason && (
-                <span className="max-w-[12rem] truncate text-[10px] text-ink-4">
-                  {r.deleteReason}
-                </span>
-              )}
-              {r.deletedAt && (
-                <span className="text-[10px] text-ink-4">{formatDate(r.deletedAt)}</span>
-              )}
-            </div>
-          ) : (
-            <VoidDialog
-              triggerLabel="ลบ"
-              title="ลบรายการลงเวลา"
-              description="รายการนี้จะถูกย้ายไปถังขยะ และกู้คืนได้ภายหลัง"
-              action={async (reason) => {
-                'use server';
-                return voidAttendance(r.id, reason);
-              }}
-            />
-          )
-        }
+        isTrash={isTrash}
         empty={
           <div className="surface">
             <EmptyState

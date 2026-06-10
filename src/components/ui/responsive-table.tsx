@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { KeyboardEvent, ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
 /**
@@ -21,6 +21,7 @@ export function ResponsiveTable<T>({
   rowKey,
   actions,
   empty,
+  onRowClick,
 }: {
   columns: Column<T>[];
   rows: T[];
@@ -28,8 +29,28 @@ export function ResponsiveTable<T>({
   /** Row actions: a trailing table cell on desktop, a card footer on mobile. */
   actions?: (row: T) => ReactNode;
   empty?: ReactNode;
+  /**
+   * Makes whole rows clickable (e.g. open a detail modal). Function prop —
+   * only usable when the table is rendered from a client component.
+   */
+  onRowClick?: (row: T) => void;
 }) {
   if (rows.length === 0 && empty) return <>{empty}</>;
+
+  /** Click + Enter/Space handlers shared by the desktop row and mobile card. */
+  const rowInteraction = (row: T) =>
+    onRowClick
+      ? {
+          onClick: () => onRowClick(row),
+          onKeyDown: (e: KeyboardEvent) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              onRowClick(row);
+            }
+          },
+          tabIndex: 0,
+        }
+      : {};
 
   return (
     <>
@@ -48,7 +69,15 @@ export function ResponsiveTable<T>({
           </thead>
           <tbody className="divide-y divide-[var(--border-color)]">
             {rows.map((row) => (
-              <tr key={rowKey(row)} className="hover:bg-gray-50/50">
+              <tr
+                key={rowKey(row)}
+                className={cn(
+                  'hover:bg-gray-50/50',
+                  onRowClick &&
+                    'cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-400',
+                )}
+                {...rowInteraction(row)}
+              >
                 {columns.map((c) => (
                   <td key={c.key} className={cn('px-5 py-3.5', c.className)}>
                     {c.cell(row)}
@@ -64,7 +93,15 @@ export function ResponsiveTable<T>({
       {/* Mobile: stacked cards */}
       <ul className="space-y-3 md:hidden">
         {rows.map((row) => (
-          <li key={rowKey(row)} className="surface p-4">
+          <li
+            key={rowKey(row)}
+            className={cn(
+              'surface p-4',
+              onRowClick &&
+                'cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-400',
+            )}
+            {...rowInteraction(row)}
+          >
             <dl className="space-y-1.5">
               {columns
                 .filter((c) => !c.hideOnMobile)
