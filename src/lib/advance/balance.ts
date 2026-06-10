@@ -69,6 +69,13 @@ export type AdvanceBalance =
       overdrawn: boolean; // true when available is known and < 0
     };
 
+/** The over-cap rule shared by the admin UI gate and the server approval
+ *  guard — one comparison, two surfaces, no drift. null available (rate-based
+ *  with uncomputable earnings) never blocks. */
+export function isOverCap(amount: number, available: number | null): boolean {
+  return available != null && amount > available;
+}
+
 /** Coerce Prisma.Decimal | string | number to a JS number. */
 function toNumber(v: Prisma.Decimal | string | number): number {
   if (v instanceof Prisma.Decimal) return v.toNumber();

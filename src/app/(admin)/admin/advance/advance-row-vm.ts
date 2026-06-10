@@ -2,6 +2,7 @@ import 'server-only';
 
 import type { StatusKey } from '@/components/ui/status-badge';
 import { advanceBalanceFor } from '@/lib/advance/available';
+import { isOverCap } from '@/lib/advance/balance';
 import type { AdvanceGuardVM, AdvanceRowVM } from './advance-review-modal';
 
 /** Prisma select covering every field `buildAdvanceRowVM` reads. */
@@ -92,7 +93,7 @@ export async function advanceGuardVM(
   const balance = await advanceBalanceFor(r.employeeId, r.id);
   return {
     available: balance.available,
-    overCap: balance.available != null && Number(r.amount) > balance.available,
+    overCap: isOverCap(Number(r.amount), balance.available),
   };
 }
 

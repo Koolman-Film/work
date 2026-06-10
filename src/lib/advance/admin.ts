@@ -19,6 +19,7 @@
 import { Prisma } from '@prisma/client';
 import { headers } from 'next/headers';
 import { advanceBalanceFor } from '@/lib/advance/available';
+import { isOverCap } from '@/lib/advance/balance';
 import { auditLog, auditLogTx } from '@/lib/audit/log';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
@@ -116,11 +117,11 @@ export async function approveCashAdvance(input: ApproveInput): Promise<ApproveAd
     // row being decided.
     const balance = await advanceBalanceFor(capRow.employeeId, capRow.id);
     const available = balance.available; // both variants expose it (rate-based may be null)
-    if (available != null && Number(capRow.amount) > available) {
+    if (isOverCap(Number(capRow.amount), available)) {
       return {
         ok: false,
         code: 'over-cap',
-        message: `เกินวงเงินที่เบิกได้ (คงเหลือ ฿${available.toLocaleString('th-TH', { minimumFractionDigits: 2 })})`,
+        message: `เกินวงเงินที่เบิกได้ (คงเหลือ ฿${available!.toLocaleString('th-TH', { minimumFractionDigits: 2 })})`,
       };
     }
     if (available == null) {
