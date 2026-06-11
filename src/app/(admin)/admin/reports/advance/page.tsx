@@ -3,6 +3,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { formatTHB2 } from '@/lib/format';
 import { resolveReportPeriod } from '@/lib/reports/period';
 import { advanceReport } from '@/lib/reports/queries';
+import { ExportButtons } from '../export-buttons';
 import { NameSearch } from '../name-search';
 import { PeriodPicker } from '../period-picker';
 
@@ -28,7 +29,10 @@ export default async function AdvanceReportPage({
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <PeriodPicker month={period.month} from={period.from} to={period.to} />
-        <NameSearch q={params.q} params={params} />
+        <div className="flex flex-wrap items-center gap-3">
+          <ExportButtons report="advance" params={params} />
+          <NameSearch q={params.q} params={params} />
+        </div>
       </div>
       <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
         {rows.length === 0 ? (
