@@ -211,6 +211,74 @@ describe('calcPayroll — V1 fixtures', () => {
     expect(baseline.netPay.toString()).toBe('29250');
   });
 
+  // CASE 11: Income adjustments (เงินเพิ่ม) sum into incomeOther and net.
+  // 2000 + 500.50 = 2500.50 extra income.
+  // Net = 30000 + 2500.50 - 750 = 31750.50.
+  it('CASE 11 — Income adjustments fill incomeOther and add to net', () => {
+    const out = calcPayroll(
+      baseInput({
+        adjustments: [
+          { kind: 'Income', amount: '2000' },
+          { kind: 'Income', amount: '500.50' },
+        ],
+      }),
+    );
+    expect(out.incomeOther.toFixed(2)).toBe('2500.50');
+    expect(out.deductOther.toFixed(2)).toBe('0.00');
+    expect(out.netPay.toFixed(2)).toBe('31750.50');
+  });
+
+  // CASE 12: Deduction adjustments (เงินลด) fill deductOther and subtract.
+  // 300 + 199.25 = 499.25.
+  // Net = 30000 - 750 - 499.25 = 28750.75.
+  it('CASE 12 — Deduction adjustments fill deductOther and subtract from net', () => {
+    const out = calcPayroll(
+      baseInput({
+        adjustments: [
+          { kind: 'Deduction', amount: '300' },
+          { kind: 'Deduction', amount: '199.25' },
+        ],
+      }),
+    );
+    expect(out.incomeOther.toFixed(2)).toBe('0.00');
+    expect(out.deductOther.toFixed(2)).toBe('499.25');
+    expect(out.netPay.toFixed(2)).toBe('28750.75');
+  });
+
+  // CASE 13: mixed Income + Deduction adjustments route to separate buckets.
+  it('CASE 13 — mixed adjustments route to incomeOther vs deductOther', () => {
+    const out = calcPayroll(
+      baseInput({
+        adjustments: [
+          { kind: 'Income', amount: '1000' },
+          { kind: 'Deduction', amount: '400' },
+        ],
+      }),
+    );
+    expect(out.incomeOther.toString()).toBe('1000');
+    expect(out.deductOther.toString()).toBe('400');
+    // 30000 + 1000 - 750 - 400 = 29850
+    expect(out.netPay.toString()).toBe('29850');
+  });
+
+  // CASE 14: hasSso=false skips the SSO deduction entirely.
+  it('CASE 14 — hasSso=false zeroes deductSso', () => {
+    const out = calcPayroll(
+      baseInput({
+        employee: { id: 'e', salaryType: 'Monthly', baseSalary: '30000', hasSso: false },
+      }),
+    );
+    expect(out.deductSso.toString()).toBe('0');
+    expect(out.netPay.toString()).toBe('30000');
+  });
+
+  // CASE 15: hasSso omitted defaults to true (backward compat — all
+  // pre-feature fixtures above rely on this).
+  it('CASE 15 — hasSso defaults to true', () => {
+    const out = calcPayroll(baseInput());
+    expect(out.deductSso.toString()).toBe('750');
+  });
+
   // Decimal-precision sanity — make sure 0.05 × 15000 doesn't drift to
   // 749.9999999... due to floating-point bugs. The whole point of
   // using decimal.js is this case.
