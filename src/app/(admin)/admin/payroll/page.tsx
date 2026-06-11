@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
-import { monthLabelTh } from '@/components/ui/month-select';
+import { monthLabelTh } from '@/components/ui/month-picker';
 import { PageHeader } from '@/components/ui/page-header';
 import { type Column, ResponsiveTable } from '@/components/ui/responsive-table';
 import { canDo } from '@/lib/auth/check-permission';
