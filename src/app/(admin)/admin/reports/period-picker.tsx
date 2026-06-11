@@ -2,6 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { adjacentMonths } from '@/lib/reports/period';
 
 /** Month nav (← มิ.ย. 2569 →) + custom from–to range. Admin UI: Thai, Buddhist year (+543). */
@@ -69,27 +71,12 @@ export function PeriodPicker({
           router.push(withParams({ from: fromVal, to: toVal, m: null }));
         }}
       >
-        <input
-          type="date"
-          name="from"
-          required
-          defaultValue={from}
-          className="rounded-md border border-gray-300 px-2 py-1.5 text-sm"
-        />
-        <span className="text-sm text-gray-400">–</span>
-        <input
-          type="date"
-          name="to"
-          required
-          defaultValue={to}
-          className="rounded-md border border-gray-300 px-2 py-1.5 text-sm"
-        />
-        <button
-          type="submit"
-          className="rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50"
-        >
+        <Input type="date" name="from" required defaultValue={from} className="w-auto" />
+        <span className="text-sm text-ink-4">–</span>
+        <Input type="date" name="to" required defaultValue={to} className="w-auto" />
+        <Button type="submit" variant="secondary">
           ดูช่วงนี้
-        </button>
+        </Button>
       </form>
     </div>
   );

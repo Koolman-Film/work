@@ -14,6 +14,7 @@
 import { useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
+import { Input } from '@/components/ui/input';
 import type { Locale } from '@/lib/i18n/config';
 import { formatMoney } from '@/lib/i18n/format';
 import { submitLeaveRequest } from '@/lib/leave/actions';
@@ -278,7 +279,7 @@ export function LeaveNewForm({
               <label htmlFor="startDate" className="mb-1.5 block text-sm font-medium text-gray-700">
                 {t('new.field.startDate')} <span className="text-red-600">*</span>
               </label>
-              <input
+              <Input
                 id="startDate"
                 type="date"
                 required
@@ -289,21 +290,19 @@ export function LeaveNewForm({
                   // Auto-bump end if it's now < start.
                   if (e.target.value > endDate) setEndDate(e.target.value);
                 }}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
               />
             </div>
             <div>
               <label htmlFor="endDate" className="mb-1.5 block text-sm font-medium text-gray-700">
                 {t('new.field.endDate')} <span className="text-red-600">*</span>
               </label>
-              <input
+              <Input
                 id="endDate"
                 type="date"
                 required
                 min={startDate}
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
               />
             </div>
           </div>
@@ -312,14 +311,13 @@ export function LeaveNewForm({
             <label htmlFor="startDate" className="mb-1.5 block text-sm font-medium text-gray-700">
               {t('new.field.date')} <span className="text-red-600">*</span>
             </label>
-            <input
+            <Input
               id="startDate"
               type="date"
               required
               min={minDate}
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
             />
           </div>
         )}
@@ -331,26 +329,24 @@ export function LeaveNewForm({
               <label htmlFor="startTime" className="mb-1.5 block text-sm font-medium text-gray-700">
                 {t('new.field.startTime')} <span className="text-red-600">*</span>
               </label>
-              <input
+              <Input
                 id="startTime"
                 type="time"
                 required
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
               />
             </div>
             <div>
               <label htmlFor="endTime" className="mb-1.5 block text-sm font-medium text-gray-700">
                 {t('new.field.endTime')} <span className="text-red-600">*</span>
               </label>
-              <input
+              <Input
                 id="endTime"
                 type="time"
                 required
                 value={endTime}
                 onChange={(e) => setEndTime(e.target.value)}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
               />
             </div>
           </div>

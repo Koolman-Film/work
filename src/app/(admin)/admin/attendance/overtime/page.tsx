@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { PageHeader } from '@/components/ui/page-header';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
@@ -131,12 +132,12 @@ export default async function OvertimePage({
                             <input type="hidden" name="employeeId" value={c.employeeId} />
                             <input type="hidden" name="date" value={c.date} />
                             <input type="hidden" name="sourceAttendanceId" value={c.attendanceId} />
-                            <input
+                            <Input
                               name="minutes"
                               type="number"
                               min="1"
                               defaultValue={c.minutesOver}
-                              className="w-20 rounded-md border border-gray-300 px-2 py-1"
+                              className="w-20 px-2 py-1"
                             />
                           </form>
                         </td>
@@ -183,7 +184,7 @@ export default async function OvertimePage({
             <select
               name="employeeId"
               required
-              className="rounded-md border border-gray-300 px-2 py-1"
+              className="min-h-[38px] rounded-md border border-gray-300 px-2 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
             >
               <option value="">— เลือกพนักงาน —</option>
               {employees.map((e) => (
@@ -192,28 +193,17 @@ export default async function OvertimePage({
                 </option>
               ))}
             </select>
-            <input
-              name="date"
-              type="date"
-              required
-              className="rounded-md border border-gray-300 px-2 py-1"
-            />
-            <input
+            <Input name="date" type="date" required className="w-auto" />
+            <Input
               name="minutes"
               type="number"
               min="1"
               placeholder="นาที"
               required
-              className="w-24 rounded-md border border-gray-300 px-2 py-1"
+              className="w-24"
             />
             <RateModeFields />
-            <input
-              name="note"
-              type="text"
-              maxLength={200}
-              placeholder="หมายเหตุ"
-              className="w-40 rounded-md border border-gray-300 px-2 py-1"
-            />
+            <Input name="note" type="text" maxLength={200} placeholder="หมายเหตุ" className="w-40" />
             <Button type="submit" variant="primary" size="sm">
               บันทึก OT
             </Button>

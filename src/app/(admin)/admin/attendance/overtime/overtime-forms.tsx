@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Input } from '@/components/ui/input';
 
 type Mode = 'PerHourAmount' | 'Multiplier';
 
@@ -22,23 +23,23 @@ export function RateModeFields({
         name="rateType"
         value={mode}
         onChange={(e) => setMode(e.target.value as Mode)}
-        className="rounded-md border border-gray-300 px-2 py-1 text-sm"
+        className="min-h-[38px] rounded-md border border-gray-300 px-2 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
       >
         <option value="PerHourAmount">฿/ชม.</option>
         <option value="Multiplier">×เท่า</option>
       </select>
       {mode === 'PerHourAmount' ? (
-        <input
+        <Input
           name="ratePerHour"
           type="number"
           step="1"
           min="0"
           defaultValue={defaultRatePerHour}
           placeholder="฿/ชม."
-          className="w-24 rounded-md border border-gray-300 px-2 py-1 text-sm"
+          className="w-24"
         />
       ) : (
-        <input
+        <Input
           name="multiplier"
           type="number"
           step="0.25"
@@ -46,7 +47,7 @@ export function RateModeFields({
           max="9.99"
           defaultValue={defaultMultiplier}
           placeholder="× เช่น 1.5"
-          className="w-24 rounded-md border border-gray-300 px-2 py-1 text-sm"
+          className="w-24"
         />
       )}
     </span>
