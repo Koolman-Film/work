@@ -22,6 +22,13 @@ export function formatTHB(amount: number): string {
   return `฿${thb.format(Math.round(amount))}`;
 }
 
+/** "฿5,000.00" — THB money with exactly two decimals (satang). Both fraction
+ *  bounds pinned: minimum alone would let Intl print 3+ decimals on computed
+ *  sums. Used by the admin report tables. */
+export function formatTHB2(amount: number): string {
+  return `฿${amount.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
 /** First two characters of a name/email, uppercased — for `Avatar` initials. */
 export function initials(label: string): string {
   return label.trim().slice(0, 2).toUpperCase();

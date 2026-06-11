@@ -61,14 +61,18 @@ export function PeriodPicker({
         onSubmit={(e) => {
           e.preventDefault();
           const fd = new FormData(e.currentTarget);
-          router.push(
-            withParams({ from: String(fd.get('from')), to: String(fd.get('to')), m: null }),
-          );
+          const fromVal = String(fd.get('from'));
+          const toVal = String(fd.get('to'));
+          // Inverted ranges would silently fall back to the current month
+          // server-side — cheaper to just not navigate.
+          if (!fromVal || !toVal || fromVal > toVal) return;
+          router.push(withParams({ from: fromVal, to: toVal, m: null }));
         }}
       >
         <input
           type="date"
           name="from"
+          required
           defaultValue={from}
           className="rounded-md border border-gray-300 px-2 py-1.5 text-sm"
         />
@@ -76,6 +80,7 @@ export function PeriodPicker({
         <input
           type="date"
           name="to"
+          required
           defaultValue={to}
           className="rounded-md border border-gray-300 px-2 py-1.5 text-sm"
         />
