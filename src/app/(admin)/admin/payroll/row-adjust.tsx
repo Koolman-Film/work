@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { Button } from '@/components/ui/button';
+import { type ActionResult, ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Dialog } from '@/components/ui/dialog';
 import { FormField } from '@/components/ui/form-field';
 import { Input } from '@/components/ui/input';
@@ -35,7 +36,7 @@ type Props = {
   monthLabel: string;
   adjustments: RowAdjustment[];
   createAction: (formData: FormData) => Promise<void>;
-  deleteAction: (formData: FormData) => Promise<void>;
+  deleteAction: (id: string, month: string) => Promise<ActionResult>;
 };
 
 function PendingOverlay({ label }: { label: string }) {
@@ -119,11 +120,22 @@ export function RowAdjust({
                   </p>
                   <p className="text-[11px] text-ink-4">{a.windowLabel}</p>
                 </div>
-                <form action={deleteAction} className="relative shrink-0">
-                  <input type="hidden" name="id" value={a.id} />
-                  <input type="hidden" name="month" value={month} />
-                  <DeleteButton />
-                </form>
+                <ConfirmDialog
+                  trigger={(openConfirm) => (
+                    <button
+                      type="button"
+                      onClick={openConfirm}
+                      className="shrink-0 rounded-md px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50"
+                    >
+                      ลบ
+                    </button>
+                  )}
+                  title="ลบรายการนี้?"
+                  description={`${a.kind === 'Income' ? 'เงินเพิ่ม' : 'เงินลด'} "${a.reason}" ${a.amountLabel} (${a.windowLabel}) — งวดที่เผยแพร่แล้วไม่เปลี่ยน แต่งวดฉบับร่างจะถูกคำนวณใหม่ทันที`}
+                  confirmLabel="ลบรายการ"
+                  tone="danger"
+                  action={() => deleteAction(a.id, month)}
+                />
               </li>
             ))}
           </ul>
@@ -223,18 +235,5 @@ export function RowAdjust({
         </form>
       </Dialog>
     </>
-  );
-}
-
-function DeleteButton() {
-  const { pending } = useFormStatus();
-  return (
-    <button
-      type="submit"
-      disabled={pending}
-      className="rounded-md px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
-    >
-      {pending ? 'กำลังลบ…' : 'ลบ'}
-    </button>
   );
 }
