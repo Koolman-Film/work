@@ -109,7 +109,10 @@
       "openCamera": "📷 打开相机",
       "previewAlt": "自拍预览",
       "retake": "重拍",
-      "usePhoto": "使用此照片"
+      "usePhoto": "使用此照片",
+      "capture": "拍照",
+      "cameraUnavailable": "无法打开相机 — 请允许使用相机，或使用下方按钮",
+      "switchCamera": "切换相机"
     },
     "success": {
       "checkedIn": "签到成功",
