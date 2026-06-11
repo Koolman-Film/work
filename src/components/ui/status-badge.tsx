@@ -31,6 +31,7 @@ const STATUS_COLORS = {
   reviewed: 'bg-[#d1fae5] text-[#065f46]',
   published: 'bg-[#d1fae5] text-[#065f46]',
   override: 'bg-[#fed7aa] text-[#9a3412]',
+  locked: 'bg-[#dbeafe] text-[#1e40af]',
 
   // Employment status (extends spec for our enums)
   probation: 'bg-[#fef3c7] text-[#92400e]',

@@ -2,6 +2,7 @@
 
 import { useFormStatus } from 'react-dom';
 import { Button } from '@/components/ui/button';
+import { Dialog } from '@/components/ui/dialog';
 
 /**
  * Server-action form for the payroll run buttons (คำนวณ/เผยแพร่/ล็อก) with
@@ -32,23 +33,18 @@ function Inner({ label, pendingLabel, variant }: Omit<Props, 'action' | 'month'>
         {label}
       </Button>
 
-      {pending && (
-        <div
-          className="fixed inset-0 z-50 grid place-items-center bg-ink-1/40"
-          role="alertdialog"
-          aria-modal="true"
-          aria-label={pendingLabel}
-        >
-          <div className="flex flex-col items-center gap-4 rounded-2xl bg-white px-10 py-8 shadow-xl">
-            <span
-              className="size-10 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600"
-              aria-hidden="true"
-            />
-            <p className="text-sm font-medium text-ink-1">{pendingLabel}</p>
-            <p className="text-xs text-ink-3">กรุณารอสักครู่ อย่าปิดหน้านี้</p>
-          </div>
+      {/* Shared Dialog primitive, locked non-dismissable while the mutation
+          runs — same blocking semantics ConfirmDialog uses mid-action. */}
+      <Dialog open={pending} onClose={() => {}} dismissable={false}>
+        <div className="flex flex-col items-center gap-4 py-4">
+          <span
+            className="size-10 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600"
+            aria-hidden="true"
+          />
+          <p className="text-sm font-medium text-ink-1">{pendingLabel}</p>
+          <p className="text-xs text-ink-3">กรุณารอสักครู่ อย่าปิดหน้านี้</p>
         </div>
-      )}
+      </Dialog>
     </>
   );
 }
