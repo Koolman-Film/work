@@ -7,7 +7,14 @@ import { canDo } from '@/lib/auth/check-permission';
 import { requireRole } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
 import { formatTHB2 } from '@/lib/format';
-import { calculatePayrollAction, lockPayrollAction, publishPayrollAction } from './actions';
+import {
+  calculatePayrollAction,
+  createRowAdjustment,
+  deleteRowAdjustment,
+  lockPayrollAction,
+  publishPayrollAction,
+} from './actions';
+import { RowAdjust, type RowAdjustment } from './row-adjust';
 import { RunActionForm } from './run-action-form';
 
 /**
@@ -86,6 +93,44 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
   });
 
   const activeEmployees = await prisma.employee.count({ where: { status: { not: 'Archived' } } });
+
+  // Adjustments applying to this month, grouped per employee — feeds the
+  // per-row "เพิ่ม/ลด" modal so the admin sees + manages them in place.
+  const monthAdjustments = await prisma.payrollAdjustment.findMany({
+    where: {
+      startMonth: { lte: month },
+      OR: [{ endMonth: null }, { endMonth: { gte: month } }],
+      deletedAt: null,
+    },
+    orderBy: { createdAt: 'asc' },
+    select: {
+      id: true,
+      employeeId: true,
+      kind: true,
+      reason: true,
+      amount: true,
+      startMonth: true,
+      endMonth: true,
+    },
+  });
+  const adjByEmployee = new Map<string, RowAdjustment[]>();
+  for (const a of monthAdjustments) {
+    const label =
+      a.endMonth === null
+        ? `${a.startMonth} เป็นต้นไป`
+        : a.endMonth === a.startMonth
+          ? a.startMonth
+          : `${a.startMonth} – ${a.endMonth}`;
+    const list = adjByEmployee.get(a.employeeId) ?? [];
+    list.push({
+      id: a.id,
+      kind: a.kind,
+      reason: a.reason,
+      amountLabel: formatTHB2(a.amount.toNumber()),
+      windowLabel: label,
+    });
+    adjByEmployee.set(a.employeeId, list);
+  }
 
   const sum = (pick: (r: (typeof rows)[number]) => number) =>
     rows.reduce((acc, r) => acc + pick(r), 0);
@@ -299,6 +344,19 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
         columns={columns}
         rows={rows}
         rowKey={(r) => r.id}
+        actions={(r) =>
+          r.status === 'Draft' && mayRun ? (
+            <RowAdjust
+              employeeId={r.employeeId}
+              employeeName={`${r.employee.firstName} ${r.employee.lastName}`}
+              month={month}
+              monthLabel={monthLabelTh(month)}
+              adjustments={adjByEmployee.get(r.employeeId) ?? []}
+              createAction={createRowAdjustment}
+              deleteAction={deleteRowAdjustment}
+            />
+          ) : null
+        }
         empty={
           <div className="surface">
             <EmptyState
