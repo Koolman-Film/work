@@ -2,9 +2,10 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageHeader } from '@/components/ui/page-header';
+import { Pill } from '@/components/ui/pill';
 import { type Column, ResponsiveTable } from '@/components/ui/responsive-table';
 import { prisma } from '@/lib/db/prisma';
-import { formatTHB2 } from '@/lib/format';
+import { formatTHB2, monthLabelTh } from '@/lib/format';
 import { frequencyOf } from './adjustment-schema';
 
 /**
@@ -21,9 +22,9 @@ const FREQ_LABEL = { once: 'รายครั้ง', monthly: 'รายเด
 
 function windowLabel(startMonth: string, endMonth: string | null): string {
   const freq = frequencyOf(startMonth, endMonth);
-  if (freq === 'once') return startMonth;
-  if (freq === 'monthly') return `${startMonth} เป็นต้นไป`;
-  return `${startMonth} – ${endMonth}`;
+  if (freq === 'once') return monthLabelTh(startMonth);
+  if (freq === 'monthly') return `${monthLabelTh(startMonth)} เป็นต้นไป`;
+  return `${monthLabelTh(startMonth)} – ${endMonth ? monthLabelTh(endMonth) : ''}`;
 }
 
 export default async function AdjustmentListPage({ searchParams }: { searchParams: SearchParams }) {
@@ -53,13 +54,9 @@ export default async function AdjustmentListPage({ searchParams }: { searchParam
       header: 'ประเภท',
       cell: (r) =>
         r.kind === 'Income' ? (
-          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">
-            เงินเพิ่ม
-          </span>
+          <Pill variant="approved">เงินเพิ่ม</Pill>
         ) : (
-          <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800">
-            เงินลด
-          </span>
+          <Pill variant="danger">เงินลด</Pill>
         ),
     },
     {
@@ -83,9 +80,7 @@ export default async function AdjustmentListPage({ searchParams }: { searchParam
       key: 'window',
       header: 'ช่วงเดือน',
       cell: (r) => (
-        <span className="font-mono text-xs text-ink-3">
-          {windowLabel(r.startMonth, r.endMonth)}
-        </span>
+        <span className="text-xs text-ink-3">{windowLabel(r.startMonth, r.endMonth)}</span>
       ),
     },
   ];
