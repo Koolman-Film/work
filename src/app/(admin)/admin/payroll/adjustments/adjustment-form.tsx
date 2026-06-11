@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardBody, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { FormField } from '@/components/ui/form-field';
 import { Input } from '@/components/ui/input';
+import { MonthSelect } from '@/components/ui/month-select';
 
 /**
  * Create/edit form for PayrollAdjustment (เงินเพิ่ม/เงินลด).
@@ -33,6 +34,8 @@ type Props = {
   mode: 'create' | 'edit';
   action: (fd: FormData) => Promise<void>;
   employees: EmployeeOption[];
+  /** Current Bangkok month "YYYY-MM" — anchors the month dropdowns. */
+  currentMonth: string;
   initial?: AdjustmentInitial;
   error?: string | null;
   extraActions?: React.ReactNode;
@@ -44,7 +47,15 @@ const FREQ_CHOICES = [
   { value: 'range', label: 'ตามช่วงเวลา', hint: 'ตั้งแต่เดือนเริ่มต้นถึงเดือนสิ้นสุด' },
 ] as const;
 
-export function AdjustmentForm({ mode, action, employees, initial, error, extraActions }: Props) {
+export function AdjustmentForm({
+  mode,
+  action,
+  employees,
+  currentMonth,
+  initial,
+  error,
+  extraActions,
+}: Props) {
   const [frequency, setFrequency] = useState<'once' | 'monthly' | 'range'>(
     initial?.frequency ?? 'once',
   );
@@ -166,25 +177,29 @@ export function AdjustmentForm({ mode, action, employees, initial, error, extraA
                 htmlFor="startMonth"
                 required
               >
-                <Input
+                <MonthSelect
                   id="startMonth"
                   name="startMonth"
-                  type="month"
+                  from={currentMonth}
+                  back={12}
+                  forward={24}
+                  defaultValue={initial?.startMonth || currentMonth}
                   required
-                  defaultValue={initial?.startMonth ?? ''}
-                  className="max-w-xs"
+                  className="w-44"
                 />
               </FormField>
 
               {frequency === 'range' && (
                 <FormField label="เดือนสิ้นสุด" htmlFor="endMonth" required>
-                  <Input
+                  <MonthSelect
                     id="endMonth"
                     name="endMonth"
-                    type="month"
+                    from={currentMonth}
+                    back={12}
+                    forward={24}
+                    defaultValue={initial?.endMonth || currentMonth}
                     required
-                    defaultValue={initial?.endMonth ?? ''}
-                    className="max-w-xs"
+                    className="w-44"
                   />
                 </FormField>
               )}

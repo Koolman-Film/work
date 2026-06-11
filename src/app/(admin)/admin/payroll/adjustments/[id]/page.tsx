@@ -26,6 +26,10 @@ export default async function EditAdjustmentPage({
   ]);
   if (!row || row.deletedAt) notFound();
 
+  const currentMonth = new Date()
+    .toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' })
+    .slice(0, 7);
+
   const update = async (formData: FormData) => {
     'use server';
     await updateAdjustment(id, formData);
@@ -43,6 +47,7 @@ export default async function EditAdjustmentPage({
           mode="edit"
           action={update}
           employees={employees}
+          currentMonth={currentMonth}
           initial={{
             employeeId: row.employeeId,
             kind: row.kind,
