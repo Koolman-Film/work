@@ -98,11 +98,23 @@ export default async function LiffSummaryPage({
   const { prev, next } = adjacentMonths(month);
   const monthLabel = buildMonthLabel(locale, month);
   const displayYear = locale === 'th' ? year + 543 : year;
+  const todayYm = todayYmd.slice(0, 7);
 
   const cardCls = 'rounded-2xl border border-gray-200 bg-white p-5 shadow-sm';
   return (
     <main className="mx-auto max-w-md space-y-4 px-4 pt-8 pb-12">
-      <h1 className="text-2xl font-semibold text-gray-900">{t('title')}</h1>
+      <header className="flex items-center justify-between gap-2">
+        <h1 className="text-2xl font-semibold text-gray-900">{t('title')}</h1>
+        {month !== todayYm && (
+          // "This month" jump — lets the user return after scrubbing months.
+          <Link
+            href="/liff/summary"
+            className="rounded-md border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
+          >
+            {t('thisMonth')}
+          </Link>
+        )}
+      </header>
 
       {/* Month navigator: prev / month-label / next */}
       <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-3 py-2.5">
