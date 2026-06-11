@@ -62,10 +62,10 @@ export type EmployeeForPayroll = {
   baseSalary: string | number | Decimal;
   /**
    * Social security (ประกันสังคม) enrollment. When false, deductSso is 0.
-   * Optional defaulting to true — matches Employee.hasSso's DB default and
-   * keeps pre-feature fixtures valid.
+   * Required — callers pass Employee.hasSso explicitly so the pure calc
+   * never guesses an enrollment default.
    */
-  hasSso?: boolean;
+  hasSso: boolean;
 };
 
 /**
@@ -229,8 +229,7 @@ export function calcPayroll(input: CalcInput): PayrollDraft {
   ).toDecimalPlaces(2);
 
   // SSO deduction (capped by Thai law) — only for enrolled employees.
-  const deductSso =
-    input.employee.hasSso === false ? new Decimal(0) : calcSso(baseSalary, input.config);
+  const deductSso = input.employee.hasSso ? calcSso(baseSalary, input.config) : new Decimal(0);
 
   // Cash advances → straight sum.
   const deductAdvance = sumDec(input.advances.map((a) => ({ value: a.amount }))).toDecimalPlaces(2);

@@ -54,10 +54,11 @@ An adjustment applies to month `M` iff `startMonth <= M && (endMonth == null || 
 (lexicographic compare works for YYYY-MM). Selection by range is idempotent — recalculation
 never double-applies, so no stamping (unlike CashAdvance/LeaveRequest sweep-once rows).
 
-### `Employee`: add `hasSso Boolean @default(true)`
+### `Employee`: add `hasSso Boolean @default(false)`
 
-Default true preserves current behavior (calc applies SSO to everyone today). Frozen into
-the Payroll row at calc time, so published slips never change retroactively.
+Default false (revised per owner decision 2026-06-11): admin explicitly ticks enrolled
+employees before the first payroll run. SSO is frozen into the Payroll row at calc time,
+so published slips never change retroactively.
 
 ### `Payroll`: add `deductOther Decimal @db.Decimal(12, 2) @default(0)`
 
@@ -67,7 +68,7 @@ RecurringDeduction (loans/installments). Income-kind adjustments fill the existi
 
 ## Calc engine (`src/lib/payroll/calc.ts`)
 
-- `EmployeeForPayroll` gains `hasSso: boolean`.
+- `EmployeeForPayroll` gains `hasSso: boolean` (required — callers pass explicitly).
 - `CalcInput` gains `adjustments: readonly { kind: 'Income' | 'Deduction'; amount: ... }[]`.
 - `incomeOther` = sum of Income adjustments (replaces hardcoded 0).
 - New output field `deductOther` = sum of Deduction adjustments; included in netPay.

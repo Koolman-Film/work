@@ -276,7 +276,7 @@ export function EmployeeForm({
                     <input
                       type="checkbox"
                       name="hasSso"
-                      defaultChecked={initial?.hasSso ?? true}
+                      defaultChecked={initial?.hasSso ?? false}
                       className="size-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500/30"
                     />
                     <span>ประกันสังคม</span>

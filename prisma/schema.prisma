@@ -399,7 +399,8 @@ model Employee {
   /// Social security (ประกันสังคม) enrollment — when true, payroll deducts
   /// SSO from base salary per PayrollConfig (5% capped). Frozen into the
   /// Payroll row at calc time, so published slips never change retroactively.
-  hasSso            Boolean  @default(true)
+  /// Default false: admin explicitly ticks enrolled employees.
+  hasSso            Boolean  @default(false)
   status            EmpStatus
   canCheckIn        Boolean  @default(true)
   hiredAt           DateTime @db.Date
