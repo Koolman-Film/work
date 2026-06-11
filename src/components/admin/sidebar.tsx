@@ -5,8 +5,8 @@ import {
   Banknote,
   BarChart3,
   Calculator,
-  Calendar,
   CalendarDays,
+  CalendarOff,
   Clock,
   FileText,
   History,
@@ -31,43 +31,90 @@ import { useMobileNav } from './use-mobile-nav';
  *     when `useMobileNav.open === true` (hamburger in the Topbar). Backdrop +
  *     close button + Escape + scroll-lock + auto-close-on-navigation.
  *
- * Items are grouped into "เมนูหลัก" and "ระบบ" sections. Items whose pages don't
- * exist yet render disabled (gray + "เร็วๆ นี้") to preserve the IA. Active item
+ * Items are grouped by admin workflow: ภาพรวม (views), งานประจำวัน (daily
+ * action queues — these carry pending-count badges), ข้อมูล & รายงาน,
+ * การเงิน (placeholder domain), ระบบ. Items whose pages don't exist yet
+ * render disabled (gray + "เร็วๆ นี้") to preserve the IA. Active item
  * gets a primary-50 fill + a 2px brand left-accent rail.
  */
+
+/** Pending-work counts fetched by the admin layout (server side). */
+export type SidebarBadges = {
+  /** LeaveRequest rows with status=Pending. */
+  leave: number;
+  /** CashAdvance rows with status=Pending. */
+  advance: number;
+  /** Attendance check-ins with checkInStatus=Disputed. */
+  attendance: number;
+};
 
 type NavItem = {
   href: string;
   label: string;
   Icon: LucideIcon;
   enabled?: boolean;
+  /** Which badge count (if any) to show next to this item. */
+  badgeKey?: keyof SidebarBadges;
 };
 
 const SECTIONS: ReadonlyArray<{ label: string; items: ReadonlyArray<NavItem> }> = [
   {
-    label: 'เมนูหลัก',
+    label: 'ภาพรวม',
     items: [
       { href: '/admin', label: 'หน้าหลัก', Icon: Home, enabled: true },
       { href: '/admin/calendar', label: 'ปฏิทินงาน', Icon: CalendarDays, enabled: true },
+    ],
+  },
+  {
+    label: 'งานประจำวัน',
+    items: [
+      {
+        href: '/admin/attendance',
+        label: 'ลงเวลา',
+        Icon: Clock,
+        enabled: true,
+        badgeKey: 'attendance',
+      },
+      {
+        href: '/admin/leave',
+        label: 'คำขอลา',
+        Icon: CalendarOff,
+        enabled: true,
+        badgeKey: 'leave',
+      },
+      {
+        href: '/admin/advance',
+        label: 'คำขอเบิก',
+        Icon: Banknote,
+        enabled: true,
+        badgeKey: 'advance',
+      },
+    ],
+  },
+  {
+    label: 'ข้อมูล & รายงาน',
+    items: [
       { href: '/admin/employees', label: 'พนักงาน', Icon: Users, enabled: true },
-      { href: '/admin/leave', label: 'คำขอลา', Icon: Calendar, enabled: true },
-      { href: '/admin/advance', label: 'คำขอเบิก', Icon: Banknote, enabled: true },
-      { href: '/admin/attendance', label: 'ลงเวลา', Icon: Clock, enabled: true },
       { href: '/admin/reports', label: 'รายงาน', Icon: BarChart3, enabled: true },
+    ],
+  },
+  {
+    label: 'การเงิน',
+    items: [
+      { href: '/admin/payroll', label: 'เงินเดือน', Icon: FileText },
+      { href: '/admin/accounting', label: 'บัญชี', Icon: Calculator },
     ],
   },
   {
     label: 'ระบบ',
     items: [
-      { href: '/admin/payroll', label: 'เงินเดือน', Icon: FileText },
-      { href: '/admin/accounting', label: 'บัญชี', Icon: Calculator },
-      { href: '/admin/audit', label: 'Audit log', Icon: History },
       { href: '/admin/settings', label: 'ตั้งค่า', Icon: Settings, enabled: true },
+      { href: '/admin/audit', label: 'Audit log', Icon: History },
     ],
   },
 ];
 
-export function Sidebar() {
+export function Sidebar({ badges }: { badges: SidebarBadges }) {
   const pathname = usePathname();
   const open = useMobileNav((s) => s.open);
   const close = useMobileNav((s) => s.close);
@@ -183,6 +230,7 @@ export function Sidebar() {
                   {section.items.map((item) => {
                     const active = isActive(item.href);
                     const Icon = item.Icon;
+                    const count = item.badgeKey ? badges[item.badgeKey] : 0;
 
                     if (!item.enabled) {
                       return (
@@ -216,7 +264,13 @@ export function Sidebar() {
                           )}
                         >
                           <Icon size={18} strokeWidth={active ? 2.5 : 2} aria-hidden="true" />
-                          <span>{item.label}</span>
+                          <span className="flex-1">{item.label}</span>
+                          {count > 0 && (
+                            <span className="rounded-full bg-primary-600 px-1.5 py-0.5 font-display text-[10px] font-bold leading-none text-white">
+                              {count > 99 ? '99+' : count}
+                              <span className="sr-only"> รายการรอดำเนินการ</span>
+                            </span>
+                          )}
                         </Link>
                       </li>
                     );
