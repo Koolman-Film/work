@@ -1,11 +1,12 @@
 import { notFound } from 'next/navigation';
-import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/ui/page-header';
 import { prisma } from '@/lib/db/prisma';
+import { formatTHB2 } from '@/lib/format';
 import { loadEmployeeOptions } from '../_employee-options';
-import { deleteAdjustment, updateAdjustment } from '../actions';
+import { updateAdjustment } from '../actions';
 import { AdjustmentForm } from '../adjustment-form';
 import { frequencyOf } from '../adjustment-schema';
+import { DeleteAdjustmentButton } from '../delete-adjustment-button';
 
 type Params = Promise<{ id: string }>;
 type SearchParams = Promise<{ error?: string }>;
@@ -26,13 +27,13 @@ export default async function EditAdjustmentPage({
   ]);
   if (!row || row.deletedAt) notFound();
 
+  const currentMonth = new Date()
+    .toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' })
+    .slice(0, 7);
+
   const update = async (formData: FormData) => {
     'use server';
     await updateAdjustment(id, formData);
-  };
-  const remove = async () => {
-    'use server';
-    await deleteAdjustment(id);
   };
 
   return (
@@ -43,6 +44,7 @@ export default async function EditAdjustmentPage({
           mode="edit"
           action={update}
           employees={employees}
+          currentMonth={currentMonth}
           initial={{
             employeeId: row.employeeId,
             kind: row.kind,
@@ -55,11 +57,10 @@ export default async function EditAdjustmentPage({
           }}
           error={error ? decodeURIComponent(error) : null}
           extraActions={
-            <form action={remove}>
-              <Button type="submit" variant="destructive">
-                ลบรายการ
-              </Button>
-            </form>
+            <DeleteAdjustmentButton
+              id={row.id}
+              summary={`${row.kind === 'Income' ? 'เงินเพิ่ม' : 'เงินลด'} "${row.reason}" ${formatTHB2(row.amount.toNumber())}`}
+            />
           }
         />
       </div>

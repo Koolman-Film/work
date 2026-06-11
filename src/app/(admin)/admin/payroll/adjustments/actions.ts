@@ -103,11 +103,18 @@ export async function updateAdjustment(id: string, formData: FormData) {
   redirect(LIST);
 }
 
-export async function deleteAdjustment(id: string) {
+/**
+ * Soft-delete behind the edit page's ConfirmDialog. Returns an
+ * ActionResult instead of redirecting — the client wrapper navigates back
+ * to the list on success.
+ */
+export async function deleteAdjustment(
+  id: string,
+): Promise<{ ok: true } | { ok: false; message: string }> {
   const { user } = await requirePermission('payroll.run');
 
   const before = await prisma.payrollAdjustment.findUnique({ where: { id } });
-  if (!before || before.deletedAt) redirect(LIST);
+  if (!before || before.deletedAt) return { ok: false, message: 'ไม่พบรายการ' };
 
   await prisma.payrollAdjustment.update({
     where: { id },
@@ -131,5 +138,5 @@ export async function deleteAdjustment(id: string) {
 
   revalidatePath(LIST);
   revalidatePath('/admin/payroll');
-  redirect(LIST);
+  return { ok: true };
 }

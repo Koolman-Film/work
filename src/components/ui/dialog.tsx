@@ -80,7 +80,11 @@ export function Dialog({ open, onClose, title, children, dismissable = true, cla
         aria-modal="true"
         aria-labelledby={title ? titleId : undefined}
         className={cn(
-          'relative w-full rounded-t-2xl bg-white p-5 shadow-hero sm:max-w-md sm:rounded-2xl',
+          // text-left is load-bearing: the panel is position:fixed but text-align
+          // still INHERITS from the DOM parent — a dialog triggered from a
+          // right-aligned context (e.g. a table's actions cell) would otherwise
+          // render fully right-aligned.
+          'relative w-full rounded-t-2xl bg-white p-5 text-left shadow-hero sm:max-w-md sm:rounded-2xl',
           className,
         )}
       >

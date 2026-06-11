@@ -1,15 +1,18 @@
 'use server';
 
+import { Prisma } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { auditLog } from '@/lib/audit/log';
 import { requirePermission } from '@/lib/auth/check-permission';
+import { prisma } from '@/lib/db/prisma';
 import {
   lockPayroll,
   notifyPublishedSlips,
   publishPayroll,
   runPayrollDraft,
 } from '@/lib/payroll/run';
+import { readForm } from './adjustments/adjustment-schema';
 
 /**
  * Monthly payroll run actions — thin permission/audit wrappers around
@@ -94,6 +97,86 @@ export async function publishPayrollAction(formData: FormData) {
   });
 
   back(month, `เผยแพร่สลิป ${result.published.length} คน และส่งแจ้งเตือน LINE แล้ว`);
+}
+
+/**
+ * Quick-add adjustment from the run-table row modal. Same validation as
+ * the registry form (employeeId/month arrive as hidden fields), then
+ * auto-recalculates the month's Drafts so the table reflects the change
+ * without a manual "คำนวณใหม่" — Published/Locked rows stay untouched
+ * (runPayrollDraft never overwrites them).
+ */
+export async function createRowAdjustment(formData: FormData) {
+  const { user } = await requirePermission('payroll.run');
+  const month = readMonth(formData);
+
+  const parsed = readForm(formData);
+  if (!parsed.success) {
+    back(month, `เพิ่มรายการไม่สำเร็จ: ${parsed.error}`);
+  }
+  const data = parsed.data;
+
+  const created = await prisma.payrollAdjustment.create({
+    data: {
+      employeeId: data.employeeId,
+      kind: data.kind,
+      reason: data.reason,
+      amount: new Prisma.Decimal(data.amount),
+      startMonth: data.startMonth,
+      endMonth: data.endMonth,
+      note: data.note,
+    },
+  });
+  auditLog({
+    actorId: user.id,
+    action: 'payrollAdjustment.create',
+    entityType: 'PayrollAdjustment',
+    entityId: created.id,
+    after: { ...data },
+    metadata: { source: 'admin-ui', via: 'payroll-row-modal' },
+  });
+
+  await runPayrollDraft(month);
+  revalidatePath('/admin/payroll/adjustments');
+  back(month, `เพิ่ม${data.kind === 'Income' ? 'เงินเพิ่ม' : 'เงินลด'} "${data.reason}" และคำนวณใหม่แล้ว`);
+}
+
+/**
+ * Soft-delete from the row modal's ConfirmDialog, then auto-recalc the
+ * month's Drafts. Returns an ActionResult (no redirect) — ConfirmDialog
+ * shows `message` inline on failure and router.refresh()es on success.
+ */
+export async function deleteRowAdjustment(
+  id: string,
+  month: string,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const { user } = await requirePermission('payroll.run');
+  if (!MONTH_RE.test(month)) return { ok: false, message: 'เดือนไม่ถูกต้อง' };
+
+  const before = await prisma.payrollAdjustment.findUnique({ where: { id } });
+  if (!before || before.deletedAt) return { ok: false, message: 'ไม่พบรายการ' };
+
+  await prisma.payrollAdjustment.update({ where: { id }, data: { deletedAt: new Date() } });
+  auditLog({
+    actorId: user.id,
+    action: 'payrollAdjustment.delete',
+    entityType: 'PayrollAdjustment',
+    entityId: id,
+    before: {
+      employeeId: before.employeeId,
+      kind: before.kind,
+      reason: before.reason,
+      amount: before.amount.toString(),
+      startMonth: before.startMonth,
+      endMonth: before.endMonth,
+    },
+    metadata: { source: 'admin-ui', via: 'payroll-row-modal' },
+  });
+
+  await runPayrollDraft(month);
+  revalidatePath('/admin/payroll');
+  revalidatePath('/admin/payroll/adjustments');
+  return { ok: true };
 }
 
 export async function lockPayrollAction(formData: FormData) {

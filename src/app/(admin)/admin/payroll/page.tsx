@@ -3,11 +3,20 @@ import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageHeader } from '@/components/ui/page-header';
 import { type Column, ResponsiveTable } from '@/components/ui/responsive-table';
+import { StatCard } from '@/components/ui/stat-card';
+import { StatusBadge, type StatusKey } from '@/components/ui/status-badge';
 import { canDo } from '@/lib/auth/check-permission';
 import { requireRole } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
-import { formatTHB2 } from '@/lib/format';
-import { calculatePayrollAction, lockPayrollAction, publishPayrollAction } from './actions';
+import { formatTHB, formatTHB2, monthLabelTh } from '@/lib/format';
+import {
+  calculatePayrollAction,
+  createRowAdjustment,
+  deleteRowAdjustment,
+  lockPayrollAction,
+  publishPayrollAction,
+} from './actions';
+import { RowAdjust, type RowAdjustment } from './row-adjust';
 import { RunActionForm } from './run-action-form';
 
 /**
@@ -41,31 +50,11 @@ function shiftMonth(month: string, delta: number): string {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
 }
 
-const MONTH_TH = [
-  'มกราคม',
-  'กุมภาพันธ์',
-  'มีนาคม',
-  'เมษายน',
-  'พฤษภาคม',
-  'มิถุนายน',
-  'กรกฎาคม',
-  'สิงหาคม',
-  'กันยายน',
-  'ตุลาคม',
-  'พฤศจิกายน',
-  'ธันวาคม',
-] as const;
-
-function monthLabelTh(month: string): string {
-  const [y, m] = month.split('-').map(Number);
-  return `${MONTH_TH[(m as number) - 1]} ${(y as number) + 543}`;
-}
-
-const STATUS_CHIP = {
-  Draft: { label: 'ฉบับร่าง', cls: 'bg-amber-100 text-amber-800' },
-  Published: { label: 'เผยแพร่แล้ว', cls: 'bg-emerald-100 text-emerald-800' },
-  Locked: { label: 'ล็อกแล้ว', cls: 'bg-sky-100 text-sky-800' },
-} as const;
+const STATUS_INFO: Record<string, { key: StatusKey; label: string }> = {
+  Draft: { key: 'draft', label: 'ฉบับร่าง' },
+  Published: { key: 'published', label: 'เผยแพร่แล้ว' },
+  Locked: { key: 'locked', label: 'ล็อกแล้ว' },
+};
 
 export default async function PayrollRunPage({ searchParams }: { searchParams: SearchParams }) {
   const { m, msg } = await searchParams;
@@ -86,6 +75,44 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
   });
 
   const activeEmployees = await prisma.employee.count({ where: { status: { not: 'Archived' } } });
+
+  // Adjustments applying to this month, grouped per employee — feeds the
+  // per-row "เพิ่ม/ลด" modal so the admin sees + manages them in place.
+  const monthAdjustments = await prisma.payrollAdjustment.findMany({
+    where: {
+      startMonth: { lte: month },
+      OR: [{ endMonth: null }, { endMonth: { gte: month } }],
+      deletedAt: null,
+    },
+    orderBy: { createdAt: 'asc' },
+    select: {
+      id: true,
+      employeeId: true,
+      kind: true,
+      reason: true,
+      amount: true,
+      startMonth: true,
+      endMonth: true,
+    },
+  });
+  const adjByEmployee = new Map<string, RowAdjustment[]>();
+  for (const a of monthAdjustments) {
+    const label =
+      a.endMonth === null
+        ? `${monthLabelTh(a.startMonth)} เป็นต้นไป`
+        : a.endMonth === a.startMonth
+          ? monthLabelTh(a.startMonth)
+          : `${monthLabelTh(a.startMonth)} – ${monthLabelTh(a.endMonth)}`;
+    const list = adjByEmployee.get(a.employeeId) ?? [];
+    list.push({
+      id: a.id,
+      kind: a.kind,
+      reason: a.reason,
+      amountLabel: formatTHB2(a.amount.toNumber()),
+      windowLabel: label,
+    });
+    adjByEmployee.set(a.employeeId, list);
+  }
 
   const sum = (pick: (r: (typeof rows)[number]) => number) =>
     rows.reduce((acc, r) => acc + pick(r), 0);
@@ -188,12 +215,8 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
       key: 'status',
       header: 'สถานะ',
       cell: (r) => {
-        const chip = STATUS_CHIP[r.status];
-        return (
-          <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${chip.cls}`}>
-            {chip.label}
-          </span>
-        );
+        const info = STATUS_INFO[r.status];
+        return info ? <StatusBadge status={info.key}>{info.label}</StatusBadge> : null;
       },
     },
   ];
@@ -211,21 +234,21 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
         }
       />
 
-      {/* Month navigator */}
-      <div className="mb-4 flex items-center gap-3">
+      {/* Month nav — same compound control as /admin/attendance */}
+      <div className="mb-4 inline-flex items-center rounded-lg border border-gray-200 bg-white">
         <Link
           href={`/admin/payroll?m=${shiftMonth(month, -1)}`}
-          className="grid size-8 place-items-center rounded-lg border border-gray-200 text-ink-2 hover:bg-gray-50"
-          aria-label="เดือนก่อนหน้า"
+          className="px-2 py-1.5 text-sm text-ink-3 transition hover:bg-gray-50 hover:text-ink-1"
+          aria-label="เดือนก่อน"
         >
           ‹
         </Link>
-        <span className="min-w-40 text-center font-display text-base font-bold text-ink-1">
+        <span className="border-x border-gray-200 px-3 py-1.5 text-xs font-semibold text-ink-1">
           {monthLabelTh(month)}
         </span>
         <Link
           href={`/admin/payroll?m=${shiftMonth(month, 1)}`}
-          className="grid size-8 place-items-center rounded-lg border border-gray-200 text-ink-2 hover:bg-gray-50"
+          className="px-2 py-1.5 text-sm text-ink-3 transition hover:bg-gray-50 hover:text-ink-1"
           aria-label="เดือนถัดไป"
         >
           ›
@@ -235,28 +258,29 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
       {msg && (
         <div
           role="status"
-          className="mb-4 rounded-lg bg-primary-50 px-4 py-3 text-sm text-primary-800"
+          className="mb-4 rounded-lg bg-success-soft px-4 py-3 text-sm text-success-deep"
         >
           {decodeURIComponent(msg)}
         </div>
       )}
 
       {/* Summary strip — company totals for the month */}
-      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-5">
-        {[
-          { label: 'ฐานเงินเดือนรวม', value: totals.incomeBase, accent: 'text-ink-1' },
-          { label: 'เงินเพิ่มรวม', value: totals.incomeOther, accent: 'text-emerald-700' },
-          { label: 'ประกันสังคมรวม', value: totals.deductSso, accent: 'text-ink-2' },
-          { label: 'รายการหักรวม', value: totals.deductions, accent: 'text-red-700' },
-          { label: 'เงินสุทธิรวม', value: totals.netPay, accent: 'text-primary-700' },
-        ].map((card) => (
-          <div key={card.label} className="rounded-xl border border-gray-200 bg-white px-4 py-3">
-            <p className="text-xs text-ink-3">{card.label}</p>
-            <p className={`mt-1 font-mono text-lg font-semibold ${card.accent}`}>
-              {formatTHB2(card.value)}
-            </p>
-          </div>
-        ))}
+      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        <StatCard label="ฐานเงินเดือนรวม" value={formatTHB(totals.incomeBase)} />
+        <StatCard
+          label="เงินเพิ่มรวม"
+          value={<span className="text-success-deep">{formatTHB(totals.incomeOther)}</span>}
+        />
+        <StatCard label="ประกันสังคมรวม" value={formatTHB(totals.deductSso)} />
+        <StatCard
+          label="รายการหักรวม"
+          value={<span className="text-danger-deep">{formatTHB(totals.deductions)}</span>}
+        />
+        <StatCard
+          label="เงินสุทธิรวม"
+          value={<span className="text-primary-700">{formatTHB(totals.netPay)}</span>}
+          hint={`พนักงาน ${rows.length} คน`}
+        />
       </div>
 
       {/* Run actions */}
@@ -299,6 +323,19 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
         columns={columns}
         rows={rows}
         rowKey={(r) => r.id}
+        actions={(r) =>
+          r.status === 'Draft' && mayRun ? (
+            <RowAdjust
+              employeeId={r.employeeId}
+              employeeName={`${r.employee.firstName} ${r.employee.lastName}`}
+              month={month}
+              monthLabel={monthLabelTh(month)}
+              adjustments={adjByEmployee.get(r.employeeId) ?? []}
+              createAction={createRowAdjustment}
+              deleteAction={deleteRowAdjustment}
+            />
+          ) : null
+        }
         empty={
           <div className="surface">
             <EmptyState

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardBody, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { FormField } from '@/components/ui/form-field';
 import { Input } from '@/components/ui/input';
+import { MonthPicker } from '@/components/ui/month-picker';
 
 /**
  * Create/edit form for PayrollAdjustment (เงินเพิ่ม/เงินลด).
@@ -33,6 +34,8 @@ type Props = {
   mode: 'create' | 'edit';
   action: (fd: FormData) => Promise<void>;
   employees: EmployeeOption[];
+  /** Current Bangkok month "YYYY-MM" — anchors the month dropdowns. */
+  currentMonth: string;
   initial?: AdjustmentInitial;
   error?: string | null;
   extraActions?: React.ReactNode;
@@ -44,7 +47,15 @@ const FREQ_CHOICES = [
   { value: 'range', label: 'ตามช่วงเวลา', hint: 'ตั้งแต่เดือนเริ่มต้นถึงเดือนสิ้นสุด' },
 ] as const;
 
-export function AdjustmentForm({ mode, action, employees, initial, error, extraActions }: Props) {
+export function AdjustmentForm({
+  mode,
+  action,
+  employees,
+  currentMonth,
+  initial,
+  error,
+  extraActions,
+}: Props) {
   const [frequency, setFrequency] = useState<'once' | 'monthly' | 'range'>(
     initial?.frequency ?? 'once',
   );
@@ -126,13 +137,17 @@ export function AdjustmentForm({ mode, action, employees, initial, error, extraA
             </FormField>
 
             <FormField label="จำนวนเงิน (บาท)" htmlFor="amount" required>
+              {/* text + inputMode (not type=number): Safari lets arbitrary text
+                  into number inputs; pattern enforces digits + up to 2 decimals
+                  at submit, the same rule the Zod schema re-checks server-side. */}
               <Input
                 id="amount"
                 name="amount"
-                type="number"
+                type="text"
                 inputMode="decimal"
-                step="0.01"
-                min="0.01"
+                pattern="\d+(\.\d{1,2})?"
+                title="ตัวเลข เช่น 1500 หรือ 1500.50"
+                placeholder="0.00"
                 required
                 defaultValue={initial?.amount ?? ''}
                 className="max-w-xs"
@@ -166,25 +181,21 @@ export function AdjustmentForm({ mode, action, employees, initial, error, extraA
                 htmlFor="startMonth"
                 required
               >
-                <Input
+                <MonthPicker
                   id="startMonth"
                   name="startMonth"
-                  type="month"
-                  required
-                  defaultValue={initial?.startMonth ?? ''}
-                  className="max-w-xs"
+                  defaultValue={initial?.startMonth || currentMonth}
+                  className="w-44"
                 />
               </FormField>
 
               {frequency === 'range' && (
                 <FormField label="เดือนสิ้นสุด" htmlFor="endMonth" required>
-                  <Input
+                  <MonthPicker
                     id="endMonth"
                     name="endMonth"
-                    type="month"
-                    required
-                    defaultValue={initial?.endMonth ?? ''}
-                    className="max-w-xs"
+                    defaultValue={initial?.endMonth || currentMonth}
+                    className="w-44"
                   />
                 </FormField>
               )}
