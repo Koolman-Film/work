@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { FormField } from '@/components/ui/form-field';
 import { Input } from '@/components/ui/input';
-import { MonthSelect } from '@/components/ui/month-select';
+import { MonthPicker } from '@/components/ui/month-picker';
 
 /**
  * Per-row "เพิ่ม/ลด" action on the payroll run table.
@@ -197,13 +197,11 @@ export function RowAdjust({
             </FormField>
             {frequency === 'range' && (
               <FormField label="ถึงเดือน" htmlFor={`end-${employeeId}`} required>
-                <MonthSelect
+                <MonthPicker
                   id={`end-${employeeId}`}
                   name="endMonth"
-                  from={month}
-                  forward={24}
                   defaultValue={month}
-                  required
+                  min={month}
                   className="w-44"
                 />
               </FormField>

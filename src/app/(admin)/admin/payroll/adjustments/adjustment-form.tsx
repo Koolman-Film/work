@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardBody, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { FormField } from '@/components/ui/form-field';
 import { Input } from '@/components/ui/input';
-import { MonthSelect } from '@/components/ui/month-select';
+import { MonthPicker } from '@/components/ui/month-picker';
 
 /**
  * Create/edit form for PayrollAdjustment (เงินเพิ่ม/เงินลด).
@@ -177,28 +177,20 @@ export function AdjustmentForm({
                 htmlFor="startMonth"
                 required
               >
-                <MonthSelect
+                <MonthPicker
                   id="startMonth"
                   name="startMonth"
-                  from={currentMonth}
-                  back={12}
-                  forward={24}
                   defaultValue={initial?.startMonth || currentMonth}
-                  required
                   className="w-44"
                 />
               </FormField>
 
               {frequency === 'range' && (
                 <FormField label="เดือนสิ้นสุด" htmlFor="endMonth" required>
-                  <MonthSelect
+                  <MonthPicker
                     id="endMonth"
                     name="endMonth"
-                    from={currentMonth}
-                    back={12}
-                    forward={24}
                     defaultValue={initial?.endMonth || currentMonth}
-                    required
                     className="w-44"
                   />
                 </FormField>
