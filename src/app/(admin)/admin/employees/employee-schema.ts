@@ -55,6 +55,10 @@ export const EmployeeSchema = z.object({
     .string()
     .optional()
     .transform((s) => s === 'on'),
+  hasSso: z
+    .string()
+    .optional()
+    .transform((s) => s === 'on'),
 
   hiredAt: z
     .string()
@@ -137,6 +141,7 @@ export function readForm(formData: FormData) {
     baseSalary: str(formData, 'baseSalary'),
     status: str(formData, 'status'),
     canCheckIn: str(formData, 'canCheckIn'),
+    hasSso: str(formData, 'hasSso'),
     hiredAt: str(formData, 'hiredAt'),
     photoKey: str(formData, 'photoKey'),
     dateOfBirth: str(formData, 'dateOfBirth'),
