@@ -5,6 +5,7 @@ import { useFormStatus } from 'react-dom';
 import { Button } from '@/components/ui/button';
 import { type ActionResult, ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Dialog } from '@/components/ui/dialog';
+import { DialogFooter } from '@/components/ui/dialog-footer';
 import { FormField } from '@/components/ui/form-field';
 import { Input } from '@/components/ui/input';
 import { MonthPicker } from '@/components/ui/month-picker';
@@ -78,18 +79,14 @@ export function RowAdjust({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-2 py-1 text-xs font-medium text-primary-700 hover:bg-primary-50"
-      >
+      <Button type="button" variant="secondary" size="sm" onClick={() => setOpen(true)}>
         + เพิ่ม/ลด
         {adjustments.length > 0 && (
-          <span className="rounded-full bg-primary-600 px-1.5 py-0.5 font-display text-[10px] font-bold leading-none text-white">
+          <span className="ml-1.5 rounded-full bg-primary-600 px-1.5 py-0.5 font-display text-[10px] font-bold leading-none text-white">
             {adjustments.length}
           </span>
         )}
-      </button>
+      </Button>
 
       <Dialog
         open={open}
@@ -227,9 +224,12 @@ export function RowAdjust({
             )}
           </div>
 
-          <div className="flex justify-end">
+          <DialogFooter>
+            <Button type="button" variant="secondary" size="sm" onClick={() => setOpen(false)}>
+              ปิด
+            </Button>
             <SubmitButton label="บันทึก + คำนวณใหม่" />
-          </div>
+          </DialogFooter>
 
           <PendingOverlay label="กำลังบันทึกและคำนวณใหม่…" />
         </form>
