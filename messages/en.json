@@ -150,7 +150,8 @@
       "retake": "Retake",
       "usePhoto": "Use this photo",
       "capture": "Take photo",
-      "cameraUnavailable": "Camera unavailable — please allow camera access, or use the button below"
+      "cameraUnavailable": "Camera unavailable — please allow camera access, or use the button below",
+      "switchCamera": "Switch camera"
     },
     "success": {
       "checkedIn": "Checked in successfully",

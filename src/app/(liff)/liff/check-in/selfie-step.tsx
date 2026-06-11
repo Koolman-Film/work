@@ -43,6 +43,9 @@ export function SelfieStep({ onConfirm, onCancel }: Props) {
   // null = still starting the camera; false = live stream is up;
   // true = getUserMedia failed → show the file-input fallback.
   const [cameraFailed, setCameraFailed] = useState<boolean | null>(null);
+  // Front camera by default — it's a selfie — but allow flipping for
+  // devices with a broken front camera or misreported facingMode.
+  const [facing, setFacing] = useState<'user' | 'environment'>('user');
 
   const stopStream = useCallback(() => {
     for (const track of streamRef.current?.getTracks() ?? []) {
@@ -51,11 +54,11 @@ export function SelfieStep({ onConfirm, onCancel }: Props) {
     streamRef.current = null;
   }, []);
 
-  const startCamera = useCallback(async () => {
+  const startCamera = useCallback(async (facingMode: 'user' | 'environment') => {
     setCameraFailed(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user' },
+        video: { facingMode },
         audio: false,
       });
       streamRef.current = stream;
@@ -66,10 +69,19 @@ export function SelfieStep({ onConfirm, onCancel }: Props) {
   }, []);
 
   // Acquire the camera on mount; release it whenever the overlay unmounts.
+  // Intentionally not re-run on `facing` changes — switchCamera handles those.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: mount/unmount only
   useEffect(() => {
-    void startCamera();
+    void startCamera(facing);
     return stopStream;
   }, [startCamera, stopStream]);
+
+  function switchCamera() {
+    const next = facing === 'user' ? 'environment' : 'user';
+    setFacing(next);
+    stopStream();
+    void startCamera(next);
+  }
 
   // Attach the stream once the <video> for the live state is in the DOM
   // (it isn't rendered while previewing, so this can't go in startCamera).
@@ -123,7 +135,7 @@ export function SelfieStep({ onConfirm, onCancel }: Props) {
       // Fallback mode: re-open the OS camera dialog.
       fileInputRef.current?.click();
     } else {
-      void startCamera();
+      void startCamera(facing);
     }
   }
 
@@ -181,22 +193,49 @@ export function SelfieStep({ onConfirm, onCancel }: Props) {
           </div>
         ) : cameraFailed === false ? (
           <div className="flex w-full max-w-md flex-col items-center">
-            {/* Mirror the live preview (scale-x) so it behaves like a
-                front-camera viewfinder; the captured frame stays unmirrored. */}
+            {/* Mirror the live preview (scale-x) for the front camera so it
+                behaves like a viewfinder; the captured frame stays unmirrored.
+                The rear camera is shown as-is. */}
             <video
               ref={videoRef}
               autoPlay
               playsInline
               muted
-              className="max-h-[60vh] w-full -scale-x-100 rounded-2xl object-contain"
+              className={`max-h-[60vh] w-full rounded-2xl object-contain ${
+                facing === 'user' ? '-scale-x-100' : ''
+              }`}
             />
             <p className="mt-4 text-sm text-white/60">{t('selfie.branchRequirement')}</p>
-            <button
-              type="button"
-              onClick={captureFrame}
-              aria-label={t('selfie.capture')}
-              className="mt-6 h-16 w-16 rounded-full border-4 border-white/40 bg-white shadow-lg active:scale-95"
-            />
+            <div className="mt-6 grid w-full max-w-xs grid-cols-3 items-center justify-items-center">
+              <span /> {/* spacer to keep the shutter centered */}
+              <button
+                type="button"
+                onClick={captureFrame}
+                aria-label={t('selfie.capture')}
+                className="h-16 w-16 rounded-full border-4 border-white/40 bg-white shadow-lg active:scale-95"
+              />
+              <button
+                type="button"
+                onClick={switchCamera}
+                aria-label={t('selfie.switchCamera')}
+                className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 active:scale-95"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={1.5}
+                  className="h-6 w-6"
+                  aria-hidden="true"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"
+                  />
+                </svg>
+              </button>
+            </div>
           </div>
         ) : (
           <>
