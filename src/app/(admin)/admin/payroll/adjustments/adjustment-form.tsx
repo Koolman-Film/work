@@ -137,13 +137,17 @@ export function AdjustmentForm({
             </FormField>
 
             <FormField label="จำนวนเงิน (บาท)" htmlFor="amount" required>
+              {/* text + inputMode (not type=number): Safari lets arbitrary text
+                  into number inputs; pattern enforces digits + up to 2 decimals
+                  at submit, the same rule the Zod schema re-checks server-side. */}
               <Input
                 id="amount"
                 name="amount"
-                type="number"
+                type="text"
                 inputMode="decimal"
-                step="0.01"
-                min="0.01"
+                pattern="\d+(\.\d{1,2})?"
+                title="ตัวเลข เช่น 1500 หรือ 1500.50"
+                placeholder="0.00"
                 required
                 defaultValue={initial?.amount ?? ''}
                 className="max-w-xs"

@@ -157,8 +157,8 @@ export function RowAdjust({
             </label>
           </div>
 
-          <div className="flex gap-3">
-            <FormField label="รายการ" htmlFor={`reason-${employeeId}`} required className="flex-1">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <FormField label="รายการ" htmlFor={`reason-${employeeId}`} required>
               <Input
                 id={`reason-${employeeId}`}
                 name="reason"
@@ -169,26 +169,33 @@ export function RowAdjust({
               />
             </FormField>
             <FormField label="จำนวนเงิน (บาท)" htmlFor={`amount-${employeeId}`} required>
+              {/* text + inputMode (not type=number): Safari lets arbitrary text
+                  into number inputs; pattern enforces digits + up to 2 decimals
+                  at submit, the same rule the Zod schema re-checks server-side. */}
               <Input
                 id={`amount-${employeeId}`}
                 name="amount"
-                type="number"
+                type="text"
                 inputMode="decimal"
-                step="0.01"
-                min="0.01"
+                pattern="\d+(\.\d{1,2})?"
+                title="ตัวเลข เช่น 1500 หรือ 1500.50"
+                placeholder="0.00"
                 required
-                className="w-32"
               />
             </FormField>
           </div>
 
-          <div className="flex items-end gap-3">
-            <FormField label="ความถี่" htmlFor={`freq-${employeeId}`}>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <FormField
+              label="ความถี่"
+              htmlFor={`freq-${employeeId}`}
+              className={frequency === 'range' ? '' : 'sm:col-span-2'}
+            >
               <select
                 id={`freq-${employeeId}`}
                 value={frequency}
                 onChange={(e) => setFrequency(e.target.value as typeof frequency)}
-                className="block rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:ring-primary-500"
+                className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:ring-primary-500"
               >
                 <option value="once">รายครั้ง (เฉพาะงวดนี้)</option>
                 <option value="monthly">รายเดือน (ตั้งแต่งวดนี้ไป)</option>
@@ -202,7 +209,7 @@ export function RowAdjust({
                   name="endMonth"
                   defaultValue={month}
                   min={month}
-                  className="w-44"
+                  className="w-full"
                 />
               </FormField>
             )}
