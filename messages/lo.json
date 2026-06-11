@@ -109,7 +109,9 @@
       "openCamera": "📷 ເປີດກ້ອງ",
       "previewAlt": "ຕົວຢ່າງ selfie",
       "retake": "ຖ່າຍໃໝ່",
-      "usePhoto": "ໃຊ້ຮູບນີ້"
+      "usePhoto": "ໃຊ້ຮູບນີ້",
+      "capture": "ຖ່າຍຮູບ",
+      "cameraUnavailable": "ບໍ່ສາມາດເປີດກ້ອງໄດ້ — ກະລຸນາອະນຸຍາດການໃຊ້ກ້ອງ ຫຼືໃຊ້ປຸ່ມຂ້າງລຸ່ມ"
     },
     "success": {
       "checkedIn": "ເຊັກອິນສຳເລັດ",
