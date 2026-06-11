@@ -21,7 +21,8 @@ export type NotificationKind =
   | 'advance.approved'
   | 'advance.rejected'
   | 'attendance.dispute-approved'
-  | 'attendance.dispute-rejected';
+  | 'attendance.dispute-rejected'
+  | 'payroll.published';
 
 /**
  * Kind-specific payload shapes. Discriminated by `kind`.
@@ -73,6 +74,16 @@ export type NotificationPayload =
       /** YYYY-MM-DD of the attendance row's `date` field */
       date: string;
       reviewNote: string;
+    }
+  | {
+      kind: 'payroll.published';
+      payrollId: string;
+      /** YYYY-MM pay-period month — also the LIFF payslip deep-link param. */
+      month: string;
+      employeeFirstName: string;
+      /** Formatted string ("12,500.00") — preserves Decimal precision through
+       *  Inngest's JSON serialisation, same convention as advance amounts. */
+      netPay: string;
     };
 
 export type NotificationSendEvent = {
@@ -100,6 +111,8 @@ function notificationIdempotencyKey(payload: NotificationPayload): string {
     case 'attendance.dispute-approved':
     case 'attendance.dispute-rejected':
       return `notif:${payload.kind}:${payload.attendanceId}`;
+    case 'payroll.published':
+      return `notif:${payload.kind}:${payload.payrollId}`;
   }
 }
 

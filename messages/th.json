@@ -47,7 +47,8 @@
   "notifications": {
     "action": {
       "viewDetails": "ดูรายละเอียด",
-      "viewAttendance": "ดูประวัติเช็คอิน"
+      "viewAttendance": "ดูประวัติเช็คอิน",
+      "viewPayslip": "ดูสลิปเงินเดือน"
     },
     "label": {
       "duration": "ระยะเวลา",
@@ -84,6 +85,11 @@
       "header": "ปฏิเสธการเช็คอิน",
       "subtitle": "แอดมินไม่ยืนยันการเช็คอินวันดังกล่าว",
       "alt": "❌ เช็คอินวันที่ {date} ของคุณถูกปฏิเสธ"
+    },
+    "payrollPublished": {
+      "header": "สลิปเงินเดือนออกแล้ว",
+      "subtitle": "สลิปเงินเดือน {month}",
+      "alt": "💰 สลิปเงินเดือน {month} ออกแล้ว — สุทธิ ฿{amount}"
     }
   },
   "checkin": {

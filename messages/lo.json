@@ -9,7 +9,15 @@
     "min": "{n} ນາທີ"
   },
   "notifications": {
-    "leaveApprovedDeduction": "ໝາຍເຫດ: ລາພັກເກີນສິດທິ ຈະຖືກຫັກເງິນ {amount}"
+    "leaveApprovedDeduction": "ໝາຍເຫດ: ລາພັກເກີນສິດທິ ຈະຖືກຫັກເງິນ {amount}",
+    "action": {
+      "viewPayslip": "ເບິ່ງໃບເງິນເດືອນ"
+    },
+    "payrollPublished": {
+      "header": "ໃບເງິນເດືອນອອກແລ້ວ",
+      "subtitle": "ໃບເງິນເດືອນ {month}",
+      "alt": "💰 ໃບເງິນເດືອນ {month} ອອກແລ້ວ — ສຸດທິ ฿{amount}"
+    }
   },
   "pair": {
     "title": "ເຊື່ອມຕໍ່ບັນຊີ LINE",
