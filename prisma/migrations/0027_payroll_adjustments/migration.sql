@@ -2,8 +2,8 @@
 -- 1. PayrollAdjustment: admin-entered earnings/deductions. Applies to month M
 --    iff startMonth <= M <= coalesce(endMonth, '9999-12'); one-time rows have
 --    startMonth = endMonth, open-ended monthly rows have endMonth NULL.
--- 2. Employee.hasSso: social-security enrollment toggle. Default TRUE matches
---    current behavior (calc deducts SSO for everyone today).
+-- 2. Employee.hasSso: social-security enrollment toggle. Default FALSE —
+--    admin explicitly ticks enrolled employees before the first payroll run.
 -- 3. Payroll.deductOther: bucket for Deduction-kind adjustments (Income-kind
 --    fills the pre-existing incomeOther column).
 
@@ -40,7 +40,7 @@ CREATE INDEX "PayrollAdjustment_deletedAt_idx"
 ALTER TABLE "PayrollAdjustment" ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE "Employee"
-    ADD COLUMN "hasSso" BOOLEAN NOT NULL DEFAULT true;
+    ADD COLUMN "hasSso" BOOLEAN NOT NULL DEFAULT false;
 
 ALTER TABLE "Payroll"
     ADD COLUMN "deductOther" DECIMAL(12,2) NOT NULL DEFAULT 0;

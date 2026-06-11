@@ -38,6 +38,7 @@ function baseInput(overrides: Partial<CalcInput> = {}): CalcInput {
       id: 'emp-1',
       salaryType: 'Monthly',
       baseSalary: '30000',
+      hasSso: true,
     },
     attendances: [],
     advances: [],
@@ -69,7 +70,9 @@ describe('calcPayroll — V1 fixtures', () => {
   // SSO = 500.
   it('CASE 2 — SSO cap applies via rate when base < 15K', () => {
     const out = calcPayroll(
-      baseInput({ employee: { id: 'e', salaryType: 'Monthly', baseSalary: '10000' } }),
+      baseInput({
+        employee: { id: 'e', salaryType: 'Monthly', baseSalary: '10000', hasSso: true },
+      }),
     );
     expect(out.deductSso.toString()).toBe('500');
     expect(out.netPay.toString()).toBe('9500');
@@ -80,7 +83,9 @@ describe('calcPayroll — V1 fixtures', () => {
   // also 750 → SSO = 750.
   it('CASE 3 — SSO cap applies via amount when base > 15K', () => {
     const out = calcPayroll(
-      baseInput({ employee: { id: 'e', salaryType: 'Monthly', baseSalary: '50000' } }),
+      baseInput({
+        employee: { id: 'e', salaryType: 'Monthly', baseSalary: '50000', hasSso: true },
+      }),
     );
     expect(out.deductSso.toString()).toBe('750');
     expect(out.netPay.toString()).toBe('49250');
@@ -177,13 +182,17 @@ describe('calcPayroll — V1 fixtures', () => {
   // Type-system guard: Daily/Hourly throw early.
   it('throws PayrollCalcError on Daily salary type', () => {
     expect(() =>
-      calcPayroll(baseInput({ employee: { id: 'e', salaryType: 'Daily', baseSalary: '500' } })),
+      calcPayroll(
+        baseInput({ employee: { id: 'e', salaryType: 'Daily', baseSalary: '500', hasSso: true } }),
+      ),
     ).toThrow(PayrollCalcError);
   });
 
   it('throws PayrollCalcError on Hourly salary type', () => {
     expect(() =>
-      calcPayroll(baseInput({ employee: { id: 'e', salaryType: 'Hourly', baseSalary: '100' } })),
+      calcPayroll(
+        baseInput({ employee: { id: 'e', salaryType: 'Hourly', baseSalary: '100', hasSso: true } }),
+      ),
     ).toThrow(PayrollCalcError);
   });
 
@@ -272,20 +281,13 @@ describe('calcPayroll — V1 fixtures', () => {
     expect(out.netPay.toString()).toBe('30000');
   });
 
-  // CASE 15: hasSso omitted defaults to true (backward compat — all
-  // pre-feature fixtures above rely on this).
-  it('CASE 15 — hasSso defaults to true', () => {
-    const out = calcPayroll(baseInput());
-    expect(out.deductSso.toString()).toBe('750');
-  });
-
   // Decimal-precision sanity — make sure 0.05 × 15000 doesn't drift to
   // 749.9999999... due to floating-point bugs. The whole point of
   // using decimal.js is this case.
   it('SSO rate × salary stays exact (no IEEE-754 drift)', () => {
     const out = calcPayroll(
       baseInput({
-        employee: { id: 'e', salaryType: 'Monthly', baseSalary: '15000' },
+        employee: { id: 'e', salaryType: 'Monthly', baseSalary: '15000', hasSso: true },
       }),
     );
     // 0.05 × 15000 = 750.00 exactly
