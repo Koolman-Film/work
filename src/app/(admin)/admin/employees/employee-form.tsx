@@ -30,6 +30,7 @@ type Initial = {
   defaultOtMultiplier: string | null;
   status: 'Probation' | 'Active' | 'Archived';
   canCheckIn: boolean;
+  hasSso: boolean;
   hiredAt: string; // YYYY-MM-DD
   dateOfBirth: string | null; // YYYY-MM-DD
   bankId: string | null;
@@ -268,6 +269,21 @@ export function EmployeeForm({
                       defaultValue={initial?.defaultOtMultiplier ?? ''}
                     />
                   </FormField>
+                </div>
+
+                <div>
+                  <label className="flex items-center gap-2 text-sm text-ink-2">
+                    <input
+                      type="checkbox"
+                      name="hasSso"
+                      defaultChecked={initial?.hasSso ?? false}
+                      className="size-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500/30"
+                    />
+                    <span>ประกันสังคม</span>
+                  </label>
+                  <p className="ml-6 mt-0.5 text-xs text-ink-3">
+                    ติ๊กถูกเพื่อหักเงินสมทบจากฐานเงินเดือน (5% เพดานตามกฎหมาย) ในการคำนวณเงินเดือน
+                  </p>
                 </div>
 
                 <div>

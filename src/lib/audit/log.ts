@@ -116,7 +116,10 @@ export type AuditAction =
   | 'payroll.revise'
   | 'recurringDeduction.create'
   | 'recurringDeduction.edit'
-  | 'recurringDeduction.end';
+  | 'recurringDeduction.end'
+  | 'payrollAdjustment.create'
+  | 'payrollAdjustment.edit'
+  | 'payrollAdjustment.delete';
 
 export type AuditEntityType =
   | 'User'
@@ -138,6 +141,7 @@ export type AuditEntityType =
   | 'LeaveRequest'
   | 'CashAdvance'
   | 'Payroll'
+  | 'PayrollAdjustment'
   | 'RecurringDeduction';
 
 export interface AuditLogParams {

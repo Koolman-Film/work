@@ -60,6 +60,22 @@ export type EmployeeForPayroll = {
   salaryType: SalaryType;
   /** Base salary as a string or Decimal — any decimal.js-parseable form. */
   baseSalary: string | number | Decimal;
+  /**
+   * Social security (ประกันสังคม) enrollment. When false, deductSso is 0.
+   * Required — callers pass Employee.hasSso explicitly so the pure calc
+   * never guesses an enrollment default.
+   */
+  hasSso: boolean;
+};
+
+/**
+ * An admin-entered earning/deduction (PayrollAdjustment) already filtered
+ * to this pay-period month by the caller (see adjustments.ts). Income kinds
+ * sum into incomeOther; Deduction kinds into deductOther.
+ */
+export type AdjustmentForPayroll = {
+  kind: 'Income' | 'Deduction';
+  amount: string | number | Decimal;
 };
 
 export type AttendanceForPayroll = {
@@ -105,6 +121,11 @@ export type CalcInput = {
    * an empty array) when none apply — `deductLeave` will be 0.
    */
   leaveDeductions?: readonly LeaveDeductionForPayroll[];
+  /**
+   * Earnings/deductions applicable to this month. Omit for none — both
+   * incomeOther and deductOther will be 0.
+   */
+  adjustments?: readonly AdjustmentForPayroll[];
   config: ConfigForPayroll;
   /** YYYY-MM string of the pay-period month. Currently only used for traceability in the output. */
   month: string;
@@ -134,6 +155,8 @@ export type PayrollDraft = {
   deductDebt: Decimal;
   /** Sum of over-quota leave deductions for the period. */
   deductLeave: Decimal;
+  /** Sum of Deduction-kind adjustments (เงินลด). */
+  deductOther: Decimal;
 
   netPay: Decimal;
 
@@ -192,13 +215,21 @@ export function calcPayroll(input: CalcInput): PayrollDraft {
   const baseSalary = toDec(input.employee.baseSalary);
 
   // Income.
-  // V1: incomeBase = full month base; no proration. incomeOther = 0
-  // (will be wired when we add `Income_Other` user input in Phase 2 W7).
+  // V1: incomeBase = full month base; no proration. incomeOther = the sum
+  // of Income-kind adjustments (เงินเพิ่ม) the caller selected for this month.
   const incomeBase = baseSalary;
-  const incomeOther = new Decimal(0);
+  const adjustments = input.adjustments ?? [];
+  const incomeOther = sumDec(
+    adjustments.filter((a) => a.kind === 'Income').map((a) => ({ value: a.amount })),
+  ).toDecimalPlaces(2);
 
-  // SSO deduction (capped by Thai law).
-  const deductSso = calcSso(baseSalary, input.config);
+  // Deduction-kind adjustments (เงินลด) get their own bucket.
+  const deductOther = sumDec(
+    adjustments.filter((a) => a.kind === 'Deduction').map((a) => ({ value: a.amount })),
+  ).toDecimalPlaces(2);
+
+  // SSO deduction (capped by Thai law) — only for enrolled employees.
+  const deductSso = input.employee.hasSso ? calcSso(baseSalary, input.config) : new Decimal(0);
 
   // Cash advances → straight sum.
   const deductAdvance = sumDec(input.advances.map((a) => ({ value: a.amount }))).toDecimalPlaces(2);
@@ -240,6 +271,7 @@ export function calcPayroll(input: CalcInput): PayrollDraft {
     .minus(deductAttendance)
     .minus(deductDebt)
     .minus(deductLeave)
+    .minus(deductOther)
     .toDecimalPlaces(2);
 
   return {
@@ -252,6 +284,7 @@ export function calcPayroll(input: CalcInput): PayrollDraft {
     deductAttendance,
     deductDebt,
     deductLeave,
+    deductOther,
     netPay,
     breakdown: { absentCount, lateCount, earlyLeaveCount },
   };

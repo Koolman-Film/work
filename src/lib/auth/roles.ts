@@ -110,6 +110,10 @@ export const SYSTEM_ROLES: Record<
       'audit.read',
       'dashboard.read',
       'report.read',
+      // Payroll (run + publish; backfilled to live DBs in 0028)
+      'payroll.read',
+      'payroll.run',
+      'payroll.publish',
     ],
   },
   staff: {

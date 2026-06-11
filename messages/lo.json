@@ -9,7 +9,15 @@
     "min": "{n} ນາທີ"
   },
   "notifications": {
-    "leaveApprovedDeduction": "ໝາຍເຫດ: ລາພັກເກີນສິດທິ ຈະຖືກຫັກເງິນ {amount}"
+    "leaveApprovedDeduction": "ໝາຍເຫດ: ລາພັກເກີນສິດທິ ຈະຖືກຫັກເງິນ {amount}",
+    "action": {
+      "viewPayslip": "ເບິ່ງໃບເງິນເດືອນ"
+    },
+    "payrollPublished": {
+      "header": "ໃບເງິນເດືອນອອກແລ້ວ",
+      "subtitle": "ໃບເງິນເດືອນ {month}",
+      "alt": "💰 ໃບເງິນເດືອນ {month} ອອກແລ້ວ — ສຸດທິ ฿{amount}"
+    }
   },
   "pair": {
     "title": "ເຊື່ອມຕໍ່ບັນຊີ LINE",
@@ -152,7 +160,8 @@
       "outstanding": "ຍອດຄ້າງຫັກ",
       "earned": "ລາຍຮັບຮອບນີ້",
       "available": "ເບີກໄດ້ອີກ"
-    }
+    },
+    "payslipLink": "ໃບເງິນເດືອນ"
   },
   "leave": {
     "list": {
@@ -424,5 +433,32 @@
       "Approved": "ອະນຸມັດແລ້ວ",
       "Pending": "ລໍຖ້າອະນຸມັດ"
     }
+  },
+  "payslip": {
+    "title": "ໃບເງິນເດືອນ",
+    "thisMonth": "ເດືອນນີ້",
+    "prevMonth": "ເດືອນກ່ອນ",
+    "nextMonth": "ເດືອນຕໍ່ໄປ",
+    "empty": "ໃບເງິນເດືອນຂອງເດືອນນີ້ຍັງບໍ່ທັນອອກ",
+    "income": {
+      "title": "ລາຍຮັບ",
+      "base": "ເງິນເດືອນພື້ນຖານ",
+      "other": "ເງິນເພີ່ມອື່ນໆ",
+      "total": "ລວມລາຍຮັບ"
+    },
+    "deduct": {
+      "title": "ລາຍການຫັກ",
+      "sso": "ປະກັນສັງຄົມ",
+      "advance": "ເບີກລ່ວງໜ້າ",
+      "attendance": "ຂາດ/ມາຊ້າ/ອອກກ່ອນ",
+      "leave": "ລາເກີນສິດ",
+      "debt": "ໜີ້/ຜ່ອນຊຳລະ",
+      "other": "ລາຍການຫັກອື່ນໆ",
+      "none": "ບໍ່ມີລາຍການຫັກ",
+      "total": "ລວມລາຍການຫັກ"
+    },
+    "net": "ເງິນສຸດທິ",
+    "backToSummary": "ສະຫຼຸບຂອງຂ້ອຍ",
+    "backToCheckin": "ກັບໄປໜ້າເຊັກອິນ"
   }
 }

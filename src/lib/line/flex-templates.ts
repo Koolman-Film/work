@@ -23,7 +23,7 @@
 import type { messagingApi } from '@line/bot-sdk';
 import { createTranslator } from 'next-intl';
 import type { Locale } from '@/lib/i18n/config';
-import { formatDate, formatMoney } from '@/lib/i18n/format';
+import { formatDate, formatMoney, formatMonthYear } from '@/lib/i18n/format';
 import { getMessages } from '@/lib/i18n/messages';
 import type { NotificationPayload } from '@/lib/inngest/events';
 import { localizedLeaveTypeName } from '@/lib/leave/localized-name';
@@ -198,6 +198,22 @@ export function buildFlexMessage(
         actionUri: `${appBaseUrl}/liff/check-in`,
       });
       break;
+
+    case 'payroll.published': {
+      const monthLabel = formatMonthYear(payload.month, locale);
+      altText = t('payrollPublished.alt', { month: monthLabel, amount: payload.netPay });
+      bubble = approvedRejectedBubble({
+        accent: PRIMARY,
+        headerEmoji: '💰',
+        headerText: t('payrollPublished.header'),
+        title: `฿${payload.netPay}`,
+        subtitle: t('payrollPublished.subtitle', { month: monthLabel }),
+        details: [],
+        actionLabel: t('action.viewPayslip'),
+        actionUri: `${appBaseUrl}/liff/payslip?m=${payload.month}`,
+      });
+      break;
+    }
   }
 
   return { type: 'flex', altText, contents: bubble };
