@@ -47,7 +47,8 @@
   "notifications": {
     "action": {
       "viewDetails": "View details",
-      "viewAttendance": "View check-in history"
+      "viewAttendance": "View check-in history",
+      "viewPayslip": "View payslip"
     },
     "label": {
       "duration": "Duration",
@@ -84,6 +85,11 @@
       "header": "Check-in rejected",
       "subtitle": "An admin did not confirm that check-in",
       "alt": "❌ Your check-in on {date} was rejected"
+    },
+    "payrollPublished": {
+      "header": "Payslip available",
+      "subtitle": "Payslip for {month}",
+      "alt": "💰 Your payslip for {month} is ready — net ฿{amount}"
     }
   },
   "checkin": {
@@ -191,7 +197,8 @@
       "outstanding": "Outstanding",
       "earned": "Earned this period",
       "available": "Available"
-    }
+    },
+    "payslipLink": "Payslip"
   },
   "leave": {
     "list": {
@@ -463,5 +470,32 @@
       "Approved": "Approved",
       "Pending": "Pending"
     }
+  },
+  "payslip": {
+    "title": "Payslip",
+    "thisMonth": "This month",
+    "prevMonth": "Previous month",
+    "nextMonth": "Next month",
+    "empty": "No payslip has been issued for this month yet",
+    "income": {
+      "title": "Earnings",
+      "base": "Base salary",
+      "other": "Other earnings",
+      "total": "Total earnings"
+    },
+    "deduct": {
+      "title": "Deductions",
+      "sso": "Social security",
+      "advance": "Cash advance",
+      "attendance": "Absence/lateness",
+      "leave": "Over-quota leave",
+      "debt": "Loan/installments",
+      "other": "Other deductions",
+      "none": "No deductions",
+      "total": "Total deductions"
+    },
+    "net": "Net pay",
+    "backToSummary": "My summary",
+    "backToCheckin": "Back to check-in"
   }
 }

@@ -81,6 +81,33 @@ export function formatShortDate(date: Date, locale: Locale): string {
   }).format(date);
 }
 
+/**
+ * Format a YYYY-MM pay-period month as "พฤษภาคม 2569" / "May 2026" / etc.
+ * Thai gets the BE-year swap, same trick as formatDate. Returns the raw
+ * string unchanged when it isn't a parseable YYYY-MM.
+ */
+export function formatMonthYear(month: string, locale: Locale): string {
+  const date = new Date(`${month}-01T00:00:00.000Z`);
+  if (Number.isNaN(date.getTime())) return month;
+  if (locale === 'th') {
+    const out = new Intl.DateTimeFormat('th-TH-u-ca-gregory', {
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'Asia/Bangkok',
+    }).format(date);
+    const ceYear = date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      timeZone: 'Asia/Bangkok',
+    });
+    return out.replace(ceYear, String(Number(ceYear) + 543));
+  }
+  return new Intl.DateTimeFormat(locale, {
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'Asia/Bangkok',
+  }).format(date);
+}
+
 /** Time of day like "14:30" (24-hour, all locales). */
 export function formatTime(date: Date, locale: Locale): string {
   return new Intl.DateTimeFormat(locale, {

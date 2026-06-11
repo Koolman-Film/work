@@ -1,0 +1,389 @@
+/**
+ * Payroll run pipeline — gathers a month's inputs, calls the pure calc
+ * engine per employee, and manages the Draft → Published → Locked
+ * lifecycle on the Payroll rows.
+ *
+ * Lifecycle contract:
+ *   - `runPayrollDraft(month)` may be called any number of times while
+ *     rows are Draft (or absent) — it re-gathers and overwrites. It NEVER
+ *     touches Published/Locked rows.
+ *   - `publishPayroll(month)` re-gathers + recalculates inside ONE
+ *     transaction so the published numbers exactly match the rows it
+ *     stamps: swept CashAdvance / LeaveRequest rows get
+ *     `deductedInPayrollId`, and applied RecurringDeductions get
+ *     `monthsRemaining` decremented (endedAt set when it hits 0).
+ *     PayrollAdjustments are selected by month-window — idempotent, no
+ *     stamping needed.
+ *   - `lockPayroll(month)` flips Published → Locked (terminal).
+ *
+ * Why publish recalculates instead of trusting the Draft numbers: data
+ * can change between "คำนวณ" and "เผยแพร่" (an advance approved, an
+ * adjustment added). Recomputing in the same transaction that stamps the
+ * sweep rows guarantees the slip and the stamps agree.
+ */
+
+import { Prisma } from '@prisma/client';
+import { prisma } from '@/lib/db/prisma';
+import { sendNotification } from '@/lib/inngest/events';
+import { adjustmentAppliesToMonth } from './adjustments';
+import {
+  type AdjustmentForPayroll,
+  type AttendanceForPayroll,
+  calcPayroll,
+  PayrollCalcError,
+  type PayrollDraft,
+} from './calc';
+
+export type SkippedEmployee = {
+  employeeId: string;
+  name: string;
+  reason: string;
+};
+
+export type RunResult = {
+  calculated: number;
+  /** Rows left untouched because they are already Published/Locked. */
+  frozen: number;
+  skipped: SkippedEmployee[];
+};
+
+/** First/next-month UTC date bounds for @db.Date range queries. */
+function monthBounds(month: string): { start: Date; end: Date } {
+  const start = new Date(`${month}-01T00:00:00.000Z`);
+  if (Number.isNaN(start.getTime())) throw new Error(`Invalid month: ${month}`);
+  const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1));
+  return { start, end };
+}
+
+/** Prisma transaction client — what `$transaction(async (tx) => ...)` passes. */
+type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
+
+/**
+ * Gather every input the calc needs for all non-archived Monthly-paid
+ * employees, compute drafts, and report which sweep rows fed each one.
+ * Pure read — callers decide what to persist (draft upsert vs publish).
+ */
+async function gatherAndCalc(db: Tx | typeof prisma, month: string) {
+  const config = await db.payrollConfig.findFirst();
+  if (!config) throw new Error('PayrollConfig missing — run the seed first.');
+
+  const { start, end } = monthBounds(month);
+
+  const employees = await db.employee.findMany({
+    where: { status: { not: 'Archived' } },
+    select: {
+      id: true,
+      userId: true,
+      firstName: true,
+      lastName: true,
+      salaryType: true,
+      baseSalary: true,
+      hasSso: true,
+    },
+  });
+  const empIds = employees.map((e) => e.id);
+
+  const [attendances, advances, recurring, leaves, adjustments] = await Promise.all([
+    db.attendance.findMany({
+      where: { employeeId: { in: empIds }, date: { gte: start, lt: end }, deletedAt: null },
+      select: { employeeId: true, date: true, type: true, durationMinutes: true },
+    }),
+    db.cashAdvance.findMany({
+      where: {
+        employeeId: { in: empIds },
+        status: 'Approved',
+        isDeducted: false,
+        deductedInPayrollId: null,
+        deletedAt: null,
+      },
+      select: { id: true, employeeId: true, amount: true },
+    }),
+    db.recurringDeduction.findMany({
+      where: { employeeId: { in: empIds }, endedAt: null, monthsRemaining: { gt: 0 } },
+      select: { id: true, employeeId: true, monthlyAmount: true, monthsRemaining: true },
+    }),
+    db.leaveRequest.findMany({
+      where: {
+        employeeId: { in: empIds },
+        status: 'Approved',
+        deductAmount: { gt: 0 },
+        deductedInPayrollId: null,
+        deletedAt: null,
+        startDate: { lt: end },
+      },
+      select: { id: true, employeeId: true, deductAmount: true },
+    }),
+    db.payrollAdjustment.findMany({
+      where: {
+        employeeId: { in: empIds },
+        startMonth: { lte: month },
+        OR: [{ endMonth: null }, { endMonth: { gte: month } }],
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        employeeId: true,
+        kind: true,
+        amount: true,
+        startMonth: true,
+        endMonth: true,
+      },
+    }),
+  ]);
+
+  const byEmp = <T extends { employeeId: string }>(rows: T[]) => {
+    const map = new Map<string, T[]>();
+    for (const r of rows) {
+      const list = map.get(r.employeeId);
+      if (list) list.push(r);
+      else map.set(r.employeeId, [r]);
+    }
+    return map;
+  };
+
+  const attByEmp = byEmp(attendances);
+  const advByEmp = byEmp(advances);
+  const recByEmp = byEmp(recurring);
+  const leaveByEmp = byEmp(leaves);
+  const adjByEmp = byEmp(adjustments);
+
+  const drafts: Array<{
+    draft: PayrollDraft;
+    employee: (typeof employees)[number];
+    sweptAdvanceIds: string[];
+    sweptLeaveIds: string[];
+    appliedRecurring: Array<{ id: string; monthsRemaining: number }>;
+  }> = [];
+  const skipped: SkippedEmployee[] = [];
+
+  for (const emp of employees) {
+    const empAdvances = advByEmp.get(emp.id) ?? [];
+    const empRecurring = recByEmp.get(emp.id) ?? [];
+    const empLeaves = leaveByEmp.get(emp.id) ?? [];
+    // The SQL range pre-filter is correct on its own; the in-memory check
+    // is defense-in-depth + the single source of truth for the rule.
+    const empAdjustments = (adjByEmp.get(emp.id) ?? []).filter((a) =>
+      adjustmentAppliesToMonth(a, month),
+    );
+
+    try {
+      const draft = calcPayroll({
+        employee: {
+          id: emp.id,
+          salaryType: emp.salaryType,
+          baseSalary: emp.baseSalary.toString(),
+          hasSso: emp.hasSso,
+        },
+        attendances: (attByEmp.get(emp.id) ?? []).map(
+          (a): AttendanceForPayroll => ({
+            date: a.date,
+            type: a.type as AttendanceForPayroll['type'],
+            durationMinutes: a.durationMinutes,
+          }),
+        ),
+        advances: empAdvances.map((a) => ({ amount: a.amount.toString() })),
+        recurringDeductions: empRecurring.map((r) => ({
+          monthlyAmount: r.monthlyAmount.toString(),
+        })),
+        leaveDeductions: empLeaves.map((l) => ({
+          amount: (l.deductAmount ?? new Prisma.Decimal(0)).toString(),
+        })),
+        adjustments: empAdjustments.map(
+          (a): AdjustmentForPayroll => ({ kind: a.kind, amount: a.amount.toString() }),
+        ),
+        config: {
+          ssoRate: config.ssoRate.toString(),
+          ssoSalaryCap: config.ssoSalaryCap.toString(),
+          ssoAmountCap: config.ssoAmountCap.toString(),
+          absentDeductionPerDay: config.absentDeductionPerDay.toString(),
+          lateDeduction: config.lateDeduction.toString(),
+          earlyLeaveDeduction: config.earlyLeaveDeduction.toString(),
+        },
+        month,
+      });
+      drafts.push({
+        draft,
+        employee: emp,
+        sweptAdvanceIds: empAdvances.map((a) => a.id),
+        sweptLeaveIds: empLeaves.map((l) => l.id),
+        appliedRecurring: empRecurring.map((r) => ({
+          id: r.id,
+          monthsRemaining: r.monthsRemaining,
+        })),
+      });
+    } catch (err) {
+      if (err instanceof PayrollCalcError) {
+        skipped.push({
+          employeeId: emp.id,
+          name: `${emp.firstName} ${emp.lastName}`,
+          reason: err.detail.kind,
+        });
+        continue;
+      }
+      throw err;
+    }
+  }
+
+  return { drafts, skipped };
+}
+
+/** Serialize a PayrollDraft's Decimals into Prisma write values. */
+function draftValues(draft: PayrollDraft) {
+  return {
+    incomeBase: new Prisma.Decimal(draft.incomeBase.toFixed(2)),
+    incomeOther: new Prisma.Decimal(draft.incomeOther.toFixed(2)),
+    deductSso: new Prisma.Decimal(draft.deductSso.toFixed(2)),
+    deductAdvance: new Prisma.Decimal(draft.deductAdvance.toFixed(2)),
+    deductAttendance: new Prisma.Decimal(draft.deductAttendance.toFixed(2)),
+    deductLeave: new Prisma.Decimal(draft.deductLeave.toFixed(2)),
+    deductDebt: new Prisma.Decimal(draft.deductDebt.toFixed(2)),
+    deductOther: new Prisma.Decimal(draft.deductOther.toFixed(2)),
+    netPay: new Prisma.Decimal(draft.netPay.toFixed(2)),
+  };
+}
+
+/**
+ * Calculate (or recalculate) Draft payroll rows for the month. Existing
+ * Published/Locked rows are left untouched and counted as `frozen`.
+ */
+export async function runPayrollDraft(month: string): Promise<RunResult> {
+  const { drafts, skipped } = await gatherAndCalc(prisma, month);
+
+  const existing = await prisma.payroll.findMany({
+    where: { month },
+    select: { id: true, employeeId: true, status: true },
+  });
+  const existingByEmp = new Map(existing.map((p) => [p.employeeId, p]));
+
+  let calculated = 0;
+  let frozen = 0;
+
+  for (const { draft, employee } of drafts) {
+    const row = existingByEmp.get(employee.id);
+    if (row && row.status !== 'Draft') {
+      frozen++;
+      continue;
+    }
+    await prisma.payroll.upsert({
+      where: { employeeId_month: { employeeId: employee.id, month } },
+      create: { employeeId: employee.id, month, status: 'Draft', ...draftValues(draft) },
+      update: { status: 'Draft', ...draftValues(draft) },
+    });
+    calculated++;
+  }
+
+  return { calculated, frozen, skipped };
+}
+
+export type PublishedSlip = {
+  payrollId: string;
+  employeeId: string;
+  recipientUserId: string;
+  employeeFirstName: string;
+  /** "12,500.00" — pre-formatted for the LINE Flex payload. */
+  netPay: string;
+};
+
+export type PublishResult = {
+  published: PublishedSlip[];
+  skipped: SkippedEmployee[];
+};
+
+/**
+ * Publish the month: recalculate inside one transaction, persist as
+ * Published, stamp swept rows, decrement recurring deductions. Employees
+ * whose row is already Published/Locked are silently left as-is (their
+ * stamps were made when they were first published).
+ *
+ * Caller is responsible for firing notifications from the returned slips
+ * (see `notifyPublishedSlips`) and writing the audit log.
+ */
+export async function publishPayroll(month: string): Promise<PublishResult> {
+  const result = await prisma.$transaction(async (tx) => {
+    const { drafts, skipped } = await gatherAndCalc(tx, month);
+
+    const existing = await tx.payroll.findMany({
+      where: { month },
+      select: { id: true, employeeId: true, status: true },
+    });
+    const existingByEmp = new Map(existing.map((p) => [p.employeeId, p]));
+
+    const published: PublishedSlip[] = [];
+
+    for (const { draft, employee, sweptAdvanceIds, sweptLeaveIds, appliedRecurring } of drafts) {
+      const row = existingByEmp.get(employee.id);
+      if (row && row.status !== 'Draft') continue; // already published/locked
+
+      const saved = await tx.payroll.upsert({
+        where: { employeeId_month: { employeeId: employee.id, month } },
+        create: {
+          employeeId: employee.id,
+          month,
+          status: 'Published',
+          publishedAt: new Date(),
+          ...draftValues(draft),
+        },
+        update: { status: 'Published', publishedAt: new Date(), ...draftValues(draft) },
+      });
+
+      if (sweptAdvanceIds.length > 0) {
+        await tx.cashAdvance.updateMany({
+          where: { id: { in: sweptAdvanceIds }, deductedInPayrollId: null },
+          data: { deductedInPayrollId: saved.id, isDeducted: true },
+        });
+      }
+      if (sweptLeaveIds.length > 0) {
+        await tx.leaveRequest.updateMany({
+          where: { id: { in: sweptLeaveIds }, deductedInPayrollId: null },
+          data: { deductedInPayrollId: saved.id },
+        });
+      }
+      for (const rec of appliedRecurring) {
+        const remaining = rec.monthsRemaining - 1;
+        await tx.recurringDeduction.update({
+          where: { id: rec.id },
+          data: { monthsRemaining: remaining, ...(remaining <= 0 ? { endedAt: new Date() } : {}) },
+        });
+      }
+
+      published.push({
+        payrollId: saved.id,
+        employeeId: employee.id,
+        recipientUserId: employee.userId,
+        employeeFirstName: employee.firstName,
+        netPay: draft.netPay.toNumber().toLocaleString('en-US', {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }),
+      });
+    }
+
+    return { published, skipped };
+  });
+
+  return result;
+}
+
+/** Fire the per-employee LINE push for freshly published slips. */
+export async function notifyPublishedSlips(month: string, slips: PublishedSlip[]): Promise<void> {
+  await Promise.all(
+    slips.map((s) =>
+      sendNotification(s.recipientUserId, {
+        kind: 'payroll.published',
+        payrollId: s.payrollId,
+        month,
+        employeeFirstName: s.employeeFirstName,
+        netPay: s.netPay,
+      }),
+    ),
+  );
+}
+
+/** Flip every Published row of the month to Locked. Returns count. */
+export async function lockPayroll(month: string): Promise<number> {
+  const res = await prisma.payroll.updateMany({
+    where: { month, status: 'Published' },
+    data: { status: 'Locked' },
+  });
+  return res.count;
+}
