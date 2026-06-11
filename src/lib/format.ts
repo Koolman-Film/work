@@ -38,3 +38,24 @@ export function initials(label: string): string {
 export function formatThaiDate(date: Date): string {
   return thaiShortDate.format(date);
 }
+
+const MONTH_TH_FULL = [
+  'มกราคม',
+  'กุมภาพันธ์',
+  'มีนาคม',
+  'เมษายน',
+  'พฤษภาคม',
+  'มิถุนายน',
+  'กรกฎาคม',
+  'สิงหาคม',
+  'กันยายน',
+  'ตุลาคม',
+  'พฤศจิกายน',
+  'ธันวาคม',
+] as const;
+
+/** "YYYY-MM" → "มิถุนายน 2569" (Buddhist year). Returns input unchanged when unparseable. */
+export function monthLabelTh(month: string): string {
+  const [y, m] = month.split('-').map(Number);
+  return `${MONTH_TH_FULL[(m as number) - 1] ?? month} ${(y as number) + 543}`;
+}

@@ -14,22 +14,8 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
+import { monthLabelTh } from '@/lib/format';
 import { cn } from '@/lib/utils';
-
-const MONTH_TH_FULL = [
-  'มกราคม',
-  'กุมภาพันธ์',
-  'มีนาคม',
-  'เมษายน',
-  'พฤษภาคม',
-  'มิถุนายน',
-  'กรกฎาคม',
-  'สิงหาคม',
-  'กันยายน',
-  'ตุลาคม',
-  'พฤศจิกายน',
-  'ธันวาคม',
-] as const;
 
 const MONTH_TH_SHORT = [
   'ม.ค.',
@@ -45,11 +31,6 @@ const MONTH_TH_SHORT = [
   'พ.ย.',
   'ธ.ค.',
 ] as const;
-
-export function monthLabelTh(month: string): string {
-  const [y, m] = month.split('-').map(Number);
-  return `${MONTH_TH_FULL[(m as number) - 1] ?? month} ${(y as number) + 543}`;
-}
 
 function ym(year: number, monthIdx: number): string {
   return `${year}-${String(monthIdx + 1).padStart(2, '0')}`;
