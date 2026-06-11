@@ -169,9 +169,17 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
     {
       key: 'net',
       header: 'สุทธิ',
+      // Negative net (deductions exceed pay) is legal in the calc but almost
+      // always a data problem — paint it red so the admin catches it before
+      // pressing เผยแพร่.
       cell: (r) => (
-        <span className="font-mono font-semibold text-ink-1">
+        <span
+          className={`font-mono font-semibold ${r.netPay.isNegative() ? 'text-red-700' : 'text-ink-1'}`}
+        >
           {formatTHB2(r.netPay.toNumber())}
+          {r.netPay.isNegative() && (
+            <span className="ml-1 align-middle text-[10px] font-bold text-red-700">⚠ ติดลบ</span>
+          )}
         </span>
       ),
     },

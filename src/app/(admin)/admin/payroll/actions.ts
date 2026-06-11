@@ -59,9 +59,24 @@ export async function calculatePayrollAction(formData: FormData) {
   back(month, parts.join(' · '));
 }
 
+/** Current YYYY-MM in Bangkok. */
+function currentMonthBkk(): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    year: 'numeric',
+    month: '2-digit',
+    timeZone: 'Asia/Bangkok',
+  }).format(new Date());
+}
+
 export async function publishPayrollAction(formData: FormData) {
   const { user } = await requirePermission('payroll.publish');
   const month = readMonth(formData);
+
+  // Publishing fires LINE pushes and stamps sweep rows — block future
+  // months so a mis-clicked navigator can't blast notifications early.
+  if (month > currentMonthBkk()) {
+    back(month, 'ยังเผยแพร่เดือนล่วงหน้าไม่ได้ — เผยแพร่ได้ไม่เกินเดือนปัจจุบัน');
+  }
 
   const result = await publishPayroll(month);
   await notifyPublishedSlips(month, result.published);
