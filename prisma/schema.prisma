@@ -396,6 +396,10 @@ model Employee {
   defaultOtRateType    OtRateType?
   defaultOtRatePerHour Decimal?    @db.Decimal(12, 2)
   defaultOtMultiplier  Decimal?    @db.Decimal(3, 2)
+  /// Social security (ประกันสังคม) enrollment — when true, payroll deducts
+  /// SSO from base salary per PayrollConfig (5% capped). Frozen into the
+  /// Payroll row at calc time, so published slips never change retroactively.
+  hasSso            Boolean  @default(true)
   status            EmpStatus
   canCheckIn        Boolean  @default(true)
   hiredAt           DateTime @db.Date
@@ -415,6 +419,7 @@ model Employee {
   cashAdvances        CashAdvance[]
   payrolls            Payroll[]
   recurringDeductions RecurringDeduction[]
+  payrollAdjustments  PayrollAdjustment[]
 
   @@index([branchId])
   @@index([departmentId])
@@ -616,6 +621,37 @@ model RecurringDeduction {
   @@index([employeeId, endedAt])
 }
 
+enum AdjustmentKind {
+  Income
+  Deduction
+}
+
+/// One-off or recurring earnings/deductions (เงินเพิ่ม/เงินลด) entered by
+/// admin. Applies to month M iff startMonth <= M <= (endMonth ?? ∞) —
+/// lexicographic compare works for YYYY-MM. Frequency mapping:
+///   one-time   → startMonth == endMonth
+///   monthly    → endMonth = null (open-ended)
+///   date-range → startMonth < endMonth
+/// Selection-by-range is idempotent (recalc never double-applies), so no
+/// sweep stamping is needed — unlike CashAdvance/LeaveRequest.
+model PayrollAdjustment {
+  id         String         @id @default(uuid()) @db.Uuid
+  employeeId String         @db.Uuid
+  employee   Employee       @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  kind       AdjustmentKind
+  reason     String         // "ค่าคอมมิชชั่น", "หักค่าชุดฟอร์ม", ...
+  amount     Decimal        @db.Decimal(12, 2)
+  startMonth String         // "YYYY-MM" — first month it applies
+  endMonth   String?        // null = open-ended monthly
+  note       String?
+  deletedAt  DateTime?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  @@index([employeeId, startMonth])
+  @@index([deletedAt])
+}
+
 model Payroll {
   id               String        @id @default(uuid()) @db.Uuid
   employeeId       String        @db.Uuid
@@ -631,6 +667,9 @@ model Payroll {
   deductLeave      Decimal       @db.Decimal(12, 2) @default(0)
   /// Per requirement.docx §4 Deduct_Debt
   deductDebt       Decimal       @db.Decimal(12, 2) @default(0)
+  /// Sum of Deduction-kind PayrollAdjustments for the month (เงินลด).
+  /// Income-kind adjustments land in incomeOther.
+  deductOther      Decimal       @db.Decimal(12, 2) @default(0)
 
   netPay           Decimal       @db.Decimal(12, 2)
 
