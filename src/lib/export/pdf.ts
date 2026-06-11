@@ -32,8 +32,11 @@ async function launch() {
   if (isVercel) {
     return puppeteer.launch({
       args: chromium.args,
+      defaultViewport: chromium.defaultViewport,
       executablePath: await chromium.executablePath(),
-      headless: true,
+      // sparticuz ships the headless *shell* — its own flag value is required;
+      // plain `headless: true` sends full-Chrome flags and fails only in prod.
+      headless: chromium.headless,
     });
   }
   return puppeteer.launch({
