@@ -8,6 +8,7 @@ import { requireRole } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
 import { formatTHB2 } from '@/lib/format';
 import { calculatePayrollAction, lockPayrollAction, publishPayrollAction } from './actions';
+import { RunActionForm } from './run-action-form';
 
 /**
  * /admin/payroll — monthly payroll run (รันเงินเดือนรายเดือน).
@@ -261,26 +262,31 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
       {/* Run actions */}
       <div className="mb-6 flex flex-wrap items-center gap-3">
         {mayRun && (
-          <form action={calculatePayrollAction}>
-            <input type="hidden" name="month" value={month} />
-            <Button type="submit" variant="secondary">
-              {rows.length > 0 ? 'คำนวณใหม่ (ฉบับร่าง)' : 'คำนวณเงินเดือน'}
-            </Button>
-          </form>
+          <RunActionForm
+            action={calculatePayrollAction}
+            month={month}
+            label={rows.length > 0 ? 'คำนวณใหม่ (ฉบับร่าง)' : 'คำนวณเงินเดือน'}
+            pendingLabel="กำลังคำนวณเงินเดือน…"
+            variant="secondary"
+          />
         )}
         {mayPublish && statusCounts.Draft > 0 && (
-          <form action={publishPayrollAction}>
-            <input type="hidden" name="month" value={month} />
-            <Button type="submit">เผยแพร่สลิป + แจ้งเตือน LINE ({statusCounts.Draft} คน)</Button>
-          </form>
+          <RunActionForm
+            action={publishPayrollAction}
+            month={month}
+            label={`เผยแพร่สลิป + แจ้งเตือน LINE (${statusCounts.Draft} คน)`}
+            pendingLabel="กำลังเผยแพร่สลิปและส่งแจ้งเตือน…"
+            variant="primary"
+          />
         )}
         {mayPublish && statusCounts.Published > 0 && (
-          <form action={lockPayrollAction}>
-            <input type="hidden" name="month" value={month} />
-            <Button type="submit" variant="secondary">
-              ล็อกงวด ({statusCounts.Published} คน)
-            </Button>
-          </form>
+          <RunActionForm
+            action={lockPayrollAction}
+            month={month}
+            label={`ล็อกงวด (${statusCounts.Published} คน)`}
+            pendingLabel="กำลังล็อกงวด…"
+            variant="secondary"
+          />
         )}
         <p className="text-xs text-ink-3">
           พนักงานทั้งหมด {activeEmployees} คน · คำนวณแล้ว {rows.length} คน
@@ -299,10 +305,13 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
               title={`ยังไม่ได้คำนวณเงินเดือนเดือน ${monthLabelTh(month)}`}
               action={
                 mayRun ? (
-                  <form action={calculatePayrollAction}>
-                    <input type="hidden" name="month" value={month} />
-                    <Button variant="secondary">คำนวณเงินเดือน</Button>
-                  </form>
+                  <RunActionForm
+                    action={calculatePayrollAction}
+                    month={month}
+                    label="คำนวณเงินเดือน"
+                    pendingLabel="กำลังคำนวณเงินเดือน…"
+                    variant="secondary"
+                  />
                 ) : undefined
               }
             />
