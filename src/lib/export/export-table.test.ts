@@ -7,6 +7,11 @@ describe('thaiPeriodLabel', () => {
       'มิ.ย. 2569',
     );
   });
+  it('renders year-boundary month (Dec 2025 → ธ.ค. 2568)', () => {
+    expect(thaiPeriodLabel({ from: '2025-12-01', to: '2025-12-31', month: '2025-12' })).toBe(
+      'ธ.ค. 2568',
+    );
+  });
   it('renders custom range with Buddhist-era dates', () => {
     expect(thaiPeriodLabel({ from: '2026-06-01', to: '2026-06-15', month: null })).toBe(
       '1 มิ.ย. 2569 – 15 มิ.ย. 2569',
