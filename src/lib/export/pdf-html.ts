@@ -59,6 +59,8 @@ tbody tr:nth-child(even) td { background: #f8fafc; }
 tfoot td { background: #f1f5f9; font-weight: 700; padding: 6px 8px; border-top: 1.5px solid #cbd5e1; }
 .r { text-align: right; font-variant-numeric: tabular-nums; }
 thead { display: table-header-group; }
+/* default print behavior repeats tfoot on every page — totals belong once, at the end */
+tfoot { display: table-row-group; }
 tr { page-break-inside: avoid; }
 </style></head>
 <body>
