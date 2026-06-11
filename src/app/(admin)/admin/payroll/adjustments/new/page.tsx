@@ -8,6 +8,9 @@ type SearchParams = Promise<{ error?: string }>;
 export default async function NewAdjustmentPage({ searchParams }: { searchParams: SearchParams }) {
   const { error } = await searchParams;
   const employees = await loadEmployeeOptions();
+  const currentMonth = new Date()
+    .toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' })
+    .slice(0, 7);
 
   return (
     <div className="px-4 py-6 sm:px-6 lg:px-8">
@@ -17,6 +20,7 @@ export default async function NewAdjustmentPage({ searchParams }: { searchParams
           mode="create"
           action={createAdjustment}
           employees={employees}
+          currentMonth={currentMonth}
           error={error ? decodeURIComponent(error) : null}
         />
       </div>

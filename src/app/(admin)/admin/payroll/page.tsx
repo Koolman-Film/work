@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
+import { monthLabelTh } from '@/components/ui/month-select';
 import { PageHeader } from '@/components/ui/page-header';
 import { type Column, ResponsiveTable } from '@/components/ui/responsive-table';
 import { canDo } from '@/lib/auth/check-permission';
@@ -46,26 +47,6 @@ function shiftMonth(month: string, delta: number): string {
   const [y, m] = month.split('-').map(Number);
   const d = new Date(Date.UTC(y as number, (m as number) - 1 + delta, 1));
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
-}
-
-const MONTH_TH = [
-  'มกราคม',
-  'กุมภาพันธ์',
-  'มีนาคม',
-  'เมษายน',
-  'พฤษภาคม',
-  'มิถุนายน',
-  'กรกฎาคม',
-  'สิงหาคม',
-  'กันยายน',
-  'ตุลาคม',
-  'พฤศจิกายน',
-  'ธันวาคม',
-] as const;
-
-function monthLabelTh(month: string): string {
-  const [y, m] = month.split('-').map(Number);
-  return `${MONTH_TH[(m as number) - 1]} ${(y as number) + 543}`;
 }
 
 const STATUS_CHIP = {
