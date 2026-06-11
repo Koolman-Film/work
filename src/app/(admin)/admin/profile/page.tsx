@@ -1,4 +1,5 @@
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
+import { PageHeader } from '@/components/ui/page-header';
 import { requireRole } from '@/lib/auth/require-role';
 import { ChangePasswordForm } from './change-password-form';
 
@@ -23,11 +24,8 @@ export default async function AdminProfilePage() {
   const { user, tier } = await requireRole(['Admin', 'Superadmin']);
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 px-6 py-8">
-      <div>
-        <h1 className="text-2xl font-semibold text-gray-900">โปรไฟล์ของฉัน</h1>
-        <p className="mt-1 text-sm text-gray-500">ข้อมูลบัญชี + เปลี่ยนรหัสผ่าน</p>
-      </div>
+    <div className="mx-auto max-w-2xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
+      <PageHeader title="โปรไฟล์ของฉัน" subtitle="ข้อมูลบัญชี + เปลี่ยนรหัสผ่าน" />
 
       {/* ─── Identity card (readonly) ─────────────────────────────────── */}
       <Card>
@@ -46,7 +44,7 @@ export default async function AdminProfilePage() {
       {/* ─── Change password ──────────────────────────────────────────── */}
       <ChangePasswordForm />
 
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-ink-3">
         ต้องการแก้ไขอีเมลหรือเปลี่ยนบทบาท — ติดต่อ Superadmin เพื่อจัดการให้ที่ ตั้งค่า → ทีมผู้ดูแล
       </p>
     </div>
@@ -56,8 +54,8 @@ export default async function AdminProfilePage() {
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between border-b border-gray-100 py-1.5 last:border-b-0">
-      <span className="text-sm text-gray-500">{label}</span>
-      <span className="text-sm font-medium text-gray-900">{value}</span>
+      <span className="text-sm text-ink-3">{label}</span>
+      <span className="text-sm font-medium text-ink-1">{value}</span>
     </div>
   );
 }

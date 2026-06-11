@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardBody, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { FormField } from '@/components/ui/form-field';
 import { Input } from '@/components/ui/input';
+import { PageHeader } from '@/components/ui/page-header';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { canActOnRole, canActOnUserScope } from '@/lib/auth/team-guards';
 import { computeTier } from '@/lib/auth/user-tier';
@@ -87,94 +88,99 @@ export default async function EditTeamMemberPage({
   const deleteBound = deleteTeamMember.bind(null, id);
 
   return (
-    <div className="max-w-2xl space-y-6">
-      <div>
-        <h2 className="text-lg font-semibold text-gray-900">{target.email}</h2>
-        <p className="mt-0.5 text-sm text-gray-500">แก้ไขบทบาท / รหัสผ่าน / ระงับบัญชี</p>
-      </div>
+    <div className="px-4 py-6 sm:px-6 lg:px-8">
+      <PageHeader
+        breadcrumb="ตั้งค่า · ทีมผู้ดูแล"
+        title={target.email ?? 'แก้ไขผู้ดูแล'}
+        subtitle="แก้ไขบทบาท / รหัสผ่าน / ระงับบัญชี"
+      />
+      <div className="max-w-2xl space-y-6">
+        {error && (
+          <div
+            role="alert"
+            className="rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger-deep"
+          >
+            {decodeURIComponent(error)}
+          </div>
+        )}
+        {notice && (
+          <div className="rounded-lg bg-success-soft px-4 py-3 text-sm text-success-deep">
+            {decodeURIComponent(notice)}
+          </div>
+        )}
 
-      {error && (
-        <div role="alert" className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">
-          {decodeURIComponent(error)}
-        </div>
-      )}
-      {notice && (
-        <div className="rounded-md bg-green-50 px-4 py-3 text-sm text-green-700">
-          {decodeURIComponent(notice)}
-        </div>
-      )}
-
-      {/* ─── Role assignments (Phase 2b — new model) ──────────────────── */}
-      {/* actorTier is 'Admin' | 'Superadmin' here because team.update is
+        {/* ─── Role assignments (Phase 2b — new model) ──────────────────── */}
+        {/* actorTier is 'Admin' | 'Superadmin' here because team.update is
           not in Staff's default perms — but TS can't narrow that, so an
           explicit cast keeps the AssignmentsSection prop type strict. */}
-      <AssignmentsSection
-        userId={id}
-        actorRole={actorTier as 'Admin' | 'Superadmin'}
-        actorId={actor.id}
-      />
+        <AssignmentsSection
+          userId={id}
+          actorRole={actorTier as 'Admin' | 'Superadmin'}
+          actorId={actor.id}
+        />
 
-      {/* ─── Reset password ───────────────────────────────────────────── */}
-      <form action={resetPasswordBound}>
-        <Card>
-          <CardHeader>
-            <CardTitle>ตั้งรหัสผ่านใหม่</CardTitle>
-          </CardHeader>
-          <CardBody className="space-y-4">
-            <FormField
-              label="รหัสผ่านใหม่"
-              htmlFor="password"
-              required
-              hint="อย่างน้อย 8 ตัวอักษร — ส่งให้เจ้าของบัญชีทาง LINE"
-            >
-              <Input
-                id="password"
-                name="password"
-                type="text"
+        {/* ─── Reset password ───────────────────────────────────────────── */}
+        <form action={resetPasswordBound}>
+          <Card>
+            <CardHeader>
+              <CardTitle>ตั้งรหัสผ่านใหม่</CardTitle>
+            </CardHeader>
+            <CardBody className="space-y-4">
+              <FormField
+                label="รหัสผ่านใหม่"
+                htmlFor="password"
                 required
-                autoComplete="new-password"
-                minLength={8}
-                maxLength={72}
-                className="font-mono"
-              />
-            </FormField>
-            <p className="text-xs text-gray-500">
-              ผู้ใช้ที่เปิดอยู่จะออกจากระบบทันทีเมื่อคุณบันทึก — ต้องล็อกอินใหม่ด้วยรหัสผ่านใหม่
-            </p>
-          </CardBody>
-          <CardFooter className="flex justify-end">
-            <Button type="submit" variant="secondary">
-              ตั้งรหัสผ่านใหม่
-            </Button>
-          </CardFooter>
-        </Card>
-      </form>
+                hint="อย่างน้อย 8 ตัวอักษร — ส่งให้เจ้าของบัญชีทาง LINE"
+              >
+                <Input
+                  id="password"
+                  name="password"
+                  type="text"
+                  required
+                  autoComplete="new-password"
+                  minLength={8}
+                  maxLength={72}
+                  className="font-mono"
+                />
+              </FormField>
+              <p className="text-xs text-gray-500">
+                ผู้ใช้ที่เปิดอยู่จะออกจากระบบทันทีเมื่อคุณบันทึก — ต้องล็อกอินใหม่ด้วยรหัสผ่านใหม่
+              </p>
+            </CardBody>
+            <CardFooter className="flex justify-end">
+              <Button type="submit" variant="secondary">
+                ตั้งรหัสผ่านใหม่
+              </Button>
+            </CardFooter>
+          </Card>
+        </form>
 
-      {/* ─── Danger zone ──────────────────────────────────────────────── */}
-      <div className="rounded-xl border border-red-200 bg-red-50/30 px-5 py-4">
-        <p className="text-xs font-semibold uppercase tracking-wide text-red-700">พื้นที่อันตราย</p>
-        <p className="mt-1 text-xs text-red-700/80">
-          <strong>ระงับบัญชี</strong>: ปิดการเข้าใช้งาน — ข้อมูล Audit ยังเก็บไว้ กู้คืนได้ภายหลัง
-          <br />
-          <strong>ลบถาวร</strong>: ลบบัญชีออกจากระบบทั้งหมด (Supabase auth + database) — ย้อนกลับไม่ได้
-        </p>
-        <div className="mt-3 flex items-center justify-between gap-3">
-          <p className="text-xs text-gray-600">
-            {isSelf ? 'คุณไม่สามารถระงับหรือลบบัญชีตัวเองได้' : `จัดการบัญชี ${target.email}`}
+        {/* ─── Danger zone ──────────────────────────────────────────────── */}
+        <div className="rounded-xl border border-red-200 bg-red-50/30 px-5 py-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-red-700">พื้นที่อันตราย</p>
+          <p className="mt-1 text-xs text-red-700/80">
+            <strong>ระงับบัญชี</strong>: ปิดการเข้าใช้งาน — ข้อมูล Audit ยังเก็บไว้ กู้คืนได้ภายหลัง
+            <br />
+            <strong>ลบถาวร</strong>: ลบบัญชีออกจากระบบทั้งหมด (Supabase auth + database) — ย้อนกลับไม่ได้
           </p>
-          <DangerActions
-            archiveAction={archiveBound}
-            deleteAction={deleteBound}
-            email={target.email}
-            isSelf={isSelf}
-          />
+          <div className="mt-3 flex items-center justify-between gap-3">
+            <p className="text-xs text-gray-600">
+              {isSelf ? 'คุณไม่สามารถระงับหรือลบบัญชีตัวเองได้' : `จัดการบัญชี ${target.email}`}
+            </p>
+            <DangerActions
+              archiveAction={archiveBound}
+              deleteAction={deleteBound}
+              email={target.email}
+              isSelf={isSelf}
+            />
+          </div>
         </div>
-      </div>
 
-      <div>
-        <Link href="/admin/settings/team" className="text-sm text-gray-600 hover:text-gray-900">
-          ← กลับไปรายการ
-        </Link>
+        <div>
+          <Link href="/admin/settings/team" className="text-sm text-ink-3 hover:text-ink-1">
+            ← กลับไปรายการ
+          </Link>
+        </div>
       </div>
     </div>
   );
