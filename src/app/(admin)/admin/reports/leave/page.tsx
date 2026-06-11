@@ -1,13 +1,12 @@
 import { Calendar } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
+import { formatTHB2 } from '@/lib/format';
 import { getLeaveConfig } from '@/lib/leave/leave-config';
 import { formatDaysHours } from '@/lib/leave/units';
 import { resolveReportPeriod } from '@/lib/reports/period';
 import { leaveReport } from '@/lib/reports/queries';
 import { NameSearch } from '../name-search';
 import { PeriodPicker } from '../period-picker';
-
-const baht = (n: number) => `฿${n.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`;
 
 export default async function LeaveReportPage({
   searchParams,
@@ -63,7 +62,7 @@ export default async function LeaveReportPage({
                         {cell && cell.overQuotaMinutes > 0 && (
                           <div className="text-xs font-medium text-amber-600">
                             เกิน {formatDaysHours(cell.overQuotaMinutes, cfg)} (
-                            {baht(cell.deductAmount)})
+                            {formatTHB2(cell.deductAmount)})
                           </div>
                         )}
                       </td>

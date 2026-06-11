@@ -1,11 +1,10 @@
 import { Banknote } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
+import { formatTHB2 } from '@/lib/format';
 import { resolveReportPeriod } from '@/lib/reports/period';
 import { advanceReport } from '@/lib/reports/queries';
 import { NameSearch } from '../name-search';
 import { PeriodPicker } from '../period-picker';
-
-const baht = (n: number) => `฿${n.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`;
 
 export default async function AdvanceReportPage({
   searchParams,
@@ -48,10 +47,10 @@ export default async function AdvanceReportPage({
               {rows.map((r) => (
                 <tr key={r.employeeId} className="hover:bg-gray-50">
                   <td className="px-4 py-2.5">{r.name}</td>
-                  <td className="px-4 py-2.5 text-right">{baht(r.approvedInPeriod)}</td>
-                  <td className="px-4 py-2.5 text-right">{baht(r.outstandingNow)}</td>
+                  <td className="px-4 py-2.5 text-right">{formatTHB2(r.approvedInPeriod)}</td>
+                  <td className="px-4 py-2.5 text-right">{formatTHB2(r.outstandingNow)}</td>
                   <td className="px-4 py-2.5 text-right">
-                    {r.availableNow == null ? '—' : baht(r.availableNow)}
+                    {r.availableNow == null ? '—' : formatTHB2(r.availableNow)}
                   </td>
                 </tr>
               ))}
@@ -59,8 +58,8 @@ export default async function AdvanceReportPage({
             <tfoot className="bg-gray-50 text-xs font-medium">
               <tr>
                 <td className="px-4 py-2.5">รวม {rows.length} คน</td>
-                <td className="px-4 py-2.5 text-right">{baht(totals.approvedInPeriod)}</td>
-                <td className="px-4 py-2.5 text-right">{baht(totals.outstandingNow)}</td>
+                <td className="px-4 py-2.5 text-right">{formatTHB2(totals.approvedInPeriod)}</td>
+                <td className="px-4 py-2.5 text-right">{formatTHB2(totals.outstandingNow)}</td>
                 <td />
               </tr>
             </tfoot>
