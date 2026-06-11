@@ -2,6 +2,7 @@
  * Shared export model — every report maps its query rows to ExportTable
  * once; the csv/xlsx/pdf writers all consume this shape. Pure (no DB).
  */
+import { formatTHB2 } from '@/lib/format';
 import type { ReportPeriod } from '@/lib/reports/period';
 
 export type CellFormat = 'text' | 'int' | 'thb';
@@ -32,6 +33,9 @@ const thaiShort = new Intl.DateTimeFormat('th-TH', {
   year: 'numeric',
 });
 
+/** Cached formatter for the month-only branch of thaiPeriodLabel. */
+const thaiMonthShort = new Intl.DateTimeFormat('th-TH', { timeZone: 'UTC', month: 'short' });
+
 function thaiYmd(ymd: string): string {
   return thaiShort.format(new Date(`${ymd}T00:00:00.000Z`));
 }
@@ -40,10 +44,7 @@ function thaiYmd(ymd: string): string {
 export function thaiPeriodLabel(period: ReportPeriod): string {
   if (period.month) {
     const y = Number(period.month.slice(0, 4)) + 543;
-    const m = new Date(`${period.month}-01T00:00:00Z`).toLocaleDateString('th-TH', {
-      month: 'short',
-      timeZone: 'UTC',
-    });
+    const m = thaiMonthShort.format(new Date(`${period.month}-01T00:00:00Z`));
     return `${m} ${y}`;
   }
   return `${thaiYmd(period.from)} – ${thaiYmd(period.to)}`;
@@ -73,9 +74,8 @@ export function exportFilename(
 /** Display string for a cell — used by the PDF template. CSV keeps raw
  *  numbers; xlsx uses numFmt instead. */
 export function formatCellDisplay(value: ExportCell, format: CellFormat = 'text'): string {
+  // String values are already display-ready; format is ignored.
   if (typeof value === 'string') return value;
-  if (format === 'thb') {
-    return `฿${value.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  }
+  if (format === 'thb') return formatTHB2(value);
   return value.toLocaleString('th-TH');
 }
