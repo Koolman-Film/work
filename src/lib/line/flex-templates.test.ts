@@ -90,7 +90,28 @@ const allKinds = [
     date: '2026-05-12',
     reviewNote: 'no',
   },
+  {
+    kind: 'payroll.published' as const,
+    payrollId: 'p1',
+    month: '2026-06',
+    employeeFirstName: 'Aung',
+    netPay: '28,500.00',
+  },
 ];
+
+describe('buildFlexMessage payroll.published', () => {
+  it('shows net pay and deep-links to the LIFF payslip for the month', () => {
+    const m = buildFlexMessage(allKinds[6] as (typeof allKinds)[number], 'https://x', 'th');
+    const b = m.contents as Bubble;
+    const footer = b.footer as messagingApi.FlexBox;
+    const button = footer.contents?.[0] as messagingApi.FlexButton;
+    const action = button.action as messagingApi.URIAction;
+    expect(action.uri).toBe('https://x/liff/payslip?m=2026-06');
+    expect(m.altText).toContain('28,500.00');
+    // Thai month label with Buddhist year.
+    expect(m.altText).toContain('มิถุนายน 2569');
+  });
+});
 
 describe('buildFlexMessage covers every kind without missing keys', () => {
   for (const locale of ['th', 'en'] as const) {
