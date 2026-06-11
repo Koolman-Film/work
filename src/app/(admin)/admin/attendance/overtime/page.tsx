@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
+import { PageHeader } from '@/components/ui/page-header';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { approveOt, dismissOt, voidOt } from '@/lib/overtime/actions';
@@ -64,10 +65,15 @@ export default async function OvertimePage({
 
   return (
     <div className="space-y-6 px-4 py-6 sm:px-6 lg:px-8">
+      <PageHeader
+        breadcrumb="ลงเวลา"
+        title="ค่าล่วงเวลา (OT)"
+        subtitle="อนุมัติ OT จากเวลาออกงานจริง หรือเพิ่มรายการเอง — สรุปยอดต่อเดือน"
+      />
       <AttendanceTabs current="overtime" />
 
       {sp.error && (
-        <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p role="alert" className="rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger-deep">
           {sp.error}
         </p>
       )}
@@ -75,14 +81,14 @@ export default async function OvertimePage({
       <div className="flex items-center gap-3 text-sm">
         <a
           href={`/admin/attendance/overtime?ym=${prevYm(ym)}`}
-          className="text-primary-600 hover:underline"
+          className="text-primary-700 hover:text-primary-800 hover:underline"
         >
           ← เดือนก่อน
         </a>
         <span className="font-medium tabular-nums">{ym}</span>
         <a
           href={`/admin/attendance/overtime?ym=${nextYm(ym)}`}
-          className="text-primary-600 hover:underline"
+          className="text-primary-700 hover:text-primary-800 hover:underline"
         >
           เดือนถัดไป →
         </a>

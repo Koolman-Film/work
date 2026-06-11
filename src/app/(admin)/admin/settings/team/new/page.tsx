@@ -1,3 +1,4 @@
+import { PageHeader } from '@/components/ui/page-header';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { createTeamMember } from '../actions';
 import { TeamCreateForm } from '../team-form';
@@ -18,13 +19,16 @@ export default async function NewTeamMemberPage({ searchParams }: { searchParams
     actorTier === 'Superadmin' ? ['Admin', 'Superadmin'] : ['Admin'];
 
   return (
-    <div className="max-w-2xl">
-      <TeamCreateForm
-        action={createTeamMember}
-        error={error ? decodeURIComponent(error) : null}
-        email={email ? decodeURIComponent(email) : null}
-        availableRoles={availableRoles}
-      />
+    <div className="px-4 py-6 sm:px-6 lg:px-8">
+      <PageHeader breadcrumb="ตั้งค่า · ทีมผู้ดูแล" title="เพิ่มผู้ดูแล" />
+      <div className="max-w-2xl">
+        <TeamCreateForm
+          action={createTeamMember}
+          error={error ? decodeURIComponent(error) : null}
+          email={email ? decodeURIComponent(email) : null}
+          availableRoles={availableRoles}
+        />
+      </div>
     </div>
   );
 }
