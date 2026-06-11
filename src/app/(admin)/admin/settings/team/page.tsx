@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/table';
+import { EmptyState } from '@/components/ui/empty-state';
+import { PageHeader } from '@/components/ui/page-header';
+import { type Column, ResponsiveTable } from '@/components/ui/responsive-table';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { computeTier } from '@/lib/auth/user-tier';
 import { prisma } from '@/lib/db/prisma';
@@ -66,101 +67,106 @@ export default async function TeamListPage({ searchParams }: { searchParams: Sea
       return (a.email ?? '').localeCompare(b.email ?? '');
     });
 
+  const columns: Column<Member>[] = [
+    {
+      key: 'email',
+      header: 'อีเมล',
+      cell: (m) => (
+        <span className="font-medium text-ink-1">
+          {m.email ?? '—'}
+          {m.id === actor.id && (
+            <span className="ml-2 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600">
+              คุณ
+            </span>
+          )}
+        </span>
+      ),
+    },
+    {
+      key: 'tier',
+      header: 'บทบาท',
+      cell: (m) => <RoleBadge role={m.tier} />,
+    },
+    {
+      key: 'createdAt',
+      header: 'สร้างเมื่อ',
+      cell: (m) => (
+        <span className="tabular-nums text-ink-3">
+          {m.createdAt.toLocaleDateString('th-TH', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+          })}
+        </span>
+      ),
+    },
+  ];
+
   return (
     <div className="px-4 py-6 sm:px-6 lg:px-8">
-      <div className="mb-6 flex items-baseline justify-between">
-        <div>
-          <h2 className="text-lg font-semibold text-gray-900">ทีมผู้ดูแล</h2>
-          <p className="mt-0.5 text-sm text-gray-500">บัญชี Admin / Superadmin ที่เข้าใช้แผงควบคุมได้</p>
-        </div>
-        <Link href="/admin/settings/team/new">
-          <Button>+ เพิ่มผู้ดูแล</Button>
-        </Link>
-      </div>
+      <PageHeader
+        breadcrumb="ตั้งค่า"
+        title="ทีมผู้ดูแล"
+        subtitle="บัญชี Admin / Superadmin ที่เข้าใช้แผงควบคุมได้"
+        actions={
+          <Link href="/admin/settings/team/new">
+            <Button>+ เพิ่มผู้ดูแล</Button>
+          </Link>
+        }
+      />
 
       {error && (
-        <div role="alert" className="mb-4 rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div
+          role="alert"
+          className="mb-4 rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger-deep"
+        >
           {decodeURIComponent(error)}
         </div>
       )}
       {notice && (
-        <div className="mb-4 rounded-md bg-green-50 px-4 py-3 text-sm text-green-700">
+        <div className="mb-4 rounded-lg bg-success-soft px-4 py-3 text-sm text-success-deep">
           {decodeURIComponent(notice)}
         </div>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            ทั้งหมด <span className="tabular-nums text-gray-500">({members.length})</span>
-          </CardTitle>
-        </CardHeader>
-        <CardBody className="!p-0">
-          {members.length === 0 ? (
-            <EmptyState />
+      <ResponsiveTable
+        columns={columns}
+        rows={members}
+        rowKey={(m) => m.id}
+        actions={(m) => {
+          // Admin actor cannot edit Superadmin — server enforces; we
+          // gray the link out so the UI doesn't promise something
+          // that won't work. tier is computed per-row from the
+          // member's role assignments (Phase 4).
+          const canEdit = actorTier === 'Superadmin' || m.tier === 'Admin';
+          return canEdit ? (
+            <Link
+              href={`/admin/settings/team/${m.id}/edit`}
+              className="text-sm font-medium text-primary-700 hover:text-primary-800"
+            >
+              แก้ไข
+            </Link>
           ) : (
-            <Table>
-              <THead>
-                <TR>
-                  <TH>อีเมล</TH>
-                  <TH>บทบาท</TH>
-                  <TH>สร้างเมื่อ</TH>
-                  <TH className="text-right">การจัดการ</TH>
-                </TR>
-              </THead>
-              <TBody>
-                {members.map((m) => {
-                  // Admin actor cannot edit Superadmin — server enforces; we
-                  // gray the link out so the UI doesn't promise something
-                  // that won't work. tier is computed per-row from the
-                  // member's role assignments (Phase 4).
-                  const canEdit = actorTier === 'Superadmin' || m.tier === 'Admin';
-                  const isSelf = m.id === actor.id;
+            <span className="text-sm text-ink-4" title="ต้องเป็น Superadmin">
+              อ่านอย่างเดียว
+            </span>
+          );
+        }}
+        empty={
+          <div className="surface">
+            <EmptyState
+              title="ยังไม่มีผู้ดูแล"
+              action={
+                <Link href="/admin/settings/team/new">
+                  <Button variant="secondary">+ เพิ่มผู้ดูแลคนแรก</Button>
+                </Link>
+              }
+            />
+          </div>
+        }
+      />
 
-                  return (
-                    <TR key={m.id}>
-                      <TD className="font-medium text-gray-900">
-                        {m.email ?? '—'}
-                        {isSelf && (
-                          <span className="ml-2 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600">
-                            คุณ
-                          </span>
-                        )}
-                      </TD>
-                      <TD>
-                        <RoleBadge role={m.tier} />
-                      </TD>
-                      <TD className="tabular-nums text-gray-500">
-                        {m.createdAt.toLocaleDateString('th-TH', {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric',
-                        })}
-                      </TD>
-                      <TD className="text-right">
-                        {canEdit ? (
-                          <Link
-                            href={`/admin/settings/team/${m.id}/edit`}
-                            className="text-sm font-medium text-primary-600 hover:text-primary-700"
-                          >
-                            แก้ไข
-                          </Link>
-                        ) : (
-                          <span className="text-sm text-gray-400" title="ต้องเป็น Superadmin">
-                            อ่านอย่างเดียว
-                          </span>
-                        )}
-                      </TD>
-                    </TR>
-                  );
-                })}
-              </TBody>
-            </Table>
-          )}
-        </CardBody>
-      </Card>
-
-      <p className="mt-3 text-xs text-gray-500">
+      <p className="mt-3 text-xs text-ink-3">
         บัญชีที่ระงับแล้ว (archive) จะถูกซ่อนจากรายการนี้ — ติดต่อ Superadmin เพื่อกู้คืน
       </p>
     </div>
@@ -179,16 +185,5 @@ function RoleBadge({ role }: { role: 'Admin' | 'Superadmin' }) {
     <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
       Admin
     </span>
-  );
-}
-
-function EmptyState() {
-  return (
-    <div className="px-6 py-12 text-center">
-      <p className="text-sm text-gray-500">ยังไม่มีผู้ดูแล</p>
-      <Link href="/admin/settings/team/new" className="mt-3 inline-block">
-        <Button variant="secondary">+ เพิ่มผู้ดูแลคนแรก</Button>
-      </Link>
-    </div>
   );
 }
