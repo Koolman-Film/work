@@ -101,7 +101,7 @@ const SECTIONS: ReadonlyArray<{ label: string; items: ReadonlyArray<NavItem> }> 
   {
     label: 'การเงิน',
     items: [
-      { href: '/admin/payroll', label: 'เงินเดือน', Icon: FileText },
+      { href: '/admin/payroll', label: 'เงินเดือน', Icon: FileText, enabled: true },
       { href: '/admin/accounting', label: 'บัญชี', Icon: Calculator },
     ],
   },
