@@ -72,6 +72,7 @@ export async function createEmployee(formData: FormData) {
           baseSalary: new Prisma.Decimal(data.baseSalary),
           status: data.status,
           canCheckIn: data.canCheckIn,
+          hasSso: data.hasSso,
           hiredAt: data.hiredAt,
           photoKey: data.photoKey,
           dateOfBirth: data.dateOfBirth,
@@ -128,6 +129,7 @@ export async function createEmployee(formData: FormData) {
         baseSalary: data.baseSalary,
         status: data.status,
         canCheckIn: data.canCheckIn,
+        hasSso: data.hasSso,
         hiredAt: data.hiredAt.toISOString().slice(0, 10),
         dateOfBirth: data.dateOfBirth ? data.dateOfBirth.toISOString().slice(0, 10) : null,
         bankId: data.bankId,
@@ -185,6 +187,7 @@ export async function updateEmployee(id: string, formData: FormData) {
         baseSalary: new Prisma.Decimal(data.baseSalary),
         status: data.status,
         canCheckIn: data.canCheckIn,
+        hasSso: data.hasSso,
         hiredAt: data.hiredAt,
         photoKey: data.photoKey,
         dateOfBirth: data.dateOfBirth,
@@ -218,6 +221,7 @@ export async function updateEmployee(id: string, formData: FormData) {
         baseSalary: data.baseSalary,
         status: data.status,
         canCheckIn: data.canCheckIn,
+        hasSso: data.hasSso,
         hiredAt: data.hiredAt.toISOString().slice(0, 10),
         dateOfBirth: data.dateOfBirth ? data.dateOfBirth.toISOString().slice(0, 10) : null,
         bankId: data.bankId,
@@ -551,6 +555,7 @@ function serializableEmployee(e: {
   baseSalary: unknown;
   status: string;
   canCheckIn: boolean;
+  hasSso: boolean;
   hiredAt: Date;
   photoKey: string | null;
   dateOfBirth: Date | null;
@@ -571,6 +576,7 @@ function serializableEmployee(e: {
     baseSalary: String(e.baseSalary),
     status: e.status,
     canCheckIn: e.canCheckIn,
+    hasSso: e.hasSso,
     hiredAt: e.hiredAt.toISOString().slice(0, 10),
     hasPhoto: e.photoKey !== null,
     dateOfBirth: e.dateOfBirth ? e.dateOfBirth.toISOString().slice(0, 10) : null,
