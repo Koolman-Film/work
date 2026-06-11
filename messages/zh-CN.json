@@ -160,7 +160,8 @@
       "outstanding": "待扣款",
       "earned": "本期收入",
       "available": "可借支"
-    }
+    },
+    "payslipLink": "工资单"
   },
   "leave": {
     "list": {
@@ -432,5 +433,32 @@
       "Approved": "已批准",
       "Pending": "待审批"
     }
+  },
+  "payslip": {
+    "title": "工资单",
+    "thisMonth": "本月",
+    "prevMonth": "上个月",
+    "nextMonth": "下个月",
+    "empty": "本月工资单尚未发布",
+    "income": {
+      "title": "收入",
+      "base": "基本工资",
+      "other": "其他收入",
+      "total": "收入合计"
+    },
+    "deduct": {
+      "title": "扣款项目",
+      "sso": "社会保险",
+      "advance": "预支工资",
+      "attendance": "缺勤/迟到/早退",
+      "leave": "超额请假",
+      "debt": "借款/分期",
+      "other": "其他扣款",
+      "none": "无扣款项目",
+      "total": "扣款合计"
+    },
+    "net": "实发工资",
+    "backToSummary": "我的汇总",
+    "backToCheckin": "返回打卡页面"
   }
 }

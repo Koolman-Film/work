@@ -219,7 +219,13 @@ export default async function LiffSummaryPage({
         </dl>
       </section>
 
-      <nav className="flex justify-center text-xs">
+      <nav className="flex justify-center gap-4 text-xs">
+        <Link
+          href={`/liff/payslip?m=${month}`}
+          className="font-medium text-primary-700 hover:text-primary-800"
+        >
+          {t('payslipLink')}
+        </Link>
         <Link href="/liff/check-in" className="text-gray-500 hover:text-gray-700">
           {t('backToCheckin')}
         </Link>
