@@ -33,6 +33,12 @@ const config: NextConfig = {
   // Sentry, Prisma client, etc. should not be bundled into the edge runtime.
   // Next.js 16 uses Turbopack by default; this option is the cross-bundler way.
   // (@line/liff is browser-only and should only ever be imported in client components.)
+  // Ensure font files are included in the output trace for the PDF export
+  // route (created at src/app/(admin)/admin/reports/[report]/export/route.ts).
+  outputFileTracingIncludes: {
+    '/admin/reports/[report]/export': ['./src/lib/export/fonts/**'],
+  },
+
   serverExternalPackages: [
     '@prisma/client',
     'prisma',
