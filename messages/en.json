@@ -47,7 +47,8 @@
   "notifications": {
     "action": {
       "viewDetails": "View details",
-      "viewAttendance": "View check-in history"
+      "viewAttendance": "View check-in history",
+      "viewPayslip": "View payslip"
     },
     "label": {
       "duration": "Duration",
@@ -84,6 +85,11 @@
       "header": "Check-in rejected",
       "subtitle": "An admin did not confirm that check-in",
       "alt": "❌ Your check-in on {date} was rejected"
+    },
+    "payrollPublished": {
+      "header": "Payslip available",
+      "subtitle": "Payslip for {month}",
+      "alt": "💰 Your payslip for {month} is ready — net ฿{amount}"
     }
   },
   "checkin": {

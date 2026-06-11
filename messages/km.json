@@ -9,7 +9,15 @@
     "min": "{n} នាទី"
   },
   "notifications": {
-    "leaveApprovedDeduction": "ចំណាំ៖ ឈប់សម្រាកលើសសិទ្ធិ នឹងត្រូវកាត់ប្រាក់ {amount}"
+    "leaveApprovedDeduction": "ចំណាំ៖ ឈប់សម្រាកលើសសិទ្ធិ នឹងត្រូវកាត់ប្រាក់ {amount}",
+    "action": {
+      "viewPayslip": "មើលប័ណ្ណប្រាក់ខែ"
+    },
+    "payrollPublished": {
+      "header": "ប័ណ្ណប្រាក់ខែចេញហើយ",
+      "subtitle": "ប័ណ្ណប្រាក់ខែ {month}",
+      "alt": "💰 ប័ណ្ណប្រាក់ខែ {month} ចេញហើយ — សុទ្ធ ฿{amount}"
+    }
   },
   "pair": {
     "title": "ភ្ជាប់គណនី LINE",

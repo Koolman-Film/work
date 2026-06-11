@@ -9,7 +9,15 @@
     "min": "{n} 分钟"
   },
   "notifications": {
-    "leaveApprovedDeduction": "注意：请假超出额度，将从工资中扣除 {amount}"
+    "leaveApprovedDeduction": "注意：请假超出额度，将从工资中扣除 {amount}",
+    "action": {
+      "viewPayslip": "查看工资单"
+    },
+    "payrollPublished": {
+      "header": "工资单已发布",
+      "subtitle": "{month}工资单",
+      "alt": "💰 您{month}的工资单已发布 — 实发 ฿{amount}"
+    }
   },
   "pair": {
     "title": "绑定 LINE 账号",

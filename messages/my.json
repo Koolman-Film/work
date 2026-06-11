@@ -9,7 +9,15 @@
     "min": "{n} မိနစ်"
   },
   "notifications": {
-    "leaveApprovedDeduction": "မှတ်ချက် — သတ်မှတ်ခွင့်ထက်ကျော်သောကြောင့် လစာမှ {amount} ဖြတ်တောက်ပါမည်"
+    "leaveApprovedDeduction": "မှတ်ချက် — သတ်မှတ်ခွင့်ထက်ကျော်သောကြောင့် လစာမှ {amount} ဖြတ်တောက်ပါမည်",
+    "action": {
+      "viewPayslip": "လစာစလစ်ကြည့်ရန်"
+    },
+    "payrollPublished": {
+      "header": "လစာစလစ်ထွက်ပြီးပါပြီ",
+      "subtitle": "{month} လစာစလစ်",
+      "alt": "💰 {month} လစာစလစ်ထွက်ပါပြီ — အသားတင် ฿{amount}"
+    }
   },
   "pair": {
     "title": "LINE အကောင့် ချိတ်ဆက်ရန်",
