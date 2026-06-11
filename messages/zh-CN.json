@@ -129,6 +129,7 @@
     "title": "我的汇总",
     "prevMonth": "上个月",
     "nextMonth": "下个月",
+    "thisMonth": "本月",
     "backToCheckin": "返回打卡页",
     "attendance": {
       "title": "本月考勤",

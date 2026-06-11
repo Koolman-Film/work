@@ -346,9 +346,8 @@ export default function CheckInClient({
           </div>
         </section>
 
-        {/* Quick actions — 2×2 grid keeps tiles roomy on a 320px LIFF
-            screen. Profile sits last (bottom-right) so the existing 3
-            tiles' muscle memory stays put. */}
+        {/* Quick actions — 5-tile 2-col grid; Summary sits last so the
+            existing 4 tiles' muscle memory stays put. */}
         <section className="mt-6 grid grid-cols-2 gap-2.5">
           <a
             href="/liff/leave"
