@@ -94,7 +94,8 @@
       "leave": "📅 ຂໍລາພັກ",
       "advance": "💰 ຂໍເງິນລ່ວງໜ້າ",
       "calendar": "🗓️ ປະຕິທິນທີມ",
-      "profile": "👤 ໂປຣໄຟລ໌"
+      "profile": "👤 ໂປຣໄຟລ໌",
+      "summary": "📊 ສະຫຼຸບຂອງຂ້ອຍ"
     },
     "branches": {
       "heading": "ສາຂາທີ່ໄດ້ຮັບມອບໝາຍ"
@@ -122,6 +123,31 @@
       "gpsTooImprecise": "ສັນຍານ GPS ບໍ່ແມ່ນຍຳພໍ — ລອງອອກບ່ອນໂລ່ງ",
       "impossibleTravel": "ໄລຍະທາງແລະເວລາບໍ່ສອດຄ່ອງກັນ — ຕ້ອງກວດສອບ",
       "unknown": "ບໍ່ຮູ້ສາເຫດ"
+    }
+  },
+  "summary": {
+    "title": "ສະຫຼຸບຂອງຂ້ອຍ",
+    "prevMonth": "ເດືອນກ່ອນ",
+    "nextMonth": "ເດືອນຕໍ່ໄປ",
+    "backToCheckin": "ກັບໄປໜ້າລົງເວລາ",
+    "attendance": {
+      "title": "ການລົງເວລາເດືອນນີ້",
+      "late": "ມາຊ້າ",
+      "early": "ອອກກ່ອນ",
+      "absent": "ຂາດວຽກ",
+      "minutes": "{n} ນາທີ"
+    },
+    "leave": {
+      "title": "ວັນລາພັກ {year}",
+      "remaining": "ເຫຼືອ {d}",
+      "unlimited": "ບໍ່ຈຳກັດ",
+      "deducted": "ຫັກເງິນ {amount}"
+    },
+    "advance": {
+      "title": "ເບີກເງິນ",
+      "outstanding": "ຍອດຄ້າງຫັກ",
+      "earned": "ລາຍຮັບຮອບນີ້",
+      "available": "ເບີກໄດ້ອີກ"
     }
   },
   "leave": {

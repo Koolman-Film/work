@@ -94,7 +94,8 @@
       "leave": "📅 សំណើចំណាកការងារ",
       "advance": "💰 សំណើប្រាក់គ្រោង",
       "calendar": "🗓️ ប្រតិទិនក្រុម",
-      "profile": "👤 គណនី"
+      "profile": "👤 គណនី",
+      "summary": "📊 សង្ខេបរបស់ខ្ញុំ"
     },
     "branches": {
       "heading": "សាខាដែលបានចាត់តាំង"
@@ -122,6 +123,31 @@
       "gpsTooImprecise": "សញ្ញា GPS មិនច្បាស់គ្រប់គ្រាន់ — សូមសាកល្បងនៅទីវាល",
       "impossibleTravel": "ចម្ងាយ និងពេលវេលាមិនត្រូវគ្នា — ត្រូវការត្រួតពិនិត្យ",
       "unknown": "មិនដឹងមូលហេតុ"
+    }
+  },
+  "summary": {
+    "title": "សង្ខេបរបស់ខ្ញុំ",
+    "prevMonth": "ខែមុន",
+    "nextMonth": "ខែបន្ទាប់",
+    "backToCheckin": "ត្រឡប់ទៅទំព័រវត្តមាន",
+    "attendance": {
+      "title": "វត្តមានខែនេះ",
+      "late": "មកយឺត",
+      "early": "ចេញមុន",
+      "absent": "អវត្តមាន",
+      "minutes": "{n} នាទី"
+    },
+    "leave": {
+      "title": "ច្បាប់ឈប់ {year}",
+      "remaining": "នៅសល់ {d}",
+      "unlimited": "គ្មានកំណត់",
+      "deducted": "កាត់ប្រាក់ {amount}"
+    },
+    "advance": {
+      "title": "បើកប្រាក់មុន",
+      "outstanding": "នៅជំពាក់",
+      "earned": "ចំណូលរយៈពេលនេះ",
+      "available": "អាចបើកបាន"
     }
   },
   "leave": {

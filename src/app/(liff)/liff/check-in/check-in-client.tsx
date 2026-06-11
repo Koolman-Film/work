@@ -374,6 +374,12 @@ export default function CheckInClient({
           >
             {t('quickAction.profile')}
           </a>
+          <a
+            href="/liff/summary"
+            className="rounded-xl border border-gray-200 bg-white px-3 py-3 text-center text-sm font-medium text-gray-700 shadow-sm transition hover:border-primary-200 hover:text-primary-700"
+          >
+            {t('quickAction.summary')}
+          </a>
         </section>
 
         {/* Assigned branches list (helps employee orient themselves) */}

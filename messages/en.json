@@ -133,7 +133,8 @@
       "leave": "📅 Leave request",
       "advance": "💰 Cash advance",
       "calendar": "🗓️ Team calendar",
-      "profile": "👤 Profile"
+      "profile": "👤 Profile",
+      "summary": "📊 My summary"
     },
     "branches": {
       "heading": "Assigned branches"
@@ -161,6 +162,31 @@
       "gpsTooImprecise": "GPS signal not accurate enough — try an open area",
       "impossibleTravel": "Distance and time don't match — needs review",
       "unknown": "Unknown reason"
+    }
+  },
+  "summary": {
+    "title": "My summary",
+    "prevMonth": "Previous month",
+    "nextMonth": "Next month",
+    "backToCheckin": "Back to check-in",
+    "attendance": {
+      "title": "This month's attendance",
+      "late": "Late",
+      "early": "Left early",
+      "absent": "Absent",
+      "minutes": "{n} min"
+    },
+    "leave": {
+      "title": "Leave {year}",
+      "remaining": "{d} left",
+      "unlimited": "Unlimited",
+      "deducted": "{amount} deducted"
+    },
+    "advance": {
+      "title": "Advances",
+      "outstanding": "Outstanding",
+      "earned": "Earned this period",
+      "available": "Available"
     }
   },
   "leave": {

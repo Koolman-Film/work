@@ -133,7 +133,8 @@
       "leave": "📅 คำขอลา",
       "advance": "💰 ขอเบิก",
       "calendar": "🗓️ ปฏิทินทีม",
-      "profile": "👤 โปรไฟล์"
+      "profile": "👤 โปรไฟล์",
+      "summary": "📊 สรุปของฉัน"
     },
     "branches": {
       "heading": "สาขาที่ได้รับมอบหมาย"
@@ -161,6 +162,31 @@
       "gpsTooImprecise": "สัญญาณ GPS ไม่แม่นยำพอ — ลองออกที่โล่ง",
       "impossibleTravel": "ระยะทางและเวลาไม่สอดคล้องกัน — ต้องตรวจสอบ",
       "unknown": "ไม่ทราบสาเหตุ"
+    }
+  },
+  "summary": {
+    "title": "สรุปของฉัน",
+    "prevMonth": "เดือนก่อนหน้า",
+    "nextMonth": "เดือนถัดไป",
+    "backToCheckin": "กลับไปหน้าลงเวลา",
+    "attendance": {
+      "title": "การลงเวลาเดือนนี้",
+      "late": "มาสาย",
+      "early": "ออกก่อน",
+      "absent": "ขาดงาน",
+      "minutes": "{n} นาที"
+    },
+    "leave": {
+      "title": "วันลาปี {year}",
+      "remaining": "คงเหลือ {d}",
+      "unlimited": "ไม่จำกัด",
+      "deducted": "หักเงิน {amount}"
+    },
+    "advance": {
+      "title": "เบิกเงิน",
+      "outstanding": "ยอดค้างหัก",
+      "earned": "รายได้รอบนี้",
+      "available": "เบิกได้อีก"
     }
   },
   "leave": {

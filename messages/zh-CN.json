@@ -94,7 +94,8 @@
       "leave": "📅 请假申请",
       "advance": "💰 预支申请",
       "calendar": "🗓️ 团队日历",
-      "profile": "👤 个人资料"
+      "profile": "👤 个人资料",
+      "summary": "📊 我的汇总"
     },
     "branches": {
       "heading": "所分配的分店"
@@ -122,6 +123,31 @@
       "gpsTooImprecise": "GPS 信号不够精确 — 请到空旷处再试",
       "impossibleTravel": "距离与时间不符 — 需要审核",
       "unknown": "原因不明"
+    }
+  },
+  "summary": {
+    "title": "我的汇总",
+    "prevMonth": "上个月",
+    "nextMonth": "下个月",
+    "backToCheckin": "返回打卡页",
+    "attendance": {
+      "title": "本月考勤",
+      "late": "迟到",
+      "early": "早退",
+      "absent": "缺勤",
+      "minutes": "{n} 分钟"
+    },
+    "leave": {
+      "title": "{year} 年请假",
+      "remaining": "剩余 {d}",
+      "unlimited": "不限",
+      "deducted": "扣款 {amount}"
+    },
+    "advance": {
+      "title": "借支",
+      "outstanding": "待扣款",
+      "earned": "本期收入",
+      "available": "可借支"
     }
   },
   "leave": {
