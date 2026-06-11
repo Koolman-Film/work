@@ -141,14 +141,20 @@ export async function createRowAdjustment(formData: FormData) {
   back(month, `เพิ่ม${data.kind === 'Income' ? 'เงินเพิ่ม' : 'เงินลด'} "${data.reason}" และคำนวณใหม่แล้ว`);
 }
 
-/** Soft-delete from the row modal, then auto-recalc the month's Drafts. */
-export async function deleteRowAdjustment(formData: FormData) {
+/**
+ * Soft-delete from the row modal's ConfirmDialog, then auto-recalc the
+ * month's Drafts. Returns an ActionResult (no redirect) — ConfirmDialog
+ * shows `message` inline on failure and router.refresh()es on success.
+ */
+export async function deleteRowAdjustment(
+  id: string,
+  month: string,
+): Promise<{ ok: true } | { ok: false; message: string }> {
   const { user } = await requirePermission('payroll.run');
-  const month = readMonth(formData);
-  const id = String(formData.get('id') ?? '');
+  if (!MONTH_RE.test(month)) return { ok: false, message: 'เดือนไม่ถูกต้อง' };
 
   const before = await prisma.payrollAdjustment.findUnique({ where: { id } });
-  if (!before || before.deletedAt) back(month, 'ไม่พบรายการ');
+  if (!before || before.deletedAt) return { ok: false, message: 'ไม่พบรายการ' };
 
   await prisma.payrollAdjustment.update({ where: { id }, data: { deletedAt: new Date() } });
   auditLog({
@@ -168,8 +174,9 @@ export async function deleteRowAdjustment(formData: FormData) {
   });
 
   await runPayrollDraft(month);
+  revalidatePath('/admin/payroll');
   revalidatePath('/admin/payroll/adjustments');
-  back(month, `ลบรายการ "${before.reason}" และคำนวณใหม่แล้ว`);
+  return { ok: true };
 }
 
 export async function lockPayrollAction(formData: FormData) {
