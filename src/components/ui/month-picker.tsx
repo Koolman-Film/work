@@ -109,7 +109,7 @@ export function MonthPicker({ id, name, defaultValue, min, max, className }: Pro
         <div
           role="dialog"
           aria-label="เลือกเดือน"
-          className="absolute left-0 top-full z-30 mt-1 w-64 rounded-xl border border-gray-200 bg-white p-3 shadow-lg"
+          className="absolute left-0 top-full z-30 mt-1 w-64 rounded-xl border border-gray-200 bg-white p-3 text-left shadow-lg"
         >
           {/* Year navigator */}
           <div className="mb-2 flex items-center justify-between">
