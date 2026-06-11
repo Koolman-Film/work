@@ -30,6 +30,15 @@ describe('toCsv', () => {
     expect(csv).toContain('1234.5');
     expect(csv).not.toContain('฿');
   });
+  it('neutralizes formula-leading text cells but leaves numbers raw', () => {
+    const csv2 = toCsv({
+      ...table,
+      rows: [{ name: '=HYPERLINK("http://evil")', amount: -5 }],
+      totals: undefined,
+    });
+    expect(csv2).toContain(`"'=HYPERLINK(""http://evil"")"`);
+    expect(csv2).toContain('-5');
+  });
   it('includes header row and totals row', () => {
     const lines = csv.slice(1).split('\r\n');
     expect(lines[0]).toBe('พนักงาน,จำนวน');

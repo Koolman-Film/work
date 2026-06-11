@@ -3,7 +3,10 @@
 import type { ExportCell, ExportTable } from './export-table';
 
 function field(v: ExportCell): string {
-  const s = String(v);
+  let s = String(v);
+  // Formula-injection guard: a text cell starting with = + - @ would execute
+  // as a formula when the CSV is opened in Excel. Numbers stay raw.
+  if (typeof v === 'string' && /^[=+\-@]/.test(s)) s = `'${s}`;
   return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
