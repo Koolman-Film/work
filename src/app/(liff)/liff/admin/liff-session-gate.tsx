@@ -47,10 +47,12 @@ export function LiffSessionGate({ children }: { children: React.ReactNode }) {
       try {
         await liffBootstrap();
         if (cancelled) return;
-        // Session cookie just got written — re-render the server tree so
-        // requireLiffAdmin sees it and the real page replaces the 404.
-        router.refresh();
+        // Session cookie just got written — commit the ready state BEFORE
+        // the RSC refresh so a mid-refresh remount can't flash back to
+        // "checking", then re-render the server tree so requireLiffAdmin
+        // sees the session and the real page replaces the 404.
         setState('ready');
+        router.refresh();
       } catch (err) {
         if (cancelled) return;
         const e = err as LiffBootstrapError;
