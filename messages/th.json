@@ -48,13 +48,16 @@
     "action": {
       "viewDetails": "ดูรายละเอียด",
       "viewAttendance": "ดูประวัติเช็คอิน",
-      "viewPayslip": "ดูสลิปเงินเดือน"
+      "viewPayslip": "ดูสลิปเงินเดือน",
+      "review": "ตรวจสอบ",
+      "viewSlip": "ดูสลิป"
     },
     "label": {
       "duration": "ระยะเวลา",
       "workingDays": "วันทำงาน",
       "note": "หมายเหตุ",
-      "reason": "เหตุผล"
+      "reason": "เหตุผล",
+      "dates": "วันที่"
     },
     "workingDaysValue": "{days} วัน",
     "leaveApprovedDeduction": "หมายเหตุ: ลาเกินสิทธิ จะถูกหักเงิน {amount}",
@@ -90,6 +93,23 @@
       "header": "สลิปเงินเดือนออกแล้ว",
       "subtitle": "สลิปเงินเดือน {month}",
       "alt": "💰 สลิปเงินเดือน {month} ออกแล้ว — สุทธิ ฿{amount}"
+    },
+    "advancePaid": {
+      "header": "โอนเงินค่าเบิกแล้ว",
+      "subtitle": "แตะเพื่อดูสลิปการโอน",
+      "alt": "💸 โอนเงินค่าเบิก ฿{amount} แล้ว"
+    },
+    "adminLeaveSubmitted": {
+      "header": "คำขอลาใหม่",
+      "alt": "📥 {name} ยื่นคำขอลา"
+    },
+    "adminAdvanceSubmitted": {
+      "header": "คำขอเบิกใหม่",
+      "alt": "📥 {name} ขอเบิก ฿{amount}"
+    },
+    "adminDisputeSubmitted": {
+      "header": "รายการลงเวลารอตรวจสอบ",
+      "alt": "📥 {name} มีรายการลงเวลารอตรวจสอบ"
     }
   },
   "checkin": {
