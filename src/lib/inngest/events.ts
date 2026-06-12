@@ -22,7 +22,11 @@ export type NotificationKind =
   | 'advance.rejected'
   | 'attendance.dispute-approved'
   | 'attendance.dispute-rejected'
-  | 'payroll.published';
+  | 'payroll.published'
+  | 'advance.paid'
+  | 'admin.leave-submitted'
+  | 'admin.advance-submitted'
+  | 'admin.dispute-submitted';
 
 /**
  * Kind-specific payload shapes. Discriminated by `kind`.
@@ -84,6 +88,37 @@ export type NotificationPayload =
       /** Formatted string ("12,500.00") — preserves Decimal precision through
        *  Inngest's JSON serialisation, same convention as advance amounts. */
       netPay: string;
+    }
+  | {
+      kind: 'advance.paid';
+      cashAdvanceId: string;
+      employeeFirstName: string;
+      /** Formatted string ("12,500.00") — same Decimal convention. */
+      amount: string;
+    }
+  | {
+      kind: 'admin.leave-submitted';
+      leaveRequestId: string;
+      employeeName: string;
+      leaveTypeName: string;
+      /** YYYY-MM-DD */
+      startDate: string;
+      /** YYYY-MM-DD */
+      endDate: string;
+    }
+  | {
+      kind: 'admin.advance-submitted';
+      cashAdvanceId: string;
+      employeeName: string;
+      amount: string;
+    }
+  | {
+      kind: 'admin.dispute-submitted';
+      attendanceId: string;
+      employeeName: string;
+      /** YYYY-MM-DD */
+      date: string;
+      reason: string;
     };
 
 export type NotificationSendEvent = {
@@ -107,7 +142,18 @@ function notificationIdempotencyKey(payload: NotificationPayload): string {
       return `notif:${payload.kind}:${payload.leaveRequestId}`;
     case 'advance.approved':
     case 'advance.rejected':
+    // advance.paid re-fires when an admin re-uploads the transfer slip —
+    // within Inngest's ~24h dedupe window the second push is dropped.
+    // Intentional: the employee already got "paid" for that advance.
+    // (key includes the recipientUserId suffix — still deterministic for
+    // single-recipient worker kinds)
+    case 'advance.paid':
+    case 'admin.advance-submitted':
       return `notif:${payload.kind}:${payload.cashAdvanceId}`;
+    case 'admin.leave-submitted':
+      return `notif:${payload.kind}:${payload.leaveRequestId}`;
+    case 'admin.dispute-submitted':
+      return `notif:${payload.kind}:${payload.attendanceId}`;
     case 'attendance.dispute-approved':
     case 'attendance.dispute-rejected':
       return `notif:${payload.kind}:${payload.attendanceId}`;
@@ -121,13 +167,22 @@ function notificationIdempotencyKey(payload: NotificationPayload): string {
  * has acknowledged ingestion (typically <100ms). Caller doesn't wait
  * for the actual push to complete — that happens asynchronously in
  * the Inngest function with retries.
+ *
+ * NOTE — dedup window on deploy: the event-id format changed (recipient
+ * suffix appended) so the 24h dedup window effectively resets at deploy
+ * for in-flight worker notifications — a narrow duplicate-push window,
+ * accepted.
  */
 export async function sendNotification(
   recipientUserId: string,
   payload: NotificationPayload,
 ): Promise<void> {
   await inngest.send({
-    id: notificationIdempotencyKey(payload),
+    // Recipient suffix is required for admin fan-out: the same entity is
+    // pushed to N admins, and without it Inngest would dedupe them down to
+    // one event. Harmless for worker kinds (single recipient → same
+    // semantics as before).
+    id: `${notificationIdempotencyKey(payload)}:${recipientUserId}`,
     name: 'notification.send',
     data: { ...payload, recipientUserId },
   });

@@ -11,12 +11,34 @@
   "notifications": {
     "leaveApprovedDeduction": "ໝາຍເຫດ: ລາພັກເກີນສິດທິ ຈະຖືກຫັກເງິນ {amount}",
     "action": {
-      "viewPayslip": "ເບິ່ງໃບເງິນເດືອນ"
+      "viewPayslip": "ເບິ່ງໃບເງິນເດືອນ",
+      "review": "ກວດສອບ",
+      "viewSlip": "ເບິ່ງສະລິບ"
     },
     "payrollPublished": {
       "header": "ໃບເງິນເດືອນອອກແລ້ວ",
       "subtitle": "ໃບເງິນເດືອນ {month}",
       "alt": "💰 ໃບເງິນເດືອນ {month} ອອກແລ້ວ — ສຸດທິ ฿{amount}"
+    },
+    "label": {
+      "dates": "ວັນທີ"
+    },
+    "advancePaid": {
+      "header": "ໂອນເງິນເບີກລ່ວງໜ້າແລ້ວ",
+      "subtitle": "ແຕະເພື່ອເບິ່ງສະລິບການໂອນ",
+      "alt": "💸 ໂອນເງິນເບີກລ່ວງໜ້າ ฿{amount} ແລ້ວ"
+    },
+    "adminLeaveSubmitted": {
+      "header": "ຄຳຂໍລາພັກໃໝ່",
+      "alt": "📥 {name} ຍື່ນຄຳຂໍລາພັກ"
+    },
+    "adminAdvanceSubmitted": {
+      "header": "ຄຳຂໍເບີກໃໝ່",
+      "alt": "📥 {name} ຂໍເບີກ ฿{amount}"
+    },
+    "adminDisputeSubmitted": {
+      "header": "ລາຍການລົງເວລາລໍຖ້າກວດສອບ",
+      "alt": "📥 {name} ມີລາຍການລົງເວລາລໍຖ້າກວດສອບ"
     }
   },
   "pair": {
@@ -333,7 +355,9 @@
       "notDeducted": "ຍັງບໍ່ຫັກ — ງວດຖັດໄປ",
       "receiptHeading": "ໃບຮັບເງິນ",
       "receiptAlt": "ໃບຮັບເງິນ",
-      "receiptFullSize": "ເປີດຂະໜາດເຕັມ →"
+      "receiptFullSize": "ເປີດຂະໜາດເຕັມ →",
+      "paid": "ໂອນເງິນແລ້ວ",
+      "slip": "ສະຫຼິບການໂອນ"
     },
     "actions": {
       "cancelRequest": "ຍົກເລີກຄຳຂໍ",

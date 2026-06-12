@@ -11,12 +11,34 @@
   "notifications": {
     "leaveApprovedDeduction": "ចំណាំ៖ ឈប់សម្រាកលើសសិទ្ធិ នឹងត្រូវកាត់ប្រាក់ {amount}",
     "action": {
-      "viewPayslip": "មើលប័ណ្ណប្រាក់ខែ"
+      "viewPayslip": "មើលប័ណ្ណប្រាក់ខែ",
+      "review": "ត្រួតពិនិត្យ",
+      "viewSlip": "មើលប័ណ្ណ"
     },
     "payrollPublished": {
       "header": "ប័ណ្ណប្រាក់ខែចេញហើយ",
       "subtitle": "ប័ណ្ណប្រាក់ខែ {month}",
       "alt": "💰 ប័ណ្ណប្រាក់ខែ {month} ចេញហើយ — សុទ្ធ ฿{amount}"
+    },
+    "label": {
+      "dates": "កាលបរិច្ឆេទ"
+    },
+    "advancePaid": {
+      "header": "បានផ្ទេរប្រាក់បុរេប្រទាន",
+      "subtitle": "ចុចដើម្បីមើលប័ណ្ណផ្ទេរប្រាក់",
+      "alt": "💸 ប្រាក់បុរេប្រទាន ฿{amount} ត្រូវបានផ្ទេររួចរាល់"
+    },
+    "adminLeaveSubmitted": {
+      "header": "សំណើច្បាប់ឈប់សម្រាកថ្មី",
+      "alt": "📥 {name} បានដាក់សំណើច្បាប់ឈប់សម្រាក"
+    },
+    "adminAdvanceSubmitted": {
+      "header": "សំណើប្រាក់បុរេប្រទានថ្មី",
+      "alt": "📥 {name} បានស្នើសុំ ฿{amount}"
+    },
+    "adminDisputeSubmitted": {
+      "header": "កំណត់ត្រាវត្តមានរង់ចាំត្រួតពិនិត្យ",
+      "alt": "📥 {name} មានកំណត់ត្រាវត្តមានត្រូវត្រួតពិនិត្យ"
     }
   },
   "pair": {
@@ -333,7 +355,9 @@
       "notDeducted": "មិនទាន់កាត់ — ខែក្រោយ",
       "receiptHeading": "វិក្កយបត្រ",
       "receiptAlt": "វិក្កយបត្រ",
-      "receiptFullSize": "មើលទំហំពេញ →"
+      "receiptFullSize": "មើលទំហំពេញ →",
+      "paid": "បានផ្ទេរប្រាក់រួចហើយ",
+      "slip": "ប័ណ្ណផ្ទេរប្រាក់"
     },
     "actions": {
       "cancelRequest": "បោះបង់សំណើ",

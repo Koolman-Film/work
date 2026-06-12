@@ -24,6 +24,7 @@ import { auditLog, auditLogTx } from '@/lib/audit/log';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { sendNotification } from '@/lib/inngest/events';
+import { notifyAdminsOnLine } from '@/lib/notifications/admin-line';
 import { notifyAdminsInApp } from '@/lib/notifications/in-app-bell';
 
 /** Format Prisma.Decimal as a human-friendly currency string for Flex
@@ -288,6 +289,110 @@ export async function rejectCashAdvance(input: RejectInput): Promise<RejectAdvan
   }
 }
 
+export type MarkPaidResult =
+  | { ok: true }
+  | { ok: false; code: 'forbidden' | 'not-found' | 'not-approved' | 'db-error'; message: string };
+
+/**
+ * Two-step payment, step 2: admin transferred the money and attaches the
+ * slip. Requires status=Approved (slip before approval makes no sense;
+ * the approve flow's optional receiptUrl still exists for the legacy
+ * one-shot web path). paidAt is set ONCE; re-upload replaces the image only.
+ */
+export async function markAdvancePaid(input: {
+  cashAdvanceId: string;
+  receiptKey: string;
+}): Promise<MarkPaidResult> {
+  const { user, authUserId } = await requirePermission('advance.approve');
+
+  const key = input.receiptKey.trim();
+  if (!/^https?:\/\//i.test(key) && !key.startsWith(`${authUserId}/advance-receipts/`)) {
+    return { ok: false, code: 'forbidden', message: 'ลิงก์สลิปไม่ถูกต้อง' };
+  }
+
+  const headerList = await headers();
+  const ip =
+    headerList.get('x-forwarded-for')?.split(',')[0]?.trim() ??
+    headerList.get('x-real-ip') ??
+    undefined;
+  const userAgent = headerList.get('user-agent') ?? undefined;
+
+  const notifBox: {
+    data: { recipientUserId: string; employeeFirstName: string; amount: string } | null;
+  } = { data: null };
+
+  try {
+    const result = await prisma.$transaction<MarkPaidResult>(async (tx) => {
+      // findUnique bypasses the soft-delete extension — explicit filter required,
+      // see src/lib/db/soft-delete-extension.ts
+      const row = await tx.cashAdvance.findUnique({
+        where: { id: input.cashAdvanceId, deletedAt: null },
+        select: {
+          id: true,
+          status: true,
+          amount: true,
+          paidAt: true,
+          receiptUrl: true,
+          isDeducted: true,
+          employee: { select: { firstName: true, userId: true } },
+        },
+      });
+      if (!row) {
+        return { ok: false as const, code: 'not-found' as const, message: 'ไม่พบคำขอเบิก' };
+      }
+      if (row.status !== 'Approved') {
+        return {
+          ok: false as const,
+          code: 'not-approved' as const,
+          message: 'แนบสลิปได้เฉพาะคำขอที่อนุมัติแล้ว',
+        };
+      }
+
+      const firstAttach = row.paidAt === null;
+      await tx.cashAdvance.update({
+        where: { id: row.id },
+        data: { receiptUrl: key, ...(firstAttach ? { paidAt: new Date() } : {}) },
+      });
+
+      await auditLogTx(tx, {
+        actorId: user.id,
+        action: 'advance.mark-paid',
+        entityType: 'CashAdvance',
+        entityId: row.id,
+        before: { receiptUrl: row.receiptUrl, paidAt: row.paidAt?.toISOString() ?? null },
+        after: { receiptUrl: key, paidAt: firstAttach ? 'now' : row.paidAt?.toISOString() },
+        metadata: { ip, userAgent, source: 'liff-admin' },
+      });
+
+      // Populate notifBox only when this is the first attach AND the advance
+      // has not yet been swept by payroll. Sending a "โอนเงินแล้ว" push months
+      // after payroll already deducted the amount would be misleading — the slip
+      // is archived silently in that case.
+      if (firstAttach && !row.isDeducted) {
+        notifBox.data = {
+          recipientUserId: row.employee.userId,
+          employeeFirstName: row.employee.firstName,
+          amount: formatAmount(row.amount),
+        };
+      }
+      return { ok: true as const };
+    });
+
+    if (result.ok && notifBox.data) {
+      await sendNotification(notifBox.data.recipientUserId, {
+        kind: 'advance.paid',
+        cashAdvanceId: input.cashAdvanceId,
+        employeeFirstName: notifBox.data.employeeFirstName,
+        amount: notifBox.data.amount,
+      });
+    }
+    return result;
+  } catch (err) {
+    console.error('[markAdvancePaid] tx failed', err);
+    return { ok: false, code: 'db-error', message: 'ระบบขัดข้อง กรุณาลองใหม่อีกครั้ง' };
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Admin "record a cash-advance request on behalf of an employee".
 //
@@ -410,6 +515,13 @@ export async function adminCreateCashAdvance(
     // (the worker LIFF submit does the same). Fire-and-forget.
     void notifyAdminsInApp({
       kind: 'advance.submitted',
+      cashAdvanceId: created.id,
+      employeeName: employeeBellName(employee),
+      amount: formatAmount(input.amount),
+    });
+    // LINE push to paired admins — same fire-and-forget contract.
+    void notifyAdminsOnLine({
+      kind: 'admin.advance-submitted',
       cashAdvanceId: created.id,
       employeeName: employeeBellName(employee),
       amount: formatAmount(input.amount),

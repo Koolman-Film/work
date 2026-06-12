@@ -1,6 +1,11 @@
 import { SignJWT } from 'jose';
 import { describe, expect, it } from 'vitest';
-import { mintPairingToken, verifyPairingToken } from './token';
+import {
+  mintAdminPairingToken,
+  mintPairingToken,
+  verifyAdminPairingToken,
+  verifyPairingToken,
+} from './token';
 
 const TEST_EMPLOYEE_ID = '00000000-0000-4000-8000-000000000001';
 
@@ -139,5 +144,36 @@ describe('verifyPairingToken — algorithm pinning', () => {
       .sign(secret);
 
     await expect(verifyPairingToken(hs512)).rejects.toThrow();
+  });
+});
+
+describe('admin pairing tokens', () => {
+  const TEST_USER_ID = '00000000-0000-4000-8000-0000000000aa';
+  it('round-trips: mintAdminPairingToken → verifyAdminPairingToken produces the userId', async () => {
+    const { token } = await mintAdminPairingToken(TEST_USER_ID);
+    const payload = await verifyAdminPairingToken(token);
+    expect(payload.userId).toBe(TEST_USER_ID);
+  });
+
+  it('returns an expiresAt ~1h from now', async () => {
+    const before = Date.now();
+    const { expiresAt } = await mintAdminPairingToken(TEST_USER_ID);
+    const after = Date.now();
+    expect(expiresAt.getTime()).toBeGreaterThanOrEqual(before + 60 * 60 * 1000 - 1000);
+    expect(expiresAt.getTime()).toBeLessThanOrEqual(after + 60 * 60 * 1000 + 1000);
+  });
+
+  it('rejects an employee-pair token in the admin verifier (scope mismatch)', async () => {
+    const { token } = await mintPairingToken(TEST_USER_ID);
+    await expect(verifyAdminPairingToken(token)).rejects.toThrow();
+  });
+
+  it('rejects an admin-pair token in the employee verifier (scope mismatch)', async () => {
+    const { token } = await mintAdminPairingToken(TEST_USER_ID);
+    await expect(verifyPairingToken(token)).rejects.toThrow();
+  });
+
+  it('rejects tampered tokens', async () => {
+    await expect(verifyAdminPairingToken('not-a-jwt')).rejects.toThrow();
   });
 });

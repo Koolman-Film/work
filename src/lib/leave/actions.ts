@@ -35,6 +35,7 @@ import { getTranslations } from 'next-intl/server';
 import { auditLog } from '@/lib/audit/log';
 import { requireRole } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
+import { notifyAdminsOnLine } from '@/lib/notifications/admin-line';
 import { notifyAdminsInApp } from '@/lib/notifications/in-app-bell';
 import { getLeaveConfig } from './leave-config';
 import { type LeaveUnit, segmentFor, segmentsOverlap } from './units';
@@ -275,6 +276,15 @@ export async function submitLeaveRequest(input: SubmitInput): Promise<SubmitLeav
     // a notification write hiccuped.
     void notifyAdminsInApp({
       kind: 'leave.submitted',
+      leaveRequestId: created.id,
+      employeeName: employeeDisplayName(employee),
+      leaveTypeName: lt.name,
+      startDate: input.startDate,
+      endDate: input.endDate,
+    });
+    // LINE push to paired admins — same fire-and-forget contract.
+    void notifyAdminsOnLine({
+      kind: 'admin.leave-submitted',
       leaveRequestId: created.id,
       employeeName: employeeDisplayName(employee),
       leaveTypeName: lt.name,

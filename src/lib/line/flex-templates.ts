@@ -37,6 +37,7 @@ type FlexBoxComponent = NonNullable<FlexBox['contents']>[number];
 const PRIMARY = '#2563eb';
 const GREEN = '#16a34a';
 const RED = '#dc2626';
+const ORANGE = '#d97706';
 const TEXT_DARK = '#1f2937';
 const TEXT_MUTED = '#6b7280';
 
@@ -214,6 +215,70 @@ export function buildFlexMessage(
       });
       break;
     }
+
+    case 'advance.paid':
+      altText = t('advancePaid.alt', { amount: payload.amount });
+      bubble = approvedRejectedBubble({
+        accent: GREEN,
+        headerEmoji: '💸',
+        headerText: t('advancePaid.header'),
+        title: `฿${payload.amount}`,
+        subtitle: t('advancePaid.subtitle'),
+        details: [],
+        actionLabel: t('action.viewSlip'),
+        actionUri: `${appBaseUrl}/liff/advance/${payload.cashAdvanceId}`,
+      });
+      break;
+
+    case 'admin.leave-submitted':
+      altText = t('adminLeaveSubmitted.alt', { name: payload.employeeName });
+      bubble = approvedRejectedBubble({
+        accent: ORANGE,
+        headerEmoji: '📥',
+        headerText: t('adminLeaveSubmitted.header'),
+        title: payload.employeeName,
+        subtitle: payload.leaveTypeName,
+        details: [
+          {
+            label: t('label.dates'),
+            value: fmtDateRange(payload.startDate, payload.endDate, locale),
+          },
+        ],
+        actionLabel: t('action.review'),
+        actionUri: `${appBaseUrl}/liff/admin/leave/${payload.leaveRequestId}`,
+      });
+      break;
+
+    case 'admin.advance-submitted':
+      altText = t('adminAdvanceSubmitted.alt', {
+        name: payload.employeeName,
+        amount: payload.amount,
+      });
+      bubble = approvedRejectedBubble({
+        accent: ORANGE,
+        headerEmoji: '📥',
+        headerText: t('adminAdvanceSubmitted.header'),
+        title: `฿${payload.amount}`,
+        subtitle: payload.employeeName,
+        details: [],
+        actionLabel: t('action.review'),
+        actionUri: `${appBaseUrl}/liff/admin/advance/${payload.cashAdvanceId}`,
+      });
+      break;
+
+    case 'admin.dispute-submitted':
+      altText = t('adminDisputeSubmitted.alt', { name: payload.employeeName });
+      bubble = approvedRejectedBubble({
+        accent: ORANGE,
+        headerEmoji: '📥',
+        headerText: t('adminDisputeSubmitted.header'),
+        title: payload.employeeName,
+        subtitle: fmtDate(payload.date, locale),
+        details: [{ label: t('label.reason'), value: payload.reason }],
+        actionLabel: t('action.review'),
+        actionUri: `${appBaseUrl}/liff/admin/inbox`,
+      });
+      break;
   }
 
   return { type: 'flex', altText, contents: bubble };
