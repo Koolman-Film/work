@@ -34,7 +34,7 @@ const PROTECTED_PREFIXES = ['/admin', '/owner', '/liff'];
 //   (requireLiffAdmin → 404 without a session) while the admin layout's
 //   LiffSessionGate runs liffBootstrap() and refreshes — a /login redirect
 //   here would break that handshake.
-const PUBLIC_INSIDE_PROTECTED: string[] = ['/liff/pair', '/liff/admin'];
+const PUBLIC_INSIDE_PROTECTED: string[] = ['/liff/pair', '/liff/pair-admin', '/liff/admin'];
 
 // Routes that should bounce a logged-in user elsewhere (auth screens)
 const AUTH_PREFIXES = ['/login', '/reset-password', '/update-password'];
