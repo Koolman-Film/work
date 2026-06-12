@@ -48,13 +48,16 @@
     "action": {
       "viewDetails": "View details",
       "viewAttendance": "View check-in history",
-      "viewPayslip": "View payslip"
+      "viewPayslip": "View payslip",
+      "review": "Review",
+      "viewSlip": "View slip"
     },
     "label": {
       "duration": "Duration",
       "workingDays": "Working days",
       "note": "Note",
-      "reason": "Reason"
+      "reason": "Reason",
+      "dates": "Dates"
     },
     "workingDaysValue": "{days} days",
     "leaveApprovedDeduction": "Note: over-quota leave — {amount} will be deducted from your pay",
@@ -90,6 +93,23 @@
       "header": "Payslip available",
       "subtitle": "Payslip for {month}",
       "alt": "💰 Your payslip for {month} is ready — net ฿{amount}"
+    },
+    "advancePaid": {
+      "header": "Advance paid",
+      "subtitle": "Tap to view the transfer slip",
+      "alt": "💸 Advance ฿{amount} has been transferred"
+    },
+    "adminLeaveSubmitted": {
+      "header": "New leave request",
+      "alt": "📥 {name} submitted a leave request"
+    },
+    "adminAdvanceSubmitted": {
+      "header": "New advance request",
+      "alt": "📥 {name} requested ฿{amount}"
+    },
+    "adminDisputeSubmitted": {
+      "header": "Attendance dispute",
+      "alt": "📥 {name} has an attendance entry to review"
     }
   },
   "checkin": {
@@ -370,7 +390,9 @@
       "notDeducted": "Pending — next payroll",
       "receiptHeading": "Receipt",
       "receiptAlt": "Receipt",
-      "receiptFullSize": "View full size →"
+      "receiptFullSize": "View full size →",
+      "paid": "Paid",
+      "slip": "Transfer slip"
     },
     "actions": {
       "cancelRequest": "Cancel request",

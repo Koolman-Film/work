@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2500" height="1686" viewBox="0 0 2500 1686">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1e3a8a"/>
+      <stop offset="1" stop-color="#172554"/>
+    </linearGradient>
+  </defs>
+  <rect width="2500" height="1686" fill="url(#bg)"/>
+  <!-- column dividers -->
+  <rect x="831" y="120" width="4" height="1446" fill="#ffffff" opacity="0.25"/>
+  <rect x="1664" y="120" width="4" height="1446" fill="#ffffff" opacity="0.25"/>
+
+  <!-- col 1: inbox -->
+  <circle cx="417" cy="660" r="170" fill="#ffffff" opacity="0.12"/>
+  <text x="417" y="730" font-family="Helvetica, Arial, sans-serif" font-size="190" text-anchor="middle">📥</text>
+  <text x="417" y="1010" font-family="Helvetica, Arial, sans-serif" font-size="96" font-weight="bold" fill="#ffffff" text-anchor="middle">กล่องงานรออนุมัติ</text>
+  <text x="417" y="1120" font-family="Helvetica, Arial, sans-serif" font-size="56" fill="#bfdbfe" text-anchor="middle">ลา • เบิก • ลงเวลา</text>
+
+  <!-- col 2: awaiting slip -->
+  <circle cx="1250" cy="660" r="170" fill="#ffffff" opacity="0.12"/>
+  <text x="1250" y="730" font-family="Helvetica, Arial, sans-serif" font-size="190" text-anchor="middle">🧾</text>
+  <text x="1250" y="1010" font-family="Helvetica, Arial, sans-serif" font-size="96" font-weight="bold" fill="#ffffff" text-anchor="middle">รอแนบสลิป</text>
+  <text x="1250" y="1120" font-family="Helvetica, Arial, sans-serif" font-size="56" fill="#bfdbfe" text-anchor="middle">แนบสลิปโอนเงินค่าเบิก</text>
+
+  <!-- col 3: open admin web -->
+  <circle cx="2083" cy="660" r="170" fill="#ffffff" opacity="0.12"/>
+  <text x="2083" y="730" font-family="Helvetica, Arial, sans-serif" font-size="190" text-anchor="middle">🖥️</text>
+  <text x="2083" y="1010" font-family="Helvetica, Arial, sans-serif" font-size="96" font-weight="bold" fill="#ffffff" text-anchor="middle">เปิดเว็บแอดมิน</text>
+  <text x="2083" y="1120" font-family="Helvetica, Arial, sans-serif" font-size="56" fill="#bfdbfe" text-anchor="middle">ระบบจัดการเต็มรูปแบบ</text>
+
+  <text x="1250" y="1620" font-family="Helvetica, Arial, sans-serif" font-size="44" fill="#93c5fd" opacity="0.7" text-anchor="middle">PLACEHOLDER — replace with final design</text>
+</svg>

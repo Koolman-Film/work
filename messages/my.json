@@ -11,12 +11,34 @@
   "notifications": {
     "leaveApprovedDeduction": "မှတ်ချက် — သတ်မှတ်ခွင့်ထက်ကျော်သောကြောင့် လစာမှ {amount} ဖြတ်တောက်ပါမည်",
     "action": {
-      "viewPayslip": "လစာစလစ်ကြည့်ရန်"
+      "viewPayslip": "လစာစလစ်ကြည့်ရန်",
+      "review": "စစ်ဆေးရန်",
+      "viewSlip": "စလစ်ကြည့်ရန်"
     },
     "payrollPublished": {
       "header": "လစာစလစ်ထွက်ပြီးပါပြီ",
       "subtitle": "{month} လစာစလစ်",
       "alt": "💰 {month} လစာစလစ်ထွက်ပါပြီ — အသားတင် ฿{amount}"
+    },
+    "label": {
+      "dates": "ရက်စွဲများ"
+    },
+    "advancePaid": {
+      "header": "ကြိုတင်ထုတ်ငွေ လွှဲပြီးပါပြီ",
+      "subtitle": "ငွေလွှဲစလစ်ကြည့်ရန် နှိပ်ပါ",
+      "alt": "💸 ကြိုတင်ထုတ်ငွေ ฿{amount} လွှဲပြီးပါပြီ"
+    },
+    "adminLeaveSubmitted": {
+      "header": "ခွင့်တောင်းဆိုမှုအသစ်",
+      "alt": "📥 {name} က ခွင့်တောင်းဆိုမှု တင်သွင်းခဲ့သည်"
+    },
+    "adminAdvanceSubmitted": {
+      "header": "ကြိုတင်ထုတ်ငွေ တောင်းဆိုမှုအသစ်",
+      "alt": "📥 {name} က ฿{amount} တောင်းဆိုခဲ့သည်"
+    },
+    "adminDisputeSubmitted": {
+      "header": "စစ်ဆေးရန် အချိန်မှတ်တမ်း",
+      "alt": "📥 {name} တွင် စစ်ဆေးရန် အချိန်မှတ်တမ်းရှိသည်"
     }
   },
   "pair": {
@@ -333,7 +355,9 @@
       "notDeducted": "မနုတ်ရသေးပါ — နောက်လစာ",
       "receiptHeading": "ငွေတွေ့ဆုံချက်",
       "receiptAlt": "ငွေတွေ့ဆုံချက်",
-      "receiptFullSize": "အပြည့်အဝ ကြည့်ရန် →"
+      "receiptFullSize": "အပြည့်အဝ ကြည့်ရန် →",
+      "paid": "ငွေလွှဲပြီးပါပြီ",
+      "slip": "ငွေလွှဲပြေစာ"
     },
     "actions": {
       "cancelRequest": "တောင်းဆိုမှု ပယ်ဖျက်ရန်",

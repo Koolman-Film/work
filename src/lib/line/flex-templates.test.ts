@@ -97,7 +97,65 @@ const allKinds = [
     employeeFirstName: 'Aung',
     netPay: '28,500.00',
   },
+  {
+    kind: 'advance.paid' as const,
+    cashAdvanceId: 'a3',
+    employeeFirstName: 'Aung',
+    amount: '3,000.00',
+  },
+  {
+    kind: 'admin.leave-submitted' as const,
+    leaveRequestId: 'r9',
+    employeeName: 'Aung Min',
+    leaveTypeName: 'ลาป่วย',
+    startDate: '2026-06-15',
+    endDate: '2026-06-16',
+  },
+  {
+    kind: 'admin.advance-submitted' as const,
+    cashAdvanceId: 'a9',
+    employeeName: 'Aung Min',
+    amount: '2,000.00',
+  },
+  {
+    kind: 'admin.dispute-submitted' as const,
+    attendanceId: 'at9',
+    employeeName: 'Aung Min',
+    date: '2026-06-10',
+    reason: 'ลืมเช็คอิน',
+  },
 ];
+
+const footerActionUri = (m: messagingApi.FlexMessage): string => {
+  const b = m.contents as Bubble;
+  const footer = b.footer as messagingApi.FlexBox;
+  const button = footer.contents?.[0] as messagingApi.FlexButton;
+  return (button.action as messagingApi.URIAction).uri ?? '';
+};
+
+describe('buildFlexMessage new kinds (advance.paid + admin.*)', () => {
+  it('advance.paid deep-links to the advance LIFF page with a green header', () => {
+    const m = buildFlexMessage(allKinds[7] as (typeof allKinds)[number], 'https://x', 'th');
+    expect(footerActionUri(m)).toBe('https://x/liff/advance/a3');
+    const header = (m.contents as Bubble).header as messagingApi.FlexBox;
+    expect(header.backgroundColor).toBe('#16a34a');
+  });
+
+  it('admin.leave-submitted deep-links to the admin leave review page', () => {
+    const m = buildFlexMessage(allKinds[8] as (typeof allKinds)[number], 'https://x', 'th');
+    expect(footerActionUri(m)).toBe('https://x/liff/admin/leave/r9');
+  });
+
+  it('admin.advance-submitted deep-links to the admin advance review page', () => {
+    const m = buildFlexMessage(allKinds[9] as (typeof allKinds)[number], 'https://x', 'th');
+    expect(footerActionUri(m)).toBe('https://x/liff/admin/advance/a9');
+  });
+
+  it('admin.dispute-submitted deep-links to the admin inbox', () => {
+    const m = buildFlexMessage(allKinds[10] as (typeof allKinds)[number], 'https://x', 'th');
+    expect(footerActionUri(m)).toBe('https://x/liff/admin/inbox');
+  });
+});
 
 describe('buildFlexMessage payroll.published', () => {
   it('shows net pay and deep-links to the LIFF payslip for the month', () => {
@@ -114,7 +172,7 @@ describe('buildFlexMessage payroll.published', () => {
 });
 
 describe('buildFlexMessage covers every kind without missing keys', () => {
-  for (const locale of ['th', 'en'] as const) {
+  for (const locale of ['th', 'en', 'my', 'zh-CN'] as const) {
     for (const payload of allKinds) {
       it(`${payload.kind} renders resolved chrome in ${locale}`, () => {
         const m = buildFlexMessage(payload, 'https://x', locale);
