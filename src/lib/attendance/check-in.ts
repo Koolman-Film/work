@@ -38,6 +38,7 @@ import { getTranslations } from 'next-intl/server';
 import { auditLogTx } from '@/lib/audit/log';
 import { requireRole } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
+import { notifyAdminsOnLine } from '@/lib/notifications/admin-line';
 import { notifyAdminsInApp } from '@/lib/notifications/in-app-bell';
 import { bangkokDateUtcMidnight } from './date';
 import { type CheckInPoint, disputeReasonText, evaluateCheckIn } from './evaluate';
@@ -301,6 +302,14 @@ export async function submitCheckIn(input: SubmitCheckInInput): Promise<SubmitCh
   if (verdict.status === 'Disputed' && attendanceBox.id) {
     void notifyAdminsInApp({
       kind: 'attendance.disputed',
+      attendanceId: attendanceBox.id,
+      employeeName: employeeDisplayName(employee),
+      date: bangkokDateString(now),
+      reason: disputeReason ?? 'unknown',
+    });
+    // LINE push to paired admins — same fire-and-forget contract.
+    void notifyAdminsOnLine({
+      kind: 'admin.dispute-submitted',
       attendanceId: attendanceBox.id,
       employeeName: employeeDisplayName(employee),
       date: bangkokDateString(now),
