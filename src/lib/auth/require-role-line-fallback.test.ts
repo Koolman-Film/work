@@ -112,6 +112,32 @@ describe('requireRole — custom:line identity fallback', () => {
     expect(mockedFindUnique).toHaveBeenCalledTimes(1);
   });
 
+  it('throws notFound when the line-matched user is archived', async () => {
+    stubSession({
+      id: SESSION_AUTH_ID,
+      identities: [{ provider: 'custom:line', id: LINE_SUB }],
+    });
+    mockedFindUnique.mockResolvedValueOnce(null);
+    // biome-ignore lint/suspicious/noExplicitAny: prisma mock
+    mockedFindUnique.mockResolvedValueOnce(adminUserRow({ archivedAt: new Date() }) as any);
+
+    await expect(requireRole(['Admin'])).rejects.toThrow('NEXT_NOT_FOUND');
+    expect(mockedFindUnique).toHaveBeenCalledTimes(2);
+  });
+
+  it('throws notFound when the line-matched user has no role assignments', async () => {
+    stubSession({
+      id: SESSION_AUTH_ID,
+      identities: [{ provider: 'custom:line', id: LINE_SUB }],
+    });
+    mockedFindUnique.mockResolvedValueOnce(null);
+    // biome-ignore lint/suspicious/noExplicitAny: prisma mock
+    mockedFindUnique.mockResolvedValueOnce(adminUserRow({ roleAssignments: [] }) as any);
+
+    await expect(requireRole(['Admin'])).rejects.toThrow('NEXT_NOT_FOUND');
+    expect(mockedFindUnique).toHaveBeenCalledTimes(2);
+  });
+
   it('worker fast path: authUserId match never triggers the lineUserId lookup', async () => {
     stubSession({
       id: SESSION_AUTH_ID,
