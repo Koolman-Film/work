@@ -56,7 +56,10 @@ describe('notifyAdminsOnLine', () => {
             some: expect.objectContaining({
               role: expect.objectContaining({
                 archivedAt: null,
-                OR: expect.arrayContaining([{ isSuperadmin: true }, { key: 'admin' }]),
+                OR: expect.arrayContaining([
+                  { isSuperadmin: true },
+                  { permissions: { has: 'liff.admin' } },
+                ]),
               }),
             }),
           },
