@@ -153,4 +153,26 @@ describe('markAdvancePaid', () => {
     expect(mockedSend).not.toHaveBeenCalled();
     expect(auditLogTx).toHaveBeenCalledTimes(1);
   });
+
+  it('soft-deleted advance (deletedAt set) → not-found, no update', async () => {
+    // findUnique with deletedAt:null filter returns null for soft-deleted rows
+    txFindUnique.mockResolvedValue(null);
+
+    const r = await markAdvancePaid({ cashAdvanceId: 'ca-deleted', receiptKey: VALID_KEY });
+
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.code).toBe('not-found');
+    expect(txUpdate).not.toHaveBeenCalled();
+  });
+
+  it('Approved + isDeducted + paidAt null → ok:true, paidAt set, sendNotification NOT called', async () => {
+    txFindUnique.mockResolvedValue(approvedRow({ isDeducted: true, paidAt: null }));
+
+    const r = await markAdvancePaid({ cashAdvanceId: 'ca-1', receiptKey: VALID_KEY });
+
+    expect(r).toEqual({ ok: true });
+    const data = txUpdate.mock.calls[0]![0]!.data;
+    expect(data.paidAt).toBeInstanceOf(Date);
+    expect(mockedSend).not.toHaveBeenCalled();
+  });
 });
