@@ -355,7 +355,9 @@
       "notDeducted": "待扣款 — 下次发薪",
       "receiptHeading": "收据",
       "receiptAlt": "收据",
-      "receiptFullSize": "查看原图 →"
+      "receiptFullSize": "查看原图 →",
+      "paid": "已转账",
+      "slip": "转账凭证"
     },
     "actions": {
       "cancelRequest": "撤销申请",
