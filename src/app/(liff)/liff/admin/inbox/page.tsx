@@ -87,8 +87,6 @@ export default async function LiffAdminInboxPage() {
 
   return (
     <main className="px-4 pt-4 pb-12">
-      <h1 className="mb-4 text-2xl font-semibold text-gray-900">งานรออนุมัติ</h1>
-
       {empty ? (
         <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-12 text-center">
           <p className="text-sm text-gray-500">ไม่มีงานค้าง 🎉</p>
