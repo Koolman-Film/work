@@ -1,5 +1,5 @@
 import type { messagingApi } from '@line/bot-sdk';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { buildFlexMessage } from './flex-templates';
 
 type Bubble = messagingApi.FlexBubble;
@@ -154,6 +154,32 @@ describe('buildFlexMessage new kinds (advance.paid + admin.*)', () => {
   it('admin.dispute-submitted deep-links to the admin inbox', () => {
     const m = buildFlexMessage(allKinds[10] as (typeof allKinds)[number], 'https://x', 'th');
     expect(footerActionUri(m)).toBe('https://x/liff/admin/inbox');
+  });
+
+  // Admin buttons must funnel through liff.line.me when a LIFF id is
+  // configured — direct app URLs open in LINE's plain in-app browser,
+  // whose cookie jar is separate from the LIFF browser session.
+  it('admin links use the liff.line.me ?dest= funnel when NEXT_PUBLIC_LIFF_ID is set', () => {
+    vi.stubEnv('NEXT_PUBLIC_LIFF_ID', 'L123');
+    try {
+      const leave = buildFlexMessage(allKinds[8] as (typeof allKinds)[number], 'https://x', 'th');
+      expect(footerActionUri(leave)).toBe(
+        `https://liff.line.me/L123?liff.state=${encodeURIComponent('?dest=admin-leave-detail&id=r9')}`,
+      );
+      const inbox = buildFlexMessage(allKinds[10] as (typeof allKinds)[number], 'https://x', 'th');
+      expect(footerActionUri(inbox)).toBe(
+        `https://liff.line.me/L123?liff.state=${encodeURIComponent('?dest=admin-inbox')}`,
+      );
+      // Worker links stay direct — unchanged prod behavior.
+      const workerPaid = buildFlexMessage(
+        allKinds[7] as (typeof allKinds)[number],
+        'https://x',
+        'th',
+      );
+      expect(footerActionUri(workerPaid)).toContain('https://x/liff/advance/');
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });
 
