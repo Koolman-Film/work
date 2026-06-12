@@ -28,7 +28,17 @@ export async function notifyAdminsOnLine(payload: AdminLinePayload): Promise<voi
       },
       select: { id: true },
     });
-    await Promise.all(recipients.map((r) => sendNotification(r.id, payload)));
+    const results = await Promise.allSettled(
+      recipients.map((r) => sendNotification(r.id, payload)),
+    );
+    for (const r of results) {
+      if (r.status === 'rejected') {
+        console.error('[notifyAdminsOnLine] one recipient failed (non-fatal)', {
+          kind: payload.kind,
+          error: r.reason instanceof Error ? r.reason.message : String(r.reason),
+        });
+      }
+    }
   } catch (err) {
     console.error('[notifyAdminsOnLine] failed (non-fatal)', {
       kind: payload.kind,

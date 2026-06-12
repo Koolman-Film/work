@@ -52,6 +52,14 @@ describe('notifyAdminsOnLine', () => {
         where: expect.objectContaining({
           archivedAt: null,
           lineUserId: { not: null },
+          roleAssignments: {
+            some: expect.objectContaining({
+              role: expect.objectContaining({
+                archivedAt: null,
+                OR: expect.arrayContaining([{ isSuperadmin: true }, { key: 'admin' }]),
+              }),
+            }),
+          },
         }),
       }),
     );
@@ -88,6 +96,29 @@ describe('notifyAdminsOnLine', () => {
 
     await expect(notifyAdminsOnLine(payload)).resolves.toBeUndefined();
     expect(consoleErr).toHaveBeenCalled();
+    consoleErr.mockRestore();
+  });
+
+  it('first admin fails, second still receives notification (allSettled fan-out)', async () => {
+    const consoleErr = vi.spyOn(console, 'error').mockImplementation(() => {});
+    // biome-ignore lint/suspicious/noExplicitAny: minimal prisma stub
+    mockedFindMany.mockResolvedValue([{ id: 'admin-1' }, { id: 'admin-2' }] as any);
+    mockedSend
+      .mockRejectedValueOnce(new Error('line push failed'))
+      .mockResolvedValueOnce(undefined);
+
+    await expect(notifyAdminsOnLine(payload)).resolves.toBeUndefined();
+
+    // both recipients attempted
+    expect(mockedSend).toHaveBeenCalledTimes(2);
+    expect(mockedSend).toHaveBeenCalledWith('admin-1', payload);
+    expect(mockedSend).toHaveBeenCalledWith('admin-2', payload);
+
+    // the rejection was logged individually, not thrown
+    expect(consoleErr).toHaveBeenCalledWith(
+      '[notifyAdminsOnLine] one recipient failed (non-fatal)',
+      expect.objectContaining({ kind: 'admin.leave-submitted', error: 'line push failed' }),
+    );
     consoleErr.mockRestore();
   });
 });
