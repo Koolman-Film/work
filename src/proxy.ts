@@ -29,7 +29,12 @@ const PROTECTED_PREFIXES = ['/admin', '/owner', '/liff'];
 //   /liff/pair is the LINE-login entry point — the user arrives there
 //   WITHOUT a Supabase session and the page itself does signInWithIdToken
 //   to create one. Treating it as protected would loop them to /login.
-const PUBLIC_INSIDE_PROTECTED: string[] = ['/liff/pair'];
+//   /liff/admin/* is reachable from rich-menu deep links that may open the
+//   LIFF webview WITHOUT a Supabase session. The pages gate server-side
+//   (requireLiffAdmin → 404 without a session) while the admin layout's
+//   LiffSessionGate runs liffBootstrap() and refreshes — a /login redirect
+//   here would break that handshake.
+const PUBLIC_INSIDE_PROTECTED: string[] = ['/liff/pair', '/liff/admin'];
 
 // Routes that should bounce a logged-in user elsewhere (auth screens)
 const AUTH_PREFIXES = ['/login', '/reset-password', '/update-password'];
