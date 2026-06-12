@@ -35,6 +35,15 @@
  * via `computeTier`. The prisma `include` was extended to fetch
  * `roleAssignments` in the same round-trip — no additional latency.
  * Phase 4.6 drops the `User.role` column entirely.
+ *
+ * LIFF admin fallback: an admin paired via /liff/pair-admin keeps their
+ * email auth.users id on `User.authUserId`, while their LIFF session is a
+ * separate LINE-minted auth user. When the primary authUserId lookup
+ * misses, we resolve the session's verified `custom:line` identity sub
+ * against `User.lineUserId`. Workers never need this — their pairing
+ * binds authUserId to the LINE auth user directly. The returned
+ * `authUserId` is always the SESSION auth id (storage-path security
+ * checks compare against it), not the User row's column.
  */
 
 import type { Employee, Role, User } from '@prisma/client';
@@ -66,23 +75,34 @@ export async function requireRole(roles: readonly Role[]): Promise<RequireRoleRe
   // folding them into the existing include keeps auth at one network
   // hop. The select on `role` is narrow — we only need the fields
   // computeTier looks at.
-  const user = await prisma.user.findUnique({
-    where: { authUserId: authUser.id },
-    include: {
-      employee: true,
-      roleAssignments: {
-        select: {
-          role: {
-            select: {
-              key: true,
-              isSuperadmin: true,
-              archivedAt: true,
-            },
-          },
-        },
+  const includeShape = {
+    employee: true,
+    roleAssignments: {
+      select: {
+        role: { select: { key: true, isSuperadmin: true, archivedAt: true } },
       },
     },
+  } as const;
+
+  let user = await prisma.user.findUnique({
+    where: { authUserId: authUser.id },
+    include: includeShape,
   });
+
+  // LIFF fallback: an admin paired via /liff/pair-admin keeps their
+  // email auth.users id on User.authUserId, while the LIFF session is a
+  // separate LINE-minted auth user. Resolve by the session's verified
+  // custom:line identity → User.lineUserId. Workers never reach here
+  // (their pairing binds authUserId to the LINE auth user directly).
+  if (!user) {
+    const lineSub = (authUser.identities ?? []).find((i) => i.provider === 'custom:line')?.id;
+    if (lineSub) {
+      user = await prisma.user.findUnique({
+        where: { lineUserId: lineSub },
+        include: includeShape,
+      });
+    }
+  }
 
   if (!user) {
     // Authenticated to Supabase but no matching User row — shouldn't happen
