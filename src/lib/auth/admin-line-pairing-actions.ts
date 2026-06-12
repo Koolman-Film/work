@@ -28,10 +28,28 @@ export async function createMyLinePairingLink(): Promise<
   }
 
   const { token, expiresAt } = await mintAdminPairingToken(user.id);
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { lineInviteToken: token, lineInviteExpiresAt: expiresAt },
+
+  // Re-check + write atomically: a pairing completing between the requireRole
+  // read above and this write must not get its lineUserId binding clobbered by
+  // a fresh invite token (TOCTOU).
+  const txResult = await prisma.$transaction(async (tx) => {
+    const fresh = await tx.user.findUnique({
+      where: { id: user.id },
+      select: { lineUserId: true },
+    });
+    if (fresh?.lineUserId) {
+      return { kind: 'already-paired' as const };
+    }
+    await tx.user.update({
+      where: { id: user.id },
+      data: { lineInviteToken: token, lineInviteExpiresAt: expiresAt },
+    });
+    return { kind: 'ok' as const };
   });
+
+  if (txResult.kind === 'already-paired') {
+    return { ok: false, message: 'บัญชีนี้เชื่อมต่อ LINE แล้ว' };
+  }
 
   auditLog({
     actorId: user.id,
