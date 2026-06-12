@@ -114,6 +114,8 @@ export const SYSTEM_ROLES: Record<
       'payroll.read',
       'payroll.run',
       'payroll.publish',
+      // LIFF admin pages (LINE) — backfilled to existing installs by migration 0029
+      'liff.admin',
     ],
   },
   staff: {

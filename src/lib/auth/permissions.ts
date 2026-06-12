@@ -94,6 +94,7 @@ export const PERMISSIONS = {
   'liff.leave-submit': 'ยื่นคำขอลา',
   'liff.advance-submit': 'ยื่นคำขอเบิก',
   'liff.profile-edit': 'แก้ไขโปรไฟล์ตนเอง',
+  'liff.admin': 'ใช้งานหน้าแอดมินใน LINE (อนุมัติคำขอ/แนบสลิป)',
 
   // ─── Audit ──────────────────────────────────────────────────────────
   'audit.read': 'ดูประวัติการเปลี่ยนแปลง',
@@ -192,7 +193,13 @@ export const PERMISSION_GROUPS: ReadonlyArray<{
   {
     key: 'liff',
     label: 'LIFF (สำหรับพนักงาน)',
-    permissions: ['liff.check-in', 'liff.leave-submit', 'liff.advance-submit', 'liff.profile-edit'],
+    permissions: [
+      'liff.check-in',
+      'liff.leave-submit',
+      'liff.advance-submit',
+      'liff.profile-edit',
+      'liff.admin',
+    ],
   },
   {
     key: 'report',
