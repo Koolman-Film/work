@@ -323,14 +323,17 @@ export async function markAdvancePaid(input: {
 
   try {
     const result = await prisma.$transaction<MarkPaidResult>(async (tx) => {
+      // findUnique bypasses the soft-delete extension — explicit filter required,
+      // see src/lib/db/soft-delete-extension.ts
       const row = await tx.cashAdvance.findUnique({
-        where: { id: input.cashAdvanceId },
+        where: { id: input.cashAdvanceId, deletedAt: null },
         select: {
           id: true,
           status: true,
           amount: true,
           paidAt: true,
           receiptUrl: true,
+          isDeducted: true,
           employee: { select: { firstName: true, userId: true } },
         },
       });
@@ -361,7 +364,11 @@ export async function markAdvancePaid(input: {
         metadata: { ip, userAgent, source: 'liff-admin' },
       });
 
-      if (firstAttach) {
+      // Populate notifBox only when this is the first attach AND the advance
+      // has not yet been swept by payroll. Sending a "โอนเงินแล้ว" push months
+      // after payroll already deducted the amount would be misleading — the slip
+      // is archived silently in that case.
+      if (firstAttach && !row.isDeducted) {
         notifBox.data = {
           recipientUserId: row.employee.userId,
           employeeFirstName: row.employee.firstName,
