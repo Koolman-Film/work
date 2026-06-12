@@ -145,6 +145,8 @@ function notificationIdempotencyKey(payload: NotificationPayload): string {
     // advance.paid re-fires when an admin re-uploads the transfer slip —
     // within Inngest's ~24h dedupe window the second push is dropped.
     // Intentional: the employee already got "paid" for that advance.
+    // (key includes the recipientUserId suffix — still deterministic for
+    // single-recipient worker kinds)
     case 'advance.paid':
     case 'admin.advance-submitted':
       return `notif:${payload.kind}:${payload.cashAdvanceId}`;
@@ -165,6 +167,11 @@ function notificationIdempotencyKey(payload: NotificationPayload): string {
  * has acknowledged ingestion (typically <100ms). Caller doesn't wait
  * for the actual push to complete — that happens asynchronously in
  * the Inngest function with retries.
+ *
+ * NOTE — dedup window on deploy: the event-id format changed (recipient
+ * suffix appended) so the 24h dedup window effectively resets at deploy
+ * for in-flight worker notifications — a narrow duplicate-push window,
+ * accepted.
  */
 export async function sendNotification(
   recipientUserId: string,
