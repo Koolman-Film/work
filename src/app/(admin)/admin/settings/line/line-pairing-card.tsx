@@ -19,7 +19,9 @@ import { createMyLinePairingLink, unpairMyLine } from '@/lib/auth/admin-line-pai
 export function LinePairingCard({ paired }: { paired: boolean }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [link, setLink] = useState<{ url: string; expiresAt: string } | null>(null);
+  const [link, setLink] = useState<{ url: string; qrDataUrl: string; expiresAt: string } | null>(
+    null,
+  );
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -28,7 +30,7 @@ export function LinePairingCard({ paired }: { paired: boolean }) {
     startTransition(async () => {
       const result = await createMyLinePairingLink();
       if (result.ok) {
-        setLink({ url: result.url, expiresAt: result.expiresAt });
+        setLink({ url: result.url, qrDataUrl: result.qrDataUrl, expiresAt: result.expiresAt });
       } else {
         setError(result.message);
       }
@@ -88,6 +90,22 @@ export function LinePairingCard({ paired }: { paired: boolean }) {
             <p className="text-sm text-ink-3">ยังไม่ได้เชื่อมต่อ LINE — สร้างลิงก์แล้วเปิดบนมือถือเพื่อเชื่อมบัญชี</p>
             {link ? (
               <div className="space-y-2">
+                {/* QR first — the common case is admin-at-desktop scanning
+                    with the phone (LINE scanner or camera both work; the
+                    liff.line.me URL opens straight into the LIFF app). */}
+                <div className="flex justify-center">
+                  {/* biome-ignore lint/performance/noImgElement: data URL — next/image adds nothing */}
+                  <img
+                    src={link.qrDataUrl}
+                    alt="QR code สำหรับเชื่อมต่อ LINE"
+                    width={224}
+                    height={224}
+                    className="rounded-lg border border-gray-200 bg-white p-2"
+                  />
+                </div>
+                <p className="text-center text-xs text-ink-4">
+                  สแกน QR ด้วยมือถือ (กล้อง หรือ LINE → สแกน QR) — หรือคัดลอกลิงก์ด้านล่าง
+                </p>
                 <div className="flex gap-2">
                   <input
                     readOnly

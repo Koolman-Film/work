@@ -11,6 +11,7 @@
  * Both gate on requireRole(['Admin']) — Superadmin auto-elevates.
  */
 
+import QRCode from 'qrcode';
 import { auditLog } from '@/lib/audit/log';
 import { requireRole } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
@@ -20,7 +21,7 @@ import { mintAdminPairingToken } from '@/lib/pairing/token';
 
 /** Mint (or re-mint) the caller's own single-use LINE pairing link. */
 export async function createMyLinePairingLink(): Promise<
-  { ok: true; url: string; expiresAt: string } | { ok: false; message: string }
+  { ok: true; url: string; qrDataUrl: string; expiresAt: string } | { ok: false; message: string }
 > {
   const { user } = await requireRole(['Admin']);
   if (user.lineUserId) {
@@ -70,9 +71,19 @@ export async function createMyLinePairingLink(): Promise<
     ? `https://liff.line.me/${liffId}?liff.state=${encodeURIComponent(`?pairAdmin=${token}`)}`
     : `${appBaseUrl()}/liff/pair-admin/${token}`; // dev fallback when LIFF id unset
 
+  // QR for the desktop-admin case: scan with the phone's LINE scanner
+  // (or camera) instead of sending the link to yourself. Same settings
+  // as the employee pairing card.
+  const qrDataUrl = await QRCode.toDataURL(url, {
+    width: 256,
+    margin: 2,
+    errorCorrectionLevel: 'M',
+  });
+
   return {
     ok: true,
     url,
+    qrDataUrl,
     expiresAt: expiresAt.toISOString(),
   };
 }
