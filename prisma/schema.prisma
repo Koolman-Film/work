@@ -136,6 +136,11 @@ model User {
   authUserId String?   @unique @db.Uuid // FK to auth.users.id (Supabase-managed; no DB constraint)
   email      String?   @unique // Admin / Superadmin only
   lineUserId String?   @unique // Staff only — set after LIFF link
+  /// Single-use admin LINE-pairing token (JWT, scope='admin-pair').
+  /// Mirrors Employee.inviteToken but lives on User because admins have
+  /// no Employee row. Nulled on successful pair (consume) or regenerate.
+  lineInviteToken     String?   @unique
+  lineInviteExpiresAt DateTime?
   /// Effective UI language (BCP 47 — 'th','en','my','lo','zh-CN','km').
   /// Written by BOTH the worker (modal/switcher) and an admin (employee
   /// edit page). Last write wins. DB-authoritative on LIFF entry — see
@@ -583,6 +588,10 @@ model CashAdvance {
   approvedById        String?   @db.Uuid
   approvedAt          DateTime?
   receiptUrl          String?
+  /// Two-step payment: set the FIRST time a transfer slip is attached
+  /// after approval. receiptUrl + paidAt together mean "money sent".
+  /// Slip re-upload replaces receiptUrl but never overwrites paidAt.
+  paidAt              DateTime?
   /// Set by Phase 2 payroll publish; once true, this advance is consumed.
   isDeducted          Boolean   @default(false)
   deductedInPayrollId String?   @db.Uuid
