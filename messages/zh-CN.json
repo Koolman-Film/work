@@ -11,12 +11,34 @@
   "notifications": {
     "leaveApprovedDeduction": "注意：请假超出额度，将从工资中扣除 {amount}",
     "action": {
-      "viewPayslip": "查看工资单"
+      "viewPayslip": "查看工资单",
+      "review": "审核",
+      "viewSlip": "查看凭证"
     },
     "payrollPublished": {
       "header": "工资单已发布",
       "subtitle": "{month}工资单",
       "alt": "💰 您{month}的工资单已发布 — 实发 ฿{amount}"
+    },
+    "label": {
+      "dates": "日期"
+    },
+    "advancePaid": {
+      "header": "预支款已转账",
+      "subtitle": "点击查看转账凭证",
+      "alt": "💸 预支款 ฿{amount} 已转账"
+    },
+    "adminLeaveSubmitted": {
+      "header": "新的请假申请",
+      "alt": "📥 {name} 提交了请假申请"
+    },
+    "adminAdvanceSubmitted": {
+      "header": "新的预支申请",
+      "alt": "📥 {name} 申请预支 ฿{amount}"
+    },
+    "adminDisputeSubmitted": {
+      "header": "待审核的打卡记录",
+      "alt": "📥 {name} 有待审核的打卡记录"
     }
   },
   "pair": {
