@@ -1,6 +1,7 @@
 /**
  * One-off: create the ADMIN rich menu + upload its image, print the id.
  * Usage: pnpm tsx scripts/setup-admin-rich-menu.ts ./assets/rich-menu/admin-rich-menu-placeholder.png
+ * Env: LINE_MESSAGING_CHANNEL_ACCESS_TOKEN + NEXT_PUBLIC_APP_URL must be set.
  * Then set ADMIN_RICH_MENU_ID=<printed id> in the deploy env.
  * Image: 2500x1686 px, three equal columns, JPEG/PNG <= 1MB.
  */
