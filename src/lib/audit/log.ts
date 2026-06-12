@@ -109,6 +109,7 @@ export type AuditAction =
   | 'advance.admin-create'
   | 'advance.approve'
   | 'advance.reject'
+  | 'advance.mark-paid'
   | 'advance.cancel'
   | 'advance.void'
   | 'advance.restore'
