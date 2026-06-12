@@ -1,16 +1,18 @@
 /**
- * /liff/admin/advance — mobile advance inbox for paired admins.
+ * /liff/admin/advance — "รอแนบสลิป": approved advances awaiting the
+ * money transfer + slip attach (status=Approved, paidAt=null).
  *
- * Two filters:
- *   default          → Pending requests (need approve/reject)
- *   ?filter=awaiting-slip → Approved but paidAt=null (need money transfer + slip)
+ * Single-purpose by design: PENDING advances are NOT listed here — the
+ * inbox (/liff/admin/inbox) owns everything that needs a decision. A
+ * previous version duplicated a รออนุมัติ filter here, which put two
+ * identically-labeled controls on screen with the shell tabs.
+ *
+ * The page title is the active shell tab (see admin-tabs.tsx) — no h1.
  */
 
 import Link from 'next/link';
 import { requireLiffAdmin } from '@/lib/auth/require-liff-admin';
 import { prisma } from '@/lib/db/prisma';
-
-type SearchParams = Promise<{ filter?: string }>;
 
 function formatBkk(d: Date): string {
   return d.toLocaleString('th-TH', {
@@ -22,47 +24,28 @@ function formatBkk(d: Date): string {
   });
 }
 
-export default async function LiffAdminAdvanceListPage({
-  searchParams,
-}: {
-  searchParams: SearchParams;
-}) {
+export default async function LiffAdminAwaitingSlipPage() {
   await requireLiffAdmin();
-  const { filter } = await searchParams;
-  const awaitingSlip = filter === 'awaiting-slip';
 
   const rows = await prisma.cashAdvance.findMany({
-    where: awaitingSlip
-      ? { status: 'Approved', paidAt: null, deletedAt: null }
-      : { status: 'Pending', deletedAt: null },
-    orderBy: { requestedAt: 'desc' },
+    where: { status: 'Approved', paidAt: null, deletedAt: null },
+    orderBy: { approvedAt: 'desc' },
     take: 100,
     select: {
       id: true,
       amount: true,
-      requestedAt: true,
+      approvedAt: true,
       employee: { select: { firstName: true, lastName: true, nickname: true } },
     },
   });
 
   return (
     <main className="px-4 pt-4 pb-12">
-      <h1 className="mb-4 text-2xl font-semibold text-gray-900">คำขอเบิก</h1>
-
-      <div className="mb-4 flex gap-2">
-        <FilterPill href="/liff/admin/advance" active={!awaitingSlip}>
-          รออนุมัติ
-        </FilterPill>
-        <FilterPill href="/liff/admin/advance?filter=awaiting-slip" active={awaitingSlip}>
-          รอแนบสลิป
-        </FilterPill>
-      </div>
+      <p className="mb-4 text-sm text-gray-500">อนุมัติแล้ว — โอนเงินแล้วแตะรายการเพื่อแนบสลิป</p>
 
       {rows.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-12 text-center">
-          <p className="text-sm text-gray-500">
-            {awaitingSlip ? 'ไม่มีรายการรอแนบสลิป 🎉' : 'ไม่มีคำขอรออนุมัติ 🎉'}
-          </p>
+          <p className="text-sm text-gray-500">ไม่มีรายการรอแนบสลิป 🎉</p>
         </div>
       ) : (
         <ul className="space-y-2">
@@ -85,16 +68,14 @@ export default async function LiffAdminAdvanceListPage({
                       <p className="mt-0.5 text-lg font-semibold tabular-nums text-gray-900">
                         ฿{Number(r.amount).toLocaleString('th-TH')}
                       </p>
-                      <p className="mt-0.5 text-[10px] text-gray-400">
-                        ส่งเมื่อ {formatBkk(r.requestedAt)}
-                      </p>
+                      {r.approvedAt && (
+                        <p className="mt-0.5 text-[10px] text-gray-400">
+                          อนุมัติเมื่อ {formatBkk(r.approvedAt)}
+                        </p>
+                      )}
                     </div>
-                    <span
-                      className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                        awaitingSlip ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'
-                      }`}
-                    >
-                      {awaitingSlip ? 'รอแนบสลิป' : 'รออนุมัติ'}
+                    <span className="shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-800">
+                      รอแนบสลิป
                     </span>
                   </div>
                 </Link>
@@ -104,28 +85,5 @@ export default async function LiffAdminAdvanceListPage({
         </ul>
       )}
     </main>
-  );
-}
-
-function FilterPill({
-  href,
-  active,
-  children,
-}: {
-  href: string;
-  active: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <Link
-      href={href}
-      className={
-        active
-          ? 'rounded-full bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-700 ring-1 ring-primary-200'
-          : 'rounded-full px-3 py-1.5 text-xs font-semibold text-gray-500 hover:bg-gray-100 hover:text-gray-700'
-      }
-    >
-      {children}
-    </Link>
   );
 }
