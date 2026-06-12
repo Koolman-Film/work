@@ -50,19 +50,22 @@ type SearchParams = Promise<Record<string, string | string[] | undefined>>;
  *
  * Returns null if no token can be extracted from any source.
  */
-function extractPairToken(sp: Record<string, string | string[] | undefined>): string | null {
-  // (1) Direct ?pair=<token>
-  const rawPair = sp.pair;
-  if (typeof rawPair === 'string' && rawPair.length > 0) return rawPair;
+function extractToken(
+  sp: Record<string, string | string[] | undefined>,
+  key: 'pair' | 'pairAdmin',
+): string | null {
+  // (1) Direct ?pair=<token> / ?pairAdmin=<token>
+  const raw = sp[key];
+  if (typeof raw === 'string' && raw.length > 0) return raw;
 
   // (2) liff.state — LIFF wraps a query/path inside this param. We expect
-  //     "?pair=<token>". Parse it out.
+  //     "?pair=<token>" or "?pairAdmin=<token>". Parse it out.
   const rawState = sp['liff.state'];
   if (typeof rawState === 'string' && rawState.length > 0) {
     const stripped = rawState.startsWith('?') ? rawState.slice(1) : rawState;
     const inner = new URLSearchParams(stripped);
-    const innerPair = inner.get('pair');
-    if (innerPair && innerPair.length > 0) return innerPair;
+    const innerToken = inner.get(key);
+    if (innerToken && innerToken.length > 0) return innerToken;
   }
 
   return null;
@@ -76,7 +79,8 @@ export default async function LiffPairPage({ searchParams }: { searchParams: Sea
   // No server-side auth check or redirect: everything routes through
   // PairClient client-side so `?dest=` from liff.state can be honored.
   const sp = await searchParams;
-  const pairingToken = extractPairToken(sp);
+  const pairingToken = extractToken(sp, 'pair');
+  const adminPairingToken = extractToken(sp, 'pairAdmin');
 
-  return <PairClient pairingToken={pairingToken} />;
+  return <PairClient pairingToken={pairingToken} adminPairingToken={adminPairingToken} />;
 }

@@ -59,9 +59,20 @@ export async function createMyLinePairingLink(): Promise<
     after: { expiresAt: expiresAt.toISOString() },
   });
 
+  // Pairing MUST run inside the LIFF browser (ID token), so the link uses
+  // liff.line.me + liff.state — the only mechanism LINE reliably honors
+  // (plain app URLs open as a normal webpage with no LIFF context, and
+  // both raw query strings and path segments get stripped by some LINE
+  // versions; see the history in src/app/i/[token]/page.tsx). The
+  // /liff/pair endpoint unwraps ?pairAdmin= client-side after liff.init().
+  const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
+  const url = liffId
+    ? `https://liff.line.me/${liffId}?liff.state=${encodeURIComponent(`?pairAdmin=${token}`)}`
+    : `${appBaseUrl()}/liff/pair-admin/${token}`; // dev fallback when LIFF id unset
+
   return {
     ok: true,
-    url: `${appBaseUrl()}/liff/pair-admin/${token}`,
+    url,
     expiresAt: expiresAt.toISOString(),
   };
 }
