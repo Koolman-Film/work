@@ -71,7 +71,16 @@ export function LinePairingCard({ paired }: { paired: boolean }) {
               description="เมนูแอดมินในแชท OA จะถูกถอดออก และจะไม่ได้รับการแจ้งเตือนทาง LINE จนกว่าจะเชื่อมต่อใหม่"
               confirmLabel="ยกเลิกการเชื่อมต่อ"
               tone="danger"
-              action={async () => await unpairMyLine()}
+              action={async () => {
+                // ConfirmDialog shows `{ ok:false, message }` inline — convert
+                // thrown server-action failures into that shape so unpair
+                // errors surface instead of rejecting silently.
+                try {
+                  return await unpairMyLine();
+                } catch {
+                  return { ok: false, message: 'ยกเลิกการเชื่อมต่อไม่สำเร็จ กรุณาลองใหม่อีกครั้ง' };
+                }
+              }}
             />
           </>
         ) : (

@@ -78,9 +78,15 @@ export async function linkLineToAdmin(input: {
     return err('invalid-token');
   }
 
-  // 3. The LINE sub from the verified OIDC identity.
-  const lineUserId =
-    (authUser.identities ?? []).find((i) => i.provider === 'custom:line')?.id ?? authUser.id;
+  // 3. The LINE sub from the verified OIDC identity. We REQUIRE a real
+  //    `custom:line` identity — never fall back to the Supabase auth UUID.
+  //    Binding a Supabase UUID into lineUserId would silently break the
+  //    requireRole LIFF fallback (which matches on the LINE sub), and unlike
+  //    the worker flow admins have no authUserId backup to recover from.
+  const lineUserId = (authUser.identities ?? []).find((i) => i.provider === 'custom:line')?.id;
+  if (!lineUserId) {
+    return { ok: false, code: 'no-session', message: 'ต้องเปิดผ่านแอป LINE เท่านั้น' };
+  }
 
   // 4. Request context for the audit row.
   const headerList = await headers();
