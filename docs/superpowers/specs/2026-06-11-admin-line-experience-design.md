@@ -131,3 +131,24 @@ push) → admin transfers money in their bank app → admin attaches slip
 - E2E: inbox → approve leave → approve advance → attach slip → worker
   notification event emitted. Respect suite gotchas (avoid port-3000 reuse;
   4 deferred skips expected).
+
+## Rollout
+
+1. **Push to main** — migration `0029_admin_line_pairing_and_paid_at`
+   auto-applies via the fail-loud deploy pipeline; no manual step.
+2. **Create the rich menu** (once, with prod env —
+   `LINE_MESSAGING_CHANNEL_ACCESS_TOKEN` + `NEXT_PUBLIC_APP_URL`):
+
+   ```bash
+   pnpm tsx scripts/setup-admin-rich-menu.ts assets/rich-menu/admin-rich-menu-placeholder.png
+   ```
+
+   Set the printed `ADMIN_RICH_MENU_ID` in Vercel env and redeploy. The
+   placeholder image is committed; a final design can replace it later by
+   re-running the script with the new image and updating the env var.
+3. **Pair each admin**: `/admin/settings/line` → สร้างลิงก์เชื่อมต่อ LINE →
+   open the link on their phone in LINE → the admin rich menu appears.
+   Verify by submitting a leave request from a worker account and confirming
+   the admin receives the LINE push.
+4. **Two-step advance flow**: approve in LIFF/web → make the transfer →
+   attach the slip from the รอแนบสลิป list → the worker gets the paid push.
