@@ -22,7 +22,15 @@ export async function notifyAdminsOnLine(payload: AdminLinePayload): Promise<voi
         lineUserId: { not: null },
         roleAssignments: {
           some: {
-            role: { archivedAt: null, OR: [{ isSuperadmin: true }, { key: 'admin' }] },
+            // Target liff.admin holders (not just role.key === 'admin'):
+            // the push deep-links into /liff/admin/* pages, which 404 for
+            // anyone without that permission — a custom admin role that
+            // lacks liff.admin must not receive dead-end pushes, and a
+            // custom role that HAS it should. Superadmin short-circuits.
+            role: {
+              archivedAt: null,
+              OR: [{ isSuperadmin: true }, { permissions: { has: 'liff.admin' } }],
+            },
           },
         },
       },
