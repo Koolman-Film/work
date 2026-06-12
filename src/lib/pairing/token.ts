@@ -102,3 +102,56 @@ export async function verifyPairingToken(token: string): Promise<PairingPayload>
     exp: payload.exp,
   };
 }
+
+// ── Admin pairing (scope='admin-pair') ──────────────────────────────────
+// Mirrors the employee flow but binds an admin's OWN User row to their
+// LINE account from /admin/settings/line. Short TTL — the admin mints the
+// link for themselves and opens it immediately.
+
+const ADMIN_SCOPE = 'admin-pair';
+const ADMIN_TTL_SECONDS = 60 * 60; // 1 hour
+
+/**
+ * Mint a pairing token for an admin's own User row. Caller persists token +
+ * expiry onto User.lineInviteToken / lineInviteExpiresAt (single-use).
+ */
+export async function mintAdminPairingToken(userId: string): Promise<{
+  token: string;
+  expiresAt: Date;
+}> {
+  const now = Math.floor(Date.now() / 1000);
+  const exp = now + ADMIN_TTL_SECONDS;
+
+  const token = await new SignJWT({ scope: ADMIN_SCOPE })
+    .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
+    .setIssuer(ISSUER)
+    .setAudience(AUDIENCE)
+    .setSubject(userId)
+    .setIssuedAt(now)
+    .setExpirationTime(exp)
+    .sign(getSecret());
+
+  return { token, expiresAt: new Date(exp * 1000) };
+}
+
+/**
+ * Verify an admin pairing token. Throws on any failure (signature, scope,
+ * issuer/aud, expiry). Single-use enforcement is the caller's job
+ * (linkLineToAdmin checks User.lineInviteToken === token).
+ */
+export async function verifyAdminPairingToken(token: string): Promise<{ userId: string }> {
+  const { payload } = await jwtVerify(token, getSecret(), {
+    issuer: ISSUER,
+    audience: AUDIENCE,
+    algorithms: ['HS256'],
+  });
+
+  if (payload.scope !== ADMIN_SCOPE) {
+    throw new Error('Wrong token scope');
+  }
+  if (typeof payload.sub !== 'string') {
+    throw new Error('Missing sub claim');
+  }
+
+  return { userId: payload.sub };
+}
