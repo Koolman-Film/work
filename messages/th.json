@@ -390,7 +390,9 @@
       "notDeducted": "ยังไม่หัก — งวดถัดไป",
       "receiptHeading": "ใบเสร็จ",
       "receiptAlt": "ใบเสร็จ",
-      "receiptFullSize": "เปิดเต็มขนาด →"
+      "receiptFullSize": "เปิดเต็มขนาด →",
+      "paid": "โอนเงินแล้ว",
+      "slip": "สลิปการโอน"
     },
     "actions": {
       "cancelRequest": "ยกเลิกคำขอ",

@@ -355,7 +355,9 @@
       "notDeducted": "ຍັງບໍ່ຫັກ — ງວດຖັດໄປ",
       "receiptHeading": "ໃບຮັບເງິນ",
       "receiptAlt": "ໃບຮັບເງິນ",
-      "receiptFullSize": "ເປີດຂະໜາດເຕັມ →"
+      "receiptFullSize": "ເປີດຂະໜາດເຕັມ →",
+      "paid": "ໂອນເງິນແລ້ວ",
+      "slip": "ສະຫຼິບການໂອນ"
     },
     "actions": {
       "cancelRequest": "ຍົກເລີກຄຳຂໍ",

@@ -390,7 +390,9 @@
       "notDeducted": "Pending — next payroll",
       "receiptHeading": "Receipt",
       "receiptAlt": "Receipt",
-      "receiptFullSize": "View full size →"
+      "receiptFullSize": "View full size →",
+      "paid": "Paid",
+      "slip": "Transfer slip"
     },
     "actions": {
       "cancelRequest": "Cancel request",

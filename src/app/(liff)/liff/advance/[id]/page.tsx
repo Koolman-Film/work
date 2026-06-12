@@ -46,6 +46,7 @@ export default async function AdvanceDetailPage({ params }: { params: Params }) 
         status: true,
         requestedAt: true,
         approvedAt: true,
+        paidAt: true,
         receiptUrl: true,
         isDeducted: true,
       },
@@ -60,8 +61,10 @@ export default async function AdvanceDetailPage({ params }: { params: Params }) 
   // receiptUrl may be a Storage path (post-W4-late) or a legacy URL.
   // resolveStoredImageUrl returns a fresh signed URL in the first case,
   // pass-through in the second.
+  const receiptIsExternal = !!row.receiptUrl && /^https?:\/\//i.test(row.receiptUrl);
   const resolvedReceiptUrl = await resolveStoredImageUrl(row.receiptUrl);
 
+  const paid = row.paidAt !== null;
   const cls = STATUS_CLS[row.status] ?? STATUS_CLS.Pending;
 
   return (
@@ -72,10 +75,16 @@ export default async function AdvanceDetailPage({ params }: { params: Params }) 
         </Link>
         <div className="mt-3 flex items-center justify-between gap-3">
           <h1 className="text-2xl font-semibold text-gray-900">{t('detail.title')}</h1>
-          {cls && (
-            <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${cls}`}>
-              {t(`status.${row.status}`)}
+          {paid ? (
+            <span className="rounded-full bg-green-100 px-2.5 py-1 text-xs font-medium text-green-800">
+              {t('detail.paid')}
             </span>
+          ) : (
+            cls && (
+              <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${cls}`}>
+                {t(`status.${row.status}`)}
+              </span>
+            )
           )}
         </div>
       </header>
@@ -96,6 +105,11 @@ export default async function AdvanceDetailPage({ params }: { params: Params }) 
             {formatDateTime(row.approvedAt, locale as Locale)}
           </DataRow>
         )}
+        {row.paidAt && (
+          <DataRow label={t('detail.paid')}>
+            <span className="text-green-700">{formatDateTime(row.paidAt, locale as Locale)}</span>
+          </DataRow>
+        )}
         {row.status === 'Approved' && (
           <DataRow label={t('detail.field.deductFromSalary')}>
             {row.isDeducted ? (
@@ -110,30 +124,44 @@ export default async function AdvanceDetailPage({ params }: { params: Params }) 
       {resolvedReceiptUrl && (
         <section className="mt-4 rounded-2xl border border-gray-200 bg-gray-50 p-6">
           <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">
-            {t('detail.receiptHeading')}
+            {paid ? t('detail.slip') : t('detail.receiptHeading')}
           </h2>
-          <a
-            href={resolvedReceiptUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-3 block overflow-hidden rounded-lg border border-gray-200 transition hover:opacity-90"
-          >
-            {/* biome-ignore lint/performance/noImgElement: signed-URL preview can't use next/image (short TTL + external storage origin) */}
-            <img
-              src={resolvedReceiptUrl}
-              alt={t('detail.receiptAlt')}
-              className="block h-auto w-full"
-              loading="lazy"
-            />
-          </a>
-          <a
-            href={resolvedReceiptUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-2 inline-block text-xs text-primary-700 underline hover:text-primary-800"
-          >
-            {t('detail.receiptFullSize')}
-          </a>
+          {receiptIsExternal ? (
+            // Legacy rows stored an external URL — link out, don't hotlink.
+            <a
+              href={resolvedReceiptUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-2 block text-sm font-medium text-primary-700 underline"
+            >
+              {paid ? t('detail.slip') : t('detail.receiptHeading')} →
+            </a>
+          ) : (
+            <>
+              <a
+                href={resolvedReceiptUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-3 block overflow-hidden rounded-lg border border-gray-200 transition hover:opacity-90"
+              >
+                {/* biome-ignore lint/performance/noImgElement: signed-URL preview can't use next/image (short TTL + external storage origin) */}
+                <img
+                  src={resolvedReceiptUrl}
+                  alt={paid ? t('detail.slip') : t('detail.receiptAlt')}
+                  className="block h-auto w-full"
+                  loading="lazy"
+                />
+              </a>
+              <a
+                href={resolvedReceiptUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 inline-block text-xs text-primary-700 underline hover:text-primary-800"
+              >
+                {t('detail.receiptFullSize')}
+              </a>
+            </>
+          )}
         </section>
       )}
 

@@ -355,7 +355,9 @@
       "notDeducted": "မနုတ်ရသေးပါ — နောက်လစာ",
       "receiptHeading": "ငွေတွေ့ဆုံချက်",
       "receiptAlt": "ငွေတွေ့ဆုံချက်",
-      "receiptFullSize": "အပြည့်အဝ ကြည့်ရန် →"
+      "receiptFullSize": "အပြည့်အဝ ကြည့်ရန် →",
+      "paid": "ငွေလွှဲပြီးပါပြီ",
+      "slip": "ငွေလွှဲပြေစာ"
     },
     "actions": {
       "cancelRequest": "တောင်းဆိုမှု ပယ်ဖျက်ရန်",

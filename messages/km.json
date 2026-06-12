@@ -355,7 +355,9 @@
       "notDeducted": "មិនទាន់កាត់ — ខែក្រោយ",
       "receiptHeading": "វិក្កយបត្រ",
       "receiptAlt": "វិក្កយបត្រ",
-      "receiptFullSize": "មើលទំហំពេញ →"
+      "receiptFullSize": "មើលទំហំពេញ →",
+      "paid": "បានផ្ទេរប្រាក់រួចហើយ",
+      "slip": "ប័ណ្ណផ្ទេរប្រាក់"
     },
     "actions": {
       "cancelRequest": "បោះបង់សំណើ",
