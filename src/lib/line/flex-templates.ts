@@ -57,6 +57,31 @@ function fmtDateRange(startYmd: string, endYmd: string, locale: Locale): string 
     : `${fmtDate(startYmd, locale)} – ${fmtDate(endYmd, locale)}`;
 }
 
+/**
+ * Deep link into an ADMIN LIFF page via the liff.line.me funnel
+ * (`?liff.state=?dest=...` → /liff/pair dispatcher → admin page).
+ *
+ * Admin pages cannot be linked directly: LINE's plain in-app browser
+ * (where a bare app URL opens) has a separate cookie jar from the LIFF
+ * browser where the admin's session lives, so a direct link lands
+ * sessionless and the login handshake can't complete outside LIFF
+ * context. Worker links keep using direct URLs — unchanged,
+ * long-standing prod behavior.
+ *
+ * Falls back to the plain app URL when NEXT_PUBLIC_LIFF_ID is unset (dev).
+ */
+function adminLiffDeepLink(
+  appBaseUrl: string,
+  fallbackPath: string,
+  dest: string,
+  id?: string,
+): string {
+  const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
+  if (!liffId) return `${appBaseUrl}${fallbackPath}`;
+  const state = id ? `?dest=${dest}&id=${id}` : `?dest=${dest}`;
+  return `https://liff.line.me/${liffId}?liff.state=${encodeURIComponent(state)}`;
+}
+
 /** Build a Flex Message bubble for the given notification payload. */
 export function buildFlexMessage(
   payload: NotificationPayload,
@@ -245,7 +270,12 @@ export function buildFlexMessage(
           },
         ],
         actionLabel: t('action.review'),
-        actionUri: `${appBaseUrl}/liff/admin/leave/${payload.leaveRequestId}`,
+        actionUri: adminLiffDeepLink(
+          appBaseUrl,
+          `/liff/admin/leave/${payload.leaveRequestId}`,
+          'admin-leave-detail',
+          payload.leaveRequestId,
+        ),
       });
       break;
 
@@ -262,7 +292,12 @@ export function buildFlexMessage(
         subtitle: payload.employeeName,
         details: [],
         actionLabel: t('action.review'),
-        actionUri: `${appBaseUrl}/liff/admin/advance/${payload.cashAdvanceId}`,
+        actionUri: adminLiffDeepLink(
+          appBaseUrl,
+          `/liff/admin/advance/${payload.cashAdvanceId}`,
+          'admin-advance-detail',
+          payload.cashAdvanceId,
+        ),
       });
       break;
 
@@ -276,7 +311,7 @@ export function buildFlexMessage(
         subtitle: fmtDate(payload.date, locale),
         details: [{ label: t('label.reason'), value: payload.reason }],
         actionLabel: t('action.review'),
-        actionUri: `${appBaseUrl}/liff/admin/inbox`,
+        actionUri: adminLiffDeepLink(appBaseUrl, '/liff/admin/inbox', 'admin-inbox'),
       });
       break;
   }

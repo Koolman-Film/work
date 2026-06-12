@@ -56,7 +56,30 @@ import { type LiffBootstrapError, liffBootstrap } from '@/lib/liff/init';
  * Add new slugs here when you add new LIFF pages users should be able
  * to deep-link to from the rich menu.
  */
-const DEST_WHITELIST = new Set(['check-in', 'leave', 'advance', 'calendar', 'profile']);
+const DEST_MAP: Record<string, string> = {
+  'check-in': '/liff/check-in',
+  leave: '/liff/leave',
+  advance: '/liff/advance',
+  calendar: '/liff/calendar',
+  profile: '/liff/profile',
+  // Admin LIFF pages MUST be entered through this funnel: the LIFF
+  // browser (where the session lives) and LINE's plain in-app browser
+  // have separate cookie jars, so a direct app URL opens sessionless
+  // and the gate's external-browser login can't complete. The admin
+  // rich menu + admin push buttons all use ?dest= for this reason.
+  'admin-inbox': '/liff/admin/inbox',
+  'admin-advance': '/liff/admin/advance',
+  'admin-advance-slip': '/liff/admin/advance?filter=awaiting-slip',
+};
+
+/** Parametrized admin dests — `?dest=<slug>&id=<uuid>`. The id is
+ *  validated as a UUID before being placed in a path (same open-redirect
+ *  caution as DEST_MAP: never interpolate raw query values). */
+const PARAM_DEST_MAP: Record<string, (id: string) => string> = {
+  'admin-leave-detail': (id) => `/liff/admin/leave/${id}`,
+  'admin-advance-detail': (id) => `/liff/admin/advance/${id}`,
+};
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DEFAULT_DEST = '/liff/check-in';
 
 /**
@@ -133,18 +156,26 @@ export default function PairClient({
         let resolvedToken = pairingToken;
         let resolvedAdminToken = adminPairingToken;
         let destSlug: string | null = null;
+        let destId: string | null = null;
         if (typeof window !== 'undefined') {
           const sp = new URLSearchParams(window.location.search);
           if (!resolvedToken) resolvedToken = sp.get('pair');
           if (!resolvedAdminToken) resolvedAdminToken = sp.get('pairAdmin');
           destSlug = sp.get('dest');
+          destId = sp.get('id');
         }
 
-        // Whitelist the destination slug — never use raw `?dest=` in a
-        // redirect target. Anything not on the allowlist falls back to
-        // the default (check-in).
-        const destPath =
-          destSlug && DEST_WHITELIST.has(destSlug) ? `/liff/${destSlug}` : DEFAULT_DEST;
+        // Map the destination slug — never use raw `?dest=` in a
+        // redirect target. Anything not in the maps falls back to
+        // the default (check-in). Parametrized dests require a UUID id.
+        let destPath = DEFAULT_DEST;
+        const mapped = destSlug ? DEST_MAP[destSlug] : undefined;
+        const mappedParam = destSlug ? PARAM_DEST_MAP[destSlug] : undefined;
+        if (mapped) {
+          destPath = mapped;
+        } else if (mappedParam && destId && UUID_RE.test(destId)) {
+          destPath = mappedParam(destId);
+        }
 
         // ── Branch A0: ADMIN BINDING flow (?pairAdmin=) ──────────────
         // Same funnel as worker pairing, different bind action. Admin-
