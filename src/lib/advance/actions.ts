@@ -25,6 +25,7 @@ import { getTranslations } from 'next-intl/server';
 import { auditLog } from '@/lib/audit/log';
 import { requireRole } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
+import { notifyAdminsOnLine } from '@/lib/notifications/admin-line';
 import { notifyAdminsInApp } from '@/lib/notifications/in-app-bell';
 
 /** Same display-name policy as leave/actions.ts — prefer nickname, fall
@@ -142,6 +143,13 @@ export async function submitCashAdvance(input: SubmitInput): Promise<SubmitAdvan
     // Fan-out in-app bell (fire-and-forget — see leave/actions.ts).
     void notifyAdminsInApp({
       kind: 'advance.submitted',
+      cashAdvanceId: created.id,
+      employeeName: employeeDisplayName(employee),
+      amount: formatBaht(input.amount),
+    });
+    // LINE push to paired admins — same fire-and-forget contract.
+    void notifyAdminsOnLine({
+      kind: 'admin.advance-submitted',
       cashAdvanceId: created.id,
       employeeName: employeeDisplayName(employee),
       amount: formatBaht(input.amount),

@@ -24,6 +24,7 @@ import { auditLog, auditLogTx } from '@/lib/audit/log';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { sendNotification } from '@/lib/inngest/events';
+import { notifyAdminsOnLine } from '@/lib/notifications/admin-line';
 import { notifyAdminsInApp } from '@/lib/notifications/in-app-bell';
 
 /** Format Prisma.Decimal as a human-friendly currency string for Flex
@@ -410,6 +411,13 @@ export async function adminCreateCashAdvance(
     // (the worker LIFF submit does the same). Fire-and-forget.
     void notifyAdminsInApp({
       kind: 'advance.submitted',
+      cashAdvanceId: created.id,
+      employeeName: employeeBellName(employee),
+      amount: formatAmount(input.amount),
+    });
+    // LINE push to paired admins — same fire-and-forget contract.
+    void notifyAdminsOnLine({
+      kind: 'admin.advance-submitted',
       cashAdvanceId: created.id,
       employeeName: employeeBellName(employee),
       amount: formatAmount(input.amount),
