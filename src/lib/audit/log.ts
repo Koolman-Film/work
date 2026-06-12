@@ -44,6 +44,10 @@ export type AuditAction =
   | 'user.locale-change'
   | 'user.password-reset'
   | 'user.password-change'
+  // Admin self-serve LINE pairing (admin LINE experience)
+  | 'user.admin-line-invite'
+  | 'user.admin-line-link'
+  | 'user.admin-line-unlink'
   // Granular role/permission management (Phase 1+ — see docs/v2/permissions.md)
   | 'role.create'
   | 'role.update'

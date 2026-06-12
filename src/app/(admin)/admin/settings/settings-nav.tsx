@@ -10,6 +10,7 @@ import {
   FolderTree,
   Hourglass,
   KeyRound,
+  MessageCircle,
   ShieldCheck,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -48,6 +49,7 @@ const ITEMS: Item[] = [
   },
   { href: '/admin/settings/team', label: 'ทีมผู้ดูแล', desc: 'Admin + Superadmin', Icon: ShieldCheck },
   { href: '/admin/settings/roles', label: 'บทบาทและสิทธิ์', desc: 'สิทธิ์การเข้าถึง', Icon: KeyRound },
+  { href: '/admin/settings/line', label: 'LINE', desc: 'เชื่อมบัญชีแอดมิน', Icon: MessageCircle },
 ];
 
 /**
