@@ -172,7 +172,7 @@ describe('buildFlexMessage payroll.published', () => {
 });
 
 describe('buildFlexMessage covers every kind without missing keys', () => {
-  for (const locale of ['th', 'en'] as const) {
+  for (const locale of ['th', 'en', 'my', 'zh-CN'] as const) {
     for (const payload of allKinds) {
       it(`${payload.kind} renders resolved chrome in ${locale}`, () => {
         const m = buildFlexMessage(payload, 'https://x', locale);
