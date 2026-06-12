@@ -72,7 +72,7 @@ export default async function LiffAdminInboxPage() {
       },
     }),
     prisma.attendance.findMany({
-      where: { type: 'CheckIn', checkInStatus: { in: ['Disputed'] } },
+      where: { type: 'CheckIn', checkInStatus: { in: ['Disputed'] }, deletedAt: null },
       orderBy: { clockInAt: 'desc' },
       take: 50,
       select: {
