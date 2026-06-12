@@ -69,7 +69,7 @@ const DEST_MAP: Record<string, string> = {
   // rich menu + admin push buttons all use ?dest= for this reason.
   'admin-inbox': '/liff/admin/inbox',
   'admin-advance': '/liff/admin/advance',
-  'admin-advance-slip': '/liff/admin/advance?filter=awaiting-slip',
+  'admin-advance-slip': '/liff/admin/advance',
 };
 
 /** Parametrized admin dests — `?dest=<slug>&id=<uuid>`. The id is
