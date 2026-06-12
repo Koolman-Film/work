@@ -135,7 +135,7 @@ model User {
   id         String    @id @default(uuid()) @db.Uuid
   authUserId String?   @unique @db.Uuid // FK to auth.users.id (Supabase-managed; no DB constraint)
   email      String?   @unique // Admin / Superadmin only
-  lineUserId String?   @unique // Staff only — set after LIFF link
+  lineUserId String?   @unique // Set after LIFF pairing — staff (worker pair) AND admins (admin pair via lineInviteToken)
   /// Single-use admin LINE-pairing token (JWT, scope='admin-pair').
   /// Mirrors Employee.inviteToken but lives on User because admins have
   /// no Employee row. Nulled on successful pair (consume) or regenerate.
