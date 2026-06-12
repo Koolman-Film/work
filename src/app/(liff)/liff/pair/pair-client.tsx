@@ -40,6 +40,7 @@
 
 import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
+import { linkLineToAdmin } from '@/lib/auth/link-line-to-admin';
 import { type LinkLineResult, linkLineToEmployee } from '@/lib/auth/link-line-to-employee';
 import { type LiffBootstrapError, liffBootstrap } from '@/lib/liff/init';
 
@@ -90,9 +91,16 @@ type PhaseState =
   | { phase: 'signing-in'; message: string }
   | { phase: 'linking'; message: string }
   | { phase: 'success'; employeeName: string }
+  | { phase: 'admin-success' }
   | { phase: 'error'; message: string; canRetry: boolean };
 
-export default function PairClient({ pairingToken }: { pairingToken: string | null }) {
+export default function PairClient({
+  pairingToken,
+  adminPairingToken = null,
+}: {
+  pairingToken: string | null;
+  adminPairingToken?: string | null;
+}) {
   const t = useTranslations('pair');
   const [state, setState] = useState<PhaseState>(() => ({
     phase: 'booting',
@@ -123,10 +131,12 @@ export default function PairClient({ pairingToken }: { pairingToken: string | nu
         //       ?liff.state= on the initial request (non-LIFF dev test).
         //   (b) window.location.search after liff.init() — the LIFF case.
         let resolvedToken = pairingToken;
+        let resolvedAdminToken = adminPairingToken;
         let destSlug: string | null = null;
         if (typeof window !== 'undefined') {
           const sp = new URLSearchParams(window.location.search);
           if (!resolvedToken) resolvedToken = sp.get('pair');
+          if (!resolvedAdminToken) resolvedAdminToken = sp.get('pairAdmin');
           destSlug = sp.get('dest');
         }
 
@@ -135,6 +145,27 @@ export default function PairClient({ pairingToken }: { pairingToken: string | nu
         // the default (check-in).
         const destPath =
           destSlug && DEST_WHITELIST.has(destSlug) ? `/liff/${destSlug}` : DEFAULT_DEST;
+
+        // ── Branch A0: ADMIN BINDING flow (?pairAdmin=) ──────────────
+        // Same funnel as worker pairing, different bind action. Admin-
+        // facing → Thai literals (matches the untranslated admin panel).
+        // After binding we ALSO send admins to the OA add-friend page:
+        // pushes + the admin rich menu only work for OA friends.
+        if (resolvedAdminToken) {
+          setState({ phase: 'linking', message: 'กำลังเชื่อมต่อบัญชีแอดมิน...' });
+          const adminResult = await linkLineToAdmin({ pairingToken: resolvedAdminToken });
+          if (cancelled) return;
+
+          if (adminResult.ok) {
+            setState({ phase: 'admin-success' });
+            setTimeout(() => {
+              window.location.href = ADD_FRIEND_URL;
+            }, 1500);
+          } else {
+            setState({ phase: 'error', message: adminResult.message, canRetry: false });
+          }
+          return;
+        }
 
         // ── Branch A: BINDING flow (first-time pair) ─────────────────
         if (resolvedToken) {
@@ -203,7 +234,7 @@ export default function PairClient({ pairingToken }: { pairingToken: string | nu
     return () => {
       cancelled = true;
     };
-  }, [pairingToken, t]);
+  }, [pairingToken, adminPairingToken, t]);
 
   return (
     <div className="grid min-h-dvh place-items-center px-4 py-12">
@@ -218,6 +249,8 @@ export default function PairClient({ pairingToken }: { pairingToken: string | nu
             <ProgressBlock label={state.message} />
           ) : state.phase === 'success' ? (
             <SuccessBlock employeeName={state.employeeName} />
+          ) : state.phase === 'admin-success' ? (
+            <AdminSuccessBlock />
           ) : (
             <ErrorBlock message={state.message} canRetry={state.canRetry} />
           )}
@@ -258,6 +291,30 @@ function SuccessBlock({ employeeName }: { employeeName: string }) {
       <p className="text-sm text-gray-600">{t('success.welcome', { name: employeeName })}</p>
       <p className="text-xs text-gray-500">{t('success.lastStep')}</p>
       <p className="text-xs text-gray-400">{t('success.redirecting')}</p>
+    </div>
+  );
+}
+
+function AdminSuccessBlock() {
+  return (
+    <div className="flex flex-col items-center gap-3 text-center">
+      <div className="grid h-12 w-12 place-items-center rounded-full bg-green-100 text-green-700">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="h-6 w-6"
+          aria-hidden="true"
+        >
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+      </div>
+      <p className="text-base font-medium text-gray-900">เชื่อมต่อบัญชีแอดมินสำเร็จ</p>
+      <p className="text-sm text-gray-600">เมนูแอดมินจะปรากฏในแชท OA ภายในไม่กี่วินาที</p>
+      <p className="text-xs text-gray-400">กำลังพาไปเพิ่มเพื่อน OA...</p>
     </div>
   );
 }
