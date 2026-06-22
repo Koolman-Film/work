@@ -243,6 +243,18 @@ function draftValues(draft: PayrollDraft) {
 }
 
 /**
+ * Recompute fresh draft numbers per employee WITHOUT persisting — for the
+ * payroll page's stale-draft check. Compares against the stored Draft rows to
+ * flag ones whose inputs (attendance / leave / advance / adjustments / config /
+ * salary) changed since the last "คำนวณ". Same engine `runPayrollDraft` uses, so
+ * a flagged row is exactly one that would change on recalculation.
+ */
+export async function previewPayrollDrafts(month: string): Promise<Map<string, PayrollDraft>> {
+  const { drafts } = await gatherAndCalc(prisma, month);
+  return new Map(drafts.map((d) => [d.employee.id, d.draft]));
+}
+
+/**
  * Calculate (or recalculate) Draft payroll rows for the month. Existing
  * Published/Locked rows are left untouched and counted as `frozen`.
  */
