@@ -66,11 +66,50 @@ jobs:
       - run: pnpm prisma generate
       - run: pnpm test
 
+  integration:
+    name: Integration tests (Vitest + Postgres)
+    runs-on: ubuntu-latest
+    # A throwaway Postgres for the service-flow tests (payroll run/publish,
+    # advance balance, OT candidates). The Prisma migrations are vanilla-PG
+    # compatible (Supabase Storage RLS lives outside them), so a plain image
+    # works. Mirrors the local koolman_test DB.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: koolman_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/koolman_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm prisma generate
+      # Apply the schema to the throwaway DB, then run the integration suite.
+      - run: pnpm prisma migrate deploy
+        env:
+          DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
+          DIRECT_URL: ${{ env.TEST_DATABASE_URL }}
+      - run: pnpm test:integration
+
   build:
     name: Build (Next.js)
     runs-on: ubuntu-latest
     # Don't burn CI minutes on a build if the earlier jobs already failed.
-    needs: [lint, typecheck, test]
+    needs: [lint, typecheck, test, integration]
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
