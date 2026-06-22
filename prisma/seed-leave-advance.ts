@@ -22,8 +22,17 @@
 // biome-ignore-all lint/suspicious/noConsole: seed scripts are CLI tools — console is the output channel
 
 import { Prisma, PrismaClient } from '@prisma/client';
+import { segmentFor } from '../src/lib/leave/units';
+import { expandHolidaysWithSubstitutes, workingDaysIn } from '../src/lib/leave/working-days';
 
 const prisma = new PrismaClient();
+
+const CFG_FALLBACK = {
+  morningStart: '09:00',
+  morningEnd: '12:00',
+  afternoonStart: '13:00',
+  afternoonEnd: '17:00',
+};
 
 /** Refuse to run against anything that isn't the local dev database. */
 function assertLocalDb() {
@@ -252,6 +261,13 @@ async function main() {
   );
 
   // ── Leave requests ──────────────────────────────────────────────
+  // For Approved seeds we freeze chargedMinutes the same way approval does, so
+  // the leave report / balance count them (a null snapshot reads as 0 used).
+  const cfg = (await prisma.leaveConfig.findFirst()) ?? CFG_FALLBACK;
+  const allHolidays = (
+    await prisma.holiday.findMany({ where: { archivedAt: null }, select: { date: true } })
+  ).map((h) => h.date);
+
   let leaveCreated = 0;
   let leaveSkipped = 0;
   for (const s of LEAVE_SEEDS) {
@@ -259,6 +275,7 @@ async function main() {
     const type = leaveTypes[s.typeIndex % leaveTypes.length];
     if (!emp || !type) continue; // unreachable (lengths checked above) — narrows for TS
     const startDate = d(s.start);
+    const endDate = d(s.end);
 
     const existing = await prisma.leaveRequest.findFirst({
       where: { employeeId: emp.id, leaveTypeId: type.id, startDate },
@@ -270,14 +287,31 @@ async function main() {
     }
 
     const reviewed = s.status === 'Approved' || s.status === 'Rejected';
+
+    // Freeze chargedMinutes for Approved leaves (all seeds are FullDay).
+    let chargedMinutes: number | null = null;
+    if (s.status === 'Approved') {
+      const inWindow = allHolidays.filter(
+        (h) => h.getTime() >= startDate.getTime() - 86_400_000 && h.getTime() <= endDate.getTime(),
+      );
+      const workingDays = workingDaysIn({
+        startDate,
+        endDate,
+        holidays: expandHolidaysWithSubstitutes(inWindow),
+      });
+      const segment = segmentFor('FullDay', cfg);
+      chargedMinutes = (segment?.minutes ?? 0) * workingDays.length;
+    }
+
     await prisma.leaveRequest.create({
       data: {
         employeeId: emp.id,
         leaveTypeId: type.id,
         startDate,
-        endDate: d(s.end),
+        endDate,
         reason: s.reason,
         status: s.status,
+        chargedMinutes,
         createdAt: ts(`${s.submitted}T09:30:00`),
         reviewedById: reviewed ? reviewer.id : null,
         reviewedAt: reviewed && s.reviewedOn ? ts(`${s.reviewedOn}T14:00:00`) : null,
