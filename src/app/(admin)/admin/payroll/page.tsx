@@ -9,6 +9,8 @@ import { canDo } from '@/lib/auth/check-permission';
 import { requireRole } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
 import { formatTHB, formatTHB2, monthLabelTh } from '@/lib/format';
+import { asUuid, loadReportFilterOptions } from '../reports/_load-filter-options';
+import { ReportFilters } from '../reports/report-filters';
 import {
   calculatePayrollAction,
   createRowAdjustment,
@@ -31,7 +33,12 @@ import { RunActionForm } from './run-action-form';
  * (payroll.run / payroll.publish) — the Server Actions re-enforce anyway.
  */
 
-type SearchParams = Promise<{ m?: string; msg?: string }>;
+type SearchParams = Promise<{
+  m?: string;
+  msg?: string;
+  branchId?: string;
+  departmentId?: string;
+}>;
 
 const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
 
@@ -57,8 +64,16 @@ const STATUS_INFO: Record<string, { key: StatusKey; label: string }> = {
 };
 
 export default async function PayrollRunPage({ searchParams }: { searchParams: SearchParams }) {
-  const { m, msg } = await searchParams;
+  const { m, msg, branchId: rawBranchId, departmentId: rawDepartmentId } = await searchParams;
   const month = m && MONTH_RE.test(m) ? m : currentMonth();
+  const branchId = asUuid(rawBranchId);
+  const departmentId = asUuid(rawDepartmentId);
+  const hasFilter = Boolean(branchId || departmentId);
+  // Suffix appended to the month-nav links so changing month keeps the active
+  // branch/department filter (the ReportFilters side preserves `m` likewise).
+  const filterQs =
+    (branchId ? `&branchId=${branchId}` : '') +
+    (departmentId ? `&departmentId=${departmentId}` : '');
 
   const { user } = await requireRole(['Admin', 'Superadmin']);
   const [mayRun, mayPublish] = await Promise.all([
@@ -66,15 +81,40 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
     canDo(user, 'payroll.publish'),
   ]);
 
+  // Fetch the FULL month, unfiltered — the run actions (คำนวณ/เผยแพร่/ล็อก) are
+  // month-wide, so their status counts and the "calculated N of M" note below
+  // must reflect every row, not the filtered view (decision: branch/department
+  // is a VIEW filter only). branchId/departmentId on the employee feed the
+  // in-memory filter for the table + summary totals.
   const rows = await prisma.payroll.findMany({
     where: { month },
     orderBy: { employee: { firstName: 'asc' } },
     include: {
-      employee: { select: { firstName: true, lastName: true, nickname: true } },
+      employee: {
+        select: {
+          firstName: true,
+          lastName: true,
+          nickname: true,
+          branchId: true,
+          departmentId: true,
+        },
+      },
     },
   });
 
-  const activeEmployees = await prisma.employee.count({ where: { status: { not: 'Archived' } } });
+  // The filtered view that drives the table + the summary-strip totals.
+  const visibleRows = hasFilter
+    ? rows.filter(
+        (r) =>
+          (!branchId || r.employee.branchId === branchId) &&
+          (!departmentId || r.employee.departmentId === departmentId),
+      )
+    : rows;
+
+  const [activeEmployees, options] = await Promise.all([
+    prisma.employee.count({ where: { status: { not: 'Archived' } } }),
+    loadReportFilterOptions(),
+  ]);
 
   // Adjustments applying to this month, grouped per employee — feeds the
   // per-row "เพิ่ม/ลด" modal so the admin sees + manages them in place.
@@ -114,8 +154,9 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
     adjByEmployee.set(a.employeeId, list);
   }
 
+  // Totals follow the filtered view (decision: view filter — see above).
   const sum = (pick: (r: (typeof rows)[number]) => number) =>
-    rows.reduce((acc, r) => acc + pick(r), 0);
+    visibleRows.reduce((acc, r) => acc + pick(r), 0);
   const totals = {
     incomeBase: sum((r) => r.incomeBase.toNumber()),
     incomeOther: sum((r) => r.incomeOther.toNumber()),
@@ -234,25 +275,39 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
         }
       />
 
-      {/* Month nav — same compound control as /admin/attendance */}
-      <div className="mb-4 inline-flex items-center rounded-lg border border-gray-200 bg-white">
-        <Link
-          href={`/admin/payroll?m=${shiftMonth(month, -1)}`}
-          className="px-2 py-1.5 text-sm text-ink-3 transition hover:bg-gray-50 hover:text-ink-1"
-          aria-label="เดือนก่อน"
-        >
-          ‹
-        </Link>
-        <span className="border-x border-gray-200 px-3 py-1.5 text-xs font-semibold text-ink-1">
-          {monthLabelTh(month)}
-        </span>
-        <Link
-          href={`/admin/payroll?m=${shiftMonth(month, 1)}`}
-          className="px-2 py-1.5 text-sm text-ink-3 transition hover:bg-gray-50 hover:text-ink-1"
-          aria-label="เดือนถัดไป"
-        >
-          ›
-        </Link>
+      {/* Month nav + branch/department filter. The month nav keeps its own
+          href (the filter component preserves `m` on its side, so both stay
+          in sync). */}
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        {/* Month nav — same compound control as /admin/attendance */}
+        <div className="inline-flex items-center rounded-lg border border-gray-200 bg-white">
+          <Link
+            href={`/admin/payroll?m=${shiftMonth(month, -1)}${filterQs}`}
+            className="px-2 py-1.5 text-sm text-ink-3 transition hover:bg-gray-50 hover:text-ink-1"
+            aria-label="เดือนก่อน"
+          >
+            ‹
+          </Link>
+          <span className="border-x border-gray-200 px-3 py-1.5 text-xs font-semibold text-ink-1">
+            {monthLabelTh(month)}
+          </span>
+          <Link
+            href={`/admin/payroll?m=${shiftMonth(month, 1)}${filterQs}`}
+            className="px-2 py-1.5 text-sm text-ink-3 transition hover:bg-gray-50 hover:text-ink-1"
+            aria-label="เดือนถัดไป"
+          >
+            ›
+          </Link>
+        </div>
+        <ReportFilters
+          period={{ m: month }}
+          branchId={branchId ?? ''}
+          departmentId={departmentId ?? ''}
+          q=""
+          branches={options.branches}
+          departments={options.departments}
+          showSearch={false}
+        />
       </div>
 
       {msg && (
@@ -279,7 +334,7 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
         <StatCard
           label="เงินสุทธิรวม"
           value={<span className="text-primary-700">{formatTHB(totals.netPay)}</span>}
-          hint={`พนักงาน ${rows.length} คน`}
+          hint={`พนักงาน ${visibleRows.length} คน${hasFilter ? ' (กรองแล้ว)' : ''}`}
         />
       </div>
 
@@ -321,7 +376,7 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
 
       <ResponsiveTable
         columns={columns}
-        rows={rows}
+        rows={visibleRows}
         rowKey={(r) => r.id}
         actions={(r) =>
           r.status === 'Draft' && mayRun ? (
@@ -337,22 +392,30 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
           ) : null
         }
         empty={
-          <div className="surface">
-            <EmptyState
-              title={`ยังไม่ได้คำนวณเงินเดือนเดือน ${monthLabelTh(month)}`}
-              action={
-                mayRun ? (
-                  <RunActionForm
-                    action={calculatePayrollAction}
-                    month={month}
-                    label="คำนวณเงินเดือน"
-                    pendingLabel="กำลังคำนวณเงินเดือน…"
-                    variant="secondary"
-                  />
-                ) : undefined
-              }
-            />
-          </div>
+          // The month has rows but the filter excluded them all → tell the
+          // admin it's the filter, not a missing payroll run (no calc button).
+          hasFilter && rows.length > 0 ? (
+            <div className="surface">
+              <EmptyState title="ไม่มีพนักงานในสาขา/แผนกที่เลือก" />
+            </div>
+          ) : (
+            <div className="surface">
+              <EmptyState
+                title={`ยังไม่ได้คำนวณเงินเดือนเดือน ${monthLabelTh(month)}`}
+                action={
+                  mayRun ? (
+                    <RunActionForm
+                      action={calculatePayrollAction}
+                      month={month}
+                      label="คำนวณเงินเดือน"
+                      pendingLabel="กำลังคำนวณเงินเดือน…"
+                      variant="secondary"
+                    />
+                  ) : undefined
+                }
+              />
+            </div>
+          )
         }
       />
     </div>
