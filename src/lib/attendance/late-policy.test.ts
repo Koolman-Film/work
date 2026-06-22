@@ -5,6 +5,7 @@ import {
   hhmmToMinutes,
   lateMinutesForCheckIn,
   latePolicyFrom,
+  resolveLatePolicy,
 } from './late-policy';
 
 /** Helper: a UTC instant for a given Bangkok wall-clock "HH:MM" on 2026-06-12.
@@ -67,5 +68,32 @@ describe('latePolicyFrom', () => {
     expect(latePolicyFrom({ workStartTime: null, lateGraceMinutes: null })).toEqual(
       DEFAULT_LATE_POLICY,
     );
+  });
+});
+
+describe('resolveLatePolicy', () => {
+  const company = { startTime: '09:00', graceMin: 15 };
+  // Mon/Wed/Fri schedule, each day starting 08:30, with a 10-min tolerance.
+  const days = [
+    { dayOfWeek: 1, startTime: '08:30' },
+    { dayOfWeek: 3, startTime: '08:30' },
+    { dayOfWeek: 5, startTime: '08:30' },
+  ];
+
+  it("uses the employee's schedule start + tolerance on a scheduled day", () => {
+    expect(resolveLatePolicy(days, 10, 1, company)).toEqual({ startTime: '08:30', graceMin: 10 });
+  });
+
+  it('returns null on an off-schedule day (never late)', () => {
+    expect(resolveLatePolicy(days, 10, 6, company)).toBeNull(); // Saturday
+  });
+
+  it('falls back to the company default when no schedule', () => {
+    expect(resolveLatePolicy(null, null, 6, company)).toEqual(company);
+    expect(resolveLatePolicy([], 10, 1, company)).toEqual(company);
+  });
+
+  it('uses the company grace when the schedule has none', () => {
+    expect(resolveLatePolicy(days, null, 3, company)).toEqual({ startTime: '08:30', graceMin: 15 });
   });
 });
