@@ -479,14 +479,16 @@
     },
     "cell": {
       "leaveCount": "{count} on leave",
-      "advanceCount": "{count} advance"
+      "advanceCount": "{count} advance",
+      "birthdayCount": "{count} birthday"
     },
     "detail": {
       "holiday": "Holiday: {name}",
       "empty": "No entries for this day",
       "emptyHolidayNote": "It is a public holiday",
       "youSuffix": "(you)",
-      "advanceLabel": "Cash advance · {amount}"
+      "advanceLabel": "Cash advance · {amount}",
+      "birthdayLabel": "Birthday"
     },
     "status": {
       "Approved": "Approved",

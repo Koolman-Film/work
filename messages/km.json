@@ -444,14 +444,16 @@
     },
     "cell": {
       "leaveCount": "ឈប់សម្រាក {count}",
-      "advanceCount": "ដកប្រាក់ {count}"
+      "advanceCount": "ដកប្រាក់ {count}",
+      "birthdayCount": "ថ្ងៃកំណើត {count}"
     },
     "detail": {
       "holiday": "ថ្ងៃឈប់សម្រាក: {name}",
       "empty": "មិនមានកំណត់ត្រាសម្រាប់ថ្ងៃនេះ",
       "emptyHolidayNote": "ដោយសារថ្ងៃនេះជាថ្ងៃឈប់សម្រាករដ្ឋការ",
       "youSuffix": "(អ្នក)",
-      "advanceLabel": "ដកប្រាក់ · {amount}"
+      "advanceLabel": "ដកប្រាក់ · {amount}",
+      "birthdayLabel": "ថ្ងៃកំណើត"
     },
     "status": {
       "Approved": "បានអនុម័ត",
