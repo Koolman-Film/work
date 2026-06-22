@@ -152,7 +152,10 @@ export async function getTodayAttendance(): Promise<LiveBoardData> {
       employeeName: `${r.employee.firstName} ${r.employee.lastName}`,
       employeeNickname: r.employee.nickname,
       photoUrl: photoUrl(r.employee.photoKey),
+      // Group under the actual check-in branch (where they physically are);
+      // carry home branch so the chip can flag a cross-branch check-in.
       branchName: r.checkInBranch?.name ?? r.employee.branch.name,
+      homeBranchName: r.employee.branch.name,
       clockInAt: r.clockInAt ? r.clockInAt.toISOString() : null,
       clockOutAt: r.clockOutAt ? r.clockOutAt.toISOString() : null,
       checkInStatus: r.checkInStatus,
