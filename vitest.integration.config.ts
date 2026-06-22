@@ -22,7 +22,16 @@ const TEST_DB =
   process.env.TEST_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:54422/koolman_test';
 
 export default defineConfig({
-  resolve: { alias: { '@': resolve(__dirname, './src') } },
+  resolve: {
+    alias: {
+      '@': resolve(__dirname, './src'),
+      // `server-only` throws on import outside React's server condition, which
+      // vitest doesn't set. Map it to the package's own no-op (what the
+      // react-server condition resolves to) so we can import server-only
+      // service modules like reports/queries.ts directly.
+      'server-only': resolve(__dirname, 'node_modules/server-only/empty.js'),
+    },
+  },
   test: {
     environment: 'node',
     include: ['tests/integration/**/*.integration.test.ts'],
