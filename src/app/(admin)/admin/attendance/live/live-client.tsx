@@ -269,6 +269,14 @@ function Chip({ row }: { row: LiveAttendanceRow }) {
           เข้า {row.clockInAt ? fmtTime(row.clockInAt) : '—'}
           {row.clockOutAt && ` · ออก ${fmtTime(row.clockOutAt)}`}
         </p>
+        {row.homeBranchName !== row.branchName && (
+          <p
+            className="mt-0.5 inline-flex items-center gap-1 rounded bg-violet-50 px-1.5 py-0.5 text-[9px] font-medium text-violet-700"
+            title={`เช็คอินข้ามสาขา — พนักงานประจำสาขา ${row.homeBranchName}`}
+          >
+            ข้ามสาขา · ประจำ {row.homeBranchName}
+          </p>
+        )}
       </div>
     </div>
   );
