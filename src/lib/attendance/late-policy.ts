@@ -41,6 +41,31 @@ export function latePolicyFrom(
   };
 }
 
+export type ScheduleDay = { dayOfWeek: number; startTime: string };
+
+/**
+ * Resolve which LatePolicy applies to an employee on a given weekday:
+ *  - HAS a WorkSchedule → today's `WorkScheduleDay.startTime` + the schedule's
+ *    `lateToleranceMin`. Returns **null** when today isn't one of their
+ *    scheduled days (they're off → never late, even if they check in).
+ *  - no schedule → the `companyDefault` (PayrollConfig).
+ *
+ * @param dow 0=Sun … 6=Sat (the check-in date's getUTCDay()).
+ */
+export function resolveLatePolicy(
+  scheduleDays: ReadonlyArray<ScheduleDay> | null | undefined,
+  scheduleGraceMin: number | null | undefined,
+  dow: number,
+  companyDefault: LatePolicy,
+): LatePolicy | null {
+  if (scheduleDays && scheduleDays.length > 0) {
+    const todayDay = scheduleDays.find((d) => d.dayOfWeek === dow);
+    if (!todayDay) return null; // off-schedule day → not late
+    return { startTime: todayDay.startTime, graceMin: scheduleGraceMin ?? companyDefault.graceMin };
+  }
+  return companyDefault;
+}
+
 /** Parse "HH:MM" (24h) to minutes-of-day, or null if malformed/out of range. */
 export function hhmmToMinutes(hhmm: string): number | null {
   const m = /^(\d{2}):(\d{2})$/.exec(hhmm);
