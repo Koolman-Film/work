@@ -4,6 +4,7 @@ import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
 import { FormField } from '@/components/ui/form-field';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import { HiredAtField } from './hired-at-field';
 import { PhotoField } from './photo-field';
 
 export type EmployeeFormOptions = {
@@ -91,6 +92,10 @@ export function EmployeeForm({
   employeeId,
 }: Props) {
   const isEdit = mode === 'edit';
+  // Bangkok "today" — the reference date for the live อายุงาน badge. Computed
+  // on the server so SSR and client hydration agree (HiredAtField is a client
+  // island that recomputes tenure as the date is edited).
+  const todayYmd = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
 
   return (
     <div className="space-y-6">
@@ -173,14 +178,7 @@ export function EmployeeForm({
               <CardBody className="space-y-5">
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                   <FormField label="วันเริ่มงาน" htmlFor="hiredAt" required>
-                    <Input
-                      id="hiredAt"
-                      name="hiredAt"
-                      type="date"
-                      required
-                      defaultValue={initial?.hiredAt ?? new Date().toISOString().slice(0, 10)}
-                      className="max-w-xs"
-                    />
+                    <HiredAtField initialValue={initial?.hiredAt ?? todayYmd} todayYmd={todayYmd} />
                   </FormField>
                   <FormField label="สถานะ" htmlFor="status" required>
                     <select
