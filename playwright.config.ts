@@ -60,5 +60,10 @@ export default defineConfig({
     timeout: 120_000,
     stdout: 'pipe',
     stderr: 'pipe',
+    // Enable the test-only /api/test/session login route (used by the LIFF
+    // worker specs). The route is also gated on NODE_ENV !== 'production'.
+    // NOTE: a manually-started reused dev server won't inherit this — start it
+    // with E2E_TEST_LOGIN=1 if you run the worker specs against your own server.
+    env: { E2E_TEST_LOGIN: '1' },
   },
 });
