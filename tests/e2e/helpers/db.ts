@@ -52,10 +52,72 @@ export type E2eWorker = {
  * and `requireSelfie: false` (so the camera/Storage path is skipped — that's
  * a separate, heavier spec).
  */
+/**
+ * Provision the `attendance-photos` Storage bucket + its RLS policies in the
+ * LOCAL stack, mirroring production. This infra is created out-of-band in prod
+ * (Supabase dashboard) and isn't in any migration, so a fresh local stack has
+ * neither the bucket nor the policies — selfie uploads would fail. Idempotent
+ * (safe to call before every selfie test). Local-only; never run against prod.
+ *
+ * Policy definitions copied verbatim from production (read-only). They depend
+ * on is_admin_or_owner() (migration 0022) and the storage built-ins, both
+ * present locally.
+ */
+export async function ensureAttendancePhotosBucket(): Promise<void> {
+  await prisma.$executeRawUnsafe(`
+    do $$
+    begin
+      insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+      values ('attendance-photos', 'attendance-photos', false, 5242880,
+              array['image/jpeg','image/png'])
+      on conflict (id) do nothing;
+
+      if not exists (select 1 from pg_policies where schemaname='storage'
+        and tablename='objects' and policyname='attendance_photos: users insert own folder') then
+        create policy "attendance_photos: users insert own folder" on storage.objects
+          for insert to authenticated
+          with check (bucket_id='attendance-photos'
+            and (storage.foldername(name))[1] = (auth.uid())::text);
+      end if;
+
+      if not exists (select 1 from pg_policies where schemaname='storage'
+        and tablename='objects' and policyname='attendance_photos: users read own folder') then
+        create policy "attendance_photos: users read own folder" on storage.objects
+          for select to authenticated
+          using (bucket_id='attendance-photos'
+            and (storage.foldername(name))[1] = (auth.uid())::text);
+      end if;
+
+      if not exists (select 1 from pg_policies where schemaname='storage'
+        and tablename='objects' and policyname='attendance_photos: admins read all') then
+        create policy "attendance_photos: admins read all" on storage.objects
+          for select to authenticated
+          using (bucket_id='attendance-photos' and is_admin_or_owner(auth.uid()));
+      end if;
+
+      if not exists (select 1 from pg_policies where schemaname='storage'
+        and tablename='objects' and policyname='attendance_photos: admins update all') then
+        create policy "attendance_photos: admins update all" on storage.objects
+          for update to authenticated
+          using (bucket_id='attendance-photos' and is_admin_or_owner(auth.uid()))
+          with check (bucket_id='attendance-photos' and is_admin_or_owner(auth.uid()));
+      end if;
+
+      if not exists (select 1 from pg_policies where schemaname='storage'
+        and tablename='objects' and policyname='attendance_photos: admins delete all') then
+        create policy "attendance_photos: admins delete all" on storage.objects
+          for delete to authenticated
+          using (bucket_id='attendance-photos' and is_admin_or_owner(auth.uid()));
+      end if;
+    end $$;
+  `);
+}
+
 export async function createE2eWorker(opts?: {
   lat?: number;
   lng?: number;
   radiusMeters?: number;
+  requireSelfie?: boolean;
 }): Promise<E2eWorker> {
   const suffix = e2eId();
   const email = `e2e-worker-${suffix}@koolman.local`;
@@ -84,7 +146,7 @@ export async function createE2eWorker(opts?: {
       longitude: opts?.lng ?? 100.5018,
       radiusMeters: opts?.radiusMeters ?? 150,
       requireGps: true,
-      requireSelfie: false,
+      requireSelfie: opts?.requireSelfie ?? false,
       requireCheckOut: false,
     },
   });
@@ -174,6 +236,26 @@ export async function cleanupE2eRecords(): Promise<void> {
       const authIds = users.map((u) => u.authUserId).filter((id): id is string => id != null);
       if (authIds.length > 0) {
         const admin = getSupabaseAdminClient();
+
+        // Selfie objects uploaded under {authUserId}/checkins/ aren't tied to a
+        // Prisma row. Reap them via the Storage API — direct SQL DELETE on
+        // storage.objects is blocked by Supabase. Best-effort.
+        await Promise.all(
+          authIds.map(async (id) => {
+            try {
+              const folder = `${id}/checkins`;
+              const { data: files } = await admin.storage.from('attendance-photos').list(folder);
+              if (files?.length) {
+                await admin.storage
+                  .from('attendance-photos')
+                  .remove(files.map((f) => `${folder}/${f.name}`));
+              }
+            } catch (e) {
+              console.error('[e2e cleanup] storage remove failed', id, e);
+            }
+          }),
+        );
+
         await Promise.all(
           authIds.map((id) =>
             admin.auth.admin.deleteUser(id).catch((e) => {

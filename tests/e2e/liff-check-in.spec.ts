@@ -1,6 +1,13 @@
+import { join } from 'node:path';
 import { expect, test } from '@playwright/test';
 import { loginAsWorker } from './helpers/auth';
-import { cleanupE2eRecords, createE2eWorker, type E2eWorker, prisma } from './helpers/db';
+import {
+  cleanupE2eRecords,
+  createE2eWorker,
+  type E2eWorker,
+  ensureAttendancePhotosBucket,
+  prisma,
+} from './helpers/db';
 
 /**
  * LIFF worker check-in — the most-used employee flow, and the one neither unit
@@ -104,5 +111,55 @@ test.describe('LIFF worker check-in', () => {
     await expect(page.getByText('เสร็จสิ้นวันนี้แล้ว')).toBeVisible();
     // The primary check-in button must be gone — the server already saw a row.
     await expect(page.getByRole('button', { name: 'เช็คอินเข้างาน' })).toHaveCount(0);
+  });
+});
+
+// A real 64x64 PNG fixture. compressToJpeg → createImageBitmap needs a genuine
+// decodable image (a 1x1 PNG fails to decode in headless Chromium).
+const SELFIE_FIXTURE = join(import.meta.dirname, 'fixtures', 'selfie.png');
+
+test.describe('LIFF worker check-in — selfie required', () => {
+  let worker: E2eWorker;
+
+  test.beforeAll(async () => {
+    // The attendance-photos bucket + RLS aren't in the repo (provisioned
+    // out-of-band in prod); recreate them locally so the upload can succeed.
+    await ensureAttendancePhotosBucket();
+  });
+
+  test.beforeEach(async ({ page, context }) => {
+    // Grant geolocation but NOT camera: getUserMedia fails in headless, so the
+    // SelfieStep falls back to its <input type=file> path, which we drive.
+    await context.grantPermissions(['geolocation']);
+    await context.setGeolocation({ latitude: BRANCH.lat, longitude: BRANCH.lng, accuracy: 10 });
+    worker = await createE2eWorker({ lat: BRANCH.lat, lng: BRANCH.lng, requireSelfie: true });
+    await loginAsWorker(page, { email: worker.email, password: worker.password });
+  });
+
+  test.afterAll(async () => {
+    await cleanupE2eRecords();
+  });
+
+  test('captures a selfie, uploads it, then records the check-in', async ({ page }) => {
+    await page.goto('/liff/check-in');
+    await page.getByRole('button', { name: 'เช็คอินเข้างาน' }).click();
+
+    // The selfie overlay opens (selfieRequired=true). Camera is unavailable in
+    // headless → the always-present fallback file input is what we feed.
+    const dialog = page.getByRole('dialog', { name: 'ถ่ายเซลฟี่' });
+    await expect(dialog).toBeVisible();
+    await dialog.locator('input[type="file"]').setInputFiles(SELFIE_FIXTURE);
+
+    // Preview → confirm ("ใช้ภาพนี้") kicks off compress + upload + submit.
+    await page.getByRole('button', { name: 'ใช้ภาพนี้' }).click();
+
+    await expect(page.getByText('เสร็จสิ้นวันนี้แล้ว')).toBeVisible();
+
+    const row = await prisma.attendance.findFirst({
+      where: { employeeId: worker.employeeId, type: 'CheckIn' },
+    });
+    expect(row?.checkInStatus).toBe('Confirmed');
+    // The selfie key was uploaded to the worker's own folder and stored on the row.
+    expect(row?.checkInSelfieUrl).toMatch(new RegExp(`^${worker.authUserId}/checkins/`));
   });
 });
