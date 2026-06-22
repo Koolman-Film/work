@@ -42,7 +42,7 @@ import { notifyAdminsOnLine } from '@/lib/notifications/admin-line';
 import { notifyAdminsInApp } from '@/lib/notifications/in-app-bell';
 import { bangkokDateUtcMidnight, isClosedDay } from './date';
 import { type CheckInPoint, disputeReasonText, evaluateCheckIn } from './evaluate';
-import { lateMinutesForCheckIn, latePolicyFrom } from './late-policy';
+import { lateMinutesForCheckIn, latePolicyFrom, resolveLatePolicy } from './late-policy';
 
 /** Display name for admin bell — prefer nickname. Mirrors leave/actions.ts. */
 function employeeDisplayName(e: Pick<Employee, 'firstName' | 'lastName' | 'nickname'>): string {
@@ -239,23 +239,46 @@ export async function submitCheckIn(input: SubmitCheckInInput): Promise<SubmitCh
   const userAgent = headerList.get('user-agent') ?? undefined;
 
   // ── Late-arrival policy ──────────────────────────────────────────────
-  // A check-in later than the company start + grace records a separate
-  // `Late` row (type=Late) — the unit the report, the history "มาสาย"
-  // filter, and payroll deduction all read. Skipped on closed days
-  // (Sunday or a Holiday), where there's no scheduled start to be late
-  // against. The Holiday lookup only runs when the time alone already
-  // looks late, so on-time check-ins stay a single query cheaper.
-  const latePolicyCfg = await prisma.payrollConfig.findFirst({
-    select: { workStartTime: true, lateGraceMinutes: true },
-  });
-  let lateMinutes = lateMinutesForCheckIn(now, latePolicyFrom(latePolicyCfg));
+  // A check-in later than the scheduled start + grace records a separate
+  // `Late` row (type=Late) — the unit the report, the history "มาสาย" filter,
+  // and payroll deduction all read. The start time + grace come from the
+  // employee's WorkSchedule for today's weekday when assigned, else the
+  // company default (PayrollConfig). A check-in on an off-schedule day → never
+  // late. Holidays (and Sundays, for the default path) also cancel lateness.
+  const [latePolicyCfg, schedEmp] = await Promise.all([
+    prisma.payrollConfig.findFirst({ select: { workStartTime: true, lateGraceMinutes: true } }),
+    prisma.employee.findUnique({
+      where: { id: employee.id },
+      select: {
+        workSchedule: {
+          select: {
+            lateToleranceMin: true,
+            days: { select: { dayOfWeek: true, startTime: true } },
+          },
+        },
+      },
+    }),
+  ]);
+  const todayDow = today.getUTCDay();
+  const scheduleDays = schedEmp?.workSchedule?.days ?? null;
+  const hasSchedule = !!scheduleDays && scheduleDays.length > 0;
+  const policy = resolveLatePolicy(
+    scheduleDays,
+    schedEmp?.workSchedule?.lateToleranceMin ?? null,
+    todayDow,
+    latePolicyFrom(latePolicyCfg),
+  );
+  let lateMinutes = policy ? lateMinutesForCheckIn(now, policy) : 0;
   if (lateMinutes > 0) {
     const hasHoliday =
       (await prisma.holiday.findFirst({
         where: { date: today, archivedAt: null },
         select: { id: true },
       })) != null;
-    if (isClosedDay(today, hasHoliday)) lateMinutes = 0;
+    // With a schedule, working days are already defined by it — only holidays
+    // cancel lateness. Without one, fall back to company closed days (Sun + holiday).
+    const off = hasSchedule ? hasHoliday : isClosedDay(today, hasHoliday);
+    if (off) lateMinutes = 0;
   }
 
   // Holder pattern: TS would narrow `let attendanceId: string | null = null`
