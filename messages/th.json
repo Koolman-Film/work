@@ -479,14 +479,16 @@
     },
     "cell": {
       "leaveCount": "มีลา {count}",
-      "advanceCount": "เบิก {count}"
+      "advanceCount": "เบิก {count}",
+      "birthdayCount": "วันเกิด {count}"
     },
     "detail": {
       "holiday": "วันหยุด: {name}",
       "empty": "ไม่มีรายการวันนี้",
       "emptyHolidayNote": "เนื่องจากเป็นวันหยุด",
       "youSuffix": "(คุณ)",
-      "advanceLabel": "เบิกเงิน · {amount}"
+      "advanceLabel": "เบิกเงิน · {amount}",
+      "birthdayLabel": "วันเกิด"
     },
     "status": {
       "Approved": "อนุมัติแล้ว",

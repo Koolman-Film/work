@@ -48,10 +48,24 @@ export type TeamCalendarAdvance = {
   date: string;
 };
 
+export type TeamCalendarBirthday = {
+  employeeId: string;
+  employeeName: string;
+  /** Short label — nickname if present, else first name. Compact for grid chips. */
+  shortLabel: string;
+  /**
+   * This year's birthday occurrence as YYYY-MM-DD — the birth month/day
+   * re-anchored to the displayed calendar year so it lines up with the grid
+   * day cells (the stored birth year is irrelevant for a recurring birthday).
+   */
+  date: string;
+};
+
 export type TeamCalendarData = {
   entries: TeamCalendarEntry[];
   holidays: TeamCalendarHoliday[];
   advances: TeamCalendarAdvance[];
+  birthdays: TeamCalendarBirthday[];
 };
 
 /** Format a UTC-midnight Date as YYYY-MM-DD. Inverse of parseInputDate. */
@@ -154,6 +168,19 @@ export function indexAdvancesByDate(
     const arr = idx.get(a.date);
     if (arr) arr.push(a);
     else idx.set(a.date, [a]);
+  }
+  return idx;
+}
+
+/** Group birthdays by their (this-year) anchor day (YYYY-MM-DD). */
+export function indexBirthdaysByDate(
+  birthdays: TeamCalendarBirthday[],
+): Map<string, TeamCalendarBirthday[]> {
+  const idx = new Map<string, TeamCalendarBirthday[]>();
+  for (const b of birthdays) {
+    const arr = idx.get(b.date);
+    if (arr) arr.push(b);
+    else idx.set(b.date, [b]);
   }
   return idx;
 }

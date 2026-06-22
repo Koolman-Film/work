@@ -190,6 +190,7 @@ export function AdminCalendarCard({ branches, initialYm, initialData }: Props) {
             entries={data.entries}
             holidays={data.holidays}
             advances={data.advances}
+            birthdays={data.birthdays}
             detailPosition="right"
             onLeaveClick={onLeaveClick}
             onAdvanceClick={onAdvanceClick}

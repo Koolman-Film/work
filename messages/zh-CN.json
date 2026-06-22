@@ -444,14 +444,16 @@
     },
     "cell": {
       "leaveCount": "请假 {count}",
-      "advanceCount": "预支 {count}"
+      "advanceCount": "预支 {count}",
+      "birthdayCount": "生日 {count}"
     },
     "detail": {
       "holiday": "假日：{name}",
       "empty": "今日暂无记录",
       "emptyHolidayNote": "今日为公共假日",
       "youSuffix": "（你）",
-      "advanceLabel": "预支 · {amount}"
+      "advanceLabel": "预支 · {amount}",
+      "birthdayLabel": "生日"
     },
     "status": {
       "Approved": "已批准",
