@@ -173,13 +173,6 @@ export default async function AdminHomePage() {
     getOrgCalendarData({ monthStart: calMonth.start, monthEnd: calMonth.end }),
   ]);
 
-  // "ยังไม่เช็คอินวันนี้" = active employees minus everyone "busy" today
-  // (checked-in ∪ on-leave). Set union, not subtraction: a half-day leave can
-  // coexist with a check-in on the same date, and plain arithmetic would
-  // double-subtract that employee (same approach as the live board's
-  // selectNotCheckedIn). On Sundays + Holidays this is structurally zero
-  // (nobody is expected to work).
-  const activeEmployeeCount = activeEmployees.length;
   const checkedInTodayCount = checkedInTodayRows.length;
   const onLeaveTodayCount = onLeaveTodayRows.length;
   const busyToday = new Set([
@@ -187,20 +180,31 @@ export default async function AdminHomePage() {
     ...onLeaveTodayRows.map((r) => r.employeeId),
   ]);
   const closedToday = isClosedDay(today, todayHoliday !== null);
-  // "ยังไม่มา" = employees SCHEDULED to work today (their WorkSchedule, or the
-  // company default) who aren't already busy. Off-schedule employees (e.g. a
-  // Mon/Wed/Fri worker on a Saturday) are not expected, so not counted.
+
+  // Schedule-aware "expected today" set: employees whose WorkSchedule (or the
+  // company default) makes today a working day — so a Mon/Wed/Fri worker isn't
+  // counted on a Saturday.
   const todayDow = today.getUTCDay();
   const hasHoliday = todayHoliday !== null;
-  const notCheckedInCount = activeEmployees.filter(
-    (e) =>
-      !busyToday.has(e.id) &&
-      isScheduledWorkday(
-        e.workSchedule?.days.map((d) => d.dayOfWeek),
-        todayDow,
-        hasHoliday,
-      ),
-  ).length;
+  const scheduledTodayIds = new Set(
+    activeEmployees
+      .filter((e) =>
+        isScheduledWorkday(
+          e.workSchedule?.days.map((d) => d.dayOfWeek),
+          todayDow,
+          hasHoliday,
+        ),
+      )
+      .map((e) => e.id),
+  );
+  // "ยังไม่มา" = scheduled-today employees who aren't already busy (checked-in/leave).
+  const notCheckedInCount = [...scheduledTodayIds].filter((id) => !busyToday.has(id)).length;
+  // KPI denominator = everyone expected today = scheduled ∪ actually-checked-in
+  // (the union keeps "เข้างานแล้ว X%" from exceeding 100% on an unscheduled day).
+  const activeEmployeeCount = new Set([
+    ...scheduledTodayIds,
+    ...checkedInTodayRows.map((r) => r.employeeId),
+  ]).size;
 
   // Merge leave + advance pending into a unified chronological list (top 5).
   type PendingRow =
