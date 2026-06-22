@@ -15,6 +15,7 @@
  */
 
 import { PrismaClient } from '@prisma/client';
+import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 
 // One process-wide client. Playwright runs sequentially (workers: 1) so
 // concurrent connection growth isn't a concern here.
@@ -27,6 +28,97 @@ export function e2eId(): string {
   // 8 chars of randomness — enough to avoid collisions across parallel
   // test files even though we run sequentially today.
   return Math.random().toString(36).slice(2, 10);
+}
+
+/** A seeded Staff worker + geofenced branch, ready for LIFF check-in tests. */
+export type E2eWorker = {
+  email: string;
+  password: string;
+  authUserId: string;
+  userId: string;
+  employeeId: string;
+  branchId: string;
+  branchName: string;
+};
+
+/**
+ * Seed a complete Staff worker the way LINE pairing would, minus the OIDC:
+ *   - a real Supabase auth user (email-confirmed, with a password so the
+ *     test-login route can sign in)
+ *   - a `User` row bound by authUserId + a Staff role assignment
+ *   - an `Employee` (canCheckIn, Active) at a geofenced branch
+ *
+ * The branch has `requireGps: true` (so the geofence verdict actually runs)
+ * and `requireSelfie: false` (so the camera/Storage path is skipped — that's
+ * a separate, heavier spec).
+ */
+export async function createE2eWorker(opts?: {
+  lat?: number;
+  lng?: number;
+  radiusMeters?: number;
+}): Promise<E2eWorker> {
+  const suffix = e2eId();
+  const email = `e2e-worker-${suffix}@koolman.local`;
+  const password = `E2e_Worker_${suffix}!`;
+
+  // 1. Supabase auth user. email_confirm so signInWithPassword works immediately.
+  const admin = getSupabaseAdminClient();
+  const { data, error } = await admin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+  });
+  if (error || !data.user) {
+    throw new Error(`createE2eWorker: admin.createUser failed — ${error?.message ?? 'no user'}`);
+  }
+  const authUserId = data.user.id;
+
+  // 2. The 'staff' system role (seeded by migration 0030's predecessor).
+  const staffRole = await prisma.roleDefinition.findUniqueOrThrow({ where: { key: 'staff' } });
+
+  // 3. Geofenced branch.
+  const branch = await prisma.branch.create({
+    data: {
+      name: `e2e-branch-${suffix}`,
+      latitude: opts?.lat ?? 13.7563,
+      longitude: opts?.lng ?? 100.5018,
+      radiusMeters: opts?.radiusMeters ?? 150,
+      requireGps: true,
+      requireSelfie: false,
+      requireCheckOut: false,
+    },
+  });
+
+  // 4. User (+ Staff assignment) and the Employee.
+  const user = await prisma.user.create({
+    data: {
+      authUserId,
+      roleAssignments: { create: { roleId: staffRole.id } },
+    },
+  });
+  const employee = await prisma.employee.create({
+    data: {
+      userId: user.id,
+      firstName: 'e2e-Worker',
+      lastName: suffix,
+      branchId: branch.id,
+      salaryType: 'Monthly',
+      baseSalary: 20_000,
+      status: 'Active',
+      canCheckIn: true,
+      hiredAt: new Date('2026-01-01'),
+    },
+  });
+
+  return {
+    email,
+    password,
+    authUserId,
+    userId: user.id,
+    employeeId: employee.id,
+    branchId: branch.id,
+    branchName: branch.name,
+  };
 }
 
 /**
@@ -63,11 +155,33 @@ export async function cleanupE2eRecords(): Promise<void> {
     const userIds = e2eEmployees.map((e) => e.userId);
 
     if (empIds.length > 0) {
+      // Capture the Supabase auth ids before deleting the User rows so we can
+      // also reap the auth.users entries (createE2eWorker minted them).
+      const users = await prisma.user.findMany({
+        where: { id: { in: userIds } },
+        select: { authUserId: true },
+      });
+
       await prisma.attendance.deleteMany({ where: { employeeId: { in: empIds } } });
       await prisma.cashAdvance.deleteMany({ where: { employeeId: { in: empIds } } });
       await prisma.leaveRequest.deleteMany({ where: { employeeId: { in: empIds } } });
       await prisma.employee.deleteMany({ where: { id: { in: empIds } } });
+      // UserRoleAssignment rows cascade on User delete (onDelete: Cascade).
       await prisma.user.deleteMany({ where: { id: { in: userIds } } });
+
+      // Reap the Supabase auth users. Best-effort — a leftover dev auth user
+      // is harmless, so a failure here must not fail the suite.
+      const authIds = users.map((u) => u.authUserId).filter((id): id is string => id != null);
+      if (authIds.length > 0) {
+        const admin = getSupabaseAdminClient();
+        await Promise.all(
+          authIds.map((id) =>
+            admin.auth.admin.deleteUser(id).catch((e) => {
+              console.error('[e2e cleanup] auth.deleteUser failed', id, e);
+            }),
+          ),
+        );
+      }
     }
 
     await prisma.leaveType.deleteMany({ where: { name: { startsWith: 'e2e-' } } });
