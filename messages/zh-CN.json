@@ -234,7 +234,7 @@
       "previewNoSunday": "（不含周日）",
       "previewAdminNote": "* 管理员将在审批时重新计算含节假日的天数",
       "remaining": "本年剩余：",
-      "exceedsBlock": "超出剩余额度——该请假类型不允许超额批准，申请可能被拒绝",
+      "exceedsBlock": "超出剩余额度——该请假类型不允许超额，因此无法提交此申请",
       "exceedsDeduct": "超出额度 {over}——若获批准，将从工资中扣除约 {amount}",
       "reasonPlaceholder": "如：因病就医请病假、参加亲属婚礼",
       "cancel": "取消",
