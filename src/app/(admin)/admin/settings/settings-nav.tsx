@@ -2,6 +2,7 @@
 
 import type { LucideIcon } from 'lucide-react';
 import {
+  AlarmClock,
   Building2,
   Calculator,
   CalendarDays,
@@ -46,6 +47,12 @@ const ITEMS: Item[] = [
     label: 'ตารางงาน',
     desc: 'วันทำงาน + เวลา',
     Icon: Clock,
+  },
+  {
+    href: '/admin/settings/attendance',
+    label: 'ตั้งค่าการมาสาย',
+    desc: 'เวลาเข้างาน + ผ่อนผัน',
+    Icon: AlarmClock,
   },
   { href: '/admin/settings/team', label: 'ทีมผู้ดูแล', desc: 'Admin + Superadmin', Icon: ShieldCheck },
   { href: '/admin/settings/roles', label: 'บทบาทและสิทธิ์', desc: 'สิทธิ์การเข้าถึง', Icon: KeyRound },

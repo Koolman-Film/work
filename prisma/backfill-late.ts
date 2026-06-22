@@ -20,7 +20,7 @@
 
 import { PrismaClient } from '@prisma/client';
 import { isClosedDay } from '../src/lib/attendance/date';
-import { DEFAULT_LATE_POLICY, lateMinutesForCheckIn } from '../src/lib/attendance/late-policy';
+import { lateMinutesForCheckIn, latePolicyFrom } from '../src/lib/attendance/late-policy';
 
 const prisma = new PrismaClient();
 
@@ -29,7 +29,11 @@ function ymd(d: Date): string {
 }
 
 async function main() {
-  const policy = DEFAULT_LATE_POLICY;
+  const policy = latePolicyFrom(
+    await prisma.payrollConfig.findFirst({
+      select: { workStartTime: true, lateGraceMinutes: true },
+    }),
+  );
   console.log(`Late backfill — policy: start ${policy.startTime} + ${policy.graceMin}m grace\n`);
 
   const [checkIns, holidayRows] = await Promise.all([

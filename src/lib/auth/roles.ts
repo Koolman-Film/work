@@ -88,6 +88,7 @@ export const SYSTEM_ROLES: Record<
       'settings.leave-config.manage',
       'settings.holiday.manage',
       'settings.work-schedule.manage',
+      'settings.attendance.manage',
       // Team management — Admin can manage OTHER ADMINS in the same
       // branch (enforced by canActOnRole + canActOnUserScope guards in
       // team/actions.ts). They can't create/edit Superadmins, and a
