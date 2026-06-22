@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { bangkokMinutesOfDay, hhmmToMinutes, lateMinutesForCheckIn } from './late-policy';
+import {
+  bangkokMinutesOfDay,
+  DEFAULT_LATE_POLICY,
+  hhmmToMinutes,
+  lateMinutesForCheckIn,
+  latePolicyFrom,
+} from './late-policy';
 
 /** Helper: a UTC instant for a given Bangkok wall-clock "HH:MM" on 2026-06-12.
  *  Bangkok is UTC+7, so subtract 7h to get the UTC instant. */
@@ -44,5 +50,22 @@ describe('lateMinutesForCheckIn (default 09:00 + 15 grace)', () => {
   });
   it('honors a custom policy (zero grace flags any minute past start)', () => {
     expect(lateMinutesForCheckIn(bkk('09:03'), { startTime: '09:00', graceMin: 0 })).toBe(3);
+  });
+});
+
+describe('latePolicyFrom', () => {
+  it('uses config values when present', () => {
+    expect(latePolicyFrom({ workStartTime: '08:30', lateGraceMinutes: 5 })).toEqual({
+      startTime: '08:30',
+      graceMin: 5,
+    });
+    // grace of 0 is a real value, not "missing"
+    expect(latePolicyFrom({ workStartTime: '08:30', lateGraceMinutes: 0 }).graceMin).toBe(0);
+  });
+  it('falls back to defaults for null config / fields', () => {
+    expect(latePolicyFrom(null)).toEqual(DEFAULT_LATE_POLICY);
+    expect(latePolicyFrom({ workStartTime: null, lateGraceMinutes: null })).toEqual(
+      DEFAULT_LATE_POLICY,
+    );
   });
 });

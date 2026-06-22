@@ -761,6 +761,12 @@ model PayrollConfig {
   lateDeduction         Decimal @db.Decimal(12, 2)
   /// Flat deduction per "EarlyLeave" attendance row.
   earlyLeaveDeduction   Decimal @db.Decimal(12, 2)
+  /// Company default scheduled work start, "HH:MM" (Asia/Bangkok). The
+  /// reference time for late-arrival detection until per-employee
+  /// WorkSchedules are assigned. Admin-editable via /admin/settings/attendance.
+  workStartTime         String  @default("09:00")
+  /// Minutes after workStartTime before a check-in is flagged "Late".
+  lateGraceMinutes      Int     @default(15)
 
   updatedAt DateTime @updatedAt
 }
