@@ -25,7 +25,14 @@ const outRow = row({ id: 'out', clockOutAt: '2026-06-08T10:00:00.000Z' });
 const data: LiveBoardData = {
   rows: [present, lateRow, outRow],
   notCheckedIn: [
-    { id: 'n1', employeeName: 'N N', employeeNickname: null, photoUrl: null, branchName: 'สาขา 1' },
+    {
+      id: 'n1',
+      employeeName: 'N N',
+      employeeNickname: null,
+      photoUrl: null,
+      branchName: 'สาขา 1',
+      scheduledToday: true,
+    },
   ],
   onLeave: [
     {

@@ -17,6 +17,7 @@
  * "5 พนักงานยังไม่เช็คอินวันนี้" alerts on New Year's day).
  */
 
+import { isScheduledWorkday } from '@/lib/attendance/schedule';
 import { prisma } from '@/lib/db/prisma';
 import { notifyAdminsInApp } from '@/lib/notifications/in-app-bell';
 import { inngest } from '../client';
@@ -73,6 +74,7 @@ export const attendanceLateCheck = inngest.createFunction(
             firstName: true,
             lastName: true,
             nickname: true,
+            workSchedule: { select: { days: { select: { dayOfWeek: true } } } },
           },
         }),
       ),
@@ -93,8 +95,19 @@ export const attendanceLateCheck = inngest.createFunction(
     const checkedInSet = new Set(checkedIn.map((c) => c.employeeId));
     const onLeaveSet = new Set(onLeave.map((c) => c.employeeId));
 
+    // Only employees scheduled to work today count as "ยังไม่เช็คอิน". Sundays +
+    // holidays already returned above, so pass hasHoliday=false here; the
+    // per-employee WorkSchedule excludes their own days off (e.g. a Mon/Wed/Fri
+    // worker on a Saturday).
     const notCheckedIn = activeEmployees.filter(
-      (e) => !checkedInSet.has(e.id) && !onLeaveSet.has(e.id),
+      (e) =>
+        !checkedInSet.has(e.id) &&
+        !onLeaveSet.has(e.id) &&
+        isScheduledWorkday(
+          e.workSchedule?.days.map((d) => d.dayOfWeek),
+          todayDow,
+          false,
+        ),
     );
 
     if (notCheckedIn.length === 0) {
