@@ -90,6 +90,7 @@ export type AuditAction =
   // Attendance
   | 'attendance.checkin'
   | 'attendance.checkout'
+  | 'attendance.late-auto'
   | 'attendance.manual-create'
   | 'attendance.edit'
   | 'attendance.dispute-approve'
