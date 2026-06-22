@@ -75,9 +75,11 @@ Full layout in [`docs/v2/architecture.md`](./docs/v2/architecture.md).
 | `pnpm lint` / `pnpm lint:fix` | Biome lint (read / write) |
 | `pnpm format` | Biome format |
 | `pnpm typecheck` | `tsc --noEmit` |
-| `pnpm test` | Vitest run |
+| `pnpm test` | Vitest unit run |
 | `pnpm test:watch` | Vitest watch mode |
-| `pnpm test:e2e` | Playwright |
+| `pnpm test:coverage` | Vitest unit run + coverage (src/lib) |
+| `pnpm test:integration` | Vitest integration run (needs `koolman_test` DB — see [TESTING.md](TESTING.md)) |
+| `pnpm test:e2e` | Playwright e2e |
 | `pnpm db:generate` | Prisma client codegen |
 | `pnpm db:migrate` | Prisma migrate dev |
 | `pnpm db:deploy` | Prisma migrate deploy (CI / prod) |
@@ -95,32 +97,16 @@ Full layout in [`docs/v2/architecture.md`](./docs/v2/architecture.md).
 |---|---|---|
 | **Biome 2** | Lint + format (JS/TS/JSON) | `pnpm lint`, `pnpm lint:fix`; auto on commit via `lint-staged` |
 | **TypeScript strict** | Type-check (`noUncheckedIndexedAccess`, etc.) | `pnpm typecheck`; on every build |
-| **Vitest** | Unit tests | `pnpm test` (one-shot), `pnpm test:watch` (TDD) |
-| **Playwright** | Integration / e2e (10 tests — see `tests/e2e/README.md`) | `pnpm test:e2e` (auto-starts dev server) |
+| **Vitest** | Unit + integration tests | `pnpm test`, `pnpm test:integration` |
+| **Playwright** | E2E (full-stack) | `pnpm test:e2e` (auto-starts dev server) |
 | **Next build** | Full build smoke | `pnpm build` |
 
 **Pre-commit hook** auto-runs Biome on staged files only (sub-second). Bypass with `SKIP_SIMPLE_GIT_HOOKS=1 git commit ...` if you really need to commit through a lint failure (e.g. WIP after a debug session).
 
-**CI** runs lint + typecheck + test in parallel, then build, on every push and PR (`.github/workflows/ci.yml`).
+**CI** runs lint + typecheck + unit + integration in parallel, then build, on every push and PR (`.github/workflows/ci.yml`).
 
-**Integration tests** (20 Playwright specs in `tests/e2e/`, all passing in isolation):
-- Smoke (3): home + login render, protected-route redirect
-- Auth (3): admin login, anti-enumeration error message, authed → /login bounce
-- Department CRUD (2): uniqueness Thai error + full create/edit/archive lifecycle
-- Settings CRUDs (7): parametrized create/edit/archive + uniqueness for Branch, AccountingGroup, LeaveType, Holiday
-- Leave approval (2): `$transaction` correctness — approve creates Attendance(OnLeave) rows; reject creates none
-- Advance approval (3): approve+receiptUrl round-trips, empty-receipt → null guard, reject two-step confirm
-
-Note: running the *full* suite at once can hit Supabase's dev-pool limit. See `tests/e2e/README.md`.
-
-**Unit tests** (78 Vitest specs):
-- `src/lib/auth/safe-redirect.ts` — open-redirect defense (15 tests)
-- `src/lib/auth/login-error.ts` — error → Thai message + anti-enumeration policy (11 tests)
-- `src/lib/pairing/token.ts` — JWT mint/verify + replay + tamper + alg-confusion (12 tests)
-- `src/lib/attendance/haversine.ts` — great-circle distance + closest-branch + impossible-travel (14 tests)
-- `src/lib/attendance/evaluate.ts` — Confirmed/Disputed decision engine (10 tests)
-- `src/lib/leave/working-days.ts` — working-day expansion (skip Sun + holidays) + date parsing (10 tests)
-- `src/lib/utils.ts` — `cn()` class-name combiner (6 tests)
+See **[TESTING.md](TESTING.md)** for the full three-tier model (unit / integration /
+e2e), what belongs in each, the `koolman_test` DB setup, and coverage.
 
 ---
 
