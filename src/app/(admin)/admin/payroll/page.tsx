@@ -9,6 +9,7 @@ import { canDo } from '@/lib/auth/check-permission';
 import { requireRole } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
 import { formatTHB, formatTHB2, monthLabelTh } from '@/lib/format';
+import { deductionBreakdown, deductionBreakdownLabel } from '@/lib/payroll/deduction-breakdown';
 import { asUuid, loadReportFilterOptions } from '../reports/_load-filter-options';
 import { ReportFilters } from '../reports/report-filters';
 import {
@@ -220,18 +221,27 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
     },
     {
       key: 'otherDeducts',
-      header: 'รายการหักอื่น',
+      header: 'รายการหัก',
       cell: (r) => {
-        const v =
-          r.deductAdvance.toNumber() +
-          r.deductAttendance.toNumber() +
-          r.deductLeave.toNumber() +
-          r.deductDebt.toNumber() +
-          r.deductOther.toNumber();
-        return v === 0 ? (
-          <span className="text-xs text-ink-4">—</span>
-        ) : (
-          <span className="font-mono text-red-700">-{formatTHB2(v)}</span>
+        const lines = deductionBreakdown({
+          advance: r.deductAdvance.toNumber(),
+          attendance: r.deductAttendance.toNumber(),
+          leave: r.deductLeave.toNumber(),
+          debt: r.deductDebt.toNumber(),
+          other: r.deductOther.toNumber(),
+        });
+        if (lines.length === 0) return <span className="text-xs text-ink-4">—</span>;
+        const v = lines.reduce((acc, l) => acc + l.amount, 0);
+        return (
+          <div>
+            <span className="font-mono text-red-700">-{formatTHB2(v)}</span>
+            {/* Inline breakdown so the total reconciles at a glance (e.g. why a
+                ฿9,200 advance shows as ฿9,700 — a ฿500 absence). Single-bucket
+                rows show just the label, since the amount equals the total. */}
+            <span className="mt-0.5 block text-[10px] leading-tight text-ink-4">
+              {lines.length === 1 ? lines[0]?.label : deductionBreakdownLabel(lines)}
+            </span>
+          </div>
         );
       },
     },
