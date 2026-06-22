@@ -155,6 +155,12 @@ export async function getTodayAttendance(): Promise<LiveBoardData> {
   }
   const onLeave: OnLeaveEmployee[] = [...onLeaveByEmp.values()];
 
+  // Denominator for "เข้างานแล้ว X%" = everyone EXPECTED today: scheduled-today
+  // employees plus anyone who actually checked in (the latter keeps the % from
+  // exceeding 100% if someone works an unscheduled day).
+  const expectedToday = new Set(roster.filter((r) => r.scheduledToday).map((r) => r.id));
+  for (const r of checkInRows) expectedToday.add(r.employeeId);
+
   return {
     rows: checkInRows.map((r) => ({
       id: r.id,
@@ -172,7 +178,7 @@ export async function getTodayAttendance(): Promise<LiveBoardData> {
     })),
     notCheckedIn: selectNotCheckedIn(roster, busyEmployeeIds),
     onLeave,
-    activeCount: roster.length,
+    activeCount: expectedToday.size,
     onLeaveCount: onLeave.length,
     isClosedDay: closed,
   };
