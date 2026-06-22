@@ -42,7 +42,7 @@ import { notifyAdminsOnLine } from '@/lib/notifications/admin-line';
 import { notifyAdminsInApp } from '@/lib/notifications/in-app-bell';
 import { bangkokDateUtcMidnight, isClosedDay } from './date';
 import { type CheckInPoint, disputeReasonText, evaluateCheckIn } from './evaluate';
-import { lateMinutesForCheckIn } from './late-policy';
+import { lateMinutesForCheckIn, latePolicyFrom } from './late-policy';
 
 /** Display name for admin bell — prefer nickname. Mirrors leave/actions.ts. */
 function employeeDisplayName(e: Pick<Employee, 'firstName' | 'lastName' | 'nickname'>): string {
@@ -245,7 +245,10 @@ export async function submitCheckIn(input: SubmitCheckInInput): Promise<SubmitCh
   // (Sunday or a Holiday), where there's no scheduled start to be late
   // against. The Holiday lookup only runs when the time alone already
   // looks late, so on-time check-ins stay a single query cheaper.
-  let lateMinutes = lateMinutesForCheckIn(now);
+  const latePolicyCfg = await prisma.payrollConfig.findFirst({
+    select: { workStartTime: true, lateGraceMinutes: true },
+  });
+  let lateMinutes = lateMinutesForCheckIn(now, latePolicyFrom(latePolicyCfg));
   if (lateMinutes > 0) {
     const hasHoliday =
       (await prisma.holiday.findFirst({

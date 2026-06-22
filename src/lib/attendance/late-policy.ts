@@ -27,6 +27,20 @@ export const DEFAULT_LATE_POLICY: LatePolicy = {
   graceMin: DEFAULT_LATE_GRACE_MIN,
 };
 
+/**
+ * Build a LatePolicy from the (admin-editable) PayrollConfig fields, falling
+ * back to the company defaults when the config row or a field is missing.
+ * Pure — callers read PayrollConfig and pass it here.
+ */
+export function latePolicyFrom(
+  cfg: { workStartTime?: string | null; lateGraceMinutes?: number | null } | null,
+): LatePolicy {
+  return {
+    startTime: cfg?.workStartTime ?? DEFAULT_WORK_START,
+    graceMin: cfg?.lateGraceMinutes ?? DEFAULT_LATE_GRACE_MIN,
+  };
+}
+
 /** Parse "HH:MM" (24h) to minutes-of-day, or null if malformed/out of range. */
 export function hhmmToMinutes(hhmm: string): number | null {
   const m = /^(\d{2}):(\d{2})$/.exec(hhmm);
