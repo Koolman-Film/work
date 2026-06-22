@@ -444,14 +444,16 @@
     },
     "cell": {
       "leaveCount": "ခွင့် {count}",
-      "advanceCount": "ငွေကြိုထုတ် {count}"
+      "advanceCount": "ငွေကြိုထုတ် {count}",
+      "birthdayCount": "မွေးနေ့ {count}"
     },
     "detail": {
       "holiday": "ရုံးပိတ်ရက်: {name}",
       "empty": "ယနေ့ မည်သည့်မှတ်တမ်းမှ မရှိပါ",
       "emptyHolidayNote": "ဤရက်သည် ရုံးပိတ်ရက်ဖြစ်သည်",
       "youSuffix": "(သင်)",
-      "advanceLabel": "ငွေကြိုထုတ် · {amount}"
+      "advanceLabel": "ငွေကြိုထုတ် · {amount}",
+      "birthdayLabel": "မွေးနေ့"
     },
     "status": {
       "Approved": "အတည်ပြုပြီး",

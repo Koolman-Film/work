@@ -444,14 +444,16 @@
     },
     "cell": {
       "leaveCount": "ລາ {count}",
-      "advanceCount": "ເບີກ {count}"
+      "advanceCount": "ເບີກ {count}",
+      "birthdayCount": "ວັນເກີດ {count}"
     },
     "detail": {
       "holiday": "ວັນຫຍຸດ: {name}",
       "empty": "ບໍ່ມີລາຍການໃນມື້ນີ້",
       "emptyHolidayNote": "ເນື່ອງຈາກເປັນວັນຫຍຸດ",
       "youSuffix": "(ທ່ານ)",
-      "advanceLabel": "ເບີກເງິນ · {amount}"
+      "advanceLabel": "ເບີກເງິນ · {amount}",
+      "birthdayLabel": "ວັນເກີດ"
     },
     "status": {
       "Approved": "ອະນຸມັດແລ້ວ",
