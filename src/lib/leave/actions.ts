@@ -37,9 +37,11 @@ import { requireRole } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
 import { notifyAdminsOnLine } from '@/lib/notifications/admin-line';
 import { notifyAdminsInApp } from '@/lib/notifications/in-app-bell';
+import { remainingByTypeForEmployee } from './balance';
 import { getLeaveConfig } from './leave-config';
-import { type LeaveUnit, segmentFor, segmentsOverlap } from './units';
-import { parseInputDate } from './working-days';
+import { overQuotaMinutesFor } from './over-quota';
+import { type LeaveUnit, segmentFor, segmentsOverlap, standardDayMinutes } from './units';
+import { parseInputDate, workingDaysIn } from './working-days';
 
 /** Display name for bell notifications. Prefers nickname when present so
  *  admins recognize "ไก่" faster than "ปรีชา สมศักดิ์". Falls back to
@@ -62,6 +64,7 @@ export type SubmitLeaveResult =
         | 'bad-unit'
         | 'bad-segment'
         | 'overlap'
+        | 'over-quota-block'
         | 'short-reason'
         | 'bad-attachment-path'
         | 'db-error';
@@ -161,6 +164,7 @@ export async function submitLeaveRequest(input: SubmitInput): Promise<SubmitLeav
       allowFullDay: true,
       allowHalfDay: true,
       allowHourly: true,
+      overQuotaPolicy: true,
     },
   });
   if (!lt || lt.archivedAt) {
@@ -216,6 +220,27 @@ export async function submitLeaveRequest(input: SubmitInput): Promise<SubmitLeav
   });
   if (conflict) {
     return { ok: false, code: 'overlap', message: t('errors.overlap') };
+  }
+
+  // ── Over-quota BLOCK enforcement (mirrors the approval guard) ──────────
+  // Block-policy types (e.g. พักร้อน) must NOT exceed the remaining entitlement.
+  // Reject up-front instead of letting an over-quota request sit Pending only
+  // to be blocked at approval. DeductPay types fall through — they're allowed
+  // to exceed and the over-quota becomes a salary deduction frozen at approval.
+  // chargedMinutes mirrors the worker form's preview (holidays resolved
+  // authoritatively at approval); remaining comes from the same source the form
+  // shows, so the server verdict matches what the worker saw.
+  if (lt.overQuotaPolicy === 'Block') {
+    const year = start.getUTCFullYear();
+    const chargedMinutes =
+      unit === 'FullDay'
+        ? workingDaysIn({ startDate: start, endDate: end, holidays: [] }).length *
+          standardDayMinutes(cfg)
+        : segment.minutes;
+    const remaining = (await remainingByTypeForEmployee(employee.id, year))[lt.id] ?? null;
+    if (overQuotaMinutesFor(chargedMinutes, remaining) > 0) {
+      return { ok: false, code: 'over-quota-block', message: t('new.exceedsBlock') };
+    }
   }
 
   const headerList = await headers();

@@ -198,6 +198,11 @@ export function LeaveNewForm({
     });
   }
 
+  // Block-policy types can't exceed entitlement — hard-disable submit (the
+  // server enforces the same rule). DeductPay types stay submittable (the
+  // over-quota becomes a salary deduction, shown as a warning).
+  const blockedOverQuota = selectedType?.overQuotaPolicy === 'Block' && exceeds;
+
   const submitDisabled =
     pending ||
     !leaveTypeId ||
@@ -205,7 +210,8 @@ export function LeaveNewForm({
     (unit === 'FullDay' && !endDate) ||
     reason.trim().length < 4 ||
     chargePreview == null ||
-    chargePreview === 0;
+    chargePreview === 0 ||
+    blockedOverQuota;
 
   return (
     <main className="mx-auto max-w-md px-4 pt-8 pb-12">
