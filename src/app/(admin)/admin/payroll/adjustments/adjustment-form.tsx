@@ -4,9 +4,26 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardBody, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Combobox } from '@/components/ui/combobox';
 import { FormField } from '@/components/ui/form-field';
 import { Input } from '@/components/ui/input';
 import { MonthPicker } from '@/components/ui/month-picker';
+import type { ReasonSuggestions } from './_reason-options';
+
+/** Common starter reasons, by kind. Merged with previously-used reasons from
+ *  the DB to populate the รายการ combobox — admins pick one or type a new one. */
+const PRESET_REASONS: ReasonSuggestions = {
+  Income: ['ค่าคอมมิชชั่น', 'โบนัส', 'ค่าตำแหน่ง', 'เบี้ยขยัน', 'ค่าน้ำมัน', 'ค่าเดินทาง', 'เงินช่วยเหลือ'],
+  Deduction: [
+    'หักค่าชุดฟอร์ม',
+    'หักค่าปรับ',
+    'หักของเสียหาย',
+    'หักค่าอุปกรณ์',
+    'หักเงินกู้/ผ่อน',
+    'หักขาดงาน',
+    'หักมาสาย',
+  ],
+};
 
 /**
  * Create/edit form for PayrollAdjustment (เงินเพิ่ม/เงินลด).
@@ -36,6 +53,8 @@ type Props = {
   employees: EmployeeOption[];
   /** Current Bangkok month "YYYY-MM" — anchors the month dropdowns. */
   currentMonth: string;
+  /** Previously-used reasons (by kind) to suggest in the รายการ combobox. */
+  reasonSuggestions: ReasonSuggestions;
   initial?: AdjustmentInitial;
   error?: string | null;
   extraActions?: React.ReactNode;
@@ -52,6 +71,7 @@ export function AdjustmentForm({
   action,
   employees,
   currentMonth,
+  reasonSuggestions,
   initial,
   error,
   extraActions,
@@ -59,6 +79,13 @@ export function AdjustmentForm({
   const [frequency, setFrequency] = useState<'once' | 'monthly' | 'range'>(
     initial?.frequency ?? 'once',
   );
+  // `kind` is controlled so the รายการ suggestions can swap between income and
+  // deduction presets as the radio changes.
+  const [kind, setKind] = useState<'Income' | 'Deduction'>(initial?.kind ?? 'Income');
+
+  // Presets + previously-used reasons for the current kind, deduped, preserving
+  // preset order first.
+  const reasonOptions = Array.from(new Set([...PRESET_REASONS[kind], ...reasonSuggestions[kind]]));
 
   return (
     <>
@@ -102,7 +129,8 @@ export function AdjustmentForm({
                     type="radio"
                     name="kind"
                     value="Income"
-                    defaultChecked={(initial?.kind ?? 'Income') === 'Income'}
+                    checked={kind === 'Income'}
+                    onChange={() => setKind('Income')}
                     className="h-4 w-4 border-gray-300 text-primary-600 focus:ring-primary-500"
                   />
                   <span className="font-medium text-emerald-700">เงินเพิ่ม</span>
@@ -112,7 +140,8 @@ export function AdjustmentForm({
                     type="radio"
                     name="kind"
                     value="Deduction"
-                    defaultChecked={initial?.kind === 'Deduction'}
+                    checked={kind === 'Deduction'}
+                    onChange={() => setKind('Deduction')}
                     className="h-4 w-4 border-gray-300 text-primary-600 focus:ring-primary-500"
                   />
                   <span className="font-medium text-red-700">เงินลด</span>
@@ -120,19 +149,17 @@ export function AdjustmentForm({
               </div>
             </FormField>
 
-            <FormField
-              label="รายการ"
-              htmlFor="reason"
-              required
-              hint="เช่น ค่าคอมมิชชั่น, ค่าน้ำมัน, หักค่าชุดฟอร์ม"
-            >
-              <Input
+            <FormField label="รายการ" htmlFor="reason" required hint="เลือกจากรายการ หรือพิมพ์เพิ่มเองได้">
+              {/* Styled searchable combobox: pick a preset / previously-used
+                  reason, or type a brand-new one (which becomes a suggestion
+                  next time). Options swap with the selected kind. */}
+              <Combobox
                 id="reason"
                 name="reason"
-                required
-                maxLength={200}
                 defaultValue={initial?.reason ?? ''}
-                autoFocus={mode === 'create'}
+                options={reasonOptions}
+                maxLength={200}
+                placeholder="เลือกรายการ หรือพิมพ์เพิ่มเอง"
               />
             </FormField>
 
