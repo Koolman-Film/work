@@ -10,6 +10,7 @@ import { requireRole } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
 import { formatTHB, formatTHB2, monthLabelTh } from '@/lib/format';
 import { deductionBreakdown, deductionBreakdownLabel } from '@/lib/payroll/deduction-breakdown';
+import { previewPayrollDrafts } from '@/lib/payroll/run';
 import { asUuid, loadReportFilterOptions } from '../reports/_load-filter-options';
 import { ReportFilters } from '../reports/report-filters';
 import {
@@ -116,6 +117,35 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
     prisma.employee.count({ where: { status: { not: 'Archived' } } }),
     loadReportFilterOptions(),
   ]);
+
+  // Stale-draft detection: a Draft row is "stale" when recomputing it now
+  // (same engine คำนวณใหม่ uses) yields different numbers — i.e. its inputs
+  // (ลงเวลา / ลา / เบิก / เงินเพิ่ม-ลด / ฐานเงินเดือน / ตั้งค่า) changed since the
+  // last คำนวณ. Only Draft rows can drift; Published/Locked are frozen.
+  // Wrapped defensively so a calc hiccup never blanks the whole page.
+  const hasDraft = rows.some((r) => r.status === 'Draft');
+  const fresh = hasDraft ? await previewPayrollDrafts(month).catch(() => null) : null;
+  const staleIds = new Set(
+    rows
+      .filter((r) => {
+        if (r.status !== 'Draft' || !fresh) return false;
+        const f = fresh.get(r.employeeId);
+        if (!f) return false;
+        return (
+          r.incomeBase.toFixed(2) !== f.incomeBase.toFixed(2) ||
+          r.incomeOther.toFixed(2) !== f.incomeOther.toFixed(2) ||
+          r.deductSso.toFixed(2) !== f.deductSso.toFixed(2) ||
+          r.deductAdvance.toFixed(2) !== f.deductAdvance.toFixed(2) ||
+          r.deductAttendance.toFixed(2) !== f.deductAttendance.toFixed(2) ||
+          r.deductLeave.toFixed(2) !== f.deductLeave.toFixed(2) ||
+          r.deductDebt.toFixed(2) !== f.deductDebt.toFixed(2) ||
+          r.deductOther.toFixed(2) !== f.deductOther.toFixed(2)
+        );
+      })
+      .map((r) => r.id),
+  );
+  // Count over the visible (filtered) view so the banner matches what's shown.
+  const staleVisibleCount = visibleRows.filter((r) => staleIds.has(r.id)).length;
 
   // Adjustments applying to this month, grouped per employee — feeds the
   // per-row "เพิ่ม/ลด" modal so the admin sees + manages them in place.
@@ -267,7 +297,16 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
       header: 'สถานะ',
       cell: (r) => {
         const info = STATUS_INFO[r.status];
-        return info ? <StatusBadge status={info.key}>{info.label}</StatusBadge> : null;
+        return (
+          <span className="inline-flex flex-wrap items-center gap-1.5">
+            {info ? <StatusBadge status={info.key}>{info.label}</StatusBadge> : null}
+            {staleIds.has(r.id) && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800">
+                ⚠ ต้องคำนวณใหม่
+              </span>
+            )}
+          </span>
+        );
       },
     },
   ];
@@ -326,6 +365,28 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
           className="mb-4 rounded-lg bg-success-soft px-4 py-3 text-sm text-success-deep"
         >
           {decodeURIComponent(msg)}
+        </div>
+      )}
+
+      {/* Stale-draft warning — data changed since the last คำนวณ, so the draft
+          numbers are out of date until recalculated. Made deliberately loud. */}
+      {staleVisibleCount > 0 && (
+        <div
+          role="alert"
+          className="mb-4 flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3"
+        >
+          <span aria-hidden="true" className="text-lg leading-none">
+            ⚠️
+          </span>
+          <div className="min-w-0 text-sm">
+            <p className="font-semibold text-amber-900">
+              ข้อมูลเปลี่ยนแปลงหลังคำนวณ — ตัวเลขฉบับร่างยังไม่อัปเดต ({staleVisibleCount} รายการ)
+            </p>
+            <p className="mt-0.5 text-amber-800">
+              มีการแก้ไขข้อมูล (ลงเวลา / ลา / เบิก / เงินเพิ่ม-ลด) หลังจากกด “คำนวณ” ครั้งล่าสุด
+              {mayRun ? ' — กรุณากด “คำนวณใหม่ (ฉบับร่าง)” ด้านล่างเพื่ออัปเดต' : ''}
+            </p>
+          </div>
         </div>
       )}
 
