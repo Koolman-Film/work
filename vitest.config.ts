@@ -31,5 +31,22 @@ export default defineConfig({
       // Deterministic secret for token tests — never used in real signing
       PAIRING_JWT_SECRET: 'test-only-deterministic-secret-32chars+',
     },
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html'],
+      // Scope to the domain logic unit tests target. The app/ UI tree (pages,
+      // components, server actions) is exercised by e2e, which v8 unit coverage
+      // can't measure — including it would just drown the number in untestable
+      // React. Pure/near-pure app helpers can be added here individually later.
+      include: ['src/lib/**/*.ts'],
+      // Tests, generated types, and pure wiring/clients aren't meaningful targets.
+      exclude: [
+        'src/lib/**/*.test.ts',
+        'src/lib/**/*.d.ts',
+        'src/lib/db/prisma.ts',
+        'src/lib/supabase/**',
+        'src/lib/inngest/client.ts',
+      ],
+    },
   },
 });

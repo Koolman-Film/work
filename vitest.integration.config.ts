@@ -16,7 +16,10 @@ import { defineConfig } from 'vitest/config';
  * each resets the transactional tables in `beforeEach`.
  */
 
-const TEST_DB = 'postgresql://postgres:postgres@127.0.0.1:54422/koolman_test';
+// Local default = the koolman_test DB on the local Supabase Postgres.
+// CI overrides via TEST_DATABASE_URL (a plain postgres service container).
+const TEST_DB =
+  process.env.TEST_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:54422/koolman_test';
 
 export default defineConfig({
   resolve: { alias: { '@': resolve(__dirname, './src') } },
