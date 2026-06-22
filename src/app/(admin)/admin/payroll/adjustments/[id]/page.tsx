@@ -3,6 +3,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { prisma } from '@/lib/db/prisma';
 import { formatTHB2 } from '@/lib/format';
 import { loadEmployeeOptions } from '../_employee-options';
+import { loadReasonSuggestions } from '../_reason-options';
 import { updateAdjustment } from '../actions';
 import { AdjustmentForm } from '../adjustment-form';
 import { frequencyOf } from '../adjustment-schema';
@@ -21,9 +22,10 @@ export default async function EditAdjustmentPage({
   const { id } = await params;
   const { error } = await searchParams;
 
-  const [row, employees] = await Promise.all([
+  const [row, employees, reasonSuggestions] = await Promise.all([
     prisma.payrollAdjustment.findUnique({ where: { id } }),
     loadEmployeeOptions(),
+    loadReasonSuggestions(),
   ]);
   if (!row || row.deletedAt) notFound();
 
@@ -45,6 +47,7 @@ export default async function EditAdjustmentPage({
           action={update}
           employees={employees}
           currentMonth={currentMonth}
+          reasonSuggestions={reasonSuggestions}
           initial={{
             employeeId: row.employeeId,
             kind: row.kind,
