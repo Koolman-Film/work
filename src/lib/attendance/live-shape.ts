@@ -25,8 +25,8 @@ export type LiveAttendanceRow = {
   isOverridden: boolean;
 };
 
-/** A roster member as shown in the not-checked-in list. `id` keys the chip. */
-export type RosterEmployee = {
+/** Shared chip fields for the roster + on-leave lists. `id` keys the chip. */
+export type EmployeeChip = {
   id: string;
   employeeName: string;
   employeeNickname: string | null;
@@ -35,8 +35,15 @@ export type RosterEmployee = {
   branchName: string;
 };
 
+/** A roster member as shown in the not-checked-in list. */
+export type RosterEmployee = EmployeeChip & {
+  /** True if today is a working day for this employee (their WorkSchedule, or
+   *  the company default). Off-schedule employees aren't "ยังไม่เช็คอิน". */
+  scheduledToday: boolean;
+};
+
 /** An on-leave member, with the leave type + range for the chip subtitle. */
-export type OnLeaveEmployee = RosterEmployee & {
+export type OnLeaveEmployee = EmployeeChip & {
   leaveTypeName: string | null;
   startDate: string | null; // ISO date
   endDate: string | null; // ISO date
@@ -57,14 +64,14 @@ export type LiveBoardData = {
 };
 
 /**
- * Pure: roster minus the busy set, or [] on a closed day. The whole
- * "who hasn't checked in" rule — unit-tested in live-shape.test.ts.
+ * Pure: who hasn't checked in = roster members who are scheduled to work today
+ * and aren't already busy (checked-in or on-leave). Off-schedule employees
+ * (their `scheduledToday` is false — including company closed days) are never
+ * "ยังไม่เช็คอิน". Unit-tested in live-shape.test.ts.
  */
 export function selectNotCheckedIn(
   roster: RosterEmployee[],
   busyEmployeeIds: ReadonlySet<string>,
-  closed: boolean,
 ): RosterEmployee[] {
-  if (closed) return [];
-  return roster.filter((r) => !busyEmployeeIds.has(r.id));
+  return roster.filter((r) => r.scheduledToday && !busyEmployeeIds.has(r.id));
 }

@@ -20,6 +20,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Pill } from '@/components/ui/pill';
 import { StatCard } from '@/components/ui/stat-card';
 import { bangkokDateUtcMidnight, isClosedDay } from '@/lib/attendance/date';
+import { isScheduledWorkday } from '@/lib/attendance/schedule';
 import { canDo, requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { getOrgCalendarData } from '@/lib/leave/team-calendar';
@@ -96,7 +97,7 @@ export default async function AdminHomePage() {
     pendingLeaveCount,
     pendingAdvanceCount,
     checkedInTodayRows,
-    activeEmployeeCount,
+    activeEmployees,
     onLeaveTodayRows,
     todayHoliday,
     pendingLeaveRecent,
@@ -111,8 +112,12 @@ export default async function AdminHomePage() {
       distinct: ['employeeId'],
       select: { employeeId: true },
     }),
-    prisma.employee.count({
+    prisma.employee.findMany({
       where: { archivedAt: null, status: { not: 'Archived' }, canCheckIn: true },
+      select: {
+        id: true,
+        workSchedule: { select: { days: { select: { dayOfWeek: true } } } },
+      },
     }),
     // Distinct by employee: a date can hold two OnLeave rows (two halves), so
     // count people on leave, not rows.
@@ -174,14 +179,28 @@ export default async function AdminHomePage() {
   // double-subtract that employee (same approach as the live board's
   // selectNotCheckedIn). On Sundays + Holidays this is structurally zero
   // (nobody is expected to work).
+  const activeEmployeeCount = activeEmployees.length;
   const checkedInTodayCount = checkedInTodayRows.length;
   const onLeaveTodayCount = onLeaveTodayRows.length;
-  const busyTodayCount = new Set([
+  const busyToday = new Set([
     ...checkedInTodayRows.map((r) => r.employeeId),
     ...onLeaveTodayRows.map((r) => r.employeeId),
-  ]).size;
+  ]);
   const closedToday = isClosedDay(today, todayHoliday !== null);
-  const notCheckedInCount = closedToday ? 0 : Math.max(0, activeEmployeeCount - busyTodayCount);
+  // "ยังไม่มา" = employees SCHEDULED to work today (their WorkSchedule, or the
+  // company default) who aren't already busy. Off-schedule employees (e.g. a
+  // Mon/Wed/Fri worker on a Saturday) are not expected, so not counted.
+  const todayDow = today.getUTCDay();
+  const hasHoliday = todayHoliday !== null;
+  const notCheckedInCount = activeEmployees.filter(
+    (e) =>
+      !busyToday.has(e.id) &&
+      isScheduledWorkday(
+        e.workSchedule?.days.map((d) => d.dayOfWeek),
+        todayDow,
+        hasHoliday,
+      ),
+  ).length;
 
   // Merge leave + advance pending into a unified chronological list (top 5).
   type PendingRow =
