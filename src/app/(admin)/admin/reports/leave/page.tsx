@@ -5,28 +5,46 @@ import { getLeaveConfig } from '@/lib/leave/leave-config';
 import { formatDaysHours } from '@/lib/leave/units';
 import { resolveReportPeriod } from '@/lib/reports/period';
 import { leaveReport } from '@/lib/reports/queries';
-import { NameSearch } from '../name-search';
+import { asUuid, loadReportFilterOptions } from '../_load-filter-options';
 import { PeriodPicker } from '../period-picker';
+import { ReportFilters } from '../report-filters';
 
 export default async function LeaveReportPage({
   searchParams,
 }: {
-  searchParams: Promise<{ m?: string; from?: string; to?: string; q?: string }>;
+  searchParams: Promise<{
+    m?: string;
+    from?: string;
+    to?: string;
+    q?: string;
+    branchId?: string;
+    departmentId?: string;
+  }>;
 }) {
   const params = await searchParams;
   const todayYmd = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
   const period = resolveReportPeriod(params, todayYmd);
   const year = Number((period.month ?? period.from).slice(0, 4));
-  const [{ types, rows }, cfg] = await Promise.all([
-    leaveReport(period, { q: params.q }, year),
+  const branchId = asUuid(params.branchId);
+  const departmentId = asUuid(params.departmentId);
+  const [{ types, rows }, cfg, options] = await Promise.all([
+    leaveReport(period, { q: params.q, branchId, departmentId }, year),
     getLeaveConfig(),
+    loadReportFilterOptions(),
   ]);
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <PeriodPicker month={period.month} from={period.from} to={period.to} />
-        <NameSearch q={params.q} params={params} />
+        <ReportFilters
+          period={{ m: params.m, from: params.from, to: params.to }}
+          branchId={branchId ?? ''}
+          departmentId={departmentId ?? ''}
+          q={params.q ?? ''}
+          branches={options.branches}
+          departments={options.departments}
+        />
       </div>
       <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
         {rows.length === 0 ? (
