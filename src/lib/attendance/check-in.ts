@@ -40,8 +40,9 @@ import { requireRole } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
 import { notifyAdminsOnLine } from '@/lib/notifications/admin-line';
 import { notifyAdminsInApp } from '@/lib/notifications/in-app-bell';
-import { bangkokDateUtcMidnight } from './date';
+import { bangkokDateUtcMidnight, isClosedDay } from './date';
 import { type CheckInPoint, disputeReasonText, evaluateCheckIn } from './evaluate';
+import { lateMinutesForCheckIn } from './late-policy';
 
 /** Display name for admin bell — prefer nickname. Mirrors leave/actions.ts. */
 function employeeDisplayName(e: Pick<Employee, 'firstName' | 'lastName' | 'nickname'>): string {
@@ -237,6 +238,23 @@ export async function submitCheckIn(input: SubmitCheckInInput): Promise<SubmitCh
     undefined;
   const userAgent = headerList.get('user-agent') ?? undefined;
 
+  // ── Late-arrival policy ──────────────────────────────────────────────
+  // A check-in later than the company start + grace records a separate
+  // `Late` row (type=Late) — the unit the report, the history "มาสาย"
+  // filter, and payroll deduction all read. Skipped on closed days
+  // (Sunday or a Holiday), where there's no scheduled start to be late
+  // against. The Holiday lookup only runs when the time alone already
+  // looks late, so on-time check-ins stay a single query cheaper.
+  let lateMinutes = lateMinutesForCheckIn(now);
+  if (lateMinutes > 0) {
+    const hasHoliday =
+      (await prisma.holiday.findFirst({
+        where: { date: today, archivedAt: null },
+        select: { id: true },
+      })) != null;
+    if (isClosedDay(today, hasHoliday)) lateMinutes = 0;
+  }
+
   // Holder pattern: TS would narrow `let attendanceId: string | null = null`
   // to `never` inside the async closure since it can't see the assignment
   // crosses the await. Wrapping in an object disables narrowing.
@@ -286,6 +304,41 @@ export async function submitCheckIn(input: SubmitCheckInInput): Promise<SubmitCh
         },
         metadata: { ip, userAgent, source: 'liff' },
       });
+
+      // Derived Late row. Guard against a pre-existing Late for the day
+      // (e.g. an admin manual entry) — the partial-unique (employeeId, date,
+      // type) index would otherwise abort the whole check-in transaction.
+      if (lateMinutes > 0) {
+        const existingLate = await tx.attendance.findFirst({
+          where: { employeeId: employee.id, date: today, type: 'Late', deletedAt: null },
+          select: { id: true },
+        });
+        if (!existingLate) {
+          const lateRow = await tx.attendance.create({
+            data: {
+              employeeId: employee.id,
+              date: today,
+              type: 'Late',
+              source: 'Liff',
+              durationMinutes: lateMinutes,
+              createdById: user.id,
+            },
+            select: { id: true },
+          });
+          await auditLogTx(tx, {
+            actorId: user.id,
+            action: 'attendance.late-auto',
+            entityType: 'Attendance',
+            entityId: lateRow.id,
+            after: {
+              type: 'Late',
+              durationMinutes: lateMinutes,
+              derivedFromCheckInId: created.id,
+            },
+            metadata: { source: 'liff-auto-late' },
+          });
+        }
+      }
     });
   } catch (err) {
     console.error('[submitCheckIn] tx failed', err);
