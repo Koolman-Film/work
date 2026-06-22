@@ -22,6 +22,7 @@ import {
   type RosterEmployee,
   selectNotCheckedIn,
 } from './live-shape';
+import { isScheduledWorkday } from './schedule';
 
 export type {
   LiveAttendanceRow,
@@ -68,6 +69,7 @@ export async function getTodayAttendance(): Promise<LiveBoardData> {
         nickname: true,
         photoKey: true,
         branch: { select: { name: true } },
+        workSchedule: { select: { days: { select: { dayOfWeek: true } } } },
       },
     }),
     prisma.attendance.findMany({
@@ -111,12 +113,19 @@ export async function getTodayAttendance(): Promise<LiveBoardData> {
   );
   const photoUrl = (key: string | null) => (key ? (photoUrls.get(key) ?? null) : null);
 
+  const todayDow = today.getUTCDay(); // 0=Sun..6=Sat (Bangkok weekday)
+  const hasHoliday = holiday !== null;
   const roster: RosterEmployee[] = rosterRows.map((e) => ({
     id: e.id,
     employeeName: `${e.firstName} ${e.lastName}`,
     employeeNickname: e.nickname,
     photoUrl: photoUrl(e.photoKey),
     branchName: e.branch.name,
+    scheduledToday: isScheduledWorkday(
+      e.workSchedule?.days.map((d) => d.dayOfWeek),
+      todayDow,
+      hasHoliday,
+    ),
   }));
 
   // "Busy" = anyone with a CheckIn (the displayed rows) or an OnLeave today.
@@ -161,7 +170,7 @@ export async function getTodayAttendance(): Promise<LiveBoardData> {
       checkInStatus: r.checkInStatus,
       isOverridden: r.isOverridden,
     })),
-    notCheckedIn: selectNotCheckedIn(roster, busyEmployeeIds, closed),
+    notCheckedIn: selectNotCheckedIn(roster, busyEmployeeIds),
     onLeave,
     activeCount: roster.length,
     onLeaveCount: onLeave.length,
