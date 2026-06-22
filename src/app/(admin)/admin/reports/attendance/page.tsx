@@ -2,18 +2,31 @@ import { BarChart3 } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { resolveReportPeriod } from '@/lib/reports/period';
 import { attendanceReport } from '@/lib/reports/queries';
-import { NameSearch } from '../name-search';
+import { asUuid, loadReportFilterOptions } from '../_load-filter-options';
 import { PeriodPicker } from '../period-picker';
+import { ReportFilters } from '../report-filters';
 
 export default async function AttendanceReportPage({
   searchParams,
 }: {
-  searchParams: Promise<{ m?: string; from?: string; to?: string; q?: string }>;
+  searchParams: Promise<{
+    m?: string;
+    from?: string;
+    to?: string;
+    q?: string;
+    branchId?: string;
+    departmentId?: string;
+  }>;
 }) {
   const params = await searchParams;
   const todayYmd = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
   const period = resolveReportPeriod(params, todayYmd);
-  const rows = await attendanceReport(period, { q: params.q });
+  const branchId = asUuid(params.branchId);
+  const departmentId = asUuid(params.departmentId);
+  const [rows, options] = await Promise.all([
+    attendanceReport(period, { q: params.q, branchId, departmentId }),
+    loadReportFilterOptions(),
+  ]);
 
   const totals = rows.reduce(
     (a, r) => ({
@@ -29,7 +42,14 @@ export default async function AttendanceReportPage({
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <PeriodPicker month={period.month} from={period.from} to={period.to} />
-        <NameSearch q={params.q} params={params} />
+        <ReportFilters
+          period={{ m: params.m, from: params.from, to: params.to }}
+          branchId={branchId ?? ''}
+          departmentId={departmentId ?? ''}
+          q={params.q ?? ''}
+          branches={options.branches}
+          departments={options.departments}
+        />
       </div>
       <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
         {rows.length === 0 ? (
