@@ -9,6 +9,7 @@ function row(over: Partial<LiveAttendanceRow>): LiveAttendanceRow {
     employeeNickname: null,
     photoUrl: null,
     branchName: 'สาขา 1',
+    homeBranchName: 'สาขา 1',
     clockInAt: '2026-06-08T01:00:00.000Z', // 08:00 Bangkok → not late
     clockOutAt: null,
     checkInStatus: 'Confirmed',

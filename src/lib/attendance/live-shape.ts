@@ -12,7 +12,13 @@ export type LiveAttendanceRow = {
   employeeNickname: string | null;
   /** Signed profile-photo URL (re-signed on every fetch/poll); null = no photo. */
   photoUrl: string | null;
+  /** Branch this row is GROUPED under = where they checked in (geofence match),
+   *  falling back to home branch when no check-in branch was recorded. */
   branchName: string;
+  /** Employee's home branch. When it differs from `branchName`, the employee
+   *  checked in at a branch other than their own (a roving / cross-branch
+   *  visit) — the chip surfaces this so the grouping doesn't read as a bug. */
+  homeBranchName: string;
   clockInAt: string | null; // ISO
   clockOutAt: string | null; // ISO
   checkInStatus: 'Confirmed' | 'Disputed' | 'Rejected' | null;
