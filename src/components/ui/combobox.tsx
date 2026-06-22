@@ -155,12 +155,12 @@ export function Combobox({
           />
 
           {/* Options */}
-          <ul role="listbox" aria-labelledby={listId} className="max-h-56 overflow-auto">
+          <div role="listbox" aria-labelledby={listId} className="max-h-56 overflow-auto">
             {filtered.map((opt, i) => {
               const isSelected = opt === value;
               const isActive = i === activeIdx;
               return (
-                <li key={opt}>
+                <div key={opt}>
                   <button
                     type="button"
                     onClick={() => commit(opt)}
@@ -174,12 +174,12 @@ export function Combobox({
                     <span className="truncate">{opt}</span>
                     {isSelected && <span className="ml-2 shrink-0 text-primary-600">✓</span>}
                   </button>
-                </li>
+                </div>
               );
             })}
 
             {showCustom && (
-              <li>
+              <div>
                 <button
                   type="button"
                   onClick={() => commit(trimmed)}
@@ -196,13 +196,13 @@ export function Combobox({
                     เพิ่ม “<span className="font-medium">{trimmed}</span>”
                   </span>
                 </button>
-              </li>
+              </div>
             )}
 
             {rowCount === 0 && (
-              <li className="px-2.5 py-2 text-center text-sm text-gray-400">ไม่พบรายการ</li>
+              <div className="px-2.5 py-2 text-center text-sm text-gray-400">ไม่พบรายการ</div>
             )}
-          </ul>
+          </div>
         </div>
       )}
     </div>
