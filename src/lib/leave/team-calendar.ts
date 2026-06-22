@@ -28,6 +28,7 @@ import type { Locale } from '@/lib/i18n/config';
 import { localizedLeaveTypeName } from './localized-name';
 import {
   type TeamCalendarAdvance,
+  type TeamCalendarBirthday,
   type TeamCalendarData,
   type TeamCalendarEntry,
   ymd,
@@ -73,6 +74,7 @@ async function loadEntriesAndHolidays(args: {
       entries: [],
       holidays: holidays.map((h) => ({ date: ymd(h.date), name: h.name })),
       advances: [],
+      birthdays: [],
     };
   }
 
@@ -126,6 +128,7 @@ async function loadEntriesAndHolidays(args: {
     entries,
     holidays: holidays.map((h) => ({ date: ymd(h.date), name: h.name })),
     advances: [],
+    birthdays: [],
   };
 }
 
@@ -149,7 +152,7 @@ export async function getTeamCalendarData(args: {
     where: { id: viewerEmployeeId },
     select: { branchId: true, assignedBranchIds: true },
   });
-  if (!me) return { entries: [], holidays: [], advances: [] };
+  if (!me) return { entries: [], holidays: [], advances: [], birthdays: [] };
 
   const myBranchIds = Array.from(new Set([me.branchId, ...me.assignedBranchIds]));
 
@@ -193,7 +196,7 @@ export async function getOrgCalendarData(args: {
 
   const employees = await prisma.employee.findMany({
     where,
-    select: { id: true, firstName: true, lastName: true, nickname: true },
+    select: { id: true, firstName: true, lastName: true, nickname: true, dateOfBirth: true },
   });
 
   const base = await loadEntriesAndHolidays({
@@ -202,7 +205,7 @@ export async function getOrgCalendarData(args: {
     monthEnd,
     viewerEmployeeId: null,
   });
-  if (employees.length === 0) return base; // base.advances already []
+  if (employees.length === 0) return base; // base.advances + base.birthdays already []
 
   // Cash advances are point-in-time: anchor each to its requestedAt day. Window
   // is [monthStart, firstOfNextMonth) so the whole last day of the month is
@@ -242,5 +245,29 @@ export async function getOrgCalendarData(args: {
     })
     .filter((x): x is TeamCalendarAdvance => x !== null);
 
-  return { ...base, advances };
+  // Birthdays recur yearly: match each employee's birth month/day against the
+  // displayed month and re-anchor to the displayed year so it lands on the grid.
+  // monthStart is UTC-midnight first-of-month, so its UTC year/month ARE the
+  // displayed month (no Bangkok skew to worry about for a whole-day marker).
+  const displayYear = monthStart.getUTCFullYear();
+  const displayMonth0 = monthStart.getUTCMonth();
+  const isLeapYear = (y: number) => (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+
+  const birthdays: TeamCalendarBirthday[] = employees
+    .filter((e) => e.dateOfBirth != null && e.dateOfBirth.getUTCMonth() === displayMonth0)
+    .map((e): TeamCalendarBirthday => {
+      const dob = e.dateOfBirth as Date;
+      let day = dob.getUTCDate();
+      // Feb 29 birthday in a non-leap display year → celebrate on Feb 28.
+      if (displayMonth0 === 1 && day === 29 && !isLeapYear(displayYear)) day = 28;
+      const date = `${displayYear}-${String(displayMonth0 + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      return {
+        employeeId: e.id,
+        employeeName: `${e.firstName} ${e.lastName}`.trim(),
+        shortLabel: e.nickname?.trim() || e.firstName,
+        date,
+      };
+    });
+
+  return { ...base, advances, birthdays };
 }

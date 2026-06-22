@@ -30,13 +30,18 @@ import type { Locale } from '@/lib/i18n/config';
 import type {
   GridDay,
   TeamCalendarAdvance,
+  TeamCalendarBirthday,
   TeamCalendarEntry,
   TeamCalendarHoliday,
 } from '@/lib/leave/team-calendar-shape';
 // IMPORTANT: import from -shape, NOT team-calendar. The latter is
 // `server-only` and importing it from a client component will throw
 // at build time. The -shape module has the pure helpers + types.
-import { indexAdvancesByDate, indexEntriesByDate } from '@/lib/leave/team-calendar-shape';
+import {
+  indexAdvancesByDate,
+  indexBirthdaysByDate,
+  indexEntriesByDate,
+} from '@/lib/leave/team-calendar-shape';
 import { cn } from '@/lib/utils';
 
 /**
@@ -154,6 +159,8 @@ type Props = {
   locale?: Locale;
   /** Cash-advance markers (admin calendar only). Defaults to none. */
   advances?: TeamCalendarAdvance[];
+  /** Birthday markers (admin calendar only). Defaults to none. */
+  birthdays?: TeamCalendarBirthday[];
   /**
    * Day-detail panel placement. 'below' (default) stacks it under the grid —
    * the mobile/LIFF layout, left untouched. 'right' moves it beside the grid on
@@ -175,6 +182,7 @@ export function CalendarGrid({
   holidays,
   locale = 'th',
   advances = [],
+  birthdays = [],
   detailPosition = 'below',
   onLeaveClick,
   onAdvanceClick,
@@ -190,6 +198,7 @@ export function CalendarGrid({
   // the per-cell render cheap (Map.get is O(1)).
   const entriesByDate = useMemo(() => indexEntriesByDate(entries), [entries]);
   const advancesByDate = useMemo(() => indexAdvancesByDate(advances), [advances]);
+  const birthdaysByDate = useMemo(() => indexBirthdaysByDate(birthdays), [birthdays]);
   const holidayByDate = useMemo(() => {
     const m = new Map<string, string>();
     for (const h of holidays) m.set(h.date, h.name);
@@ -214,6 +223,7 @@ export function CalendarGrid({
 
   const selectedEntries = entriesByDate.get(selected) ?? [];
   const selectedAdvances = advancesByDate.get(selected) ?? [];
+  const selectedBirthdays = birthdaysByDate.get(selected) ?? [];
   const selectedHoliday = holidayByDate.get(selected) ?? null;
 
   return (
@@ -246,10 +256,15 @@ export function CalendarGrid({
             const dayEntries = entriesByDate.get(cell.date) ?? [];
             const holiday = holidayByDate.get(cell.date);
             const dayAdvances = advancesByDate.get(cell.date) ?? [];
-            // Unified marker list: leaves first, then advances; share the ≤2 + "+N" budget.
+            const dayBirthdays = birthdaysByDate.get(cell.date) ?? [];
+            // Unified marker list: birthdays first (celebratory, surface them),
+            // then leaves, then advances; share the ≤2 + "+N" budget.
             const markers: Array<
-              { kind: 'leave'; e: TeamCalendarEntry } | { kind: 'advance'; a: TeamCalendarAdvance }
+              | { kind: 'birthday'; b: TeamCalendarBirthday }
+              | { kind: 'leave'; e: TeamCalendarEntry }
+              | { kind: 'advance'; a: TeamCalendarAdvance }
             > = [
+              ...dayBirthdays.map((b) => ({ kind: 'birthday' as const, b })),
               ...dayEntries.map((e) => ({ kind: 'leave' as const, e })),
               ...dayAdvances.map((a) => ({ kind: 'advance' as const, a })),
             ];
@@ -266,6 +281,10 @@ export function CalendarGrid({
               dayAdvances.length > 0
                 ? ` (${t('cell.advanceCount', { count: dayAdvances.length })})`
                 : '';
+            const birthdayAriaCount =
+              dayBirthdays.length > 0
+                ? ` (${t('cell.birthdayCount', { count: dayBirthdays.length })})`
+                : '';
 
             return (
               <button
@@ -273,7 +292,7 @@ export function CalendarGrid({
                 type="button"
                 onClick={() => setSelected(cell.date)}
                 aria-pressed={isSelected}
-                aria-label={`${cell.day}${holiday ? ` ${holiday}` : ''}${leaveAriaCount}${advanceAriaCount}`}
+                aria-label={`${cell.day}${holiday ? ` ${holiday}` : ''}${birthdayAriaCount}${leaveAriaCount}${advanceAriaCount}`}
                 className={cn(
                   'relative flex aspect-square flex-col rounded-md border p-1 text-left transition',
                   // Out-of-month cells: muted background + ghost text.
@@ -300,7 +319,14 @@ export function CalendarGrid({
                 {cell.inMonth && markers.length > 0 && (
                   <div className="mt-auto flex flex-col gap-0.5">
                     {markers.slice(0, 2).map((m) =>
-                      m.kind === 'leave' ? (
+                      m.kind === 'birthday' ? (
+                        <span
+                          key={`b:${m.b.employeeId}`}
+                          className="block truncate rounded-sm bg-rose-100 px-0.5 text-[9px] font-medium leading-tight text-rose-800"
+                        >
+                          🎂 {m.b.shortLabel}
+                        </span>
+                      ) : m.kind === 'leave' ? (
                         <span
                           key={`l:${m.e.leaveRequestId}`}
                           className={cn(
@@ -335,8 +361,19 @@ export function CalendarGrid({
                   </div>
                 )}
 
-                {/* Holiday red dot (top-right) — visible even when cell has no entries */}
-                {holiday && cell.inMonth && (
+                {/* Birthday cake (top-right) — a large, always-visible badge so a
+                    birthday reads at a glance, independent of the name chip and
+                    the ≤2 marker budget. */}
+                {dayBirthdays.length > 0 && cell.inMonth && (
+                  <span aria-hidden="true" className="absolute right-1 top-1 text-2xl leading-none">
+                    🎂
+                  </span>
+                )}
+
+                {/* Holiday red dot (top-right) — visible even when cell has no
+                    entries. Hidden when a birthday cake already owns the corner;
+                    the red cell tint still flags the holiday. */}
+                {holiday && cell.inMonth && dayBirthdays.length === 0 && (
                   <span
                     aria-hidden="true"
                     className="absolute right-1 top-1 size-1.5 rounded-full bg-red-500"
@@ -364,7 +401,9 @@ export function CalendarGrid({
           )}
         </header>
 
-        {selectedEntries.length === 0 && selectedAdvances.length === 0 ? (
+        {selectedEntries.length === 0 &&
+        selectedAdvances.length === 0 &&
+        selectedBirthdays.length === 0 ? (
           <div className="px-4 py-8 text-center">
             <p className="text-sm text-gray-500">{t('detail.empty')}</p>
             {selectedHoliday && (
@@ -373,6 +412,22 @@ export function CalendarGrid({
           </div>
         ) : (
           <ul className="divide-y divide-gray-100">
+            {selectedBirthdays.map((b) => (
+              <li key={`b:${b.employeeId}`}>
+                <div className="flex items-start gap-3 px-4 py-3">
+                  <span className="grid size-8 shrink-0 place-items-center rounded-full bg-rose-100 text-sm">
+                    🎂
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-gray-900">{b.employeeName}</p>
+                    <p className="mt-0.5 text-xs font-medium text-rose-700">
+                      {t('detail.birthdayLabel')}
+                    </p>
+                  </div>
+                </div>
+              </li>
+            ))}
+
             {selectedEntries.map((e) => {
               const body = (
                 <>
