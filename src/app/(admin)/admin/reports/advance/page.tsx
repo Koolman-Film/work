@@ -1,9 +1,10 @@
 import { Banknote } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
-import { formatTHB2 } from '@/lib/format';
+import { formatTHB2, formatThaiDate } from '@/lib/format';
 import { resolveReportPeriod } from '@/lib/reports/period';
-import { advanceReport } from '@/lib/reports/queries';
+import { advanceDetail, advanceReport } from '@/lib/reports/queries';
 import { asUuid, loadReportFilterOptions } from '../_load-filter-options';
+import { ExpandableReportRows } from '../expandable-report-rows';
 import { PeriodPicker } from '../period-picker';
 import { ReportFilters } from '../report-filters';
 
@@ -24,8 +25,10 @@ export default async function AdvanceReportPage({
   const period = resolveReportPeriod(params, todayYmd);
   const branchId = asUuid(params.branchId);
   const departmentId = asUuid(params.departmentId);
-  const [rows, options] = await Promise.all([
-    advanceReport(period, { q: params.q, branchId, departmentId }),
+  const filter = { q: params.q, branchId, departmentId };
+  const [rows, detail, options] = await Promise.all([
+    advanceReport(period, filter),
+    advanceDetail(period, filter),
     loadReportFilterOptions(),
   ]);
 
@@ -57,6 +60,7 @@ export default async function AdvanceReportPage({
           <table className="min-w-full divide-y divide-gray-200 text-sm">
             <thead className="bg-gray-50 text-left text-xs text-gray-500">
               <tr>
+                <th className="w-6 px-2 py-2.5" />
                 <th className="px-4 py-2.5">พนักงาน</th>
                 <th className="px-4 py-2.5 text-right">เบิกอนุมัติในช่วง</th>
                 <th className="px-4 py-2.5 text-right">ค้างหัก</th>
@@ -64,19 +68,45 @@ export default async function AdvanceReportPage({
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {rows.map((r) => (
-                <tr key={r.employeeId} className="hover:bg-gray-50">
-                  <td className="px-4 py-2.5">{r.name}</td>
-                  <td className="px-4 py-2.5 text-right">{formatTHB2(r.approvedInPeriod)}</td>
-                  <td className="px-4 py-2.5 text-right">{formatTHB2(r.outstandingNow)}</td>
-                  <td className="px-4 py-2.5 text-right">
-                    {r.availableNow == null ? '—' : formatTHB2(r.availableNow)}
-                  </td>
-                </tr>
-              ))}
+              <ExpandableReportRows
+                rows={rows.map((r) => {
+                  const items = detail[r.employeeId] ?? [];
+                  return {
+                    id: r.employeeId,
+                    colSpan: 5,
+                    cells: (
+                      <>
+                        <td className="px-4 py-2.5">{r.name}</td>
+                        <td className="px-4 py-2.5 text-right">{formatTHB2(r.approvedInPeriod)}</td>
+                        <td className="px-4 py-2.5 text-right">{formatTHB2(r.outstandingNow)}</td>
+                        <td className="px-4 py-2.5 text-right">
+                          {r.availableNow == null ? '—' : formatTHB2(r.availableNow)}
+                        </td>
+                      </>
+                    ),
+                    detail:
+                      items.length === 0 ? null : (
+                        <ul className="space-y-1 text-xs text-gray-600">
+                          {items.map((it) => (
+                            <li key={it.id} className="flex items-center justify-between gap-4">
+                              <span>
+                                {it.approvedAt ? formatThaiDate(it.approvedAt) : '—'}
+                                {it.isDeducted ? ' • หักแล้ว' : ' • ค้างหัก'}
+                              </span>
+                              <span className="font-medium text-gray-800">
+                                {formatTHB2(it.amount)}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      ),
+                  };
+                })}
+              />
             </tbody>
             <tfoot className="bg-gray-50 text-xs font-medium">
               <tr>
+                <td />
                 <td className="px-4 py-2.5">รวม {rows.length} คน</td>
                 <td className="px-4 py-2.5 text-right">{formatTHB2(totals.approvedInPeriod)}</td>
                 <td className="px-4 py-2.5 text-right">{formatTHB2(totals.outstandingNow)}</td>

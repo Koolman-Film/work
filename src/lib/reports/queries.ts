@@ -244,3 +244,113 @@ export async function leaveReport(
   });
   return { rows, types };
 }
+
+// ── Drill-down detail (which date ranges, per employee) ───────────────────
+// Backs the expandable report rows: the summary tables show per-employee
+// totals; these return the individual leave/advance line items for the same
+// period + filter, keyed by employeeId.
+
+export type LeaveDetailItem = {
+  id: string;
+  leaveTypeName: string;
+  /** @db.Date UTC-midnight; format at the view layer. */
+  startDate: Date;
+  endDate: Date;
+  unit: string;
+  chargedMinutes: number;
+  overQuotaMinutes: number;
+};
+
+export async function leaveDetail(
+  period: { from: string; to: string },
+  filter: EmployeeFilter,
+): Promise<Record<string, LeaveDetailItem[]>> {
+  const employees = await prisma.employee.findMany({
+    where: employeeWhere(filter),
+    select: { id: true },
+  });
+  const ids = employees.map((e) => e.id);
+  const reqs = await prisma.leaveRequest.findMany({
+    where: {
+      employeeId: { in: ids },
+      status: 'Approved',
+      deletedAt: null,
+      // Bucketed by startDate — same convention as leaveReport's totals.
+      startDate: { gte: utc(period.from), lte: utc(period.to) },
+    },
+    select: {
+      id: true,
+      employeeId: true,
+      startDate: true,
+      endDate: true,
+      unit: true,
+      chargedMinutes: true,
+      overQuotaMinutes: true,
+      leaveType: { select: { name: true } },
+    },
+    orderBy: { startDate: 'asc' },
+  });
+  const out: Record<string, LeaveDetailItem[]> = {};
+  for (const r of reqs) {
+    let list = out[r.employeeId];
+    if (!list) {
+      list = [];
+      out[r.employeeId] = list;
+    }
+    list.push({
+      id: r.id,
+      leaveTypeName: r.leaveType.name,
+      startDate: r.startDate,
+      endDate: r.endDate,
+      unit: r.unit,
+      chargedMinutes: r.chargedMinutes ?? 0,
+      overQuotaMinutes: r.overQuotaMinutes ?? 0,
+    });
+  }
+  return out;
+}
+
+export type AdvanceDetailItem = {
+  id: string;
+  amount: number;
+  /** When the advance was approved (the in-period anchor). */
+  approvedAt: Date | null;
+  isDeducted: boolean;
+};
+
+export async function advanceDetail(
+  period: { from: string; to: string },
+  filter: EmployeeFilter,
+): Promise<Record<string, AdvanceDetailItem[]>> {
+  const employees = await prisma.employee.findMany({
+    where: employeeWhere(filter),
+    select: { id: true },
+  });
+  const ids = employees.map((e) => e.id);
+  const advances = await prisma.cashAdvance.findMany({
+    where: {
+      employeeId: { in: ids },
+      deletedAt: null,
+      status: 'Approved',
+      // Same UTC-midnight window as advanceReport.approvedInPeriod.
+      approvedAt: { gte: utc(period.from), lt: new Date(utc(period.to).getTime() + 86_400_000) },
+    },
+    select: { id: true, employeeId: true, amount: true, approvedAt: true, isDeducted: true },
+    orderBy: { approvedAt: 'asc' },
+  });
+  const out: Record<string, AdvanceDetailItem[]> = {};
+  for (const a of advances) {
+    let list = out[a.employeeId];
+    if (!list) {
+      list = [];
+      out[a.employeeId] = list;
+    }
+    list.push({
+      id: a.id,
+      amount: Number(a.amount),
+      approvedAt: a.approvedAt,
+      isDeducted: a.isDeducted,
+    });
+  }
+  return out;
+}

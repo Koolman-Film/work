@@ -1,7 +1,13 @@
 import { Prisma } from '@prisma/client';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { prisma } from '@/lib/db/prisma';
-import { advanceReport, attendanceReport, leaveReport } from '@/lib/reports/queries';
+import {
+  advanceDetail,
+  advanceReport,
+  attendanceReport,
+  leaveDetail,
+  leaveReport,
+} from '@/lib/reports/queries';
 
 /**
  * Integration tests (dedicated koolman_test DB) for the auth-free report
@@ -265,5 +271,85 @@ describe('leaveReport', () => {
       overQuotaMinutes: 0,
       deductAmount: 0,
     });
+  });
+});
+
+describe('advanceDetail (drill-down)', () => {
+  it('lists in-period approved advances per employee, excluding pending/out-of-period', async () => {
+    const emp = await makeEmployee({});
+    await prisma.cashAdvance.createMany({
+      data: [
+        {
+          employeeId: emp.id,
+          amount: new Prisma.Decimal(5_000),
+          status: 'Approved',
+          isDeducted: false,
+          approvedAt: new Date('2026-06-10T03:00:00.000Z'),
+        },
+        {
+          employeeId: emp.id,
+          amount: new Prisma.Decimal(2_000),
+          status: 'Approved',
+          isDeducted: true,
+          approvedAt: new Date('2026-06-20T03:00:00.000Z'),
+        },
+        // out of period
+        {
+          employeeId: emp.id,
+          amount: new Prisma.Decimal(9_999),
+          status: 'Approved',
+          approvedAt: new Date('2026-05-01T03:00:00.000Z'),
+        },
+        // pending
+        { employeeId: emp.id, amount: new Prisma.Decimal(8_888), status: 'Pending' },
+      ],
+    });
+
+    const detail = await advanceDetail(PERIOD, {});
+    const items = detail[emp.id] ?? [];
+    expect(items).toHaveLength(2);
+    expect(items.map((i) => i.amount).sort((a, b) => a - b)).toEqual([2_000, 5_000]);
+    expect(items.find((i) => i.amount === 2_000)?.isDeducted).toBe(true);
+  });
+});
+
+describe('leaveDetail (drill-down)', () => {
+  it('lists in-period approved leave per employee with type + range, excluding pending', async () => {
+    const emp = await makeEmployee({});
+    const lt = await prisma.leaveType.create({
+      data: { name: `ลาป่วย-${uid().slice(0, 8)}`, annualQuota: 30 },
+    });
+    await prisma.leaveRequest.create({
+      data: {
+        employeeId: emp.id,
+        leaveTypeId: lt.id,
+        startDate: day(3),
+        endDate: day(4),
+        chargedMinutes: 840,
+        overQuotaMinutes: 0,
+        reason: 'sick',
+        status: 'Approved',
+      },
+    });
+    // pending → excluded
+    await prisma.leaveRequest.create({
+      data: {
+        employeeId: emp.id,
+        leaveTypeId: lt.id,
+        startDate: day(10),
+        endDate: day(10),
+        chargedMinutes: 420,
+        reason: 'pending',
+        status: 'Pending',
+      },
+    });
+
+    const detail = await leaveDetail(PERIOD, {});
+    const items = detail[emp.id] ?? [];
+    expect(items).toHaveLength(1);
+    expect(items[0]?.leaveTypeName).toBe(lt.name);
+    expect(items[0]?.chargedMinutes).toBe(840);
+    expect(items[0]?.startDate.toISOString().slice(0, 10)).toBe('2026-06-03');
+    expect(items[0]?.endDate.toISOString().slice(0, 10)).toBe('2026-06-04');
   });
 });
