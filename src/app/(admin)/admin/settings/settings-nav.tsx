@@ -50,8 +50,8 @@ const ITEMS: Item[] = [
   },
   {
     href: '/admin/settings/attendance',
-    label: 'ตั้งค่าการมาสาย',
-    desc: 'เวลาเข้างาน + ผ่อนผัน',
+    label: 'การมาสาย & รอบจ่าย',
+    desc: 'เวลาเข้างาน + วันตัดรอบ',
     Icon: AlarmClock,
   },
   { href: '/admin/settings/team', label: 'ทีมผู้ดูแล', desc: 'Admin + Superadmin', Icon: ShieldCheck },
