@@ -78,7 +78,7 @@ async function gatherAndCalc(db: Tx | typeof prisma, month: string) {
   });
   const empIds = employees.map((e) => e.id);
 
-  const [attendances, advances, recurring, leaves, adjustments] = await Promise.all([
+  const [attendances, advances, recurring, leaves, leaveRanges, adjustments] = await Promise.all([
     db.attendance.findMany({
       where: { employeeId: { in: empIds }, date: { gte: start, lte: end }, deletedAt: null },
       select: { employeeId: true, date: true, type: true, durationMinutes: true },
@@ -107,6 +107,18 @@ async function gatherAndCalc(db: Tx | typeof prisma, month: string) {
         startDate: { lte: end },
       },
       select: { id: true, employeeId: true, deductAmount: true },
+    }),
+    // ALL approved leave overlapping the period (any unit, regardless of
+    // deductAmount) — used to exempt severe-late days covered by leave (C9).
+    db.leaveRequest.findMany({
+      where: {
+        employeeId: { in: empIds },
+        status: 'Approved',
+        deletedAt: null,
+        startDate: { lte: end },
+        endDate: { gte: start },
+      },
+      select: { employeeId: true, startDate: true, endDate: true },
     }),
     db.payrollAdjustment.findMany({
       where: {
@@ -141,6 +153,23 @@ async function gatherAndCalc(db: Tx | typeof prisma, month: string) {
   const recByEmp = byEmp(recurring);
   const leaveByEmp = byEmp(leaves);
   const adjByEmp = byEmp(adjustments);
+
+  // Per-employee set of leave-covered dates within the window — a severe late
+  // on one of these is exempt from its 1-day penalty (C9). @db.Date values are
+  // UTC midnight, so stepping by 86_400_000ms is exact (no DST in UTC).
+  const leaveDatesByEmp = new Map<string, Set<string>>();
+  for (const r of leaveRanges) {
+    let set = leaveDatesByEmp.get(r.employeeId);
+    if (!set) {
+      set = new Set<string>();
+      leaveDatesByEmp.set(r.employeeId, set);
+    }
+    const from = Math.max(r.startDate.getTime(), start.getTime());
+    const to = Math.min(r.endDate.getTime(), end.getTime());
+    for (let t = from; t <= to; t += 86_400_000) {
+      set.add(new Date(t).toISOString().slice(0, 10));
+    }
+  }
 
   const drafts: Array<{
     draft: PayrollDraft;
@@ -183,6 +212,7 @@ async function gatherAndCalc(db: Tx | typeof prisma, month: string) {
         leaveDeductions: empLeaves.map((l) => ({
           amount: (l.deductAmount ?? new Prisma.Decimal(0)).toString(),
         })),
+        leaveDates: [...(leaveDatesByEmp.get(emp.id) ?? [])],
         adjustments: empAdjustments.map(
           (a): AdjustmentForPayroll => ({ kind: a.kind, amount: a.amount.toString() }),
         ),
@@ -193,6 +223,10 @@ async function gatherAndCalc(db: Tx | typeof prisma, month: string) {
           absentDeductionPerDay: config.absentDeductionPerDay.toString(),
           lateDeduction: config.lateDeduction.toString(),
           earlyLeaveDeduction: config.earlyLeaveDeduction.toString(),
+          lateThreeStrikeEnabled: config.lateThreeStrikeEnabled,
+          lateThreeStrikeCount: config.lateThreeStrikeCount,
+          severeLateEnabled: config.severeLateEnabled,
+          severeLateThresholdMin: config.severeLateThresholdMin,
         },
         month,
       });

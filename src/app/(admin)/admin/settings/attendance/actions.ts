@@ -15,6 +15,11 @@ const Schema = z.object({
   // (cutoff+1) period start never overflows a short month. e.g. 26 → รอบ
   // 27 ของเดือนก่อน ถึง 26 ของเดือนนี้.
   cutoffDay: z.coerce.number().int().min(1).max(28),
+  // Late-penalty policy (C9).
+  lateThreeStrikeEnabled: z.boolean(),
+  lateThreeStrikeCount: z.coerce.number().int().min(1).max(31),
+  severeLateEnabled: z.boolean(),
+  severeLateThresholdMin: z.coerce.number().int().min(0).max(480),
 });
 
 export async function updateAttendanceConfig(formData: FormData) {
@@ -24,6 +29,11 @@ export async function updateAttendanceConfig(formData: FormData) {
     workStartTime: formData.get('workStartTime'),
     lateGraceMinutes: formData.get('lateGraceMinutes'),
     cutoffDay: formData.get('cutoffDay'),
+    // Unchecked checkboxes are absent from FormData → false.
+    lateThreeStrikeEnabled: formData.get('lateThreeStrikeEnabled') === 'on',
+    lateThreeStrikeCount: formData.get('lateThreeStrikeCount'),
+    severeLateEnabled: formData.get('severeLateEnabled') === 'on',
+    severeLateThresholdMin: formData.get('severeLateThresholdMin'),
   });
   if (!parsed.success) {
     redirect(
