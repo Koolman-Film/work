@@ -49,6 +49,7 @@ async function resetDb() {
 
 async function makeEmployee(opts: {
   baseSalary: number;
+  hasSso?: boolean;
   scheduleDays?: Array<{ dayOfWeek: number; startTime: string; endTime: string }>;
 }) {
   const user = await prisma.user.create({ data: {} });
@@ -68,6 +69,7 @@ async function makeEmployee(opts: {
       branchId: branch.id,
       salaryType: 'Monthly',
       baseSalary: new Prisma.Decimal(opts.baseSalary),
+      hasSso: opts.hasSso ?? false,
       status: 'Active',
       hiredAt: new Date('2026-01-01'),
       workScheduleId,
@@ -137,6 +139,41 @@ describe('advanceBalanceFor (Monthly)', () => {
     const bal = await advanceBalanceFor(emp.id);
     expect(bal.available).toBe(-5_000);
     expect(bal.overdrawn).toBe(true);
+  });
+
+  it('caps at NET: subtracts SSO + active recurring deductions (C7)', async () => {
+    // SSO = min(20000, 15000) × 5% = 750, capped at 750 (PayrollConfig in reset).
+    const emp = await makeEmployee({ baseSalary: 20_000, hasSso: true });
+    await prisma.recurringDeduction.create({
+      data: {
+        employeeId: emp.id,
+        reason: 'เงินกู้บริษัท',
+        monthlyAmount: new Prisma.Decimal(2_000),
+        monthsRemaining: 5,
+      },
+    });
+    // An ended / used-up recurring must NOT reduce the cap.
+    await prisma.recurringDeduction.create({
+      data: {
+        employeeId: emp.id,
+        reason: 'ผ่อนจบแล้ว',
+        monthlyAmount: new Prisma.Decimal(9_999),
+        monthsRemaining: 0,
+      },
+    });
+
+    const bal = await advanceBalanceFor(emp.id);
+    if (bal.kind !== 'monthly') throw new Error('expected monthly');
+    expect(bal.deductions).toBe(2_750); // 750 SSO + 2,000 active loan
+    expect(bal.available).toBe(17_250); // 20,000 − 2,750
+  });
+
+  it('ignores SSO when the employee is not enrolled', async () => {
+    const emp = await makeEmployee({ baseSalary: 20_000, hasSso: false });
+    const bal = await advanceBalanceFor(emp.id);
+    if (bal.kind !== 'monthly') throw new Error('expected monthly');
+    expect(bal.deductions).toBe(0);
+    expect(bal.available).toBe(20_000);
   });
 });
 
