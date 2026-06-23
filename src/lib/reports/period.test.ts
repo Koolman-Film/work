@@ -56,6 +56,38 @@ describe('resolveReportPeriod', () => {
   });
 });
 
+describe('resolveReportPeriod — cutoff alignment (C8)', () => {
+  const today = '2026-06-10';
+  it('month mode aligns to the payroll cutoff window when cutoffDay is given', () => {
+    expect(resolveReportPeriod({ m: '2026-06' }, today, 26)).toEqual({
+      from: '2026-05-27',
+      to: '2026-06-26',
+      month: '2026-06',
+    });
+  });
+  it('default month also aligns to the cutoff window', () => {
+    expect(resolveReportPeriod({}, today, 26)).toEqual({
+      from: '2026-05-27',
+      to: '2026-06-26',
+      month: '2026-06',
+    });
+  });
+  it('custom from/to ignores the cutoff (explicit range wins)', () => {
+    expect(resolveReportPeriod({ from: '2026-06-01', to: '2026-06-15' }, today, 26)).toEqual({
+      from: '2026-06-01',
+      to: '2026-06-15',
+      month: null,
+    });
+  });
+  it('falls back to calendar month for an out-of-range cutoff', () => {
+    expect(resolveReportPeriod({ m: '2026-06' }, today, 31)).toEqual({
+      from: '2026-06-01',
+      to: '2026-06-30',
+      month: '2026-06',
+    });
+  });
+});
+
 describe('adjacentMonths', () => {
   it('returns prev/next within a year', () => {
     expect(adjacentMonths('2026-06')).toEqual({ prev: '2026-05', next: '2026-07' });

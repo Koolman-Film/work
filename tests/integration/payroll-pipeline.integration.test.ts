@@ -105,6 +105,32 @@ describe('runPayrollDraft', () => {
     expect(Number(row.deductSso)).toBe(0); // hasSso false
     expect(Number(row.netPay)).toBe(16_500); // 20000 − 3000 − 500
   });
+
+  it('windows attendance by the payroll cutoff, not the calendar month (C8)', async () => {
+    // cutoff 26 → the 2026-06 period is 2026-05-27 .. 2026-06-26 (inclusive).
+    await prisma.payrollConfig.updateMany({ data: { cutoffDay: 26 } });
+    const emp = await makeEmployee({ baseSalary: 20_000 });
+    const absent = (ymd: string) =>
+      prisma.attendance.create({
+        data: {
+          employeeId: emp.id,
+          date: new Date(`${ymd}T00:00:00.000Z`),
+          type: 'Absent',
+          source: 'Manual',
+          createdById: uid(),
+        },
+      });
+    await absent('2026-05-27'); // first day of window → counts
+    await absent('2026-06-26'); // cutoff day, inclusive → counts
+    await absent('2026-05-26'); // day before window → excluded (prev period)
+    await absent('2026-06-27'); // day after cutoff → excluded (next period)
+
+    await runPayrollDraft(MONTH);
+    const row = await prisma.payroll.findFirstOrThrow({
+      where: { employeeId: emp.id, month: MONTH },
+    });
+    expect(Number(row.deductAttendance)).toBe(1_000); // only the 2 in-window absents × ฿500
+  });
 });
 
 describe('publishPayroll', () => {
