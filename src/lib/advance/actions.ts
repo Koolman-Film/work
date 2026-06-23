@@ -27,6 +27,8 @@ import { requireRole } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
 import { notifyAdminsOnLine } from '@/lib/notifications/admin-line';
 import { notifyAdminsInApp } from '@/lib/notifications/in-app-bell';
+import { advanceBalanceFor } from './available';
+import { isOverCap } from './balance';
 
 /** Same display-name policy as leave/actions.ts — prefer nickname, fall
  *  back to full name. Kept as a per-file helper rather than a shared util
@@ -50,7 +52,7 @@ export type SubmitAdvanceResult =
   | { ok: true; id: string }
   | {
       ok: false;
-      code: 'forbidden' | 'bad-amount' | 'too-large' | 'pending-exists' | 'db-error';
+      code: 'forbidden' | 'bad-amount' | 'too-large' | 'pending-exists' | 'over-cap' | 'db-error';
       message: string;
     };
 
@@ -111,6 +113,19 @@ export async function submitCashAdvance(input: SubmitInput): Promise<SubmitAdvan
       ok: false,
       code: 'pending-exists',
       message: t('errors.pendingExists'),
+    };
+  }
+
+  // Hard cap: an advance can't exceed NET pay ("ไม่ให้เบิกเกินเงินเดือนสุทธิ").
+  // Uses the same advanceBalanceFor + isOverCap as the admin approval guard so
+  // the two never disagree. Rate-based employees with no computable earnings
+  // (available == null) are not blocked here — the admin gate decides.
+  const balance = await advanceBalanceFor(employee.id);
+  if (isOverCap(input.amount, balance.available)) {
+    return {
+      ok: false,
+      code: 'over-cap',
+      message: t('new.exceedsCap', { available: formatBaht(balance.available as number) }),
     };
   }
 

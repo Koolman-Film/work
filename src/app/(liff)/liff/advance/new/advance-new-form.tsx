@@ -41,6 +41,10 @@ export function AdvanceNewForm({ available }: { available: number | null }) {
     return n;
   })();
 
+  // Over NET cap → hard-block (server enforces the same via advanceBalanceFor +
+  // isOverCap). available is already net (gross − SSO − recurring) from the page.
+  const overCap = available != null && parsed != null && parsed > available;
+
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (parsed == null) {
@@ -92,9 +96,9 @@ export function AdvanceNewForm({ available }: { available: number | null }) {
               className="w-full rounded-md border border-gray-300 py-3 pr-3 pl-8 text-right text-lg font-semibold tabular-nums shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
             />
           </div>
-          {/* Over-cap warning — informational only, submission stays allowed.
-              The hard rule lives server-side at APPROVAL (advance/admin.ts). */}
-          {available != null && parsed != null && parsed > available && (
+          {/* Over-cap → blocks submission (server enforces it too at submit +
+              approval). available is the NET cap (gross − SSO − recurring). */}
+          {overCap && available != null && (
             <p className="mt-2 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
               {t('new.exceedsCap', { available: formatMoney(available, locale) })}
             </p>
@@ -134,7 +138,7 @@ export function AdvanceNewForm({ available }: { available: number | null }) {
           </button>
           <button
             type="submit"
-            disabled={pending || parsed == null}
+            disabled={pending || parsed == null || overCap}
             className="rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {pending ? t('new.submitting') : t('new.submit')}

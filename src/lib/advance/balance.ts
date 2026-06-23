@@ -3,7 +3,15 @@
  *
  * What "available to request" means in this codebase:
  *
- *   available = baseSalary − reserved
+ *   available = baseSalary − deductions − reserved
+ *
+ *   deductions = NET-pay reducers that are STABLE and known all month: SSO
+ *                (ประกันสังคม) + active recurring deductions (company loans,
+ *                installments). Fluctuating ones (attendance/leave/keyed
+ *                adjustments) are deliberately excluded so the cap doesn't jump
+ *                mid-month; the admin approval is the final gate. (Requirement:
+ *                "ไม่ให้เบิกเกินเงินเดือนสุทธิ".) Commission/OT never raise the
+ *                cap because it's built from baseSalary, not gross income.
  *
  *   reserved = Σ amount of CashAdvance rows for this employee where
  *              status ∈ {Pending, Approved} AND isDeducted = false
@@ -45,27 +53,34 @@ export type AdvanceBalanceInput = {
   /** Earned-so-far this payroll period for Daily/Hourly; when provided the
    *  rate-based variant gains available/overdrawn. */
   periodEarnings?: number | null;
+  /** Standing monthly deductions to subtract from the cap so an advance can't
+   *  exceed NET pay (requirement: "ไม่ให้เบิกเกินเงินเดือนสุทธิ"). Only the
+   *  STABLE, always-known deductions belong here — SSO + active recurring
+   *  deductions — not the fluctuating attendance/leave/keyed ones. Default 0. */
+  monthlyDeductions?: number;
 };
 
 export type AdvanceBalance =
   | {
       kind: 'monthly';
       baseSalary: number;
+      deductions: number; // SSO + recurring subtracted to reach NET cap
       pending: number; // sum of Pending advances
       approvedNotDeducted: number; // sum of Approved-but-not-deducted advances
       reserved: number; // pending + approvedNotDeducted
-      available: number; // baseSalary - reserved; can go negative if admin over-approves
+      available: number; // baseSalary - deductions - reserved; negative if over-approved
       overdrawn: boolean; // true when available < 0
     }
   | {
       kind: 'rate-based'; // Daily / Hourly
       salaryType: 'Daily' | 'Hourly';
       ratePerPeriod: number;
+      deductions: number; // SSO + recurring subtracted to reach NET cap
       pending: number;
       approvedNotDeducted: number;
       reserved: number;
       earnings: number | null; // null when periodEarnings not supplied (V1)
-      available: number | null; // null when earnings unknown; can go negative if admin over-approves
+      available: number | null; // earnings - deductions - reserved; null when earnings unknown
       overdrawn: boolean; // true when available is known and < 0
     };
 
@@ -95,12 +110,14 @@ export function calculateAdvanceBalance(input: AdvanceBalanceInput): AdvanceBala
     else if (a.status === 'Approved') approvedNotDeducted += n;
   }
   const reserved = pending + approvedNotDeducted;
+  const deductions = Math.max(0, input.monthlyDeductions ?? 0);
 
   if (input.salaryType === 'Monthly') {
-    const available = baseSalary - reserved;
+    const available = baseSalary - deductions - reserved;
     return {
       kind: 'monthly',
       baseSalary,
+      deductions,
       pending,
       approvedNotDeducted,
       reserved,
@@ -110,11 +127,12 @@ export function calculateAdvanceBalance(input: AdvanceBalanceInput): AdvanceBala
   }
 
   const earnings = input.periodEarnings ?? null;
-  const available = earnings == null ? null : earnings - reserved;
+  const available = earnings == null ? null : earnings - deductions - reserved;
   return {
     kind: 'rate-based',
     salaryType: input.salaryType,
     ratePerPeriod: baseSalary,
+    deductions,
     pending,
     approvedNotDeducted,
     reserved,

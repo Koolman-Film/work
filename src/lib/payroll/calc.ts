@@ -196,7 +196,10 @@ function sumDec(items: readonly { value: string | number | Decimal }[]): Decimal
  * (the 5% rate × 15K cap → 750 baseline), and the `ssoAmountCap` line
  * exists for when the rate or cap is adjusted in the future.
  */
-function calcSso(baseSalary: Decimal, config: ConfigForPayroll): Decimal {
+export function calcSso(
+  baseSalary: Decimal,
+  config: Pick<ConfigForPayroll, 'ssoRate' | 'ssoSalaryCap' | 'ssoAmountCap'>,
+): Decimal {
   const cappedBase = Decimal.min(baseSalary, toDec(config.ssoSalaryCap));
   const raw = cappedBase.times(toDec(config.ssoRate));
   return Decimal.min(raw, toDec(config.ssoAmountCap)).toDecimalPlaces(2);

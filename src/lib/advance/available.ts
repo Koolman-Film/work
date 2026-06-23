@@ -1,5 +1,7 @@
+import Decimal from 'decimal.js';
 import { prisma } from '@/lib/db/prisma';
 import { windowMinutes } from '@/lib/leave/units';
+import { calcSso } from '@/lib/payroll/calc';
 import { type AdvanceBalance, calculateAdvanceBalance } from './balance';
 import { payrollPeriodFor, periodEarnings } from './period-earnings';
 
@@ -26,11 +28,13 @@ export async function advanceBalanceFor(
 ): Promise<AdvanceBalance> {
   const employee = await prisma.employee.findUniqueOrThrow({
     where: { id: employeeId },
-    select: { baseSalary: true, salaryType: true, workScheduleId: true },
+    select: { baseSalary: true, salaryType: true, workScheduleId: true, hasSso: true },
   });
 
-  // config only needed for non-Monthly; fetch employee first then parallelize
-  const [reservedRows, cfg] = await Promise.all([
+  // Fetch employee first, then parallelize: reserved advances, the payroll
+  // config (SSO rates always; cutoffDay for rate-based earnings), and the
+  // active recurring deductions that reduce NET pay.
+  const [reservedRows, cfg, recurring] = await Promise.all([
     prisma.cashAdvance.findMany({
       where: {
         employeeId,
@@ -40,13 +44,31 @@ export async function advanceBalanceFor(
       },
       select: { status: true, amount: true },
     }),
-    employee.salaryType !== 'Monthly'
-      ? prisma.payrollConfig.findFirstOrThrow({ select: { cutoffDay: true } })
-      : Promise.resolve(null),
+    prisma.payrollConfig.findFirstOrThrow({
+      select: { ssoRate: true, ssoSalaryCap: true, ssoAmountCap: true, cutoffDay: true },
+    }),
+    // "Active" matches the payroll sweep (run.ts): not ended, months left.
+    prisma.recurringDeduction.findMany({
+      where: { employeeId, endedAt: null, monthsRemaining: { gt: 0 } },
+      select: { monthlyAmount: true },
+    }),
   ]);
 
+  // NET-pay cap basis: subtract the stable, always-known deductions only —
+  // SSO + active recurring. Fluctuating attendance/leave/keyed deductions are
+  // intentionally excluded (see balance.ts header).
+  const ssoDeduction = employee.hasSso
+    ? calcSso(new Decimal(employee.baseSalary.toString()), {
+        ssoRate: cfg.ssoRate.toString(),
+        ssoSalaryCap: cfg.ssoSalaryCap.toString(),
+        ssoAmountCap: cfg.ssoAmountCap.toString(),
+      }).toNumber()
+    : 0;
+  const recurringDeduction = recurring.reduce((sum, r) => sum + Number(r.monthlyAmount), 0);
+  const monthlyDeductions = ssoDeduction + recurringDeduction;
+
   let earnings: number | null = null;
-  if (employee.salaryType !== 'Monthly' && cfg) {
+  if (employee.salaryType !== 'Monthly') {
     const todayYmd = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
     const period = payrollPeriodFor(todayYmd, cfg.cutoffDay);
     const rows = await prisma.attendance.findMany({
@@ -99,5 +121,6 @@ export async function advanceBalanceFor(
       amount: (typeof reservedRows)[number]['amount'];
     }>,
     periodEarnings: earnings,
+    monthlyDeductions,
   });
 }

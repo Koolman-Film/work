@@ -227,6 +227,8 @@ export async function cleanupE2eRecords(): Promise<void> {
       await prisma.attendance.deleteMany({ where: { employeeId: { in: empIds } } });
       await prisma.cashAdvance.deleteMany({ where: { employeeId: { in: empIds } } });
       await prisma.leaveRequest.deleteMany({ where: { employeeId: { in: empIds } } });
+      // RecurringDeduction FKs employee with onDelete: Restrict — must go first.
+      await prisma.recurringDeduction.deleteMany({ where: { employeeId: { in: empIds } } });
       await prisma.employee.deleteMany({ where: { id: { in: empIds } } });
       // UserRoleAssignment rows cascade on User delete (onDelete: Cascade).
       await prisma.user.deleteMany({ where: { id: { in: userIds } } });
