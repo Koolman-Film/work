@@ -33,6 +33,7 @@ import {
   PayrollCalcError,
   type PayrollDraft,
 } from './calc';
+import { payrollMonthWindow } from './period';
 
 export type SkippedEmployee = {
   employeeId: string;
@@ -47,14 +48,6 @@ export type RunResult = {
   skipped: SkippedEmployee[];
 };
 
-/** First/next-month UTC date bounds for @db.Date range queries. */
-function monthBounds(month: string): { start: Date; end: Date } {
-  const start = new Date(`${month}-01T00:00:00.000Z`);
-  if (Number.isNaN(start.getTime())) throw new Error(`Invalid month: ${month}`);
-  const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1));
-  return { start, end };
-}
-
 /** Prisma transaction client — what `$transaction(async (tx) => ...)` passes. */
 type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
 
@@ -67,7 +60,9 @@ async function gatherAndCalc(db: Tx | typeof prisma, month: string) {
   const config = await db.payrollConfig.findFirst();
   if (!config) throw new Error('PayrollConfig missing — run the seed first.');
 
-  const { start, end } = monthBounds(month);
+  // Payroll period = the cutoff window ending on this month's cutoff day
+  // (PDF C8). `end` is inclusive of the cutoff day — queries use lte.
+  const { start, end } = payrollMonthWindow(month, config.cutoffDay);
 
   const employees = await db.employee.findMany({
     where: { status: { not: 'Archived' } },
@@ -85,7 +80,7 @@ async function gatherAndCalc(db: Tx | typeof prisma, month: string) {
 
   const [attendances, advances, recurring, leaves, adjustments] = await Promise.all([
     db.attendance.findMany({
-      where: { employeeId: { in: empIds }, date: { gte: start, lt: end }, deletedAt: null },
+      where: { employeeId: { in: empIds }, date: { gte: start, lte: end }, deletedAt: null },
       select: { employeeId: true, date: true, type: true, durationMinutes: true },
     }),
     db.cashAdvance.findMany({
@@ -109,7 +104,7 @@ async function gatherAndCalc(db: Tx | typeof prisma, month: string) {
         deductAmount: { gt: 0 },
         deductedInPayrollId: null,
         deletedAt: null,
-        startDate: { lt: end },
+        startDate: { lte: end },
       },
       select: { id: true, employeeId: true, deductAmount: true },
     }),

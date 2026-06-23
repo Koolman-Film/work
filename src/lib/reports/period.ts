@@ -2,6 +2,8 @@
  *  month) or ?from=YYYY-MM-DD&to=YYYY-MM-DD (custom range, month=null).
  *  Pure — callers pass today's Bangkok YYYY-MM-DD. */
 
+import { payrollMonthWindowYmd } from '@/lib/payroll/period';
+
 const YMD = /^\d{4}-\d{2}-\d{2}$/;
 const YM = /^\d{4}-\d{2}$/;
 
@@ -35,6 +37,10 @@ function monthBounds(ym: string): { from: string; to: string } {
 export function resolveReportPeriod(
   params: { m?: string; from?: string; to?: string },
   todayYmd: string,
+  /** Payroll cutoff day — when provided, month mode aligns to the payroll
+   *  cutoff window (C8) so report counts tie out with payroll deductions.
+   *  Omitted → plain calendar month (1st→last). Custom from/to ignores it. */
+  cutoffDay?: number,
 ): ReportPeriod {
   const { from, to, m } = params;
   if (
@@ -49,7 +55,11 @@ export function resolveReportPeriod(
     return { from, to, month: null };
   }
   const ym = m && YM.test(m) && isValidYm(m) ? m : todayYmd.slice(0, 7);
-  return { ...monthBounds(ym), month: ym };
+  const bounds =
+    cutoffDay != null && cutoffDay >= 1 && cutoffDay <= 28
+      ? payrollMonthWindowYmd(ym, cutoffDay)
+      : monthBounds(ym);
+  return { ...bounds, month: ym };
 }
 
 /** prev/next month strings for the picker ("2026-06" → "2026-05"/"2026-07"). */
