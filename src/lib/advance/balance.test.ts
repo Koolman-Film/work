@@ -120,6 +120,67 @@ describe('calculateAdvanceBalance — Daily / Hourly', () => {
   });
 });
 
+describe('calculateAdvanceBalance — net deductions (C7)', () => {
+  it('subtracts monthlyDeductions (SSO + recurring) to reach the NET cap', () => {
+    const r = calculateAdvanceBalance({
+      baseSalary: 20_000,
+      salaryType: 'Monthly',
+      reservedAdvances: [],
+      monthlyDeductions: 2_750, // e.g. SSO 750 + loan 2,000
+    });
+    if (r.kind !== 'monthly') throw new Error('expected monthly');
+    expect(r.deductions).toBe(2_750);
+    expect(r.available).toBe(17_250); // 20,000 − 2,750
+  });
+
+  it('stacks deductions and reserved advances', () => {
+    const r = calculateAdvanceBalance({
+      baseSalary: 20_000,
+      salaryType: 'Monthly',
+      reservedAdvances: [{ status: 'Pending', amount: 5_000 }],
+      monthlyDeductions: 750,
+    });
+    if (r.kind !== 'monthly') throw new Error('expected monthly');
+    expect(r.available).toBe(14_250); // 20,000 − 750 − 5,000
+  });
+
+  it('defaults deductions to 0 when omitted (back-compat)', () => {
+    const r = calculateAdvanceBalance({
+      baseSalary: 20_000,
+      salaryType: 'Monthly',
+      reservedAdvances: [],
+    });
+    if (r.kind !== 'monthly') throw new Error('expected monthly');
+    expect(r.deductions).toBe(0);
+    expect(r.available).toBe(20_000);
+  });
+
+  it('clamps negative deductions to 0 (defensive)', () => {
+    const r = calculateAdvanceBalance({
+      baseSalary: 20_000,
+      salaryType: 'Monthly',
+      reservedAdvances: [],
+      monthlyDeductions: -500,
+    });
+    if (r.kind !== 'monthly') throw new Error('expected monthly');
+    expect(r.deductions).toBe(0);
+    expect(r.available).toBe(20_000);
+  });
+
+  it('applies deductions to the rate-based variant when earnings are known', () => {
+    const r = calculateAdvanceBalance({
+      baseSalary: 400,
+      salaryType: 'Daily',
+      reservedAdvances: [{ status: 'Pending', amount: 1_000 }],
+      periodEarnings: 8_000,
+      monthlyDeductions: 750,
+    });
+    if (r.kind !== 'rate-based') throw new Error('expected rate-based');
+    expect(r.deductions).toBe(750);
+    expect(r.available).toBe(6_250); // 8,000 − 750 − 1,000
+  });
+});
+
 describe('isOverCap', () => {
   it('returns true when amount exceeds available', () => {
     expect(isOverCap(5_000, 4_000)).toBe(true);

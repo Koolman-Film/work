@@ -368,7 +368,7 @@
       "amountPlaceholder": "0.00",
       "quickAmounts": "Quick amounts",
       "note": "Only one pending request is allowed at a time. To submit another, wait for admin to decide or cancel the existing request first.",
-      "exceedsCap": "Exceeds your available amount ({available} left). The request may be rejected.",
+      "exceedsCap": "Exceeds your available limit (remaining {available}) — this request can't be submitted.",
       "noteLabel": "Note:",
       "cancel": "Cancel",
       "submit": "Submit request",
