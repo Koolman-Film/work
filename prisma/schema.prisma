@@ -767,6 +767,17 @@ model PayrollConfig {
   workStartTime         String  @default("09:00")
   /// Minutes after workStartTime before a check-in is flagged "Late".
   lateGraceMinutes      Int     @default(15)
+  /// Late-penalty policy (C9) — money-based, each rule independently
+  /// toggleable; the "1 day" penalty reuses `absentDeductionPerDay`.
+  /// "N lates in a pay period = 1 day deducted" (replaces the flat
+  /// `lateDeduction` per-late charge when enabled).
+  lateThreeStrikeEnabled Boolean @default(true)
+  lateThreeStrikeCount   Int     @default(3)
+  /// A late beyond this many minutes past the start is "severe". A severe late
+  /// on a day with NO approved leave = 1 day deducted. (>30 ⇒ 09:31 when start
+  /// is 09:00; a same-day leave exempts it — that deduction is handled by leave.)
+  severeLateEnabled      Boolean @default(true)
+  severeLateThresholdMin Int     @default(30)
 
   updatedAt DateTime @updatedAt
 }

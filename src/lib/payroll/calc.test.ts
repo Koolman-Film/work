@@ -17,7 +17,14 @@
 
 import Decimal from 'decimal.js';
 import { describe, expect, it } from 'vitest';
-import { type AttendanceForPayroll, type CalcInput, calcPayroll, PayrollCalcError } from './calc';
+import {
+  type AttendanceForPayroll,
+  type CalcInput,
+  calcPayroll,
+  computeLatePenalty,
+  type LatePolicyConfig,
+  PayrollCalcError,
+} from './calc';
 
 /**
  * Default Thai-labor-law config matching what seed.ts will install
@@ -293,5 +300,138 @@ describe('calcPayroll — V1 fixtures', () => {
     // 0.05 × 15000 = 750.00 exactly
     expect(out.deductSso.toString()).toBe('750');
     expect(out.deductSso.equals(new Decimal('750'))).toBe(true);
+  });
+});
+
+describe('computeLatePenalty (C9)', () => {
+  const ON: LatePolicyConfig = {
+    threeStrikeEnabled: true,
+    threeStrikeCount: 3,
+    severeEnabled: true,
+    severeThresholdMin: 30,
+  };
+  const late = (date: string, minutesLate: number) => ({ date, minutesLate });
+  const noLeave = new Set<string>();
+
+  it('every Nth tier-1 late = one 1-day penalty; 1–2 are free', () => {
+    const r = computeLatePenalty(
+      [late('2026-06-01', 10), late('2026-06-02', 12), late('2026-06-03', 5)],
+      noLeave,
+      ON,
+    );
+    expect(r.tier1Count).toBe(3);
+    expect(r.threeStrikeDays).toBe(1);
+    expect(r.severeDays).toBe(0);
+  });
+
+  it('two lates trigger nothing', () => {
+    const r = computeLatePenalty([late('2026-06-01', 10), late('2026-06-02', 12)], noLeave, ON);
+    expect(r.threeStrikeDays).toBe(0);
+  });
+
+  it('six tier-1 lates = two 1-day penalties', () => {
+    const lates = Array.from({ length: 6 }, (_, i) => late(`2026-06-0${i + 1}`, 10));
+    expect(computeLatePenalty(lates, noLeave, ON).threeStrikeDays).toBe(2);
+  });
+
+  it('a severe late (> threshold) on a no-leave day = one 1-day penalty', () => {
+    const r = computeLatePenalty([late('2026-06-10', 45)], noLeave, ON);
+    expect(r.severeCount).toBe(1);
+    expect(r.tier1Count).toBe(0); // severe is not counted toward 3-strikes
+    expect(r.severeDays).toBe(1);
+  });
+
+  it('a severe late on a day WITH approved leave is exempt', () => {
+    const r = computeLatePenalty([late('2026-06-10', 45)], new Set(['2026-06-10']), ON);
+    expect(r.severeCount).toBe(1);
+    expect(r.severeDays).toBe(0); // leave that day covers it
+  });
+
+  it('exactly at the threshold is NOT severe (strictly greater)', () => {
+    const r = computeLatePenalty([late('2026-06-10', 30)], noLeave, ON);
+    expect(r.severeCount).toBe(0);
+    expect(r.tier1Count).toBe(1);
+  });
+
+  it('severe disabled → severe lates count as ordinary tier-1', () => {
+    const r = computeLatePenalty([late('2026-06-10', 45), late('2026-06-11', 50)], noLeave, {
+      ...ON,
+      severeEnabled: false,
+    });
+    expect(r.tier1Count).toBe(2);
+    expect(r.severeDays).toBe(0);
+  });
+
+  it('three-strike disabled → no 3-strike penalty', () => {
+    const lates = Array.from({ length: 6 }, (_, i) => late(`2026-06-0${i + 1}`, 10));
+    const r = computeLatePenalty(lates, noLeave, { ...ON, threeStrikeEnabled: false });
+    expect(r.threeStrikeDays).toBe(0);
+    expect(r.tier1Count).toBe(6);
+  });
+});
+
+describe('calcPayroll — late penalties wired through deductAttendance (C9)', () => {
+  const baseConfig = {
+    ssoRate: '0.05',
+    ssoSalaryCap: '15000',
+    ssoAmountCap: '750',
+    absentDeductionPerDay: '500',
+    lateDeduction: '100',
+    earlyLeaveDeduction: '100',
+  };
+  const emp = { id: 'e1', salaryType: 'Monthly' as const, baseSalary: '20000', hasSso: false };
+  const lateRow = (date: string, m: number): AttendanceForPayroll => ({
+    date,
+    type: 'Late',
+    durationMinutes: m,
+  });
+
+  it('3 ordinary lates → one absent-day amount (฿500), replacing the flat per-late', () => {
+    const out = calcPayroll({
+      employee: emp,
+      attendances: [lateRow('2026-06-01', 10), lateRow('2026-06-02', 12), lateRow('2026-06-03', 8)],
+      advances: [],
+      recurringDeductions: [],
+      config: {
+        ...baseConfig,
+        lateThreeStrikeEnabled: true,
+        lateThreeStrikeCount: 3,
+        severeLateEnabled: true,
+        severeLateThresholdMin: 30,
+      },
+      month: '2026-06',
+    });
+    expect(out.deductAttendance.toString()).toBe('500'); // not 3×100 flat
+  });
+
+  it('severe late with no leave that day → one absent-day amount', () => {
+    const out = calcPayroll({
+      employee: emp,
+      attendances: [lateRow('2026-06-10', 45)],
+      advances: [],
+      recurringDeductions: [],
+      leaveDates: [],
+      config: {
+        ...baseConfig,
+        lateThreeStrikeEnabled: true,
+        lateThreeStrikeCount: 3,
+        severeLateEnabled: true,
+        severeLateThresholdMin: 30,
+      },
+      month: '2026-06',
+    });
+    expect(out.deductAttendance.toString()).toBe('500');
+  });
+
+  it('falls back to the flat per-late charge when the policy fields are omitted', () => {
+    const out = calcPayroll({
+      employee: emp,
+      attendances: [lateRow('2026-06-01', 10), lateRow('2026-06-02', 12)],
+      advances: [],
+      recurringDeductions: [],
+      config: baseConfig, // no late-policy fields → legacy
+      month: '2026-06',
+    });
+    expect(out.deductAttendance.toString()).toBe('200'); // 2 × ฿100 flat
   });
 });

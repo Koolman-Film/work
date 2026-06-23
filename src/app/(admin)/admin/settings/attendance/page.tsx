@@ -19,13 +19,25 @@ export default async function AttendanceSettingsPage({
 }) {
   await requirePermission('settings.attendance.manage');
   const cfg = await prisma.payrollConfig.findFirst({
-    select: { workStartTime: true, lateGraceMinutes: true, cutoffDay: true },
+    select: {
+      workStartTime: true,
+      lateGraceMinutes: true,
+      cutoffDay: true,
+      lateThreeStrikeEnabled: true,
+      lateThreeStrikeCount: true,
+      severeLateEnabled: true,
+      severeLateThresholdMin: true,
+    },
   });
   const sp = await searchParams;
 
   const workStartTime = cfg?.workStartTime ?? DEFAULT_WORK_START;
   const lateGraceMinutes = cfg?.lateGraceMinutes ?? DEFAULT_LATE_GRACE_MIN;
   const cutoffDay = cfg?.cutoffDay ?? DEFAULT_CUTOFF_DAY;
+  const lateThreeStrikeEnabled = cfg?.lateThreeStrikeEnabled ?? true;
+  const lateThreeStrikeCount = cfg?.lateThreeStrikeCount ?? 3;
+  const severeLateEnabled = cfg?.severeLateEnabled ?? true;
+  const severeLateThresholdMin = cfg?.severeLateThresholdMin ?? 30;
 
   // Show the resulting window for the current Bangkok month as a live example.
   const nowYm = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' }).slice(0, 7);
@@ -127,6 +139,68 @@ export default async function AttendanceSettingsPage({
             </p>
             <p className="text-xs text-ink-4">
               มีผลกับการคำนวณเงินเดือนรอบใหม่เท่านั้น — รอบที่เผยแพร่/ล็อกแล้วจะไม่เปลี่ยน
+            </p>
+          </CardBody>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>บทลงโทษการมาสาย</CardTitle>
+          </CardHeader>
+          <CardBody className="space-y-5">
+            <label className="flex items-center gap-2 text-sm text-ink-1">
+              <input
+                type="checkbox"
+                name="lateThreeStrikeEnabled"
+                defaultChecked={lateThreeStrikeEnabled}
+                className="h-4 w-4 rounded border-ink-5"
+              />
+              <span>เปิดใช้กฎ “มาสายครบจำนวนครั้ง = หัก 1 วัน”</span>
+            </label>
+            <FormField
+              label="มาสายกี่ครั้ง = หัก 1 วัน"
+              htmlFor="lateThreeStrikeCount"
+              hint="เช่น 3 = มาสาย 3 ครั้งในรอบ หัก 1 วัน (มาสาย 1–2 ครั้งไม่หัก)"
+            >
+              <Input
+                id="lateThreeStrikeCount"
+                name="lateThreeStrikeCount"
+                type="number"
+                min={1}
+                max={31}
+                step={1}
+                defaultValue={lateThreeStrikeCount}
+                required
+              />
+            </FormField>
+
+            <label className="flex items-center gap-2 text-sm text-ink-1">
+              <input
+                type="checkbox"
+                name="severeLateEnabled"
+                defaultChecked={severeLateEnabled}
+                className="h-4 w-4 rounded border-ink-5"
+              />
+              <span>เปิดใช้กฎ “มาสายรุนแรง + ไม่ได้ลา = หัก 1 วัน”</span>
+            </label>
+            <FormField
+              label="เกณฑ์สายรุนแรง (นาทีหลังเวลาเข้างาน)"
+              htmlFor="severeLateThresholdMin"
+              hint="มาสายเกินกี่นาทีถือว่า “สายรุนแรง” เช่น 30 = เข้างาน 9:31 ขึ้นไป (เมื่อเวลาเข้างาน 9:00) — ถ้าวันนั้นมีการลา จะไม่หักซ้ำ"
+            >
+              <Input
+                id="severeLateThresholdMin"
+                name="severeLateThresholdMin"
+                type="number"
+                min={0}
+                max={480}
+                step={1}
+                defaultValue={severeLateThresholdMin}
+                required
+              />
+            </FormField>
+            <p className="text-xs text-ink-4">
+              บทลงโทษ “1 วัน” คิดเป็นจำนวนเงินเท่ากับการขาดงาน 1 วัน — แอดมินคีย์มือปรับยกเว้นเป็นรายกรณีได้
             </p>
           </CardBody>
         </Card>
