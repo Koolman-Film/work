@@ -26,6 +26,16 @@ export async function loadReportFilterOptions(): Promise<{
   return { branches, departments };
 }
 
+/**
+ * The payroll cutoff day for report period alignment (C8). Reports resolve a
+ * month to the same cutoff window as payroll so their counts tie out with
+ * payroll deductions. Returns undefined when no config exists → calendar month.
+ */
+export async function loadPayrollCutoffDay(): Promise<number | undefined> {
+  const cfg = await prisma.payrollConfig.findFirst({ select: { cutoffDay: true } });
+  return cfg?.cutoffDay;
+}
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**

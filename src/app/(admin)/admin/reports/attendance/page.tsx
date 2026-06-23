@@ -2,7 +2,7 @@ import { BarChart3 } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { resolveReportPeriod } from '@/lib/reports/period';
 import { attendanceReport } from '@/lib/reports/queries';
-import { asUuid, loadReportFilterOptions } from '../_load-filter-options';
+import { asUuid, loadPayrollCutoffDay, loadReportFilterOptions } from '../_load-filter-options';
 import { PeriodPicker } from '../period-picker';
 import { ReportFilters } from '../report-filters';
 
@@ -20,7 +20,7 @@ export default async function AttendanceReportPage({
 }) {
   const params = await searchParams;
   const todayYmd = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
-  const period = resolveReportPeriod(params, todayYmd);
+  const period = resolveReportPeriod(params, todayYmd, await loadPayrollCutoffDay());
   const branchId = asUuid(params.branchId);
   const departmentId = asUuid(params.departmentId);
   const [rows, options] = await Promise.all([
