@@ -109,6 +109,15 @@ export type ConfigForPayroll = {
   absentDeductionPerDay: string | number | Decimal;
   lateDeduction: string | number | Decimal;
   earlyLeaveDeduction: string | number | Decimal;
+  /**
+   * Late-penalty policy (C9). Optional — when omitted, lateness falls back to
+   * the legacy flat `lateDeduction` per Late row (so existing callers/tests are
+   * unchanged). The real caller (run.ts) always passes the DB values.
+   */
+  lateThreeStrikeEnabled?: boolean;
+  lateThreeStrikeCount?: number;
+  severeLateEnabled?: boolean;
+  severeLateThresholdMin?: number;
 };
 
 export type CalcInput = {
@@ -121,6 +130,12 @@ export type CalcInput = {
    * an empty array) when none apply — `deductLeave` will be 0.
    */
   leaveDeductions?: readonly LeaveDeductionForPayroll[];
+  /**
+   * YYYY-MM-DD dates in the pay period where the employee had an approved leave
+   * (any unit). A severe late on one of these days is exempt from its 1-day
+   * penalty (the leave deduction already covers that day). Omit → none.
+   */
+  leaveDates?: readonly string[];
   /**
    * Earnings/deductions applicable to this month. Omit for none — both
    * incomeOther and deductOther will be 0.
@@ -185,6 +200,72 @@ function sumDec(items: readonly { value: string | number | Decimal }[]): Decimal
   return items.reduce<Decimal>((acc, x) => acc.plus(toDec(x.value)), new Decimal(0));
 }
 
+/** YYYY-MM-DD from a Date (UTC) or an already-formatted string. */
+function ymd(d: Date | string): string {
+  return typeof d === 'string' ? d.slice(0, 10) : d.toISOString().slice(0, 10);
+}
+
+// ─── Late-penalty policy (C9) ─────────────────────────────────────────────
+
+export type LatePolicyConfig = {
+  /** "N lates in the period = 1 day" rule on/off. Off → tier-1 lates fall back
+   *  to the flat per-late charge (lateDeduction). */
+  threeStrikeEnabled: boolean;
+  /** N — how many tier-1 lates equal one 1-day penalty. */
+  threeStrikeCount: number;
+  /** "severe late on a no-leave day = 1 day" rule on/off. Off → a severe late
+   *  is treated as an ordinary (tier-1) late. */
+  severeEnabled: boolean;
+  /** Minutes past start above which a late is "severe". */
+  severeThresholdMin: number;
+};
+
+export type LatePenaltyResult = {
+  /** Ordinary (non-severe) late count. */
+  tier1Count: number;
+  /** Severe late count (total, regardless of leave). */
+  severeCount: number;
+  /** 1-day penalties from the N-lates rule (0 when disabled). */
+  threeStrikeDays: number;
+  /** 1-day penalties from severe-without-leave (0 when disabled). */
+  severeDays: number;
+};
+
+/**
+ * Pure late-penalty tally for one employee over one pay period. `lates` are the
+ * employee's Late rows ({date, minutesLate}); `leaveDates` is the set of period
+ * dates with an approved leave (any unit), which exempt a severe late from its
+ * 1-day penalty (the leave deduction covers that day).
+ */
+export function computeLatePenalty(
+  lates: ReadonlyArray<{ date: string; minutesLate: number }>,
+  leaveDates: ReadonlySet<string>,
+  cfg: LatePolicyConfig,
+): LatePenaltyResult {
+  let tier1 = 0;
+  let severe = 0;
+  let severeNoLeave = 0;
+  for (const l of lates) {
+    const isSevere = cfg.severeEnabled && l.minutesLate > cfg.severeThresholdMin;
+    if (isSevere) {
+      severe++;
+      if (!leaveDates.has(l.date)) severeNoLeave++;
+    } else {
+      tier1++;
+    }
+  }
+  const threeStrikeDays =
+    cfg.threeStrikeEnabled && cfg.threeStrikeCount > 0
+      ? Math.floor(tier1 / cfg.threeStrikeCount)
+      : 0;
+  return {
+    tier1Count: tier1,
+    severeCount: severe,
+    threeStrikeDays,
+    severeDays: cfg.severeEnabled ? severeNoLeave : 0,
+  };
+}
+
 /**
  * SSO (Social Security) per Thai law:
  *   contribution = min(baseSalary × ssoRate, ssoAmountCap)
@@ -242,20 +323,40 @@ export function calcPayroll(input: CalcInput): PayrollDraft {
     input.recurringDeductions.map((d) => ({ value: d.monthlyAmount })),
   ).toDecimalPlaces(2);
 
-  // Attendance deductions — count Absent / Late / EarlyLeave rows,
-  // multiply by their per-event flat rate.
+  // Attendance deductions. Absent/EarlyLeave are flat per-row; lateness uses
+  // the configurable late-penalty policy (C9).
   let absentCount = 0;
-  let lateCount = 0;
   let earlyLeaveCount = 0;
+  const lateRows: Array<{ date: string; minutesLate: number }> = [];
   for (const att of input.attendances) {
     if (att.type === 'Absent') absentCount++;
-    else if (att.type === 'Late') lateCount++;
     else if (att.type === 'EarlyLeave') earlyLeaveCount++;
+    else if (att.type === 'Late')
+      lateRows.push({ date: ymd(att.date), minutesLate: att.durationMinutes ?? 0 });
   }
-  const deductAttendance = toDec(input.config.absentDeductionPerDay)
+  const lateCount = lateRows.length;
+
+  const cfg = input.config;
+  const latePolicy: LatePolicyConfig = {
+    threeStrikeEnabled: cfg.lateThreeStrikeEnabled ?? false,
+    threeStrikeCount: cfg.lateThreeStrikeCount ?? 3,
+    severeEnabled: cfg.severeLateEnabled ?? false,
+    severeThresholdMin: cfg.severeLateThresholdMin ?? 30,
+  };
+  const latePenalty = computeLatePenalty(lateRows, new Set(input.leaveDates ?? []), latePolicy);
+  const dayAmount = toDec(cfg.absentDeductionPerDay);
+  // Tier-1 lates: the N-strikes rule charges a 1-day amount per completed group;
+  // when the rule is off, fall back to the legacy flat per-late charge.
+  const tier1LateMoney = latePolicy.threeStrikeEnabled
+    ? new Decimal(latePenalty.threeStrikeDays).times(dayAmount)
+    : new Decimal(latePenalty.tier1Count).times(toDec(cfg.lateDeduction));
+  const severeLateMoney = new Decimal(latePenalty.severeDays).times(dayAmount);
+
+  const deductAttendance = dayAmount
     .times(absentCount)
-    .plus(toDec(input.config.lateDeduction).times(lateCount))
-    .plus(toDec(input.config.earlyLeaveDeduction).times(earlyLeaveCount))
+    .plus(tier1LateMoney)
+    .plus(severeLateMoney)
+    .plus(toDec(cfg.earlyLeaveDeduction).times(earlyLeaveCount))
     .toDecimalPlaces(2);
 
   // Leave deductions — over-quota leave amounts frozen at approval time.

@@ -131,6 +131,65 @@ describe('runPayrollDraft', () => {
     });
     expect(Number(row.deductAttendance)).toBe(1_000); // only the 2 in-window absents × ฿500
   });
+
+  // ── Late penalties (C9) — defaults from reset()'s config: 3-strike on,
+  // severe on (>30 min). Window for 2026-06 @ cutoff 25 = 2026-05-26..06-25.
+  const lateRow = (employeeId: string, ymd: string, minutes: number) =>
+    prisma.attendance.create({
+      data: {
+        employeeId,
+        date: new Date(`${ymd}T00:00:00.000Z`),
+        type: 'Late',
+        source: 'Manual',
+        durationMinutes: minutes,
+        createdById: uid(),
+      },
+    });
+
+  it('charges one absent-day per N ordinary lates (C9 three-strike replaces flat)', async () => {
+    const emp = await makeEmployee({ baseSalary: 20_000 });
+    await lateRow(emp.id, '2026-06-10', 10);
+    await lateRow(emp.id, '2026-06-11', 12);
+    await lateRow(emp.id, '2026-06-12', 8); // 3 ordinary lates → 1 day
+    await runPayrollDraft(MONTH);
+    const row = await prisma.payroll.findFirstOrThrow({
+      where: { employeeId: emp.id, month: MONTH },
+    });
+    expect(Number(row.deductAttendance)).toBe(500); // 1 day, not 3 × ฿100 flat
+  });
+
+  it('charges one absent-day for a severe late with no leave that day (C9)', async () => {
+    const emp = await makeEmployee({ baseSalary: 20_000 });
+    await lateRow(emp.id, '2026-06-15', 45); // > 30 min → severe
+    await runPayrollDraft(MONTH);
+    const row = await prisma.payroll.findFirstOrThrow({
+      where: { employeeId: emp.id, month: MONTH },
+    });
+    expect(Number(row.deductAttendance)).toBe(500);
+  });
+
+  it('exempts a severe late when the employee had approved leave that day (C9)', async () => {
+    const emp = await makeEmployee({ baseSalary: 20_000 });
+    const lt = await prisma.leaveType.create({
+      data: { name: `ลากิจ-${uid().slice(0, 8)}`, annualQuota: 10 },
+    });
+    await lateRow(emp.id, '2026-06-15', 45); // severe…
+    await prisma.leaveRequest.create({
+      data: {
+        employeeId: emp.id,
+        leaveTypeId: lt.id,
+        startDate: new Date('2026-06-15T00:00:00.000Z'),
+        endDate: new Date('2026-06-15T00:00:00.000Z'),
+        reason: 'personal',
+        status: 'Approved',
+      },
+    });
+    await runPayrollDraft(MONTH);
+    const row = await prisma.payroll.findFirstOrThrow({
+      where: { employeeId: emp.id, month: MONTH },
+    });
+    expect(Number(row.deductAttendance)).toBe(0); // …but exempt — leave covers the day
+  });
 });
 
 describe('publishPayroll', () => {
