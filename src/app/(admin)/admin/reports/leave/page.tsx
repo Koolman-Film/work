@@ -5,7 +5,7 @@ import { getLeaveConfig } from '@/lib/leave/leave-config';
 import { formatDaysHours } from '@/lib/leave/units';
 import { resolveReportPeriod } from '@/lib/reports/period';
 import { leaveDetail, leaveReport } from '@/lib/reports/queries';
-import { asUuid, loadReportFilterOptions } from '../_load-filter-options';
+import { asUuid, loadPayrollCutoffDay, loadReportFilterOptions } from '../_load-filter-options';
 import { ExpandableReportRows } from '../expandable-report-rows';
 import { PeriodPicker } from '../period-picker';
 import { ReportFilters } from '../report-filters';
@@ -24,7 +24,7 @@ export default async function LeaveReportPage({
 }) {
   const params = await searchParams;
   const todayYmd = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
-  const period = resolveReportPeriod(params, todayYmd);
+  const period = resolveReportPeriod(params, todayYmd, await loadPayrollCutoffDay());
   const year = Number((period.month ?? period.from).slice(0, 4));
   const branchId = asUuid(params.branchId);
   const departmentId = asUuid(params.departmentId);
