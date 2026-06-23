@@ -45,6 +45,22 @@ async function reset() {
   await prisma.leaveType.deleteMany({});
   await prisma.department.deleteMany({});
   await prisma.branch.deleteMany({});
+
+  // advanceReport → advanceBalanceFor reads the PayrollConfig singleton (SSO
+  // rates) for every employee, so a fresh DB needs one seeded. Deterministic
+  // here rather than relying on another test file leaving one behind.
+  await prisma.payrollConfig.deleteMany({});
+  await prisma.payrollConfig.create({
+    data: {
+      ssoRate: new Prisma.Decimal('0.05'),
+      ssoSalaryCap: new Prisma.Decimal(15_000),
+      ssoAmountCap: new Prisma.Decimal(750),
+      otMultiplier: new Prisma.Decimal('1.5'),
+      absentDeductionPerDay: new Prisma.Decimal(500),
+      lateDeduction: new Prisma.Decimal(100),
+      earlyLeaveDeduction: new Prisma.Decimal(100),
+    },
+  });
 }
 
 async function makeBranch() {
