@@ -42,8 +42,9 @@ export default async function LiffPayslipPage({
   const todayYm = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' }).slice(0, 7);
   const month = params.m && MONTH_RE.test(params.m) ? params.m : todayYm;
 
-  const [t, rawLocale, slip, adjustments] = await Promise.all([
+  const [t, tPdf, rawLocale, slip, adjustments] = await Promise.all([
     getTranslations('payslip'),
+    getTranslations('payslipPdf'),
     getLocale(),
     prisma.payroll.findFirst({
       where: { employeeId: employee.id, month, status: { in: ['Published', 'Locked'] } },
@@ -96,14 +97,24 @@ export default async function LiffPayslipPage({
     <main className="mx-auto max-w-md space-y-4 px-4 pt-8 pb-12">
       <header className="flex items-center justify-between gap-2">
         <h1 className="text-2xl font-semibold text-gray-900">{t('title')}</h1>
-        {month !== todayYm && (
-          <Link
-            href="/liff/payslip"
-            className="rounded-md border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
-          >
-            {t('thisMonth')}
-          </Link>
-        )}
+        <div className="flex items-center gap-2">
+          {slip && (
+            <a
+              href={`/liff/payslip/pdf?m=${month}`}
+              className="rounded-md border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
+            >
+              {tPdf('download')}
+            </a>
+          )}
+          {month !== todayYm && (
+            <Link
+              href="/liff/payslip"
+              className="rounded-md border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
+            >
+              {t('thisMonth')}
+            </Link>
+          )}
+        </div>
       </header>
 
       {/* Month navigator */}
