@@ -108,24 +108,6 @@ importers:
       '@biomejs/biome':
         specifier: ^2.0.0
         version: 2.4.15
-      '@expo-google-fonts/noto-sans':
-        specifier: ^0.4.2
-        version: 0.4.2
-      '@expo-google-fonts/noto-sans-khmer':
-        specifier: ^0.4.3
-        version: 0.4.3
-      '@expo-google-fonts/noto-sans-lao':
-        specifier: ^0.4.2
-        version: 0.4.2
-      '@expo-google-fonts/noto-sans-myanmar':
-        specifier: ^0.4.2
-        version: 0.4.2
-      '@expo-google-fonts/noto-sans-sc':
-        specifier: ^0.4.3
-        version: 0.4.3
-      '@expo-google-fonts/noto-sans-thai':
-        specifier: ^0.4.2
-        version: 0.4.2
       '@playwright/test':
         specifier: ^1.50.0
         version: 1.60.0
@@ -648,24 +630,6 @@ packages:
     engines: {node: '>=18'}
     cpu: [x64]
     os: [win32]
-
-  '@expo-google-fonts/noto-sans-khmer@0.4.3':
-    resolution: {integrity: sha512-vBG7J/w4j+tPTPA53a43zb/s/K3AjHRTDbEG4omn/xs4dThknBh4aVRJ4zwROLy7OeZnhQPDkGRUEPAi8C/btg==}
-
-  '@expo-google-fonts/noto-sans-lao@0.4.2':
-    resolution: {integrity: sha512-gM/grIG03BWSk8lqiR1IC7WHpGH/8TrvwU0ZjEvs236YiN0LK2qQythq6lqcJbENo/0HMxdk13n35yhqnHVJ8g==}
-
-  '@expo-google-fonts/noto-sans-myanmar@0.4.2':
-    resolution: {integrity: sha512-qG8DHmy+7xFvW5z8lN3r5jjEXoQBhjpjoxXR/Y8/WcywirPIBZnFpAy5IlwCRSobJdCw3+i7gvmIz1bl6mp7bg==}
-
-  '@expo-google-fonts/noto-sans-sc@0.4.3':
-    resolution: {integrity: sha512-9rAwdFTFHbO/u6Cs0gj2jZbW74TGIiaFNQnXYH2s5wA1bzVkwbaviL4t8YUV642eGYjg86eH6DkAEQmfNHDncQ==}
-
-  '@expo-google-fonts/noto-sans-thai@0.4.2':
-    resolution: {integrity: sha512-PGBBBDGfJJ/5y2hNweLBZWD4YmVT4uOO4chsOPXyl0TktaBJamDKVKv/WbGiDTeBGdkegLiytsWo+lhnkHP5qA==}
-
-  '@expo-google-fonts/noto-sans@0.4.2':
-    resolution: {integrity: sha512-zYD8G2ijWLxqmquoQgghNh/x9p0yxWwArD0oxO1oXY1qx5vOd4t0Kbhnu/Cx8RTy08OgA8RtxuULZFaXwVPnPw==}
 
   '@formatjs/fast-memoize@3.1.5':
     resolution: {integrity: sha512-KLi3fan6WnCHmigd9pmEEN8Hid0v4wiFBW576M/d07KMWYecf1CvyMI3n34vCmHT4AoVqG2n702kiHbXjzZX2A==}
@@ -5017,18 +4981,6 @@ snapshots:
 
   '@esbuild/win32-x64@0.28.0':
     optional: true
-
-  '@expo-google-fonts/noto-sans-khmer@0.4.3': {}
-
-  '@expo-google-fonts/noto-sans-lao@0.4.2': {}
-
-  '@expo-google-fonts/noto-sans-myanmar@0.4.2': {}
-
-  '@expo-google-fonts/noto-sans-sc@0.4.3': {}
-
-  '@expo-google-fonts/noto-sans-thai@0.4.2': {}
-
-  '@expo-google-fonts/noto-sans@0.4.2': {}
 
   '@formatjs/fast-memoize@3.1.5': {}
 
