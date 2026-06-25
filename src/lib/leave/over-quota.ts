@@ -46,3 +46,51 @@ export function overQuotaMinutesFor(chargedMinutes: number, remaining: number | 
 export function deductionForOverQuota(overQuotaMinutes: number, ratePerMinute: number): number {
   return new Decimal(overQuotaMinutes).times(ratePerMinute).toDecimalPlaces(2).toNumber();
 }
+
+export type ReplayEntitlement = {
+  /** null = unlimited (never over quota). */
+  grantedMinutes: number | null;
+  carryoverMinutes: number;
+  adjustmentMinutes: number;
+};
+
+export type ReplayResult = {
+  id: string;
+  overQuotaMinutes: number;
+  deductAmount: number | null;
+};
+
+/**
+ * Recompute over-quota for one (employee, leaveType, year) against the CURRENT
+ * entitlement, in order. Over-quota is ORDER-DEPENDENT: each request's over-
+ * quota is measured against the entitlement remaining AFTER all earlier
+ * requests in `requests` (which MUST already be sorted — approval/start order).
+ *
+ * Mirrors the per-approval freeze in leave/admin.ts, but applied as a batch so
+ * frozen deductions can be refreshed to match an edited entitlement (used by the
+ * recompute script). `ratePerMin` = the employee's per-minute over-quota rate
+ * (perMinuteRate). Unlimited entitlement (grantedMinutes null) → never over.
+ */
+export function replayOverQuota(
+  ent: ReplayEntitlement,
+  requests: ReadonlyArray<{ id: string; chargedMinutes: number }>,
+  ratePerMin: number,
+): ReplayResult[] {
+  const base =
+    ent.grantedMinutes == null
+      ? null
+      : ent.grantedMinutes + ent.carryoverMinutes + ent.adjustmentMinutes;
+  let used = 0;
+  const out: ReplayResult[] = [];
+  for (const r of requests) {
+    const remaining = base == null ? null : base - used;
+    const over = overQuotaMinutesFor(r.chargedMinutes, remaining);
+    out.push({
+      id: r.id,
+      overQuotaMinutes: over,
+      deductAmount: over > 0 ? deductionForOverQuota(over, ratePerMin) : null,
+    });
+    used += r.chargedMinutes;
+  }
+  return out;
+}

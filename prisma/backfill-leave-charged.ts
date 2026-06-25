@@ -31,7 +31,10 @@ const CFG_FALLBACK = {
   afternoonEnd: '17:00',
 };
 
+const DRY_RUN = process.argv.includes('--dry-run');
+
 async function main() {
+  if (DRY_RUN) console.log('— DRY RUN — no rows will be written —\n');
   const cfg = (await prisma.leaveConfig.findFirst()) ?? CFG_FALLBACK;
 
   const [rows, holidayRows] = await Promise.all([
@@ -73,12 +76,18 @@ async function main() {
       holidays: expanded,
     });
     const chargedMinutes = segment.minutes * workingDays.length;
-    await prisma.leaveRequest.update({ where: { id: r.id }, data: { chargedMinutes } });
+    if (DRY_RUN) {
+      console.log(
+        `  [${r.id.slice(0, 8)}] ${r.startDate.toISOString().slice(0, 10)}..${r.endDate.toISOString().slice(0, 10)} ${r.unit} → chargedMinutes=${chargedMinutes} (${workingDays.length} day(s) × ${segment.minutes}m)`,
+      );
+    } else {
+      await prisma.leaveRequest.update({ where: { id: r.id }, data: { chargedMinutes } });
+    }
     updated++;
   }
 
-  console.log(`Approved leaves missing chargedMinutes: ${rows.length}`);
-  console.log(`  backfilled : ${updated}`);
+  console.log(`\nApproved leaves missing chargedMinutes: ${rows.length}`);
+  console.log(`  ${DRY_RUN ? 'would backfill' : 'backfilled'} : ${updated}`);
   console.log(`  bad segment (skipped, invalid times): ${badSegment}`);
 }
 
