@@ -72,21 +72,31 @@ same Supabase session.
 **Auth decision: LINE-only.** No second email/password web account is required for
 an admin-employee. (Pure admins keep their existing email login unchanged.)
 
-### 2. Decouple employee-feature access from tier — THE load-bearing change
+### 2. Gate employee features on the `Employee` record (the source of truth) — THE load-bearing change
 
-`computeTier` is **highest-wins and single-valued** (`src/lib/auth/user-tier.ts`):
-a user holding both a `staff` and an `admin` assignment computes to tier **`Admin`**
-(or `Superadmin`), **never `Staff`**.
+**Terminology: "staff" and "employee" are the same population.** Creating an
+employee is one atomic transaction that makes a `User` + `Employee` record + a
+`staff` `UserRoleAssignment` together (`src/app/(admin)/admin/employees/actions.ts`,
+~lines 46-106; it even throws if the `staff` system role is missing). So the `staff`
+*role* only ever exists alongside an `Employee` *record*, and vice versa. The
+`Employee` record is the **source of truth** for "is a worker"; the `staff` *tier*
+is just a derived label computed from the role assignment.
+
+The problem is that the derived label gets **masked**. `computeTier` is
+**highest-wins and single-valued** (`src/lib/auth/user-tier.ts`): a user holding
+both a `staff` and an `admin` assignment computes to tier **`Admin`** (or
+`Superadmin`), **never `Staff`** — even though they are still very much an employee.
 
 The worker LIFF is currently gated on `requireRole(['Staff'])` — e.g.
 `requireCheckInPermission` (`require-role.ts:154-162`). `requireRole` deliberately
 does **not** auto-elevate Admin/Superadmin into `Staff` gates (`require-role.ts:130-134`).
-Therefore, without change, an admin-employee (tier `Admin`) would be **locked out**
-of check-in, leave, and advance — the opposite of the goal.
+So gating on the masked tier locks an admin-employee (tier `Admin`) **out** of
+check-in, leave, and advance — the opposite of the goal.
 
-**Fix:** gate employee features on *"has an `Employee` record"*, not on
-`tier === 'Staff'`. `requireRole` already eagerly loads `employee` for every tier
-(`require-role.ts:79`), so the change is mechanical:
+**Fix:** gate employee features on the source of truth — *"has an `Employee`
+record"* — instead of the masked `tier === 'Staff'` label. `requireRole` already
+eagerly loads `employee` for every tier (`require-role.ts:79`), so the change is
+mechanical:
 
 - `requireCheckInPermission` (and the other employee LIFF gates) change from
   `requireRole(['Staff'])` to `requireRole(['Staff', 'Admin', 'Superadmin'])`
@@ -94,7 +104,7 @@ of check-in, leave, and advance — the opposite of the goal.
   checks (`status`, `canCheckIn`).
 - Net effect: "any authenticated user **with an employee record**, who is allowed
   to check in" — which now correctly includes admin-employees, and is unchanged for
-  pure staff (who have an employee record) and pure admins (who don't, so they're
+  workers (who have an employee record) and pure admins (who don't, so they're
   still excluded from check-in, as today).
 
 **Implementation note:** the plan must **audit every `requireRole(['Staff'])` call
@@ -118,7 +128,7 @@ A new LIFF home route (proposed `/liff/home`) renders **capability groups**:
 
 Rendering rule:
 
-- Has employee only → employee group only (pure staff).
+- Has employee only → employee group only (worker-only).
 - Has `liff.admin` only → admin group only (pure admin who opens the LIFF).
 - Both → both groups (admin-employee). This is the target case.
 
@@ -132,17 +142,22 @@ The bare-domain router (`src/app/page.tsx`) currently maps tier → home via
 `TIER_HOMES` (`Admin`/`Superadmin` → `/admin`, `Staff` → `/liff/check-in`). It
 selects only `roleAssignments`, not `employee`.
 
-Change: extend the root-router query to also know whether the user has an
-`Employee` record, and route:
+Because the tier label masks staff (§2), route on the two real booleans instead —
+`hasEmployee` (= is a worker; the `Employee` record) and `isAdminCapable` (an
+`admin`/`superadmin` assignment). Extend the root-router query to also select
+`employee`, then:
 
-- tier `Admin`/`Superadmin` **and** has employee → `/liff/home` (combined home).
-- tier `Admin`/`Superadmin` **and** no employee → `/admin` (unchanged — pure admin).
-- tier `Staff` → `/liff/check-in` (unchanged — pure staff land directly on their
-  most common action; no added friction).
+- `hasEmployee` **and** `isAdminCapable` → `/liff/home` (combined home —
+  admin-employee).
+- `hasEmployee` **and not** `isAdminCapable` → `/liff/check-in` (pure worker —
+  lands directly on their most common action; unchanged).
+- **not** `hasEmployee` **and** `isAdminCapable` → `/admin` (pure admin — unchanged).
+- neither → fall through to `/login` (unchanged).
 
-Pure-staff landing is intentionally left unchanged (YAGNI). Making `/liff/home` the
-universal landing for staff too is a trivial future toggle if desired, but it adds a
-tap before check-in, so it is out of scope here.
+This expresses all three populations without reading the highest-wins tier at all.
+Pure-worker landing is intentionally left unchanged (YAGNI). Making `/liff/home` the
+universal landing for workers too is a trivial future toggle if desired, but it adds
+a tap before check-in, so it is out of scope here.
 
 ### 5. Pairing flow — stop rejecting the overlap
 
@@ -251,7 +266,7 @@ check-in. Gate fix → wizard available → merge.
 - Reverse onboarding (bare admin → create employee).
 - A bulk/admin-operated merge tool — the self-serve wizard is per-person and
   user-driven; with 1–2 people there is no batch need.
-- Making `/liff/home` the universal landing for pure staff.
+- Making `/liff/home` the universal landing for workers.
 - Any change to how pure-admins or pure-employees work today.
 
 ## Affected files (for the implementation plan)
@@ -285,7 +300,7 @@ Merge wizard (§7):
 
 - **Unit:** `computeTier` already covered; add coverage for the new
   "has-employee" gate helper (admin-employee passes; pure admin without employee
-  fails; pure staff passes). Merge executor: preconditions reject (not-pure-admin,
+  fails; a worker passes). Merge executor: preconditions reject (not-pure-admin,
   no-employee, same-user), attribution columns re-pointed, idempotent re-run no-ops.
 - **Integration:** an admin-employee `User` (employee + admin assignment) can hit
   the check-in / leave / advance server actions; a pure admin still cannot. Merge:
@@ -293,5 +308,5 @@ Merge wizard (§7):
   correctly; replay of a consumed token is rejected; a LINE account with no employee
   is rejected.
 - **e2e (developer-facing):** the combined `/liff/home` renders both groups for an
-  admin-employee, employee-only for a pure staff, admin-only for a pure admin. The
+  admin-employee, employee-only for a worker, admin-only for a pure admin. The
   merge wizard click-through from the admin card to the LINE confirm.
