@@ -121,4 +121,108 @@ describe('getPayslipDocument', () => {
     const adv = doc!.deduct.lines.find((l) => l.key === 'advance');
     expect(adv?.detail?.vars.count).toBe(1);
   });
+
+  it('returns null for a Draft payroll (only Published/Locked are downloadable)', async () => {
+    const emp = await makeEmp();
+    await prisma.payroll.create({
+      data: {
+        employeeId: emp.id,
+        month: MONTH,
+        status: 'Draft',
+        incomeBase: new Prisma.Decimal(12_600),
+        incomeOther: new Prisma.Decimal(0),
+        deductSso: new Prisma.Decimal(0),
+        deductAdvance: new Prisma.Decimal(0),
+        deductAttendance: new Prisma.Decimal(0),
+        deductLeave: new Prisma.Decimal(0),
+        deductDebt: new Prisma.Decimal(0),
+        deductOther: new Prisma.Decimal(0),
+        netPay: new Prisma.Decimal(12_600),
+      },
+    });
+    expect(await getPayslipDocument(emp.id, MONTH)).toBeNull();
+  });
+
+  it('itemizes income/deduction adjustments when they reconcile with the frozen bucket', async () => {
+    const emp = await makeEmp();
+    await prisma.payroll.create({
+      data: {
+        employeeId: emp.id,
+        month: MONTH,
+        status: 'Published',
+        publishedAt: new Date(),
+        incomeBase: new Prisma.Decimal(12_600),
+        incomeOther: new Prisma.Decimal(500),
+        deductSso: new Prisma.Decimal(0),
+        deductAdvance: new Prisma.Decimal(0),
+        deductAttendance: new Prisma.Decimal(0),
+        deductLeave: new Prisma.Decimal(0),
+        deductDebt: new Prisma.Decimal(0),
+        deductOther: new Prisma.Decimal(200),
+        netPay: new Prisma.Decimal(12_900),
+      },
+    });
+    await prisma.payrollAdjustment.create({
+      data: {
+        employeeId: emp.id,
+        kind: 'Income',
+        reason: 'Bonus',
+        amount: new Prisma.Decimal(500),
+        startMonth: MONTH,
+      },
+    });
+    await prisma.payrollAdjustment.create({
+      data: {
+        employeeId: emp.id,
+        kind: 'Deduction',
+        reason: 'Uniform',
+        amount: new Prisma.Decimal(200),
+        startMonth: MONTH,
+      },
+    });
+
+    const doc = await getPayslipDocument(emp.id, MONTH);
+    // Per-reason lines use the adjustment reason as the label; no generic "other".
+    expect(doc!.income.lines.find((l) => l.label === 'Bonus')?.amount).toBe(500);
+    expect(doc!.income.lines.some((l) => l.labelKey === 'income.other')).toBe(false);
+    expect(doc!.deduct.lines.find((l) => l.label === 'Uniform')?.amount).toBe(200);
+    expect(doc!.deduct.lines.some((l) => l.labelKey === 'deduct.other')).toBe(false);
+    expect(doc!.income.total).toBe(13_100); // base 12,600 + other 500 (frozen bucket)
+  });
+
+  it('shows a single "other" line when adjustments do NOT reconcile with the bucket', async () => {
+    const emp = await makeEmp();
+    await prisma.payroll.create({
+      data: {
+        employeeId: emp.id,
+        month: MONTH,
+        status: 'Published',
+        publishedAt: new Date(),
+        incomeBase: new Prisma.Decimal(12_600),
+        incomeOther: new Prisma.Decimal(500), // bucket says 500 …
+        deductSso: new Prisma.Decimal(0),
+        deductAdvance: new Prisma.Decimal(0),
+        deductAttendance: new Prisma.Decimal(0),
+        deductLeave: new Prisma.Decimal(0),
+        deductDebt: new Prisma.Decimal(0),
+        deductOther: new Prisma.Decimal(0),
+        netPay: new Prisma.Decimal(13_100),
+      },
+    });
+    // … but the only adjustment sums to 300 → mismatch → do NOT itemize.
+    await prisma.payrollAdjustment.create({
+      data: {
+        employeeId: emp.id,
+        kind: 'Income',
+        reason: 'Partial bonus',
+        amount: new Prisma.Decimal(300),
+        startMonth: MONTH,
+      },
+    });
+
+    const doc = await getPayslipDocument(emp.id, MONTH);
+    expect(doc!.income.lines.some((l) => l.label === 'Partial bonus')).toBe(false);
+    const other = doc!.income.lines.find((l) => l.labelKey === 'income.other');
+    expect(other?.amount).toBe(500); // the frozen bucket stays authoritative
+  });
 });
