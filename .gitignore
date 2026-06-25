@@ -75,3 +75,6 @@ supabase/
 
 # Vitest coverage output
 /coverage
+.vercel
+.env.production
+.env.*.production
