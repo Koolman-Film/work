@@ -285,6 +285,34 @@ check-in. Gate fix → wizard available → merge.
 - Making `/liff/home` the universal landing for workers.
 - Any change to how pure-admins or pure-employees work today.
 
+## Data & calculation safety (verified pre-implementation)
+
+This feature changes **who can reach which screens** and **where people land** — not
+any stored values or computations. Verified against the calc/data code:
+
+- **Calculations don't read auth role/tier.** Payroll selects employees by
+  `Employee.status` only (`src/lib/payroll/run.ts` ~line 67:
+  `where: { status: { not: 'Archived' } }`); reports filter by `employeeWhere()`
+  (branch/department/status — all `Employee`-scoped, `src/lib/reports/queries.ts`);
+  late/advance/leave math reads `Employee` fields + payroll config. None branch on
+  role/tier. (The `tier1` in `src/lib/payroll/calc.ts` is the late-penalty 3-strike
+  tier, unrelated to auth.)
+- **Attribution columns are write-only for calc.** `createdById` / `reviewedById` /
+  `approvedById` are never read by any calculation (only set, and read for display).
+  The merge re-points them to the surviving `User`, so display attribution stays
+  correct and no computed value moves.
+- **Merge is value-preserving.** All money/count logic is keyed off the `Employee`
+  table, and an admin-employee has exactly **one** `Employee` row before and after
+  the merge (it was always on `Ue`; `Ua` never had one). Headcount and every total
+  are identical across the migration — no double-count, no drop. The merge moves
+  only pointers (role assignment, attribution, notifications), never values.
+- **Schema migration is additive + nullable.** The new `User` columns
+  (`mergeToken`, `mergeTokenExpiresAt`, `mergePromptDismissedAt`) add no rows and
+  alter no existing data.
+- **Intended forward behavior (not a data change):** once gated on the `Employee`
+  record, admin-employees can create *their own* attendance/leave/advance going
+  forward — new capability, not a retroactive edit to existing records.
+
 ## Affected files (for the implementation plan)
 
 - `src/lib/auth/require-role.ts` — widen `requireCheckInPermission` / Staff gates;
