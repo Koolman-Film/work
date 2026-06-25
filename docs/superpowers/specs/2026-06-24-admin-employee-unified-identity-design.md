@@ -167,11 +167,90 @@ The reverse (taking a bare admin and creating payroll/attendance data for them) 
 may not belong on payroll. If a pure admin needs to become an employee, they are
 created as an employee first, then granted admin.
 
+### 7. Migration of existing dual accounts — self-serve merge wizard
+
+**Current state of the legacy population:** today an admin who is also an employee
+exists as **two separate `User` rows** (the two-account workaround):
+
+- **`Ua` (admin)** — email login (`authUserId` = email auth user, `email` set), an
+  `admin`/`superadmin` role assignment, **no** `Employee` record, possibly a second
+  LINE account from `/liff/pair-admin`.
+- **`Ue` (employee)** — has the `Employee` record + all its data, a `staff` role,
+  and a daily LINE account (`authUserId` and `lineUserId` both = that LINE account).
+
+Expected volume: **1–2 people** (e.g. owner / a manager). Future admin-employees are
+created via §6 (grant admin to an employee) and are a single `User` from the
+start — they never need a merge. So the merge serves only this small legacy group.
+
+**Decision: a self-serve cross-auth merge wizard** (not a dev-run script). The
+wizard lets the admin link their own accounts with no developer involvement.
+
+**Security model — the core requirement.** Merging is account-takeover-adjacent: if
+the system matched accounts by name/phone and merged on a click, any admin could
+absorb another person's employee account (their salary, payslips, attendance) or
+post check-ins as them. So the merge requires proof of control over **both**
+identities, split across two authenticated sessions:
+
+- The merge can only be **initiated** from the authenticated admin (email) session.
+- The merge can only be **completed** from the authenticated employee (LINE) session.
+
+Neither session alone can do anything. Crucially, **the employee is identified from
+the verified LINE `sub`, never selected from a list** — the login is both the proof
+and the selector, which eliminates the entire "merged the wrong person" class of
+bug.
+
+**Flow:**
+
+1. **Initiate — web, email session (`Ua`).** A dismissible card on the admin
+   dashboard (and a profile entry), shown only to a **pure admin** (admin role, no
+   `Employee`). On "Link my employee account", the server re-validates `Ua` is a
+   pure admin and issues a **single-use merge token** (short TTL, bound to `Ua.id`,
+   scope `admin-merge`), rendered as a QR / LINE deep-link. Mirrors the existing
+   `lineInviteToken` pattern.
+2. **Prove ownership — mobile, LINE session (`Ue`).** Admin opens the link in their
+   **employee LINE account** → new LIFF page `/liff/merge/[token]` runs LINE OIDC →
+   server resolves `Ue` from the verified LINE `sub` (`lineUserId == sub`),
+   validates the token, and checks preconditions: token valid/unexpired/unconsumed;
+   `Ua` still a pure admin; `Ue` has an `Employee`, is not archived; `Ua != Ue`.
+   Shows an explicit confirm screen naming both sides and disclosing that the
+   **email/password login will be retired** (LINE-only after merge).
+3. **Merge — one transaction.** Copy `Ua`'s admin/superadmin role assignment(s)
+   onto `Ue` (dedupe by `roleId`+`branchId`); re-point every attribution column that
+   equals `Ua.id` to `Ue.id` — `Attendance.createdById`, `LeaveRequest.reviewedById`,
+   `CashAdvance.approvedById`, `OvertimeEntry.reviewedById` and `.createdById`;
+   re-point `Notification.userId`; archive `Ua` and null its `email` / `authUserId` /
+   `lineUserId` / `lineInviteToken` to free the unique slots; consume the token;
+   write an audit-log row of the merge (from → to, who, when).
+4. **Done.** Success screen → `/liff/home`, now showing both menus.
+
+**Why keep `Ue` and retire `Ua`:** all heavy data (attendance, leave, advance,
+payroll) is FK'd to `Employee.id`, which stays put; LIFF-created records already
+have `createdById = Ue.id`. Only the light admin-side references move. After merge,
+`Ue.authUserId` is already their LINE auth user, so `requireRole` resolves them on
+the **primary** path (the `lineUserId` fallback isn't even needed).
+
+**Idempotency & edge cases:** token expired/consumed or `Ua` already archived →
+friendly "already linked" no-op; LINE account opened has no `Employee` → clean
+"this LINE account isn't an employee here" error; LINE account belongs to a
+different admin / already merged → rejected; superadmin merges identically.
+Dismissing the card persists (`User.mergePromptDismissedAt`) so it stops nagging.
+
+**Ordering constraint (hard):** the §2 access-gate fix MUST ship in the same release
+or earlier. The moment a merge adds an admin role to `Ue`, `computeTier` flips them
+to `Admin`; under the old `requireRole(['Staff'])` gate that would break their
+check-in. Gate fix → wizard available → merge.
+
+**Schema:** small **additive** migration on `User` — `mergeToken`,
+`mergeTokenExpiresAt`, `mergePromptDismissedAt`. Additive columns, low risk; mirrors
+`lineInviteToken`/`lineInviteExpiresAt`.
+
 ## Out of scope (YAGNI)
 
-- Second-account linking or any two-`User` model.
+- Any two-`User` model that *persists* the split (the merge collapses it to one).
 - Per-mode preference memory / "remember my last choice" switching.
 - Reverse onboarding (bare admin → create employee).
+- A bulk/admin-operated merge tool — the self-serve wizard is per-person and
+  user-driven; with 1–2 people there is no batch need.
 - Making `/liff/home` the universal landing for pure staff.
 - Any change to how pure-admins or pure-employees work today.
 
@@ -186,15 +265,33 @@ created as an employee first, then granted admin.
   permit the legitimate both-roles binding; keep the cross-user collision guard.
 - `src/app/(admin)/admin/employees/[id]/edit/page.tsx` and/or
   `src/app/(admin)/admin/settings/team/page.tsx` — grant-admin-to-employee UI.
-- i18n message catalogs — labels for the combined home groups/buttons (per the
-  existing 6-locale setup).
+- i18n message catalogs — labels for the combined home groups/buttons **and the
+  merge wizard** (per the existing 6-locale setup).
+
+Merge wizard (§7):
+
+- `prisma/schema.prisma` + migration — additive `User` columns (`mergeToken`,
+  `mergeTokenExpiresAt`, `mergePromptDismissedAt`).
+- `src/lib/auth/start-admin-merge.ts` — **new** initiate action (validate pure
+  admin, issue single-use token).
+- `src/app/(liff)/liff/merge/[token]/page.tsx` — **new** LINE confirm page
+  (LINE OIDC, resolve `Ue` from `sub`, preconditions, confirm screen).
+- `src/lib/auth/merge-admin-into-employee.ts` — **new** merge executor (the
+  transaction; reusable + unit-tested).
+- `src/app/(admin)/admin/page.tsx` + `.../admin/profile/page.tsx` — dismissible
+  "link your employee account" entry point (pure admins only).
 
 ## Testing
 
 - **Unit:** `computeTier` already covered; add coverage for the new
   "has-employee" gate helper (admin-employee passes; pure admin without employee
-  fails; pure staff passes).
+  fails; pure staff passes). Merge executor: preconditions reject (not-pure-admin,
+  no-employee, same-user), attribution columns re-pointed, idempotent re-run no-ops.
 - **Integration:** an admin-employee `User` (employee + admin assignment) can hit
-  the check-in / leave / advance server actions; a pure admin still cannot.
+  the check-in / leave / advance server actions; a pure admin still cannot. Merge:
+  the two-session happy path (admin-initiated token + employee LINE confirm) merges
+  correctly; replay of a consumed token is rejected; a LINE account with no employee
+  is rejected.
 - **e2e (developer-facing):** the combined `/liff/home` renders both groups for an
-  admin-employee, employee-only for a pure staff, admin-only for a pure admin.
+  admin-employee, employee-only for a pure staff, admin-only for a pure admin. The
+  merge wizard click-through from the admin card to the LINE confirm.
