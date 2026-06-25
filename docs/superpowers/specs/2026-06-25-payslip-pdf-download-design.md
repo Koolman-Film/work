@@ -74,6 +74,7 @@ New:
 Modified:
 - `src/app/(liff)/liff/payslip/page.tsx` — add the "Download PDF" link/button (targets the current `?m=`); adopt `getPayslipDocument`.
 - `src/lib/payroll/run.ts` (or the unlock/revise action) — call `invalidatePayslipPdf` when a published month is unlocked/revised (cache bust; §7).
+- `src/lib/audit/log.ts` — add `'payslip.download'` to the `AuditAction` union (§8).
 - Bundle Noto font assets under `src/lib/payslip/fonts/` (or `public/fonts/payslip/`).
 
 ## 5. Data model — `PayslipDocument`
@@ -157,7 +158,7 @@ This is the single most important rendering invariant and gets an explicit test.
 - `requireRole(['Staff'])`; the route uses **the session employee's id only** — no `employeeId` request param, so a staff member can never fetch another's slip.
 - Only `Published`/`Locked` months are downloadable (Drafts 404), same visibility rule as the page.
 - Service-role client is server-only (existing `getSupabaseAdminClient`); the bucket is private; URLs are short-lived signed.
-- Audit: optionally log `payslip.download` (decide in the plan; low value, skip if it adds noise).
+- **Audit (in scope):** every successful download logs a `payslip.download` event. Add `payslip.download` to the `AuditAction` union in `src/lib/audit/log.ts`; `entityType: 'Payroll'`, `entityId: payroll.id`, `actorId: session user id`, `metadata: { source: 'liff', month, fromCache: boolean }`. Fire-and-forget (`auditLog`) — a logging failure must not block the download.
 
 ## 9. i18n
 
