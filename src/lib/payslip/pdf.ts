@@ -26,7 +26,7 @@ export async function renderPayslipPdf(html: string): Promise<Buffer> {
   try {
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: 'load' });
-    await page.evaluateHandle('document.fonts.ready');
+    await page.evaluate(() => document.fonts.ready);
     const pdf = await page.pdf({
       format: 'A4',
       printBackground: true,
