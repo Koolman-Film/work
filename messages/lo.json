@@ -486,5 +486,21 @@
     "net": "ເງິນສຸດທິ",
     "backToSummary": "ສະຫຼຸບຂອງຂ້ອຍ",
     "backToCheckin": "ກັບໄປໜ້າເຊັກອິນ"
+  },
+  "payslipPdf": {
+    "employee": "ພະນັກງານ",
+    "employeeId": "ລະຫັດພະນັກງານ",
+    "payPeriod": "ງວດເງິນເດືອນ",
+    "payType": "ປະເພດການຈ່າຍ",
+    "generatedOn": "ອອກເອກະສານເມື່ອ",
+    "issued": "ອອກແລ້ວ",
+    "disclaimer": "ເອກະສານນີ້ສ້າງໂດຍລະບົບ ບໍ່ຈຳເປັນຕ້ອງເຊັນ",
+    "kept": "ຮັບຈິງ",
+    "download": "ດາວໂຫຼດ PDF",
+    "detail": {
+      "sso": "{pct}% · cap ฿{cap}",
+      "advance": "{count}× advance",
+      "leave": "{minutes} min × ฿{rate}"
+    }
   }
 }
