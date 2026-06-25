@@ -486,5 +486,21 @@
     "net": "အသားတင်လစာ",
     "backToSummary": "ကျွန်ုပ်၏အကျဉ်းချုပ်",
     "backToCheckin": "check-in သို့ပြန်သွားရန်"
+  },
+  "payslipPdf": {
+    "employee": "ဝန်ထမ်း",
+    "employeeId": "ဝန်ထမ်းအမှတ်",
+    "payPeriod": "လစာကာလ",
+    "payType": "လစာအမျိုးအစား",
+    "generatedOn": "ထုတ်ပေးသည့်ရက်",
+    "issued": "ထုတ်ပြီး",
+    "disclaimer": "ဤစာရွက်စာတမ်းကို စနစ်မှ အလိုအလျောက်ထုတ်ပေးသည်။ လက်မှတ်မလိုအပ်ပါ။",
+    "kept": "လက်ခံရရှိ",
+    "download": "PDF ဒေါင်းလုဒ်",
+    "detail": {
+      "sso": "{pct}% · cap ฿{cap}",
+      "advance": "{count}× advance",
+      "leave": "{minutes} min × ฿{rate}"
+    }
   }
 }
