@@ -52,6 +52,9 @@ const PAYSLIP_CSS = (fontFace: string) => `${fontFace}
   .t1{display:block;font-weight:500;}
   .t2{display:block;font-size:9.5px;letter-spacing:.15em;text-transform:uppercase;color:var(--faint);font-weight:500;line-height:1.3;margin-top:1px;}
   .t2i{font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--faint);font-weight:500;margin-left:8px;}
+  /* Native text inside the tracked/uppercase micro-labels (summary, legend) must
+     NOT inherit letter-spacing/uppercase — it breaks Khmer/Myanmar/Lao shaping. */
+  .ml-n{letter-spacing:normal;text-transform:none;}
   .dt{display:block;font-size:11px;color:var(--muted);margin-top:2px;font-weight:400;white-space:normal;font-variant-numeric:tabular-nums;}
 
   /* Repeating header via table thead — the print spec repeats on EVERY page. */
@@ -135,9 +138,13 @@ export function buildPayslipHtml(doc: PayslipDocument, opts: BuildPayslipHtmlOpt
       ? `<span class="t1">${en}</span>`
       : `<span class="t1">${native}</span><span class="t2">${en}</span>`;
 
-  // Inline label for summary strip (uses .t2i inline style, not block)
+  // Inline label for summary strip (uses .t2i inline style, not block). The
+  // native part is wrapped in .ml-n so it does NOT inherit the micro-label's
+  // letter-spacing/uppercase (which would break complex-script shaping).
   const labelInline = (native: string, en: string): string =>
-    isEn ? `<span class="t2i">${en}</span>` : `${native}<span class="t2i">${en}</span>`;
+    isEn
+      ? `<span class="t2i">${en}</span>`
+      : `<span class="ml-n">${native}</span><span class="t2i">${en}</span>`;
 
   const lineRow = (cls: 'pos' | 'neg' | '', l: PayslipLine): string => {
     const native = l.label ?? t(`payslip.${l.labelKey!}`);
@@ -162,14 +169,15 @@ export function buildPayslipHtml(doc: PayslipDocument, opts: BuildPayslipHtmlOpt
 
   const gross = doc.income.total;
   const ded = doc.deduct.total;
-  const netPct = Math.round((doc.net / gross) * 1000) / 10;
-  const dedPct = Math.round((ded / gross) * 1000) / 10;
+  // Guard a zero-income slip — avoid NaN% in the take-home bar/legend.
+  const netPct = gross > 0 ? Math.round((doc.net / gross) * 1000) / 10 : 0;
+  const dedPct = gross > 0 ? Math.round((ded / gross) * 1000) / 10 : 0;
 
   const incomeRows = doc.income.lines.map((l) => lineRow('', l)).join('\n        ');
   const deductRows = doc.deduct.lines.map((l) => lineRow('neg', l)).join('\n        ');
 
-  // Stamp date: format generatedAt as YYYY·MM·DD
-  const stampDate = generatedAt.replace(/-/g, '·');
+  // Stamp date: YYYY·MM·DD only (generatedAt is a full ISO string from the route).
+  const stampDate = generatedAt.slice(0, 10).replace(/-/g, '·');
 
   return `<!doctype html><html lang="${locale}"><head><meta charset="utf-8">
 <style>
@@ -204,7 +212,7 @@ ${PAYSLIP_CSS(fontFace)}
     </div>
     <div class="bar"><div class="b-net" style="width:${netPct}%"></div><div class="b-ded" style="width:${dedPct}%"></div></div>
     <div class="legend">
-      <span><span class="sw" style="background:var(--indigo)"></span>${isEn ? tEn('payslipPdf.kept') : t('payslipPdf.kept')} ${netPct}%</span>
+      <span><span class="sw" style="background:var(--indigo)"></span>${isEn ? tEn('payslipPdf.kept') : `<span class="ml-n">${t('payslipPdf.kept')}</span>`} ${netPct}%</span>
       <span><span class="sw" style="background:#cfc8ba"></span>${tEn('payslip.deduct.title')} ${dedPct}%</span>
     </div>
 

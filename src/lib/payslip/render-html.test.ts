@@ -64,6 +64,23 @@ describe('buildPayslipHtml', () => {
     const html = buildPayslipHtml(doc, { ...opts, locale: 'en' });
     expect(html).not.toContain('class="t2"');
   });
+  it('renders the ISSUED stamp as YYYY·MM·DD only (full ISO timestamp in)', () => {
+    const html = buildPayslipHtml(doc, {
+      ...opts,
+      locale: 'en',
+      generatedAt: '2026-06-25T13:35:37.578Z',
+    });
+    expect(html).toContain('2026·06·25');
+    expect(html).not.toContain('T13:35'); // no time/Z leaks into the stamp
+  });
+  it('wraps native summary micro-labels in .ml-n so they are not letter-spaced', () => {
+    const html = buildPayslipHtml(doc, { ...opts, locale: 'th' });
+    const css = html.slice(html.indexOf('<style>'), html.indexOf('</style>'));
+    const mln = css.match(/\.ml-n\s*\{[^}]*\}/)![0];
+    expect(mln).toMatch(/letter-spacing:\s*normal/);
+    expect(mln).toMatch(/text-transform:\s*none/);
+    expect(html).toContain('<span class="ml-n">'); // native is wrapped, not a bare node
+  });
 });
 
 // --- real-resolver test: catches missing/renamed i18n keys ---
