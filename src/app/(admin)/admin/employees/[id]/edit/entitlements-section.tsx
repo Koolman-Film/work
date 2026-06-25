@@ -108,9 +108,18 @@ export async function EntitlementsSection({
                     {formatDaysHours(r.usedMinutes, cfg)}
                   </td>
                   <td className="px-2 font-medium tabular-nums">
-                    {r.remainingMinutes == null
-                      ? 'ไม่จำกัด'
-                      : formatDaysHours(r.remainingMinutes, cfg)}
+                    {r.remainingMinutes == null ? (
+                      'ไม่จำกัด'
+                    ) : r.remainingMinutes < 0 ? (
+                      <span
+                        className="text-danger-deep"
+                        title="ติดลบ — การลาเพิ่มจะถือว่าเกินสิทธิและถูกหักเงินทั้งหมด"
+                      >
+                        {formatDaysHours(r.remainingMinutes, cfg)} ⚠
+                      </span>
+                    ) : (
+                      formatDaysHours(r.remainingMinutes, cfg)
+                    )}
                   </td>
                   <td className="px-2">
                     <input
