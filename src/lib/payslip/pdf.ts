@@ -16,8 +16,7 @@ async function launch() {
   }
   // Local dev: use an installed Chrome/Chromium.
   const local =
-    process.env.CHROME_PATH ??
-    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+    process.env.CHROME_PATH ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
   return puppeteer.launch({ executablePath: local, headless: true });
 }
 

@@ -3,8 +3,8 @@
 // Ports the validated visual template from scripts/sample-payslip-pdf.mjs.
 // No DB, no Chromium — pure function.
 
-import type { PayslipDocument, PayslipLine } from './types';
 import { FONT_STACK } from './fonts';
+import type { PayslipDocument, PayslipLine } from './types';
 
 // Brand constants — identical in all locales, no i18n needed.
 const COMPANY_EN = 'Koolman Co., Ltd.';
@@ -137,9 +137,7 @@ export function buildPayslipHtml(doc: PayslipDocument, opts: BuildPayslipHtmlOpt
 
   // Inline label for summary strip (uses .t2i inline style, not block)
   const labelInline = (native: string, en: string): string =>
-    isEn
-      ? `<span class="t2i">${en}</span>`
-      : `${native}<span class="t2i">${en}</span>`;
+    isEn ? `<span class="t2i">${en}</span>` : `${native}<span class="t2i">${en}</span>`;
 
   const lineRow = (cls: 'pos' | 'neg' | '', l: PayslipLine): string => {
     const native = l.label ?? t('payslip.' + l.labelKey!);
@@ -148,8 +146,10 @@ export function buildPayslipHtml(doc: PayslipDocument, opts: BuildPayslipHtmlOpt
       ? `<span class="dt">${t('payslipPdf.detail.' + l.detail.key, l.detail.vars)}</span>`
       : '';
     const sign = cls === 'neg' ? '−' : '';
-    return `<tr><td class="cell">${label(native, en)}</td>` +
-      `<td class="amt ${cls}">${sign}${money(l.amount)}${detail}</td></tr>`;
+    return (
+      `<tr><td class="cell">${label(native, en)}</td>` +
+      `<td class="amt ${cls}">${sign}${money(l.amount)}${detail}</td></tr>`
+    );
   };
 
   const infoRow = (native: string, en: string, value: string): string =>

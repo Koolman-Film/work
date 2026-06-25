@@ -1,7 +1,7 @@
 export type PayslipLine = {
   key: string;
-  labelKey?: string;          // payslip.* key when it's a fixed bucket
-  label?: string;             // literal (adjustment reason)
+  labelKey?: string; // payslip.* key when it's a fixed bucket
+  label?: string; // literal (adjustment reason)
   amount: number;
   detail?: { key: string; vars: Record<string, string | number> } | null;
 };
