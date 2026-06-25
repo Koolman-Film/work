@@ -6,11 +6,25 @@
 import type { PayslipDocument, PayslipLine } from './types';
 import { FONT_STACK } from './fonts';
 
+// Brand constants — identical in all locales, no i18n needed.
+const COMPANY_EN = 'Koolman Co., Ltd.';
+const COMPANY_NATIVE = 'บริษัท คูลแมน จำกัด';
+
+// Single currency for this app.
+const CUR = '฿';
+
 export interface BuildPayslipHtmlOpts {
   locale: string;
-  /** payslip.* + detail.* in locale language */
+  /**
+   * Root (namespace-less) translator for the locale language.
+   * Pass full dotted keys, e.g. `payslip.income.title`, `payslipPdf.employee`.
+   * Obtained via `getTranslations({ locale })` with no namespace argument.
+   */
   t: (key: string, vars?: Record<string, string | number>) => string;
-  /** payslip.* in English (for the .t2 second line) */
+  /**
+   * Root (namespace-less) translator always in English.
+   * Pass full dotted keys — same convention as `t`.
+   */
   tEn: (key: string) => string;
   /** formatMoney bound to the locale */
   money: (n: number) => string;
@@ -128,10 +142,10 @@ export function buildPayslipHtml(doc: PayslipDocument, opts: BuildPayslipHtmlOpt
       : `${native}<span class="t2i">${en}</span>`;
 
   const lineRow = (cls: 'pos' | 'neg' | '', l: PayslipLine): string => {
-    const native = l.label ?? t(l.labelKey!);
-    const en = l.label ?? tEn(l.labelKey!);
+    const native = l.label ?? t('payslip.' + l.labelKey!);
+    const en = l.label ?? tEn('payslip.' + l.labelKey!);
     const detail = l.detail
-      ? `<span class="dt">${t(`detail.${l.detail.key}`, l.detail.vars)}</span>`
+      ? `<span class="dt">${t('payslipPdf.detail.' + l.detail.key, l.detail.vars)}</span>`
       : '';
     const sign = cls === 'neg' ? '−' : '';
     return `<tr><td class="cell">${label(native, en)}</td>` +
@@ -154,27 +168,6 @@ export function buildPayslipHtml(doc: PayslipDocument, opts: BuildPayslipHtmlOpt
   const incomeRows = doc.income.lines.map((l) => lineRow('', l)).join('\n        ');
   const deductRows = doc.deduct.lines.map((l) => lineRow('neg', l)).join('\n        ');
 
-  // i18n keys used in the template
-  const kEarnings = 'payslip.income.title';
-  const kDeductions = 'payslip.deduct.title';
-  const kNetPay = 'payslip.net';
-  const kEmployee = 'payslip.employee';
-  const kEmployeeId = 'payslip.employeeId';
-  const kBranch = 'payslip.branch';
-  const kDepartment = 'payslip.department';
-  const kPayType = 'payslip.payType';
-  const kPayPeriod = 'payslip.payPeriod';
-  const kTotalEarnings = 'payslip.income.total';
-  const kTotalDeductions = 'payslip.deduct.total';
-  const kTakeHome = 'payslip.takeHome';
-  const kDisclaimer = 'payslip.disclaimer';
-
-  // Net pay numeric display (strips currency symbol for the hero layout)
-  const netFormatted = money(doc.net);
-  // Extract numeric part after the currency symbol for the hero split display
-  const netNum = netFormatted.replace(/^[฿$€£¥]/, '');
-  const netCur = netFormatted.replace(/[\d,.\s]+$/, '') || '฿';
-
   // Stamp date: format generatedAt as YYYY·MM·DD
   const stampDate = generatedAt.replace(/-/g, '·');
 
@@ -189,8 +182,8 @@ ${PAYSLIP_CSS(fontFace)}
       <div class="brand">
         ${logoSvg}
         <div>
-          <div class="co-name">${tEn('payslip.company.en')}</div>
-          <div class="co-sub">${isEn ? '' : t('payslip.company.native')}</div>
+          <div class="co-name">${COMPANY_EN}</div>
+          <div class="co-sub">${isEn ? '' : COMPANY_NATIVE}</div>
         </div>
       </div>
       <div class="doc">
@@ -205,54 +198,54 @@ ${PAYSLIP_CSS(fontFace)}
   <tbody><tr><td>
   <main>
     <div class="summary">
-      <div class="metric"><div class="m-lbl">${labelInline(t(kEarnings), 'Earnings')}</div><div class="m-val earn">${money(gross)}</div></div>
-      <div class="metric"><div class="m-lbl">${labelInline(t(kDeductions), 'Deductions')}</div><div class="m-val ded">−${money(ded)}</div></div>
-      <div class="metric"><div class="m-lbl">${labelInline(t(kNetPay), 'Net pay')}</div><div class="m-val net">${money(doc.net)}</div></div>
+      <div class="metric"><div class="m-lbl">${labelInline(t('payslip.income.title'), tEn('payslip.income.title'))}</div><div class="m-val earn">${money(gross)}</div></div>
+      <div class="metric"><div class="m-lbl">${labelInline(t('payslip.deduct.title'), tEn('payslip.deduct.title'))}</div><div class="m-val ded">−${money(ded)}</div></div>
+      <div class="metric"><div class="m-lbl">${labelInline(t('payslip.net'), tEn('payslip.net'))}</div><div class="m-val net">${money(doc.net)}</div></div>
     </div>
     <div class="bar"><div class="b-net" style="width:${netPct}%"></div><div class="b-ded" style="width:${dedPct}%"></div></div>
     <div class="legend">
-      <span><span class="sw" style="background:var(--indigo)"></span>${isEn ? 'Take-home' : t(kTakeHome)} ${netPct}%</span>
-      <span><span class="sw" style="background:#cfc8ba"></span>Deductions ${dedPct}%</span>
+      <span><span class="sw" style="background:var(--indigo)"></span>${isEn ? tEn('payslipPdf.kept') : t('payslipPdf.kept')} ${netPct}%</span>
+      <span><span class="sw" style="background:#cfc8ba"></span>${tEn('payslip.deduct.title')} ${dedPct}%</span>
     </div>
 
     <div class="card"><div class="info">
-      ${infoRow(t(kEmployee), 'Employee', doc.meta.employeeName)}
-      ${infoRow(t(kEmployeeId), 'Employee ID', doc.meta.employeeId)}
-      ${infoRow(t(kBranch), 'Branch', doc.meta.branch)}
-      ${infoRow(t(kDepartment), 'Department', doc.meta.department ?? '')}
-      ${infoRow(t(kPayType), 'Pay type', doc.meta.payType)}
-      ${infoRow(t(kPayPeriod), 'Pay period', periodLabel)}
+      ${infoRow(t('payslipPdf.employee'), tEn('payslipPdf.employee'), doc.meta.employeeName)}
+      ${infoRow(t('payslipPdf.employeeId'), tEn('payslipPdf.employeeId'), doc.meta.employeeId)}
+      ${infoRow(t('profile.readonly.branch'), tEn('profile.readonly.branch'), doc.meta.branch)}
+      ${infoRow(t('profile.readonly.department'), tEn('profile.readonly.department'), doc.meta.department ?? '')}
+      ${infoRow(t('payslipPdf.payType'), tEn('payslipPdf.payType'), doc.meta.payType)}
+      ${infoRow(t('payslipPdf.payPeriod'), tEn('payslipPdf.payPeriod'), periodLabel)}
     </div></div>
 
     <div class="cols">
     <div class="card">
-      ${sectionHead('earn', t(kEarnings), 'Earnings')}
+      ${sectionHead('earn', t('payslip.income.title'), tEn('payslip.income.title'))}
       <table class="lines">
         ${incomeRows}
       </table>
-      <div class="card-foot"><div class="f-lbl">${label(t(kTotalEarnings), 'Total earnings')}</div><div class="f-amt">${money(gross)}</div></div>
+      <div class="card-foot"><div class="f-lbl">${label(t('payslip.income.total'), tEn('payslip.income.total'))}</div><div class="f-amt">${money(gross)}</div></div>
     </div>
 
     <div class="card">
-      ${sectionHead('ded', t(kDeductions), 'Deductions')}
+      ${sectionHead('ded', t('payslip.deduct.title'), tEn('payslip.deduct.title'))}
       <table class="lines">
         ${deductRows}
       </table>
-      <div class="card-foot"><div class="f-lbl">${label(t(kTotalDeductions), 'Total deductions')}</div><div class="f-amt neg">−${money(ded)}</div></div>
+      <div class="card-foot"><div class="f-lbl">${label(t('payslip.deduct.total'), tEn('payslip.deduct.total'))}</div><div class="f-amt neg">−${money(ded)}</div></div>
     </div>
     </div>
 
     <div class="net-hero">
       <div>
-        <div class="nh-lbl">Net pay</div>
-        ${isEn ? '' : `<div class="nh-native">${t(kNetPay)}</div>`}
+        <div class="nh-lbl">${tEn('payslip.net')}</div>
+        ${isEn ? '' : `<div class="nh-native">${t('payslip.net')}</div>`}
         <div class="nh-eq">${money(gross)} − ${money(ded)}</div>
       </div>
-      <div class="nh-val"><span class="cur">${netCur}</span>${netNum}</div>
+      <div class="nh-val"><span class="cur">${CUR}</span>${money(doc.net).replace(/^฿/, '')}</div>
     </div>
     <div class="endmark">
-      <div class="disc">${isEn ? tEn(kDisclaimer) : `${t(kDisclaimer)} · ${tEn(kDisclaimer)}`}</div>
-      <div class="stamp"><div class="s1">Issued</div><div class="s2">${stampDate}</div></div>
+      <div class="disc">${isEn ? tEn('payslipPdf.disclaimer') : `${t('payslipPdf.disclaimer')} · ${tEn('payslipPdf.disclaimer')}`}</div>
+      <div class="stamp"><div class="s1">${tEn('payslipPdf.issued')}</div><div class="s2">${stampDate}</div></div>
     </div>
   </main>
   </td></tr></tbody>
