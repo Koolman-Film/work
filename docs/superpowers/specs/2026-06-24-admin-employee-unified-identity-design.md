@@ -31,6 +31,22 @@ An admin-employee, on a single LINE account:
 - Sees a **combined LIFF home**: an employee button group on top, an admin button
   group below.
 
+### Supported populations (none are dropped)
+
+The pure-admin case (typically only the **owner**) stays first-class and unchanged —
+this work *adds* the admin-employee case, it does not replace the others:
+
+| Population | `Employee` record? | admin role? | Login | Lands on |
+|---|---|---|---|---|
+| **Owner / pure admin** | no | yes | email/password (unchanged) | `/admin` |
+| **Worker** (staff) | yes | no | LINE (unchanged) | `/liff/check-in` |
+| **Admin-employee** (new) | yes | yes | LINE | `/liff/home` |
+
+A pure admin has no `Employee` record, so the §2 gate keeps them out of employee
+features exactly as today; the §7 merge card is shown to pure admins but is
+dismissible (`mergePromptDismissedAt`), so an owner who is never an employee simply
+dismisses it once.
+
 ## Chosen approach: unify at the `User` level (Approach A)
 
 An admin-employee is simply a `User` that has **both** an `Employee` record **and**
