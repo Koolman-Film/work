@@ -325,6 +325,58 @@ describe('publishPayroll', () => {
     expect(Number(row.deductLeave)).toBe(666.67); // frozen, even though quota now covers it
   });
 
+  it('sums per-leave satang-rounded deductions (not the aggregate) into deductLeave', async () => {
+    // rate = 4200/30/420 = ฿0.3333…/min. Each 10-min over-quota leave rounds to
+    // ฿3.33 individually → Σ ฿6.66. Rounding the 20-min aggregate would give
+    // ฿6.67 — the publish must freeze ฿3.33 per leave and the slip must show 6.66.
+    const emp = await makeEmployee({ baseSalary: 4_200 });
+    const leaveType = await prisma.leaveType.create({
+      data: { name: `LT-${uid().slice(0, 8)}`, overQuotaPolicy: 'DeductPay', annualQuota: 1 },
+    });
+    await prisma.leaveEntitlement.create({
+      data: {
+        employeeId: emp.id,
+        leaveTypeId: leaveType.id,
+        periodYear: 2026,
+        grantedMinutes: 0, // every charged minute is over quota
+        carryoverMinutes: 0,
+        adjustmentMinutes: 0,
+      },
+    });
+    const mkLeave = (dayOfMonth: string, reviewedHour: string) =>
+      prisma.leaveRequest.create({
+        data: {
+          employeeId: emp.id,
+          leaveTypeId: leaveType.id,
+          startDate: new Date(`2026-06-${dayOfMonth}T00:00:00.000Z`),
+          endDate: new Date(`2026-06-${dayOfMonth}T00:00:00.000Z`),
+          reason: 'over',
+          status: 'Approved',
+          chargedMinutes: 10,
+          reviewedAt: new Date(`2026-06-${dayOfMonth}T${reviewedHour}:00:00Z`),
+        },
+      });
+    const l1 = await mkLeave('10', '01');
+    const l2 = await mkLeave('11', '01');
+
+    await runPayrollDraft(MONTH);
+    let row = await prisma.payroll.findFirstOrThrow({
+      where: { employeeId: emp.id, month: MONTH },
+    });
+    expect(Number(row.deductLeave)).toBe(6.66); // 3.33 + 3.33, NOT 6.67
+    expect(Number(row.netPay)).toBe(4_193.34); // 4200 − 6.66
+
+    await publishPayroll(MONTH);
+    // Each leave frozen to its OWN rounded value.
+    for (const id of [l1.id, l2.id]) {
+      const lv = await prisma.leaveRequest.findUniqueOrThrow({ where: { id } });
+      expect(Number(lv.deductAmount)).toBe(3.33);
+      expect(lv.overQuotaMinutes).toBe(10);
+    }
+    row = await prisma.payroll.findFirstOrThrow({ where: { employeeId: emp.id, month: MONTH } });
+    expect(Number(row.deductLeave)).toBe(6.66);
+  });
+
   it('is idempotent — re-publishing does not double-sweep', async () => {
     const emp = await makeEmployee({ baseSalary: 20_000 });
     const recurring = await prisma.recurringDeduction.create({
