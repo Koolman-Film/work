@@ -1,6 +1,7 @@
 // src/lib/payslip/fonts.test.ts
 import { describe, expect, it } from 'vitest';
 import { fontFaceCss } from './fonts';
+
 describe('fontFaceCss', () => {
   it('always includes Noto Sans (Latin) as base64', () => {
     expect(fontFaceCss('en')).toContain("font-family: 'Noto Sans'");

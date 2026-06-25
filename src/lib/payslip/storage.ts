@@ -38,6 +38,8 @@ export async function getOrRenderPayslipPdf(args: {
 }
 
 export async function invalidatePayslipPdf(employeeId: string, month: string): Promise<void> {
-  const { error } = await getSupabaseAdminClient().storage.from(BUCKET).remove([keyFor(employeeId, month)]);
+  const { error } = await getSupabaseAdminClient()
+    .storage.from(BUCKET)
+    .remove([keyFor(employeeId, month)]);
   if (error) throw error;
 }

@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 import { getOrRenderPayslipPdf, invalidatePayslipPdf } from '@/lib/payslip/storage';
+import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 
 const EID = '00000000-0000-0000-0000-0000000000aa';
 const MONTH = '2026-06';
