@@ -107,6 +107,7 @@ export type AuditAction =
   | 'leave.cancel'
   | 'leave.void'
   | 'leave.restore'
+  | 'leave.recompute'
   | 'advance.submit'
   | 'advance.admin-create'
   | 'advance.approve'
