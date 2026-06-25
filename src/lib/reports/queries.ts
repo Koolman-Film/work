@@ -17,6 +17,7 @@ import 'server-only';
 import { advanceBalanceFor } from '@/lib/advance/available';
 import { prisma } from '@/lib/db/prisma';
 import { remainingByTypeForEmployees } from '@/lib/leave/balance';
+import { computeLiveLeaveCharges } from '@/lib/leave/recompute';
 
 const utc = (ymd: string) => new Date(`${ymd}T00:00:00.000Z`);
 
@@ -196,7 +197,7 @@ export async function leaveReport(
     prisma.leaveType.findMany({
       where: { archivedAt: null },
       orderBy: { name: 'asc' },
-      select: { id: true, name: true },
+      select: { id: true, name: true, overQuotaPolicy: true },
     }),
     prisma.employee.findMany({
       where: employeeWhere(filter),
@@ -225,15 +226,39 @@ export async function leaveReport(
       deductAmount: Number(g._sum.deductAmount ?? 0),
     });
   }
+
+  // For DeductPay types the over-quota minutes + deduction are DERIVED values
+  // (they depend on the current entitlement), so we recompute them LIVE here —
+  // frozen only for paid leave — so they never drift from the "remaining"
+  // column. `usedMinutes` stays the factual stored sum (same as every other
+  // leave type); only the two derived columns are overridden.
+  const liveDerived = new Map<string, { over: number; deduct: number }>();
+  for (const c of await computeLiveLeaveCharges(ids)) {
+    if (c.date < period.from || c.date > period.to) continue; // in this period
+    const key = `${c.employeeId}:${c.leaveTypeId}`;
+    const acc = liveDerived.get(key) ?? { over: 0, deduct: 0 };
+    acc.over += c.overQuotaMinutes;
+    acc.deduct += c.deductAmount ?? 0;
+    liveDerived.set(key, acc);
+  }
+
   const remainingAll = await remainingByTypeForEmployees(ids, year);
+  const empty: LeaveReportCell = { usedMinutes: 0, overQuotaMinutes: 0, deductAmount: 0 };
   const rows: LeaveReportRow[] = employees.map((e) => {
     const byType: Record<string, LeaveReportCell> = {};
     for (const t of types) {
-      byType[t.id] = cellBy.get(`${e.id}:${t.id}`) ?? {
-        usedMinutes: 0,
-        overQuotaMinutes: 0,
-        deductAmount: 0,
-      };
+      const key = `${e.id}:${t.id}`;
+      const base = cellBy.get(key) ?? empty;
+      if (t.overQuotaPolicy === 'DeductPay') {
+        const live = liveDerived.get(key);
+        byType[t.id] = {
+          usedMinutes: base.usedMinutes,
+          overQuotaMinutes: live?.over ?? 0,
+          deductAmount: live?.deduct ?? 0,
+        };
+      } else {
+        byType[t.id] = base;
+      }
     }
     return {
       employeeId: e.id,
@@ -242,7 +267,7 @@ export async function leaveReport(
       remainingByType: remainingAll[e.id] ?? {},
     };
   });
-  return { rows, types };
+  return { rows, types: types.map((t) => ({ id: t.id, name: t.name })) };
 }
 
 // ── Drill-down detail (which date ranges, per employee) ───────────────────
