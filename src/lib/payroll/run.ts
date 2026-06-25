@@ -26,6 +26,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 import { sendNotification } from '@/lib/inngest/events';
 import { computeLiveLeaveCharges } from '@/lib/leave/recompute';
+import { invalidatePayslipPdf } from '@/lib/payslip/storage';
 import { adjustmentAppliesToMonth } from './adjustments';
 import {
   type AdjustmentForPayroll,
@@ -410,6 +411,12 @@ export async function publishPayroll(month: string): Promise<PublishResult> {
 
     return { published, skipped };
   });
+
+  // Bust any cached PDF for freshly-published slips so a download reflects the
+  // finalized numbers. Fire-and-forget: a Storage hiccup must never fail publish.
+  for (const slip of result.published) {
+    void invalidatePayslipPdf(slip.employeeId, month).catch(() => {});
+  }
 
   return result;
 }

@@ -29,6 +29,20 @@ describe('payslip storage cache', () => {
     expect(rendered).toBe(1);
     await invalidatePayslipPdf(EID, MONTH);
   });
+  it('invalidate removes the cached object so the next call re-renders', async () => {
+    const EID2 = '00000000-0000-0000-0000-0000000000ab';
+    let rendered = 0;
+    const render = () => {
+      rendered++;
+      return Promise.resolve(Buffer.from('%PDF-1.4 x'));
+    };
+    await getOrRenderPayslipPdf({ employeeId: EID2, month: MONTH, render }); // miss → 1
+    await invalidatePayslipPdf(EID2, MONTH);
+    await getOrRenderPayslipPdf({ employeeId: EID2, month: MONTH, render }); // miss again → 2
+    expect(rendered).toBe(2);
+    await invalidatePayslipPdf(EID2, MONTH);
+  });
+
   afterAll(async () => {
     await invalidatePayslipPdf(EID, MONTH);
   });
