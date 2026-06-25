@@ -263,8 +263,11 @@ describe('leaveReport', () => {
     expect(types.some((t) => t.id === lt.id)).toBe(true);
     const cell = rows[0]?.byType[lt.id];
     expect(cell?.usedMinutes).toBe(420); // 420 + null + (pending excluded)
-    expect(cell?.overQuotaMinutes).toBe(60);
-    expect(cell?.deductAmount).toBe(250);
+    // DeductPay over-quota/deduction is DERIVED live: this employee is well
+    // within the 30-day quota, so the live values are 0 — the stale stored
+    // snapshot (60 min / ฿250) is correctly ignored, matching "remaining".
+    expect(cell?.overQuotaMinutes).toBe(0);
+    expect(cell?.deductAmount).toBe(0);
     // 30-day quota × 7h/day standard ... remaining is reported; just assert it's tracked.
     expect(rows[0]?.remainingByType[lt.id]).not.toBeUndefined();
   });

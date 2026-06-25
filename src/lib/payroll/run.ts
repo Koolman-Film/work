@@ -25,6 +25,7 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 import { sendNotification } from '@/lib/inngest/events';
+import { computeLiveLeaveCharges } from '@/lib/leave/recompute';
 import { adjustmentAppliesToMonth } from './adjustments';
 import {
   type AdjustmentForPayroll,
@@ -78,7 +79,7 @@ async function gatherAndCalc(db: Tx | typeof prisma, month: string) {
   });
   const empIds = employees.map((e) => e.id);
 
-  const [attendances, advances, recurring, leaves, leaveRanges, adjustments] = await Promise.all([
+  const [attendances, advances, recurring, leaveRanges, adjustments] = await Promise.all([
     db.attendance.findMany({
       where: { employeeId: { in: empIds }, date: { gte: start, lte: end }, deletedAt: null },
       select: { employeeId: true, date: true, type: true, durationMinutes: true },
@@ -96,17 +97,6 @@ async function gatherAndCalc(db: Tx | typeof prisma, month: string) {
     db.recurringDeduction.findMany({
       where: { employeeId: { in: empIds }, endedAt: null, monthsRemaining: { gt: 0 } },
       select: { id: true, employeeId: true, monthlyAmount: true, monthsRemaining: true },
-    }),
-    db.leaveRequest.findMany({
-      where: {
-        employeeId: { in: empIds },
-        status: 'Approved',
-        deductAmount: { gt: 0 },
-        deductedInPayrollId: null,
-        deletedAt: null,
-        startDate: { lte: end },
-      },
-      select: { id: true, employeeId: true, deductAmount: true },
     }),
     // ALL approved leave overlapping the period (any unit, regardless of
     // deductAmount) — used to exempt severe-late days covered by leave (C9).
@@ -151,8 +141,21 @@ async function gatherAndCalc(db: Tx | typeof prisma, month: string) {
   const attByEmp = byEmp(attendances);
   const advByEmp = byEmp(advances);
   const recByEmp = byEmp(recurring);
-  const leaveByEmp = byEmp(leaves);
   const adjByEmp = byEmp(adjustments);
+
+  // Leave deductions are derived LIVE from the current entitlement (frozen only
+  // at publish), so editing an entitlement is reflected on the next draft with
+  // NO manual recompute. Sweep un-paid DeductPay leave whose live over-quota
+  // deduction is > 0 and whose startDate is on/before the period cutoff (`end`).
+  const liveSweepableByEmp = new Map<string, Array<{ id: string; deduct: number; over: number }>>();
+  for (const c of await computeLiveLeaveCharges(empIds)) {
+    if (c.swept) continue; // already paid in a published payroll — never re-sweep
+    if (c.startDate.getTime() > end.getTime()) continue;
+    if (c.deductAmount == null || c.deductAmount <= 0) continue;
+    const list = liveSweepableByEmp.get(c.employeeId) ?? [];
+    list.push({ id: c.leaveRequestId, deduct: c.deductAmount, over: c.overQuotaMinutes });
+    liveSweepableByEmp.set(c.employeeId, list);
+  }
 
   // Per-employee set of leave-covered dates within the window — a severe late
   // on one of these is exempt from its 1-day penalty (C9). @db.Date values are
@@ -175,7 +178,7 @@ async function gatherAndCalc(db: Tx | typeof prisma, month: string) {
     draft: PayrollDraft;
     employee: (typeof employees)[number];
     sweptAdvanceIds: string[];
-    sweptLeaveIds: string[];
+    sweptLeaves: Array<{ id: string; deduct: number; over: number }>;
     appliedRecurring: Array<{ id: string; monthsRemaining: number }>;
   }> = [];
   const skipped: SkippedEmployee[] = [];
@@ -183,7 +186,7 @@ async function gatherAndCalc(db: Tx | typeof prisma, month: string) {
   for (const emp of employees) {
     const empAdvances = advByEmp.get(emp.id) ?? [];
     const empRecurring = recByEmp.get(emp.id) ?? [];
-    const empLeaves = leaveByEmp.get(emp.id) ?? [];
+    const empSweep = liveSweepableByEmp.get(emp.id) ?? [];
     // The SQL range pre-filter is correct on its own; the in-memory check
     // is defense-in-depth + the single source of truth for the rule.
     const empAdjustments = (adjByEmp.get(emp.id) ?? []).filter((a) =>
@@ -209,9 +212,7 @@ async function gatherAndCalc(db: Tx | typeof prisma, month: string) {
         recurringDeductions: empRecurring.map((r) => ({
           monthlyAmount: r.monthlyAmount.toString(),
         })),
-        leaveDeductions: empLeaves.map((l) => ({
-          amount: (l.deductAmount ?? new Prisma.Decimal(0)).toString(),
-        })),
+        leaveDeductions: empSweep.map((l) => ({ amount: l.deduct.toString() })),
         leaveDates: [...(leaveDatesByEmp.get(emp.id) ?? [])],
         adjustments: empAdjustments.map(
           (a): AdjustmentForPayroll => ({ kind: a.kind, amount: a.amount.toString() }),
@@ -234,7 +235,7 @@ async function gatherAndCalc(db: Tx | typeof prisma, month: string) {
         draft,
         employee: emp,
         sweptAdvanceIds: empAdvances.map((a) => a.id),
-        sweptLeaveIds: empLeaves.map((l) => l.id),
+        sweptLeaves: empSweep,
         appliedRecurring: empRecurring.map((r) => ({
           id: r.id,
           monthsRemaining: r.monthsRemaining,
@@ -351,7 +352,7 @@ export async function publishPayroll(month: string): Promise<PublishResult> {
 
     const published: PublishedSlip[] = [];
 
-    for (const { draft, employee, sweptAdvanceIds, sweptLeaveIds, appliedRecurring } of drafts) {
+    for (const { draft, employee, sweptAdvanceIds, sweptLeaves, appliedRecurring } of drafts) {
       const row = existingByEmp.get(employee.id);
       if (row && row.status !== 'Draft') continue; // already published/locked
 
@@ -373,10 +374,18 @@ export async function publishPayroll(month: string): Promise<PublishResult> {
           data: { deductedInPayrollId: saved.id, isDeducted: true },
         });
       }
-      if (sweptLeaveIds.length > 0) {
+      // FREEZE the live-computed over-quota deduction onto each swept leave.
+      // Once paid it must never move again, so we persist the exact value that
+      // entered this payroll alongside the `deductedInPayrollId` stamp. The
+      // `deductedInPayrollId: null` guard keeps this idempotent on re-publish.
+      for (const l of sweptLeaves) {
         await tx.leaveRequest.updateMany({
-          where: { id: { in: sweptLeaveIds }, deductedInPayrollId: null },
-          data: { deductedInPayrollId: saved.id },
+          where: { id: l.id, deductedInPayrollId: null },
+          data: {
+            deductedInPayrollId: saved.id,
+            deductAmount: new Prisma.Decimal(l.deduct.toFixed(2)),
+            overQuotaMinutes: l.over,
+          },
         });
       }
       for (const rec of appliedRecurring) {
