@@ -521,5 +521,21 @@
     "net": "เงินสุทธิ",
     "backToSummary": "สรุปของฉัน",
     "backToCheckin": "กลับหน้าเช็คอิน"
+  },
+  "payslipPdf": {
+    "employee": "พนักงาน",
+    "employeeId": "รหัสพนักงาน",
+    "payPeriod": "งวดเงินเดือน",
+    "payType": "ประเภทการจ่าย",
+    "generatedOn": "ออกเอกสารเมื่อ",
+    "issued": "ออกแล้ว",
+    "disclaimer": "เอกสารนี้ออกโดยระบบอัตโนมัติ ไม่ต้องลงนาม",
+    "kept": "รับจริง",
+    "download": "ดาวน์โหลด PDF",
+    "detail": {
+      "sso": "{pct}% · cap ฿{cap}",
+      "advance": "{count}× advance",
+      "leave": "{minutes} min × ฿{rate}"
+    }
   }
 }
