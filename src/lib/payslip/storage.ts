@@ -21,9 +21,10 @@ export async function getOrRenderPayslipPdf(args: {
   };
 
   // Probe: list the exact object to detect a cache hit.
-  const { data: list } = await supabase.storage
+  const { data: list, error: listErr } = await supabase.storage
     .from(BUCKET)
     .list(args.employeeId, { search: `${args.month}.pdf` });
+  if (listErr) throw listErr;
   if (list?.some((f) => f.name === `${args.month}.pdf`)) {
     return { signedUrl: await sign(), fromCache: true };
   }
@@ -37,5 +38,6 @@ export async function getOrRenderPayslipPdf(args: {
 }
 
 export async function invalidatePayslipPdf(employeeId: string, month: string): Promise<void> {
-  await getSupabaseAdminClient().storage.from(BUCKET).remove([keyFor(employeeId, month)]);
+  const { error } = await getSupabaseAdminClient().storage.from(BUCKET).remove([keyFor(employeeId, month)]);
+  if (error) throw error;
 }
