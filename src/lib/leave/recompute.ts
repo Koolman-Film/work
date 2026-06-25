@@ -1,19 +1,19 @@
 /**
- * Recompute leave charges + over-quota deductions for APPROVED DeductPay leave,
- * so the frozen snapshot (chargedMinutes / overQuotaMinutes / deductAmount)
- * matches the CURRENT entitlement.
+ * Live leave-charge computation — the single source of truth for a leave's
+ * chargedMinutes / overQuotaMinutes / deductAmount.
  *
- * Shared by the admin maintenance tool (server action) and the CLI script.
+ * The over-quota deduction is a DERIVED value (it depends on the current
+ * entitlement + year-to-date usage + approval order). Storing it frozen at
+ * approval lets it drift when the entitlement is later edited. So instead we
+ * compute it live everywhere it's read (report, payroll draft), and only the
+ * payroll PUBLISH step freezes it (once it's been paid, it must never move).
+ *
+ * `computeLiveLeaveCharges` returns, per approved DeductPay leave:
+ *   - the live value to USE: recomputed for un-paid leave, but the FROZEN value
+ *     for leave already swept into a published payroll (paid = locked).
+ *   - the current DB snapshot, so callers (the maintenance tool) can diff.
+ *
  * The money-critical math is the unit-tested `replayOverQuota`.
- *
- * Per (employee, leaveType, year):
- *   1. Fills chargedMinutes where null (segment × working-days, like approval).
- *   2. Replays over-quota in APPROVAL ORDER against the current entitlement
- *      (earlier requests consume the quota first).
- *
- * SAFETY: requests already swept into a payroll (deductedInPayrollId set) are
- * NEVER modified — but they DO consume the quota first (baseline), so un-swept
- * requests are measured against what's left.
  */
 
 import { prisma } from '@/lib/db/prisma';
@@ -21,28 +21,25 @@ import { perMinuteRate, replayOverQuota } from './over-quota';
 import { segmentFor, standardDayMinutes } from './units';
 import { expandHolidaysWithSubstitutes, workingDaysIn } from './working-days';
 
-export type LeaveChargeChange = {
+export type LiveLeaveCharge = {
   leaveRequestId: string;
+  employeeId: string;
+  leaveTypeId: string;
   employeeName: string;
   leaveTypeName: string;
   /** startDate YYYY-MM-DD. */
   date: string;
-  oldChargedMinutes: number | null;
-  newChargedMinutes: number;
-  oldOverMinutes: number;
-  newOverMinutes: number;
-  oldDeduct: number | null;
-  newDeduct: number | null;
-  /** Already in a payroll → shown for transparency but NOT applied. */
+  startDate: Date;
+  /** Current frozen DB snapshot. */
+  curChargedMinutes: number | null;
+  curOverMinutes: number;
+  curDeduct: number | null;
+  /** Value to USE: live for un-paid leave, frozen for paid (swept) leave. */
+  chargedMinutes: number;
+  overQuotaMinutes: number;
+  deductAmount: number | null;
+  /** Already swept into a published payroll → locked, never recomputed. */
   swept: boolean;
-};
-
-export type RecomputeResult = {
-  scanned: number;
-  /** Rows whose snapshot differs from the recomputed value (incl. swept). */
-  changes: LeaveChargeChange[];
-  /** Rows actually written (0 when dry-run). */
-  applied: number;
 };
 
 const CFG_FALLBACK = {
@@ -52,8 +49,13 @@ const CFG_FALLBACK = {
   afternoonEnd: '17:00',
 };
 
-/** Recompute and (optionally) apply. apply=false → dry-run, writes nothing. */
-export async function recomputeLeaveCharges(opts: { apply: boolean }): Promise<RecomputeResult> {
+/**
+ * Compute the correct (live) charge/over-quota/deduction for every approved
+ * DeductPay leave, optionally scoped to `employeeIds`. Read-only.
+ */
+export async function computeLiveLeaveCharges(
+  employeeIds?: readonly string[],
+): Promise<LiveLeaveCharge[]> {
   const cfg = (await prisma.leaveConfig.findFirst()) ?? CFG_FALLBACK;
   const std = standardDayMinutes(cfg);
   const payCfg = await prisma.payrollConfig.findFirstOrThrow({
@@ -64,7 +66,12 @@ export async function recomputeLeaveCharges(opts: { apply: boolean }): Promise<R
   ).map((h) => h.date);
 
   const rows = await prisma.leaveRequest.findMany({
-    where: { status: 'Approved', deletedAt: null, leaveType: { overQuotaPolicy: 'DeductPay' } },
+    where: {
+      status: 'Approved',
+      deletedAt: null,
+      leaveType: { overQuotaPolicy: 'DeductPay' },
+      ...(employeeIds ? { employeeId: { in: [...employeeIds] } } : {}),
+    },
     select: {
       id: true,
       employeeId: true,
@@ -85,7 +92,7 @@ export async function recomputeLeaveCharges(opts: { apply: boolean }): Promise<R
     },
   });
 
-  // chargedMinutes (fill nulls) — same logic as approval / backfill.
+  // chargedMinutes (factual; fill nulls like approval / backfill).
   const charged = new Map<string, number>();
   for (const r of rows) {
     if (r.chargedMinutes != null) {
@@ -101,15 +108,18 @@ export async function recomputeLeaveCharges(opts: { apply: boolean }): Promise<R
     const inWindow = allHolidays.filter(
       (d) => d.getTime() >= dayBeforeStart.getTime() && d.getTime() <= r.endDate.getTime(),
     );
-    const workingDays = workingDaysIn({
-      startDate: r.startDate,
-      endDate: r.endDate,
-      holidays: expandHolidaysWithSubstitutes(inWindow),
-    });
-    charged.set(r.id, segment.minutes * workingDays.length);
+    charged.set(
+      r.id,
+      segment.minutes *
+        workingDaysIn({
+          startDate: r.startDate,
+          endDate: r.endDate,
+          holidays: expandHolidaysWithSubstitutes(inWindow),
+        }).length,
+    );
   }
 
-  // Group by employee:type:year.
+  // Group by employee:type:year so over-quota replays per entitlement window.
   const groups = new Map<string, typeof rows>();
   for (const r of rows) {
     const key = `${r.employeeId}:${r.leaveTypeId}:${r.startDate.getUTCFullYear()}`;
@@ -118,9 +128,7 @@ export async function recomputeLeaveCharges(opts: { apply: boolean }): Promise<R
     else groups.set(key, [r]);
   }
 
-  const changes: LeaveChargeChange[] = [];
-  const toApply: Array<{ id: string; charged: number; over: number; deduct: number | null }> = [];
-
+  const out: LiveLeaveCharge[] = [];
   for (const [key, g] of groups) {
     const parts = key.split(':');
     const employeeId = parts[0] ?? '';
@@ -145,10 +153,11 @@ export async function recomputeLeaveCharges(opts: { apply: boolean }): Promise<R
       std,
     );
 
+    // Approval order: earlier requests consume the quota first.
     const ordered = [...g].sort(
       (a, b) => (a.reviewedAt ?? a.createdAt).getTime() - (b.reviewedAt ?? b.createdAt).getTime(),
     );
-    const resById = new Map(
+    const replayed = new Map(
       replayOverQuota(
         {
           grantedMinutes,
@@ -161,37 +170,91 @@ export async function recomputeLeaveCharges(opts: { apply: boolean }): Promise<R
     );
 
     for (const r of ordered) {
-      const res = resById.get(r.id);
-      if (!res) continue;
+      const live = replayed.get(r.id);
+      if (!live) continue;
       const newCharged = charged.get(r.id) ?? 0;
-      const oldDeduct = r.deductAmount == null ? null : Number(r.deductAmount);
-      const differs =
-        r.chargedMinutes == null ||
-        (r.overQuotaMinutes ?? 0) !== res.overQuotaMinutes ||
-        oldDeduct !== res.deductAmount;
-      if (!differs) continue;
-
-      changes.push({
+      const curOver = r.overQuotaMinutes ?? 0;
+      const curDeduct = r.deductAmount == null ? null : Number(r.deductAmount);
+      const swept = r.deductedInPayrollId != null;
+      out.push({
         leaveRequestId: r.id,
+        employeeId: r.employeeId,
+        leaveTypeId: r.leaveTypeId,
         employeeName: sample.employee.nickname ?? sample.employee.firstName,
         leaveTypeName: sample.leaveType.name,
         date: r.startDate.toISOString().slice(0, 10),
-        oldChargedMinutes: r.chargedMinutes,
-        newChargedMinutes: newCharged,
-        oldOverMinutes: r.overQuotaMinutes ?? 0,
-        newOverMinutes: res.overQuotaMinutes,
-        oldDeduct,
-        newDeduct: res.deductAmount,
-        swept: r.deductedInPayrollId != null,
+        startDate: r.startDate,
+        curChargedMinutes: r.chargedMinutes,
+        curOverMinutes: curOver,
+        curDeduct,
+        chargedMinutes: newCharged,
+        // Paid leave is locked to its frozen value; un-paid uses the live replay.
+        overQuotaMinutes: swept ? curOver : live.overQuotaMinutes,
+        deductAmount: swept ? curDeduct : live.deductAmount,
+        swept,
       });
-      if (r.deductedInPayrollId == null) {
-        toApply.push({
-          id: r.id,
-          charged: newCharged,
-          over: res.overQuotaMinutes,
-          deduct: res.deductAmount,
-        });
-      }
+    }
+  }
+  return out;
+}
+
+export type LeaveChargeChange = {
+  leaveRequestId: string;
+  employeeName: string;
+  leaveTypeName: string;
+  date: string;
+  oldChargedMinutes: number | null;
+  newChargedMinutes: number;
+  oldOverMinutes: number;
+  newOverMinutes: number;
+  oldDeduct: number | null;
+  newDeduct: number | null;
+  swept: boolean;
+};
+
+export type RecomputeResult = {
+  scanned: number;
+  changes: LeaveChargeChange[];
+  applied: number;
+};
+
+/**
+ * Maintenance tool: persist the live values onto the stored snapshot (so the
+ * frozen DB fields stop being stale). With derive-on-read this is now just a
+ * cache refresh — the report/payroll are already correct without it. Paid
+ * (swept) rows are never written. apply=false → dry run.
+ */
+export async function recomputeLeaveCharges(opts: { apply: boolean }): Promise<RecomputeResult> {
+  const live = await computeLiveLeaveCharges();
+  const changes: LeaveChargeChange[] = [];
+  const toApply: Array<{ id: string; charged: number; over: number; deduct: number | null }> = [];
+
+  for (const c of live) {
+    const differs =
+      c.curChargedMinutes == null ||
+      c.curOverMinutes !== c.overQuotaMinutes ||
+      c.curDeduct !== c.deductAmount;
+    if (!differs) continue;
+    changes.push({
+      leaveRequestId: c.leaveRequestId,
+      employeeName: c.employeeName,
+      leaveTypeName: c.leaveTypeName,
+      date: c.date,
+      oldChargedMinutes: c.curChargedMinutes,
+      newChargedMinutes: c.chargedMinutes,
+      oldOverMinutes: c.curOverMinutes,
+      newOverMinutes: c.overQuotaMinutes,
+      oldDeduct: c.curDeduct,
+      newDeduct: c.deductAmount,
+      swept: c.swept,
+    });
+    if (!c.swept) {
+      toApply.push({
+        id: c.leaveRequestId,
+        charged: c.chargedMinutes,
+        over: c.overQuotaMinutes,
+        deduct: c.deductAmount,
+      });
     }
   }
 
@@ -201,11 +264,7 @@ export async function recomputeLeaveCharges(opts: { apply: boolean }): Promise<R
       toApply.map((u) =>
         prisma.leaveRequest.update({
           where: { id: u.id },
-          data: {
-            chargedMinutes: u.charged,
-            overQuotaMinutes: u.over,
-            deductAmount: u.deduct,
-          },
+          data: { chargedMinutes: u.charged, overQuotaMinutes: u.over, deductAmount: u.deduct },
         }),
       ),
     );
@@ -215,5 +274,5 @@ export async function recomputeLeaveCharges(opts: { apply: boolean }): Promise<R
   changes.sort(
     (a, b) => a.employeeName.localeCompare(b.employeeName) || a.date.localeCompare(b.date),
   );
-  return { scanned: rows.length, changes, applied };
+  return { scanned: live.length, changes, applied };
 }
