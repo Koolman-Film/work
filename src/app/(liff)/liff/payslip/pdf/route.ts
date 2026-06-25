@@ -26,37 +26,46 @@ export async function GET(req: Request): Promise<Response> {
   const doc = await getPayslipDocument(employee.id, month);
   if (!doc) return new NextResponse('Not found', { status: 404 });
 
-  const locale = await getLocale();
-  const [t, tEn] = await Promise.all([
-    getTranslations({ locale }),
-    getTranslations({ locale: 'en' }),
-  ]);
+  try {
+    const locale = await getLocale();
+    const [t, tEn] = await Promise.all([
+      getTranslations({ locale }),
+      getTranslations({ locale: 'en' }),
+    ]);
 
-  const { signedUrl, fromCache } = await getOrRenderPayslipPdf({
-    employeeId: employee.id,
-    month,
-    render: () =>
-      renderPayslipPdf(
-        buildPayslipHtml(doc, {
-          locale,
-          t: (k, v) => t(k as Parameters<typeof t>[0], v as Parameters<typeof t>[1]),
-          tEn: (k) => tEn(k as Parameters<typeof tEn>[0]),
-          money: (n) => formatMoney(n, locale as Locale),
-          fontFace: fontFaceCss(locale),
-          logoSvg: payslipLogoSvg(),
-          periodLabel: payslipPeriodLabel(locale, month),
-          generatedAt: new Date().toISOString(),
-        }),
-      ),
-  });
+    const { signedUrl, fromCache } = await getOrRenderPayslipPdf({
+      employeeId: employee.id,
+      month,
+      render: () =>
+        renderPayslipPdf(
+          buildPayslipHtml(doc, {
+            locale,
+            t: (k, v) => t(k as Parameters<typeof t>[0], v as Parameters<typeof t>[1]),
+            tEn: (k) => tEn(k as Parameters<typeof tEn>[0]),
+            money: (n) => formatMoney(n, locale as Locale),
+            fontFace: fontFaceCss(locale),
+            logoSvg: payslipLogoSvg(),
+            periodLabel: payslipPeriodLabel(locale, month),
+            generatedAt: new Date().toISOString(),
+          }),
+        ),
+    });
 
-  auditLog({
-    actorId: user.id,
-    action: 'payslip.download',
-    entityType: 'Payroll',
-    entityId: `${employee.id}:${month}`,
-    metadata: { source: 'liff', month, fromCache },
-  });
+    auditLog({
+      actorId: user.id,
+      action: 'payslip.download',
+      entityType: 'Payroll',
+      entityId: `${employee.id}:${month}`,
+      metadata: { source: 'liff', month, fromCache },
+    });
 
-  return NextResponse.redirect(signedUrl, 302);
+    return NextResponse.redirect(signedUrl, 302);
+  } catch (err) {
+    console.error('[payslip-pdf] render failed', {
+      employeeId: employee.id,
+      month,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return new NextResponse('Could not generate payslip', { status: 500 });
+  }
 }

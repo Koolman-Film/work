@@ -140,10 +140,10 @@ export function buildPayslipHtml(doc: PayslipDocument, opts: BuildPayslipHtmlOpt
     isEn ? `<span class="t2i">${en}</span>` : `${native}<span class="t2i">${en}</span>`;
 
   const lineRow = (cls: 'pos' | 'neg' | '', l: PayslipLine): string => {
-    const native = l.label ?? t('payslip.' + l.labelKey!);
-    const en = l.label ?? tEn('payslip.' + l.labelKey!);
+    const native = l.label ?? t(`payslip.${l.labelKey!}`);
+    const en = l.label ?? tEn(`payslip.${l.labelKey!}`);
     const detail = l.detail
-      ? `<span class="dt">${t('payslipPdf.detail.' + l.detail.key, l.detail.vars)}</span>`
+      ? `<span class="dt">${t(`payslipPdf.detail.${l.detail.key}`, l.detail.vars)}</span>`
       : '';
     const sign = cls === 'neg' ? '−' : '';
     return (
@@ -190,7 +190,7 @@ ${PAYSLIP_CSS(fontFace)}
         <div class="doc-title">Payslip</div>
         ${isEn ? '' : `<div class="doc-native">${t('payslip.title')}</div>`}
         <div class="doc-period">${periodLabel}</div>
-        <div class="doc-plbl">Pay period</div>
+        <div class="doc-plbl">${tEn('payslipPdf.payPeriod')}</div>
       </div>
     </div>
     <div class="rule"></div>

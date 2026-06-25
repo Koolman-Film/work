@@ -33,7 +33,18 @@ const config: NextConfig = {
   // Sentry, Prisma client, etc. should not be bundled into the edge runtime.
   // Next.js 16 uses Turbopack by default; this option is the cross-bundler way.
   // (@line/liff is browser-only and should only ever be imported in client components.)
-  serverExternalPackages: ['@prisma/client', 'prisma', 'pino', 'pino-pretty'],
+  serverExternalPackages: [
+    '@prisma/client',
+    'prisma',
+    'pino',
+    'pino-pretty',
+    '@sparticuz/chromium',
+    'puppeteer-core',
+  ],
+
+  outputFileTracingIncludes: {
+    '/liff/payslip/pdf': ['./src/lib/payslip/fonts/**'],
+  },
 
   // Permanent redirects for the W2-IA URL move (pre-existing local URLs only;
   // nothing ever deployed under these, but keep these for ~6 months in case
