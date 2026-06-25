@@ -206,7 +206,22 @@ describe('publishPayroll', () => {
         monthsRemaining: 2,
       },
     });
-    const leaveType = await prisma.leaveType.create({ data: { name: `LT-${uid().slice(0, 8)}` } });
+    // Leave deduction is DERIVED, not a stored flat amount: a DeductPay leave
+    // with a zero entitlement → the whole charged day is over quota. rate =
+    // 20000/30/420 = 1.5873/min, so 420 over-quota min = ฿666.67 (one day's pay).
+    const leaveType = await prisma.leaveType.create({
+      data: { name: `LT-${uid().slice(0, 8)}`, overQuotaPolicy: 'DeductPay', annualQuota: 3 },
+    });
+    await prisma.leaveEntitlement.create({
+      data: {
+        employeeId: emp.id,
+        leaveTypeId: leaveType.id,
+        periodYear: 2026,
+        grantedMinutes: 0,
+        carryoverMinutes: 0,
+        adjustmentMinutes: 0,
+      },
+    });
     const leave = await prisma.leaveRequest.create({
       data: {
         employeeId: emp.id,
@@ -215,8 +230,11 @@ describe('publishPayroll', () => {
         endDate: inMonth,
         reason: 'over quota',
         status: 'Approved',
+        // The frozen snapshot is deliberately STALE (over 0 / no deduct) to prove
+        // the draft derives the deduction live and publish freezes the live value.
         chargedMinutes: 420,
-        deductAmount: new Prisma.Decimal(650),
+        overQuotaMinutes: 0,
+        deductAmount: null,
       },
     });
 
@@ -232,8 +250,8 @@ describe('publishPayroll', () => {
     expect(Number(row.deductSso)).toBe(750); // 5% of capped 15,000
     expect(Number(row.deductAdvance)).toBe(3_000);
     expect(Number(row.deductDebt)).toBe(1_000);
-    expect(Number(row.deductLeave)).toBe(650);
-    expect(Number(row.netPay)).toBe(14_600); // 20000 − 750 − 3000 − 1000 − 650
+    expect(Number(row.deductLeave)).toBe(666.67); // derived live, not the stale snapshot
+    expect(Number(row.netPay)).toBe(14_583.33); // 20000 − 750 − 3000 − 1000 − 666.67
 
     // Sweeps stamped.
     const adv = await prisma.cashAdvance.findUniqueOrThrow({ where: { id: advance.id } });
@@ -244,8 +262,67 @@ describe('publishPayroll', () => {
     expect(rec.monthsRemaining).toBe(1);
     expect(rec.endedAt).toBeNull();
 
+    // Leave stamped AND the live value FROZEN onto the row (it must never move
+    // again once paid, even if the entitlement is later edited).
     const lv = await prisma.leaveRequest.findUniqueOrThrow({ where: { id: leave.id } });
     expect(lv.deductedInPayrollId).toBe(row.id);
+    expect(lv.overQuotaMinutes).toBe(420);
+    expect(Number(lv.deductAmount)).toBe(666.67);
+  });
+
+  it('derives leave deduction live from the entitlement, then freezes it at publish', async () => {
+    // The whole point of derive-on-read: editing an entitlement must change the
+    // NEXT draft with zero manual recompute, and publishing must freeze the
+    // value so a later entitlement edit can never move a paid payroll.
+    const emp = await makeEmployee({ baseSalary: 20_000 });
+    const leaveType = await prisma.leaveType.create({
+      data: { name: `LT-${uid().slice(0, 8)}`, overQuotaPolicy: 'DeductPay', annualQuota: 3 },
+    });
+    // Start fully within quota (1 granted day vs a 1-day leave) → no deduction.
+    const ent = await prisma.leaveEntitlement.create({
+      data: {
+        employeeId: emp.id,
+        leaveTypeId: leaveType.id,
+        periodYear: 2026,
+        grantedMinutes: 420,
+        carryoverMinutes: 0,
+        adjustmentMinutes: 0,
+      },
+    });
+    await prisma.leaveRequest.create({
+      data: {
+        employeeId: emp.id,
+        leaveTypeId: leaveType.id,
+        startDate: inMonth,
+        endDate: inMonth,
+        reason: 'leave',
+        status: 'Approved',
+        chargedMinutes: 420,
+      },
+    });
+
+    await runPayrollDraft(MONTH);
+    let row = await prisma.payroll.findFirstOrThrow({
+      where: { employeeId: emp.id, month: MONTH },
+    });
+    expect(Number(row.deductLeave)).toBe(0); // within quota
+
+    // Shrink the entitlement to zero — NO recompute tool is run.
+    await prisma.leaveEntitlement.update({ where: { id: ent.id }, data: { grantedMinutes: 0 } });
+
+    await runPayrollDraft(MONTH); // draft re-derives live
+    row = await prisma.payroll.findFirstOrThrow({ where: { employeeId: emp.id, month: MONTH } });
+    expect(Number(row.deductLeave)).toBe(666.67); // now fully over quota — no manual step
+
+    await publishPayroll(MONTH); // freezes the live value onto the leave + payroll
+
+    // Grow the entitlement back AFTER publish — the paid payroll must not move.
+    await prisma.leaveEntitlement.update({ where: { id: ent.id }, data: { grantedMinutes: 420 } });
+    const res = await runPayrollDraft(MONTH);
+    expect(res.frozen).toBe(1);
+    expect(res.calculated).toBe(0);
+    row = await prisma.payroll.findFirstOrThrow({ where: { employeeId: emp.id, month: MONTH } });
+    expect(Number(row.deductLeave)).toBe(666.67); // frozen, even though quota now covers it
   });
 
   it('is idempotent — re-publishing does not double-sweep', async () => {
