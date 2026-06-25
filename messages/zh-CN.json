@@ -486,5 +486,21 @@
     "net": "实发工资",
     "backToSummary": "我的汇总",
     "backToCheckin": "返回打卡页面"
+  },
+  "payslipPdf": {
+    "employee": "员工",
+    "employeeId": "员工编号",
+    "payPeriod": "工资周期",
+    "payType": "薪资类型",
+    "generatedOn": "生成日期",
+    "issued": "已签发",
+    "disclaimer": "本文件由系统自动生成，无需签名。",
+    "kept": "实得",
+    "download": "下载 PDF",
+    "detail": {
+      "sso": "{pct}% · cap ฿{cap}",
+      "advance": "{count}× advance",
+      "leave": "{minutes} min × ฿{rate}"
+    }
   }
 }

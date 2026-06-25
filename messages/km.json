@@ -486,5 +486,21 @@
     "net": "ប្រាក់ខែសុទ្ធ",
     "backToSummary": "សង្ខេបរបស់ខ្ញុំ",
     "backToCheckin": "ត្រឡប់ទៅទំព័រ check-in"
+  },
+  "payslipPdf": {
+    "employee": "បុគ្គលិក",
+    "employeeId": "លេខសម្គាល់បុគ្គលិក",
+    "payPeriod": "រយៈពេលប្រាក់ខែ",
+    "payType": "ប្រភេទប្រាក់ខែ",
+    "generatedOn": "បង្កើតនៅ",
+    "issued": "បានចេញ",
+    "disclaimer": "ឯកសារនេះបង្កើតដោយប្រព័ន្ធ មិនតម្រូវឱ្យចុះហត្ថលេខាទេ។",
+    "kept": "ទទួលបាន",
+    "download": "ទាញយក PDF",
+    "detail": {
+      "sso": "{pct}% · cap ฿{cap}",
+      "advance": "{count}× advance",
+      "leave": "{minutes} min × ฿{rate}"
+    }
   }
 }

@@ -521,5 +521,21 @@
     "net": "Net pay",
     "backToSummary": "My summary",
     "backToCheckin": "Back to check-in"
+  },
+  "payslipPdf": {
+    "employee": "Employee",
+    "employeeId": "Employee ID",
+    "payPeriod": "Pay period",
+    "payType": "Pay type",
+    "generatedOn": "Generated on",
+    "issued": "Issued",
+    "disclaimer": "This is a system-generated document. No signature required.",
+    "kept": "Take-home",
+    "download": "Download PDF",
+    "detail": {
+      "sso": "{pct}% · cap ฿{cap}",
+      "advance": "{count}× advance",
+      "leave": "{minutes} min × ฿{rate}"
+    }
   }
 }
