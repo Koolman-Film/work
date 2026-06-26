@@ -7,14 +7,13 @@
  * to the employee (Thai labor convention — they signed the contract).
  */
 
-import { requireRole } from '@/lib/auth/require-role';
+import { requireEmployee } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
 import { resolveStoredImageUrl } from '@/lib/storage/signed-urls';
 import { ProfileView } from './profile-view';
 
 export default async function LiffProfilePage() {
-  const { employee } = await requireRole(['Staff']);
-  if (!employee) throw new Error('requireRole did not return Employee');
+  const { employee } = await requireEmployee();
 
   // Re-fetch to pick up branch + department names (requireRole only returns
   // the bare Employee row). One round-trip; pages don't run often.

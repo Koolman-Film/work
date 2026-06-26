@@ -8,7 +8,7 @@
 
 import { redirect } from 'next/navigation';
 import { getLocale } from 'next-intl/server';
-import { requireRole } from '@/lib/auth/require-role';
+import { requireEmployee } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
 import type { Locale } from '@/lib/i18n/config';
 import { remainingByTypeForEmployee } from '@/lib/leave/balance';
@@ -19,7 +19,7 @@ import { standardDayMinutes } from '@/lib/leave/units';
 import { LeaveNewForm } from './leave-new-form';
 
 export default async function NewLeavePage() {
-  const { employee } = await requireRole(['Staff']);
+  const { employee } = await requireEmployee();
 
   const [rawLeaveTypes, leaveConfig, locale, payCfg] = await Promise.all([
     prisma.leaveType.findMany({

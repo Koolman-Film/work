@@ -8,6 +8,7 @@ import { loadEmployeeFormOptions } from '../../_load-options';
 import { archiveEmployee, deleteEmployee, updateEmployee } from '../../actions';
 import { EmployeeForm } from '../../employee-form';
 import { PairingCard } from '../../pairing-card';
+import { AdminAccessSection } from './admin-access-section';
 import { DangerActions } from './danger-actions';
 import { EntitlementsSection } from './entitlements-section';
 import { LocaleDefaultCard } from './locale-default-card';
@@ -29,7 +30,7 @@ export default async function EditEmployeePage({
   );
   const year = yearParam && /^\d{4}$/.test(yearParam) ? Number(yearParam) : currentYear;
 
-  const [emp, options] = await Promise.all([
+  const [emp, options, adminAssignment] = await Promise.all([
     prisma.employee.findUnique({
       where: { id },
       select: {
@@ -63,6 +64,13 @@ export default async function EditEmployeePage({
       },
     }),
     loadEmployeeFormOptions(),
+    prisma.userRoleAssignment.findFirst({
+      where: {
+        user: { employee: { id } },
+        role: { OR: [{ key: 'admin' }, { isSuperadmin: true }], archivedAt: null },
+      },
+      select: { id: true },
+    }),
   ]);
   if (!emp) notFound();
 
@@ -138,6 +146,7 @@ export default async function EditEmployeePage({
         belowForm={
           <div className="mt-6 space-y-6">
             <EntitlementsSection employeeId={id} year={year} />
+            <AdminAccessSection employeeId={id} isAlreadyAdmin={adminAssignment !== null} />
             <LocaleDefaultCard
               employeeId={emp.id}
               currentLocale={isLocale(emp.user.locale) ? emp.user.locale : null}
