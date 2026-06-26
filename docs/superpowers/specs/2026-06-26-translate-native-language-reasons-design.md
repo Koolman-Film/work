@@ -119,9 +119,15 @@ admin clicks "แปลเป็นไทย"
   entity-decodes; throws on non-200 and on missing key.
 - **Unit `actions.test.ts`** — mocked Prisma + mocked `translateOnce`:
   cache hit returns without calling Google; cache miss calls Google then persists;
-  empty input short-circuits; authn is required.
-- **Component `translatable-text.test.tsx`** — button → loading → shows-both;
-  already-Thai branch; error branch keeps original visible and offers retry.
+  empty input short-circuits; authn is required; P2002 race re-reads the cache.
+- **Unit `hash.test.ts`** — `sourceHashFor` is a stable lowercase sha256 that
+  trims surrounding whitespace.
+- **Unit `translatable-text.helpers.test.ts`** — the component's real logic
+  lives in pure helpers (`languageNameTh`, `isAlreadyTarget`) tested in the node
+  env. The repo has no React-component test harness (UI is covered by e2e/manual,
+  per `vitest.config.ts`), so we deliberately did NOT introduce happy-dom; the
+  thin React shell (button → loading → shows-both / already-Thai / error) is
+  verified manually + e2e.
 
 ## Out of scope (YAGNI)
 
