@@ -543,5 +543,16 @@
       "leave": "{minutes} min × ฿{rate}",
       "attendance": "{absent} absent · {late} late"
     }
+  },
+  "liffHome": {
+    "greeting": "สวัสดี {name}",
+    "employeeGroup": "เมนูพนักงาน",
+    "adminGroup": "เมนูผู้ดูแล",
+    "checkIn": "ลงเวลา",
+    "leave": "ขอลา",
+    "advance": "เบิกเงิน",
+    "approvals": "อนุมัติ",
+    "dashboard": "ภาพรวม",
+    "reports": "รายงาน"
   }
 }

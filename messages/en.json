@@ -543,5 +543,16 @@
       "leave": "{minutes} min × ฿{rate}",
       "attendance": "{absent} absent · {late} late"
     }
+  },
+  "liffHome": {
+    "greeting": "Hi {name}",
+    "employeeGroup": "Employee",
+    "adminGroup": "Admin",
+    "checkIn": "Check in",
+    "leave": "Leave",
+    "advance": "Advance",
+    "approvals": "Approvals",
+    "dashboard": "Dashboard",
+    "reports": "Reports"
   }
 }

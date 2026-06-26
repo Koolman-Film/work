@@ -508,5 +508,16 @@
       "leave": "{minutes} min × ฿{rate}",
       "attendance": "{absent} absent · {late} late"
     }
+  },
+  "liffHome": {
+    "greeting": "សួស្តី {name}",
+    "employeeGroup": "ម៉ឺនុយបុគ្គលិក",
+    "adminGroup": "ម៉ឺនុយអ្នកគ្រប់គ្រង",
+    "checkIn": "ចុះម៉ោង",
+    "leave": "សុំច្បាប់",
+    "advance": "បើកប្រាក់",
+    "approvals": "អនុម័ត",
+    "dashboard": "ទិដ្ឋភាព",
+    "reports": "របាយការណ៍"
   }
 }
