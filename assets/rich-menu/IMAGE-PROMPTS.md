@@ -79,12 +79,12 @@ Generate at the highest resolution available, then upscale to the menu size
 > 3D rendered icon illustration in soft rounded clay/plasticine style, smooth matte
 > surfaces, gentle studio lighting with soft shadows, friendly modern product-icon
 > aesthetic, 1:1 square.
-> BACKGROUND: solid soft mint-green, hex #E9F6EE.
-> SUBJECT: a small stack of rounded documents with a glossy green "approved"
-> check-stamp (hex #2EA86A) pressing the top sheet, plus a floating green circular
+> BACKGROUND: solid soft teal, hex #E0F2F1.
+> SUBJECT: a small stack of rounded documents with a glossy teal "approved"
+> check-stamp (hex #0D9488) pressing the top sheet, plus a floating teal circular
 > checkmark badge.
-> TEXT headline (large, bold, Thai, color #14532D): "อนุมัติ"
-> TEXT subtitle (small, color #3E7A57): "Approvals · អនុម័ត · ອະນຸມັດ · 审批 · အတည်ပြု"
+> TEXT headline (large, bold, Thai, color #0F5D57): "อนุมัติ"
+> TEXT subtitle (small, color #3C8079): "Approvals · អនុម័ត · ອະນຸມັດ · 审批 · အတည်ပြု"
 > Generous margin, no extra words, no people, no watermark.
 
 ## 6. ภาพรวม — Dashboard  (admin)
@@ -92,12 +92,12 @@ Generate at the highest resolution available, then upscale to the menu size
 > 3D rendered icon illustration in soft rounded clay/plasticine style, smooth matte
 > surfaces, gentle studio lighting with soft shadows, friendly modern product-icon
 > aesthetic, 1:1 square.
-> BACKGROUND: solid soft sky-blue, hex #E8F1FC.
+> BACKGROUND: solid soft indigo-lavender, hex #ECEAFB.
 > SUBJECT: a floating rounded dashboard panel showing a small bar chart and a rising
-> line graph (accent blue hex #2D6CDF), with a separate little donut/pie chart and an
-> upward arrow beside it.
-> TEXT headline (large, bold, Thai, color #1E3A5F): "ภาพรวม"
-> TEXT subtitle (small, color #4B6B93): "Dashboard · ទិដ្ឋភាព · ພາບລວມ · 概览 · ခြုံငုံ"
+> line graph (accent indigo hex #5B46D6), with a separate little donut/pie chart and
+> an upward arrow beside it.
+> TEXT headline (large, bold, Thai, color #2E2570): "ภาพรวม"
+> TEXT subtitle (small, color #5A50B0): "Dashboard · ទិដ្ឋភាព · ພາບລວມ · 概览 · ခြုံငုံ"
 > Generous margin, no extra words, no people, no watermark.
 
 ## 7. รายงาน — Reports  (admin)
@@ -105,12 +105,12 @@ Generate at the highest resolution available, then upscale to the menu size
 > 3D rendered icon illustration in soft rounded clay/plasticine style, smooth matte
 > surfaces, gentle studio lighting with soft shadows, friendly modern product-icon
 > aesthetic, 1:1 square.
-> BACKGROUND: solid soft lavender, hex #F1ECFB.
+> BACKGROUND: solid soft rose, hex #FBEAF1.
 > SUBJECT: a printed report document with a tidy bar chart and pie chart on it
 > (abstract bars/wedges, no readable words), a couple of sheets stacked behind, and a
-> small magnifier resting on top; main accent color purple hex #7C5BD6.
-> TEXT headline (large, bold, Thai, color #3A2A6B): "รายงาน"
-> TEXT subtitle (small, color #6A5A93): "Reports · របាយការណ៍ · ລາຍງານ · 报表 · အစီရင်ခံစာ"
+> small magnifier resting on top; main accent color rose hex #C03A6E.
+> TEXT headline (large, bold, Thai, color #7A2447): "รายงาน"
+> TEXT subtitle (small, color #A85C7C): "Reports · របាយការណ៍ · ລາຍງານ · 报表 · အစီရင်ခံစာ"
 > Generous margin, no extra words, no people, no watermark.
 
 ---
@@ -128,5 +128,7 @@ Generate at the highest resolution available, then upscale to the menu size
 | Square tiles (1:1) | top ~40% | bottom ~60% |
 
 Keep each illustration's dominant color equal to that tile's accent hex so art and
-panel feel unified. Brand palette: blue #2D6CDF · orange #E08A2B · green #2EA86A ·
-purple #7C5BD6, on pastels #E8F1FC / #FBF1E8 / #E9F6EE / #F1ECFB.
+panel feel unified. The admin trio is deliberately distinct from the employee colors
+so the two groups read apart in the combined menu:
+- **Employee:** check-in blue #2D6CDF · leave orange #E08A2B · advance green #2EA86A · calendar purple #7C5BD6
+- **Admin:** approvals teal #0D9488 · dashboard indigo #5B46D6 · reports rose #C03A6E
