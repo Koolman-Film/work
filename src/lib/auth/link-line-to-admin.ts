@@ -22,7 +22,7 @@ import { Prisma } from '@prisma/client';
 import { headers } from 'next/headers';
 import { auditLogTx } from '@/lib/audit/log';
 import { prisma } from '@/lib/db/prisma';
-import { linkAdminRichMenu } from '@/lib/line/rich-menu';
+import { syncRichMenuForUser } from '@/lib/line/rich-menu';
 import { verifyAdminPairingToken } from '@/lib/pairing/token';
 import { createClient } from '@/lib/supabase/server';
 
@@ -162,15 +162,9 @@ export async function linkLineToAdmin(input: {
 
     if (result.kind === 'err') return err(result.code);
 
-    // Best-effort rich menu link after commit — never fails the pairing.
-    try {
-      await linkAdminRichMenu(lineUserId);
-    } catch (richErr) {
-      console.error('[link-line-to-admin] rich menu link failed (non-fatal)', {
-        lineUserId,
-        error: String(richErr),
-      });
-    }
+    // Best-effort: apply the capability-driven menu (admin, or combined if
+    // this admin is also an employee). syncRichMenuForUser never throws.
+    await syncRichMenuForUser(userId);
 
     return { ok: true };
   } catch (txErr) {
