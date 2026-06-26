@@ -1,9 +1,12 @@
 import type { Locale } from '@/lib/i18n/config';
 import type { LocalizedText, Tour, UpdateItem } from './types';
 
-/** Localized value for `locale`, falling back to the required `th` source. */
+/** Localized value for `locale`, falling back to the required `th` source.
+ *  `LocalizedText` only declares `th`/`en`; any other locale (my/lo/zh-CN/km)
+ *  is intentionally absent and falls back to `th`. The widened index type
+ *  models that — reading an undeclared locale yields `undefined`. */
 export function pickText(text: LocalizedText, locale: Locale): string {
-  return text[locale] ?? text.th;
+  return (text as Partial<Record<Locale, string>>)[locale] ?? text.th;
 }
 
 /** Newest-first by `date`. Returns a new array; does not mutate input. */
