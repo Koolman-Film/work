@@ -8,6 +8,7 @@
  */
 
 import { computeTier, type TierAssignment } from '@/lib/auth/user-tier';
+import { prisma } from '@/lib/db/prisma';
 import { getLineMessagingClient } from './messaging-client';
 
 export async function linkAdminRichMenu(lineUserId: string): Promise<void> {
@@ -55,4 +56,57 @@ export function resolveCapabilities(user: {
     hasEmployee: user.employee !== null,
     hasAdmin: tier === 'Admin' || tier === 'Superadmin',
   };
+}
+
+/**
+ * Best-effort: bring a user's per-user rich-menu link in line with their
+ * current capabilities. No-op if the user has no LINE bound. Never throws —
+ * a LINE failure must not break the pairing / merge / role-change that
+ * triggered it.
+ */
+export async function syncRichMenuForUser(userId: string): Promise<void> {
+  let user: {
+    lineUserId: string | null;
+    employee: { id: string } | null;
+    roleAssignments: TierAssignment[];
+  } | null;
+  try {
+    user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        lineUserId: true,
+        employee: { select: { id: true } },
+        roleAssignments: {
+          select: { role: { select: { key: true, isSuperadmin: true, archivedAt: true } } },
+        },
+      },
+    });
+  } catch (err) {
+    console.error('[rich-menu] sync load failed (non-fatal)', { userId, err: String(err) });
+    return;
+  }
+  if (!user?.lineUserId) return;
+
+  const lineUserId = user.lineUserId;
+  const target = computeMenuTarget(resolveCapabilities(user));
+  try {
+    const client = getLineMessagingClient();
+    if (target === 'none') {
+      await client.unlinkRichMenuIdFromUser(lineUserId);
+      return;
+    }
+    const richMenuId =
+      target === 'combined' ? process.env.COMBINED_RICH_MENU_ID : process.env.ADMIN_RICH_MENU_ID;
+    if (!richMenuId) {
+      console.warn('[rich-menu] menu id env not set — skipping link', { target });
+      return;
+    }
+    await client.linkRichMenuIdToUser(lineUserId, richMenuId);
+  } catch (err) {
+    console.error('[rich-menu] sync apply failed (non-fatal)', {
+      userId,
+      target,
+      err: String(err),
+    });
+  }
 }
