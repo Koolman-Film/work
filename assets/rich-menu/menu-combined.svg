@@ -1,0 +1,33 @@
+<svg viewBox="0 0 2500 1686" xmlns="http://www.w3.org/2000/svg" style="font-family:'Noto Sans Thai','Noto Sans','Noto Sans Lao','Noto Sans Myanmar','Noto Sans Khmer','Noto Sans SC',sans-serif">
+  <rect width="2500" height="1686" fill="#ffffff"/>
+  <rect x="16" y="16" width="806" height="818" rx="24" fill="#E8F1FC"/>
+  <circle cx="420" cy="250" r="92" fill="#2D6CDF"/><path d="M376 252 l30 32 l58 -70" fill="none" stroke="#fff" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="420" y="540" font-size="130" font-weight="800" fill="#1E3A5F" text-anchor="middle">เข้างาน</text>
+  <text x="420" y="640" font-size="36" fill="#4B6B93" text-anchor="middle">Check-in · ចុះម៉ោង</text>
+  <text x="420" y="694" font-size="36" fill="#4B6B93" text-anchor="middle">ລົງເວລາ · 打卡 · အချိန်မှတ်</text>
+  <rect x="846" y="16" width="806" height="818" rx="24" fill="#FBF1E8"/>
+  <rect x="1200" y="150" width="100" height="130" rx="12" fill="#fff" stroke="#E08A2B" stroke-width="8"/><rect x="1228" y="134" width="44" height="26" rx="8" fill="#E08A2B"/>
+  <text x="1249" y="540" font-size="130" font-weight="800" fill="#7A4A12" text-anchor="middle">ขอลา</text>
+  <text x="1249" y="640" font-size="36" fill="#9A7A52" text-anchor="middle">Leave · សុំច្បាប់ · ຂໍລາ</text>
+  <text x="1249" y="694" font-size="36" fill="#9A7A52" text-anchor="middle">请假 · ခွင့်တောင်း</text>
+  <rect x="1676" y="16" width="808" height="818" rx="24" fill="#E9F6EE"/>
+  <rect x="2030" y="150" width="120" height="100" rx="16" fill="#2EA86A"/><circle cx="2150" cy="210" r="22" fill="#F2C94C"/>
+  <text x="2080" y="540" font-size="130" font-weight="800" fill="#14532D" text-anchor="middle">ขอเบิก</text>
+  <text x="2080" y="640" font-size="36" fill="#3E7A57" text-anchor="middle">Advance · បើកប្រាក់</text>
+  <text x="2080" y="694" font-size="36" fill="#3E7A57" text-anchor="middle">ເບີກເງິນ · 预支 · ကြိုတင်ထုတ်</text>
+  <rect x="16" y="852" width="806" height="818" rx="24" fill="#EAF4EE"/>
+  <circle cx="420" cy="1070" r="92" fill="#2EA86A"/><path d="M376 1072 l30 32 l58 -70" fill="none" stroke="#fff" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="420" y="1370" font-size="130" font-weight="800" fill="#14532D" text-anchor="middle">อนุมัติ</text>
+  <text x="420" y="1470" font-size="36" fill="#3E7A57" text-anchor="middle">Approvals · អនុម័ត</text>
+  <text x="420" y="1524" font-size="36" fill="#3E7A57" text-anchor="middle">ອະນຸມັດ · 审批 · အတည်ပြု</text>
+  <rect x="846" y="852" width="806" height="818" rx="24" fill="#E8F1FC"/>
+  <rect x="1180" y="980" width="44" height="90" rx="10" fill="#2D6CDF"/><rect x="1250" y="930" width="44" height="140" rx="10" fill="#2D6CDF"/><rect x="1320" y="900" width="44" height="170" rx="10" fill="#2D6CDF"/>
+  <text x="1249" y="1370" font-size="130" font-weight="800" fill="#1E3A5F" text-anchor="middle">ภาพรวม</text>
+  <text x="1249" y="1470" font-size="36" fill="#4B6B93" text-anchor="middle">Dashboard · ទិដ្ឋភាព</text>
+  <text x="1249" y="1524" font-size="36" fill="#4B6B93" text-anchor="middle">ພາບລວມ · 概览 · ခြုံငုံ</text>
+  <rect x="1676" y="852" width="808" height="818" rx="24" fill="#F1ECFB"/>
+  <rect x="2020" y="930" width="120" height="160" rx="14" fill="#fff" stroke="#7C5BD6" stroke-width="8"/><rect x="2044" y="966" width="72" height="11" rx="5" fill="#C9B8EE"/><rect x="2044" y="998" width="72" height="11" rx="5" fill="#C9B8EE"/><rect x="2044" y="1030" width="48" height="11" rx="5" fill="#C9B8EE"/>
+  <text x="2080" y="1370" font-size="130" font-weight="800" fill="#3A2A6B" text-anchor="middle">รายงาน</text>
+  <text x="2080" y="1470" font-size="36" fill="#6A5A93" text-anchor="middle">Reports · របាយការណ៍</text>
+  <text x="2080" y="1524" font-size="36" fill="#6A5A93" text-anchor="middle">ລາຍງານ · 报表 · အစီရင်ခံစာ</text>
+</svg>
