@@ -26,6 +26,7 @@ import { prisma } from '@/lib/db/prisma';
 import { getOrgCalendarData } from '@/lib/leave/team-calendar';
 import { currentMonthYM, parseMonth } from '@/lib/leave/team-calendar-shape';
 import { DashboardCalendarSummary } from './_calendar/dashboard-calendar-summary';
+import { MergePromptCard } from './_components/merge-prompt-card';
 
 /**
  * Re-render the dashboard at most every 30 seconds.
@@ -91,9 +92,11 @@ export default async function AdminHomePage() {
   const calMonth = parseMonth(initialYm);
   if (!calMonth) throw new Error('Could not parse current month — date system broken?');
 
-  // Single round-trip via Promise.all. Each query is small (~tens of rows
-  // max at Phase-1 scale); the parallelism is mainly latency, not load.
+  // Fetch current user's employee relation + dismiss flag to decide whether
+  // to show the "link your employee account" card. Done in the same Promise.all
+  // below so it doesn't add latency.
   const [
+    me,
     pendingLeaveCount,
     pendingAdvanceCount,
     checkedInTodayRows,
@@ -105,6 +108,10 @@ export default async function AdminHomePage() {
     onLeaveToday,
     initialCalendar,
   ] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: user.id },
+      select: { employee: { select: { id: true } }, mergePromptDismissedAt: true },
+    }),
     prisma.leaveRequest.count({ where: { status: 'Pending' } }),
     prisma.cashAdvance.count({ where: { status: 'Pending' } }),
     prisma.attendance.findMany({
@@ -172,6 +179,11 @@ export default async function AdminHomePage() {
     }),
     getOrgCalendarData({ monthStart: calMonth.start, monthEnd: calMonth.end }),
   ]);
+
+  // Show the "link your employee account" card only to pure admins (no Employee
+  // row) who haven't dismissed it. The layout already enforced Admin/Superadmin,
+  // so we only need the employee + dismissed checks here.
+  const showMergeCard = me !== null && me.employee === null && me.mergePromptDismissedAt === null;
 
   const checkedInTodayCount = checkedInTodayRows.length;
   const onLeaveTodayCount = onLeaveTodayRows.length;
@@ -274,6 +286,8 @@ export default async function AdminHomePage() {
           )
         }
       />
+
+      {showMergeCard && <MergePromptCard />}
 
       {/* Attendance hero + pending-count stats */}
       <div className="grid gap-4 lg:grid-cols-3">

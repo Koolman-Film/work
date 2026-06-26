@@ -543,5 +543,35 @@
       "leave": "{minutes} min × ฿{rate}",
       "attendance": "{absent} absent · {late} late"
     }
+  },
+  "liffHome": {
+    "greeting": "Hi {name}",
+    "employeeGroup": "Employee",
+    "adminGroup": "Admin",
+    "checkIn": "Check in",
+    "leave": "Leave",
+    "advance": "Advance",
+    "approvals": "Approvals",
+    "dashboard": "Dashboard",
+    "reports": "Reports"
+  },
+  "adminAccess": {
+    "title": "Admin access",
+    "description": "Let this employee use admin tools (approvals, etc.) with the same LINE account",
+    "grant": "Grant admin access",
+    "alreadyAdmin": "Already an admin — manage roles on the Team page"
+  },
+  "mergeWizard": {
+    "working": "Linking your accounts…",
+    "successTitle": "Accounts linked",
+    "successBody": "You can now use this LINE account for both employee and admin tools.",
+    "errorTitle": "Couldn't link accounts",
+    "retry": "Try again",
+    "openHome": "Go to home",
+    "cardTitle": "Link your employee account",
+    "cardBody": "If you're also an employee here, link accounts to use one LINE for both menus.",
+    "cardCta": "Link account",
+    "dismiss": "Not now",
+    "scanHint": "Open this with your employee LINE account."
   }
 }

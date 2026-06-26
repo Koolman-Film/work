@@ -54,7 +54,7 @@ import { computeTier } from './user-tier';
 
 export type RequireRoleResult = {
   user: User;
-  /** Eagerly loaded when the user is Staff tier; undefined otherwise. */
+  /** Present for any user who has an Employee record; undefined when the user has no Employee row (e.g. a pure admin). */
   employee?: Employee;
   /** Computed from active role assignments — see computeTier(). */
   tier: Role;
@@ -147,16 +147,27 @@ export async function requireRole(roles: readonly Role[]): Promise<RequireRoleRe
 }
 
 /**
- * Variant used by LIFF endpoints that need to enforce check-in eligibility
- * on top of just "authenticated employee". Combines requireRole(['Staff'])
- * with status/canCheckIn checks.
+ * Any authenticated user that HAS an Employee record — regardless of tier.
+ * This is the source-of-truth gate for employee-facing features: an
+ * admin-employee computes to tier 'Admin' (computeTier is highest-wins) yet
+ * is still a worker, so we must NOT gate on tier === 'Staff'. Pure admins
+ * (no Employee) are rejected here exactly as the old Staff gate rejected them.
+ */
+export async function requireEmployee(): Promise<RequireRoleResult & { employee: Employee }> {
+  const result = await requireRole(['Staff', 'Admin', 'Superadmin']);
+  if (!result.employee) notFound();
+  return { ...result, employee: result.employee };
+}
+
+/**
+ * Check-in eligibility: an employee who is Active and allowed to check in.
+ * Builds on requireEmployee so admin-employees can check in too.
  */
 export async function requireCheckInPermission(): Promise<
   RequireRoleResult & { employee: Employee }
 > {
-  const result = await requireRole(['Staff']);
-  if (!result.employee) notFound();
+  const result = await requireEmployee();
   if (result.employee.status === 'Archived') notFound();
   if (!result.employee.canCheckIn) notFound();
-  return { ...result, employee: result.employee };
+  return result;
 }

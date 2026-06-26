@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { advanceBalanceFor } from '@/lib/advance/available';
-import { requireRole } from '@/lib/auth/require-role';
+import { requireEmployee } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
 import type { Locale } from '@/lib/i18n/config';
 import { formatMoney } from '@/lib/i18n/format';
@@ -39,8 +39,7 @@ export default async function LiffSummaryPage({
 }: {
   searchParams: Promise<{ m?: string }>;
 }) {
-  const { employee } = await requireRole(['Staff']);
-  if (!employee) throw new Error('requireRole did not return Employee');
+  const { employee } = await requireEmployee();
   const params = await searchParams;
   const todayYmd = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
   const period = resolveReportPeriod({ m: params.m }, todayYmd);

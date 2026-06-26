@@ -19,7 +19,7 @@ import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
 import { getTranslations } from 'next-intl/server';
 import { auditLog } from '@/lib/audit/log';
-import { requireRole } from '@/lib/auth/require-role';
+import { requireEmployee } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
 
 export type UpdateProfileInput = {
@@ -75,13 +75,10 @@ function normalize(v: string | null | undefined): string | null {
 }
 
 export async function updateOwnProfile(input: UpdateProfileInput): Promise<UpdateProfileResult> {
-  const { user, employee } = await requireRole(['Staff']);
+  const { user, employee } = await requireEmployee();
   // Worker-facing strings localized to the requester's locale (NEXT_LOCALE
   // cookie); `code`/`field` stay the stable machine-readable discriminants.
   const t = await getTranslations('profile');
-  if (!employee) {
-    return { ok: false, code: 'forbidden', message: t('errors.noEmployee') };
-  }
   if (employee.archivedAt || employee.status === 'Archived') {
     return { ok: false, code: 'forbidden', message: t('errors.employeeArchived') };
   }

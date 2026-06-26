@@ -15,17 +15,14 @@
 import { toZonedTime } from 'date-fns-tz';
 import { getLocale } from 'next-intl/server';
 import { getCheckInState } from '@/lib/attendance/check-in';
-import { requireRole } from '@/lib/auth/require-role';
+import { requireEmployee } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
 import type { Locale } from '@/lib/i18n/config';
 import { formatDate } from '@/lib/i18n/format';
 import CheckInClient from './check-in-client';
 
 export default async function LiffCheckInPage() {
-  const { employee } = await requireRole(['Staff']);
-  if (!employee) {
-    throw new Error('requireRole did not return an Employee — should have notFound()');
-  }
+  const { employee } = await requireEmployee();
 
   const [state, branchInfo, locale] = await Promise.all([
     getCheckInState(),

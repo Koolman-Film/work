@@ -6,37 +6,27 @@ import { createClient } from '@/lib/supabase/server';
 /**
  * Bare-domain router — sends every visitor to the right destination.
  *
- *   - Unauthenticated   → /login
- *   - Admin             → /admin
- *   - Superadmin        → /admin   (full powers; can still navigate to
- *                                   /owner for the read-only dashboard)
- *   - Staff             → /liff/check-in
- *   - Auth-but-no-User  → /login   (defensive — happens mid-seed only)
- *   - Auth-but-archived → /login   (former employee revoked)
+ *   - Unauthenticated          → /login
+ *   - Admin-employee (both)    → /liff/home  (unified identity home)
+ *   - Employee-only            → /liff/check-in
+ *   - Admin/Superadmin-only    → /admin
+ *   - Auth-but-no-User         → /login  (defensive — happens mid-seed only)
+ *   - Auth-but-archived        → /login  (former employee revoked)
+ *
+ * Routing is on two real booleans derived from the DB:
+ *   hasEmployee    — the User has an Employee record
+ *   isAdminCapable — computed tier is Admin or Superadmin
+ *
+ * This replaces the old TIER_HOMES map (highest-wins tier → single route),
+ * which could never reach /liff/home for an admin-employee because
+ * computeTier returns 'Admin' (highest wins) and the map sent that to /admin.
  *
  * Why route from here rather than middleware?
  *   - Middleware only knows "is there a session"; it can't query our User
  *     table for `role`. Doing the role lookup in middleware would require
  *     a DB call on every request, including statics. Cheaper to route once
  *     at "/" and let `requireRole()` in the destination guard the rest.
- *
- * History: the Owner→Superadmin and Employee→Staff enum rename in
- * migration 0009 broke this map because the keys were UNQUOTED object
- * literal keys — the bulk sed (which targeted only single-quoted enum
- * literals) skipped them. Result: a redirect loop for Superadmin/Staff
- * users — ROLE_HOMES[user.role] returned undefined → fall through to
- * /login → proxy bounces back → loop. Fixed 2026-05-28.
- *
- * Phase 4: tier is now computed from role assignments (not the legacy
- * User.role enum). The map keys are the tier strings returned by
- * computeTier(). Same shape, computed-not-read.
  */
-
-const TIER_HOMES: Record<string, string> = {
-  Admin: '/admin',
-  Superadmin: '/admin',
-  Staff: '/liff/check-in',
-};
 
 export default async function HomePage() {
   const supabase = await createClient();
@@ -53,6 +43,7 @@ export default async function HomePage() {
       where: { authUserId: authUser.id },
       select: {
         archivedAt: true,
+        employee: { select: { id: true } },
         roleAssignments: {
           select: {
             role: { select: { key: true, isSuperadmin: true, archivedAt: true } },
@@ -62,8 +53,12 @@ export default async function HomePage() {
     });
     if (user && !user.archivedAt) {
       const tier = computeTier(user.roleAssignments);
-      const home = tier ? TIER_HOMES[tier] : null;
-      if (home) redirect(home);
+      const hasEmployee = user.employee !== null;
+      const isAdminCapable = tier === 'Admin' || tier === 'Superadmin';
+      if (hasEmployee && isAdminCapable) redirect('/liff/home');
+      if (hasEmployee) redirect('/liff/check-in');
+      if (isAdminCapable) redirect('/admin');
+      // else: no employee and no admin tier → fall through to /login
     }
     // User row missing, archived, or no active assignments → fall
     // through to /login. Returning them to login (rather than 404)

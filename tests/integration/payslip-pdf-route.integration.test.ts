@@ -6,6 +6,10 @@ vi.mock('@/lib/auth/require-role', () => ({
     user: { id: '00000000-0000-0000-0000-000000000001' },
     employee: { id: '00000000-0000-0000-0000-000000000002', status: 'Active' },
   })),
+  requireEmployee: vi.fn(async () => ({
+    user: { id: '00000000-0000-0000-0000-000000000001' },
+    employee: { id: '00000000-0000-0000-0000-000000000002', status: 'Active' },
+  })),
 }));
 
 describe('GET /liff/payslip/pdf', () => {

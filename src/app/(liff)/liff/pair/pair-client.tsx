@@ -9,12 +9,20 @@
  *   1. BINDING — `?pair=<jwt>` present (first-time pairing)
  *        liffBootstrap → linkLineToEmployee → redirect to dest or check-in
  *
- *   2. DISPATCH — `?dest=<slug>` present (rich menu deep link, already paired)
+ *   2. ADMIN BINDING — `?pairAdmin=<jwt>` present
+ *        liffBootstrap → linkLineToAdmin → redirect to OA add-friend
+ *
+ *   3. MERGE — `?merge=<jwt>` present (pure-admin scans merge QR)
+ *        liffBootstrap → validate JWT shape → redirect to /liff/merge/<token>
+ *        Token MUST be a compact JWT (three base64url segments) — otherwise
+ *        fall through to default. This prevents path-injection attacks.
+ *
+ *   4. DISPATCH — `?dest=<slug>` present (rich menu deep link, already paired)
  *        liffBootstrap (session is usually warm) → redirect to /liff/<slug>
  *        Slug MUST be in DEST_WHITELIST — otherwise it's ignored and we
  *        fall through to default. This prevents open-redirect attacks.
  *
- *   3. DEFAULT — neither (returning user opened LIFF with no extra state)
+ *   5. DEFAULT — none of the above (returning user opened LIFF with no extra state)
  *        liffBootstrap → redirect to /liff/check-in
  *
  * Lifecycle (single useEffect, runs once on mount):
@@ -25,7 +33,7 @@
  *   │      ├─ supabase.auth.getSession()  (fast-path if already in)   │
  *   │      ├─ liff.getIDToken()                                       │
  *   │      └─ supabase.auth.signInWithIdToken('custom:line')          │
- *   │ 2. Inspect window.location.search for ?pair / ?dest             │
+ *   │ 2. Inspect window.location.search for ?pair / ?pairAdmin / ?merge / ?dest │
  *   │ 3. Branch: BINDING / DISPATCH / DEFAULT  (described above)      │
  *   │ 4. window.location.href = <next page>                           │
  *   └────────────────────────────────────────────────────────────────┘
@@ -80,6 +88,12 @@ const PARAM_DEST_MAP: Record<string, (id: string) => string> = {
   'admin-advance-detail': (id) => `/liff/admin/advance/${id}`,
 };
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/**
+ * Compact-JWT shape: exactly three base64url segments separated by dots.
+ * Used to validate ?merge= before building a path from it — prevents
+ * path-injection like `?merge=../../evil`.
+ */
+const COMPACT_JWT_RE = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
 const DEFAULT_DEST = '/liff/check-in';
 
 /**
@@ -155,12 +169,14 @@ export default function PairClient({
         //   (b) window.location.search after liff.init() — the LIFF case.
         let resolvedToken = pairingToken;
         let resolvedAdminToken = adminPairingToken;
+        let mergeToken: string | null = null;
         let destSlug: string | null = null;
         let destId: string | null = null;
         if (typeof window !== 'undefined') {
           const sp = new URLSearchParams(window.location.search);
           if (!resolvedToken) resolvedToken = sp.get('pair');
           if (!resolvedAdminToken) resolvedAdminToken = sp.get('pairAdmin');
+          mergeToken = sp.get('merge');
           destSlug = sp.get('dest');
           destId = sp.get('id');
         }
@@ -196,6 +212,24 @@ export default function PairClient({
             setState({ phase: 'error', message: adminResult.message, canRetry: false });
           }
           return;
+        }
+
+        // ── Branch A1: MERGE flow (?merge=<jwt>) ─────────────────────
+        // Triggered when a pure admin scans the merge QR issued by
+        // startAdminMerge. After liff.init() unwraps ?liff.state=?merge=<token>
+        // we hand off to the already-built MergeClient at /liff/merge/[token].
+        //
+        // SECURITY: validate the token is a compact JWT (three base64url
+        // segments) before placing it in a URL path. Without this guard an
+        // attacker could craft ?merge=../../evil and path-inject.
+        if (mergeToken) {
+          if (COMPACT_JWT_RE.test(mergeToken)) {
+            // Valid compact JWT — hand off to the merge confirmation page.
+            window.location.assign(`/liff/merge/${encodeURIComponent(mergeToken)}`);
+            return;
+          }
+          // Invalid shape — fall through to default (check-in) silently,
+          // same as an unrecognised ?dest slug.
         }
 
         // ── Branch A: BINDING flow (first-time pair) ─────────────────
