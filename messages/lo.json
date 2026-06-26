@@ -1,4 +1,9 @@
 {
+  "pagination": {
+    "prev": "ກ່ອນໜ້າ",
+    "next": "ຖັດໄປ",
+    "pageOf": "ໜ້າ {page} / {pageCount}"
+  },
   "_meta": {
     "locale": "lo",
     "note": "Lao — AI-DRAFT (profile namespace), pending native review. Other namespaces fall back to en/th until populated."

@@ -7,14 +7,18 @@
  * plus reject and void; decided rows are read-only (with a receipt link).
  */
 
+import type { Prisma } from '@prisma/client';
 import Link from 'next/link';
 import { RestoreButton } from '@/components/admin/void-dialog';
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
+import { ListSearch } from '@/components/ui/list-search';
 import { PageHeader } from '@/components/ui/page-header';
+import { Pagination } from '@/components/ui/pagination';
 import { StatusBadge, type StatusKey } from '@/components/ui/status-badge';
 import { restoreCashAdvance } from '@/lib/advance/void';
 import { prisma, prismaRaw } from '@/lib/db/prisma';
+import { buildPageMeta, pageArgs, parsePageParam } from '@/lib/pagination';
 import { signAttendancePhotoUrls } from '@/lib/storage/signed-urls';
 import { AdvanceInbox, type AdvanceRowVM } from './advance-inbox';
 import {
@@ -26,7 +30,7 @@ import {
   formatAdvanceMoney,
 } from './advance-row-vm';
 
-type SearchParams = Promise<{ status?: string; trash?: string }>;
+type SearchParams = Promise<{ status?: string; trash?: string; q?: string; page?: string }>;
 
 const FILTER_OPTIONS = [
   { value: '', label: 'รออนุมัติ' },
@@ -40,29 +44,72 @@ export default async function AdminAdvanceInboxPage({
 }: {
   searchParams: SearchParams;
 }) {
-  const { status, trash } = await searchParams;
+  const { status, trash, q: qRaw, page: pageRaw } = await searchParams;
   const isTrash = trash === '1';
+  const q = qRaw?.trim() ?? '';
+  const requestedPage = parsePageParam(pageRaw);
 
-  const where = (() => {
+  // Status filter → base where; an employee-name search (q) narrows on top.
+  const where: Prisma.CashAdvanceWhereInput = (() => {
     if (status === 'all') return {};
-    if (status === 'approved') return { status: 'Approved' as const };
-    if (status === 'rejected') return { status: 'Rejected' as const };
-    return { status: 'Pending' as const };
+    if (status === 'approved') return { status: 'Approved' };
+    if (status === 'rejected') return { status: 'Rejected' };
+    return { status: 'Pending' };
   })();
+  if (q) {
+    where.employee = {
+      OR: [
+        { firstName: { contains: q, mode: 'insensitive' } },
+        { lastName: { contains: q, mode: 'insensitive' } },
+        { nickname: { contains: q, mode: 'insensitive' } },
+      ],
+    };
+  }
 
-  const rows = isTrash
-    ? await prismaRaw.cashAdvance.findMany({
-        where: { deletedAt: { not: null } },
-        orderBy: { deletedAt: 'desc' },
-        take: 100,
-        select: ADVANCE_SELECT,
-      })
-    : await prisma.cashAdvance.findMany({
-        where,
-        orderBy: { requestedAt: 'desc' },
-        take: 100,
-        select: ADVANCE_SELECT,
-      });
+  const trashWhere = { deletedAt: { not: null } } as const;
+  const { skip, take } = pageArgs(requestedPage);
+
+  // Page of rows + matching total go through the same client: trash uses
+  // prismaRaw (sees soft-deleted), the live inbox uses soft-delete-filtered
+  // prisma. count mirrors findMany's where exactly.
+  const [rows, total] = await Promise.all([
+    isTrash
+      ? prismaRaw.cashAdvance.findMany({
+          where: trashWhere,
+          orderBy: { deletedAt: 'desc' },
+          skip,
+          take,
+          select: ADVANCE_SELECT,
+        })
+      : prisma.cashAdvance.findMany({
+          where,
+          orderBy: { requestedAt: 'desc' },
+          skip,
+          take,
+          select: ADVANCE_SELECT,
+        }),
+    isTrash
+      ? prismaRaw.cashAdvance.count({ where: trashWhere })
+      : prisma.cashAdvance.count({ where }),
+  ]);
+
+  const meta = buildPageMeta(total, requestedPage);
+
+  // List URL preserving active status + search; resets page unless given.
+  function listHref(overrides: { status?: string; page?: number }): string {
+    const params = new URLSearchParams();
+    if (isTrash) {
+      // Trash is its own view (no status/search chips); only paging applies.
+      params.set('trash', '1');
+    } else {
+      const nextStatus = overrides.status !== undefined ? overrides.status : status;
+      if (nextStatus) params.set('status', nextStatus);
+      if (q) params.set('q', q);
+    }
+    if (overrides.page && overrides.page > 1) params.set('page', String(overrides.page));
+    const qs = params.toString();
+    return qs ? `/admin/advance?${qs}` : '/admin/advance';
+  }
 
   const receiptKeys = rows
     .map((r) => r.receiptUrl)
@@ -96,6 +143,18 @@ export default async function AdminAdvanceInboxPage({
         subtitle="ตรวจสอบและอนุมัติคำขอเบิกเงินล่วงหน้า — อนุมัติแล้วระบบจะบันทึกผู้อนุมัติและเวลาโดยอัตโนมัติ"
       />
 
+      {/* Name search — narrows the current status view (live inbox only). */}
+      {!isTrash && (
+        <div className="mb-3">
+          <ListSearch
+            basePath="/admin/advance"
+            defaultValue={q}
+            placeholder="ค้นหาชื่อพนักงาน"
+            keep={{ status }}
+          />
+        </div>
+      )}
+
       {/* Filter chips + trash toggle */}
       <div className="mb-4 flex flex-wrap items-center gap-2">
         {FILTER_OPTIONS.map((opt) => {
@@ -103,7 +162,7 @@ export default async function AdminAdvanceInboxPage({
           return (
             <Link
               key={opt.value || 'pending'}
-              href={opt.value ? `/admin/advance?status=${opt.value}` : '/admin/advance'}
+              href={listHref({ status: opt.value })}
               className={
                 active
                   ? 'rounded-lg bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-700 ring-1 ring-primary-200'
@@ -138,7 +197,7 @@ export default async function AdminAdvanceInboxPage({
       <Card>
         <CardHeader>
           <CardTitle>
-            ทั้งหมด <span className="tabular-nums text-ink-3">({rows.length})</span>
+            ทั้งหมด <span className="tabular-nums text-ink-3">({meta.total})</span>
           </CardTitle>
         </CardHeader>
         <CardBody className="!p-0">
@@ -147,9 +206,11 @@ export default async function AdminAdvanceInboxPage({
               title={
                 isTrash
                   ? 'ถังขยะว่าง'
-                  : !status || status === 'pending'
-                    ? 'ไม่มีคำขอเบิกที่รออนุมัติ ✨'
-                    : 'ไม่มีรายการในตัวกรองนี้'
+                  : q
+                    ? 'ไม่พบรายการที่ตรงกับการค้นหา'
+                    : !status || status === 'pending'
+                      ? 'ไม่มีคำขอเบิกที่รออนุมัติ ✨'
+                      : 'ไม่มีรายการในตัวกรองนี้'
               }
               hint={isTrash ? 'ไม่มีคำขอเบิกที่ถูกลบ' : undefined}
             />
@@ -216,6 +277,8 @@ export default async function AdminAdvanceInboxPage({
           )}
         </CardBody>
       </Card>
+
+      <Pagination meta={meta} makeHref={(p) => listHref({ page: p })} className="mt-4" />
     </div>
   );
 }

@@ -1,4 +1,9 @@
 {
+  "pagination": {
+    "prev": "ก่อนหน้า",
+    "next": "ถัดไป",
+    "pageOf": "หน้า {page} / {pageCount}"
+  },
   "_meta": {
     "locale": "th",
     "note": "Thai is the source of truth. Phase 2 will populate this from the current hardcoded UI strings."
