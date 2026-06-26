@@ -54,7 +54,7 @@ import { computeTier } from './user-tier';
 
 export type RequireRoleResult = {
   user: User;
-  /** Eagerly loaded when the user is Staff tier; undefined otherwise. */
+  /** Present for any user who has an Employee record; undefined when the user has no Employee row (e.g. a pure admin). */
   employee?: Employee;
   /** Computed from active role assignments — see computeTier(). */
   tier: Role;

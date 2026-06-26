@@ -100,6 +100,7 @@ describe('mergeAdminIntoEmployee', () => {
     expect(archivedUa.archivedAt).not.toBeNull();
     expect(archivedUa.email).toBeNull();
     expect(archivedUa.lineUserId).toBeNull();
+    expect(archivedUa.authUserId).toBeNull();
   });
 
   it('preserves headcount (exactly one Employee before and after)', async () => {
