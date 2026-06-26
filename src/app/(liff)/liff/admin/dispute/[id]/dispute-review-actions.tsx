@@ -51,8 +51,14 @@ export function DisputeReviewActions({ attendanceId }: { attendanceId: string })
 
   if (done) {
     return (
-      <section className="mt-3 rounded-xl border border-green-200 bg-green-50 p-4 text-center">
-        <p className="text-sm font-medium text-green-800">
+      <section
+        className={`mt-3 rounded-xl border p-4 text-center ${
+          done === 'rejected' ? 'border-red-200 bg-red-50' : 'border-green-200 bg-green-50'
+        }`}
+      >
+        <p
+          className={`text-sm font-medium ${done === 'rejected' ? 'text-red-800' : 'text-green-800'}`}
+        >
           {done === 'approved' ? 'ยืนยันการเช็คอินแล้ว ✓' : 'ปฏิเสธการเช็คอินแล้ว'}
         </p>
       </section>
@@ -86,7 +92,7 @@ export function DisputeReviewActions({ attendanceId }: { attendanceId: string })
           {isPending && firing === 'approve'
             ? 'กำลังบันทึก…'
             : armed === 'approve'
-              ? 'ยืนยัน?'
+              ? 'ยืนยันอนุมัติ?'
               : 'ยืนยันเช็คอิน'}
         </button>
         <button
@@ -95,7 +101,11 @@ export function DisputeReviewActions({ attendanceId }: { attendanceId: string })
           onClick={() => fire('reject')}
           className="rounded-lg bg-red-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-red-700 disabled:opacity-50"
         >
-          {isPending && firing === 'reject' ? 'กำลังบันทึก…' : armed === 'reject' ? 'ยืนยัน?' : 'ปฏิเสธ'}
+          {isPending && firing === 'reject'
+            ? 'กำลังบันทึก…'
+            : armed === 'reject'
+              ? 'ยืนยันปฏิเสธ?'
+              : 'ปฏิเสธ'}
         </button>
       </div>
     </section>

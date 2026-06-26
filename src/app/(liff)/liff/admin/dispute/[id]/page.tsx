@@ -58,7 +58,7 @@ export default async function LiffAdminDisputeDetailPage({ params }: { params: P
           ← กลับไปงานรออนุมัติ
         </Link>
         <div className="mt-3 flex items-center justify-between gap-3">
-          <h1 className="text-2xl font-semibold text-gray-900">ลงเวลารอตรวจสอบ</h1>
+          <h1 className="text-2xl font-semibold text-gray-900">ตรวจสอบการลงเวลา</h1>
           <span
             className={`rounded-full px-2.5 py-1 text-xs font-medium ${
               isPending ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-700'

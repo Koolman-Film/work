@@ -127,7 +127,7 @@ export default async function LiffAdminInboxPage() {
                 <p className="mt-0.5 text-xs text-gray-500">
                   {r.clockInAt ? `เช็คอิน ${formatBkk(r.clockInAt)}` : 'ไม่มีเวลาเช็คอิน'}
                 </p>
-                <p className="mt-0.5 text-[10px] text-gray-400">เปิดดูในหน้าเว็บแอดมิน</p>
+                <p className="mt-0.5 text-[10px] text-gray-400">แตะเพื่อตรวจสอบ</p>
               </ItemCard>
             ))}
           </Section>
