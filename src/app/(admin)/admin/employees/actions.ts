@@ -630,7 +630,5 @@ export async function grantAdminAccess(employeeId: string): Promise<void> {
     metadata: { ...ctx, source: 'admin-ui' },
   });
   revalidatePath(`/admin/employees/${employeeId}/edit`);
-  redirect(
-    `/admin/employees/${employeeId}/edit?ok=1`,
-  );
+  redirect(`/admin/employees/${employeeId}/edit?ok=1`);
 }

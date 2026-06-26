@@ -49,12 +49,30 @@ export async function mergeAdminIntoEmployee(input: {
       }
     }
     // 2. Re-point admin attribution (unconstrained UUID columns) + notifications.
-    await tx.attendance.updateMany({ where: { createdById: adminUserId }, data: { createdById: employeeUserId } });
-    await tx.leaveRequest.updateMany({ where: { reviewedById: adminUserId }, data: { reviewedById: employeeUserId } });
-    await tx.cashAdvance.updateMany({ where: { approvedById: adminUserId }, data: { approvedById: employeeUserId } });
-    await tx.overtimeEntry.updateMany({ where: { reviewedById: adminUserId }, data: { reviewedById: employeeUserId } });
-    await tx.overtimeEntry.updateMany({ where: { createdById: adminUserId }, data: { createdById: employeeUserId } });
-    await tx.notification.updateMany({ where: { userId: adminUserId }, data: { userId: employeeUserId } });
+    await tx.attendance.updateMany({
+      where: { createdById: adminUserId },
+      data: { createdById: employeeUserId },
+    });
+    await tx.leaveRequest.updateMany({
+      where: { reviewedById: adminUserId },
+      data: { reviewedById: employeeUserId },
+    });
+    await tx.cashAdvance.updateMany({
+      where: { approvedById: adminUserId },
+      data: { approvedById: employeeUserId },
+    });
+    await tx.overtimeEntry.updateMany({
+      where: { reviewedById: adminUserId },
+      data: { reviewedById: employeeUserId },
+    });
+    await tx.overtimeEntry.updateMany({
+      where: { createdById: adminUserId },
+      data: { createdById: employeeUserId },
+    });
+    await tx.notification.updateMany({
+      where: { userId: adminUserId },
+      data: { userId: employeeUserId },
+    });
     // 3. Retire the admin User: remove its assignments, archive, free uniques.
     await tx.userRoleAssignment.deleteMany({ where: { userId: adminUserId } });
     await tx.user.update({

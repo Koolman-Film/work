@@ -16,8 +16,7 @@ import { appBaseUrl } from '@/lib/line/flex-templates';
 import { mintMergeToken } from '@/lib/pairing/token';
 
 export async function startAdminMerge(): Promise<
-  | { ok: true; url: string; qrDataUrl: string; expiresAt: Date }
-  | { ok: false; message: string }
+  { ok: true; url: string; qrDataUrl: string; expiresAt: Date } | { ok: false; message: string }
 > {
   const { user } = await requireRole(['Admin']);
 
@@ -58,5 +57,8 @@ export async function startAdminMerge(): Promise<
 
 export async function dismissMergePrompt(): Promise<void> {
   const { user } = await requireRole(['Admin']);
-  await prisma.user.update({ where: { id: user.id }, data: { mergePromptDismissedAt: new Date() } });
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { mergePromptDismissedAt: new Date() },
+  });
 }

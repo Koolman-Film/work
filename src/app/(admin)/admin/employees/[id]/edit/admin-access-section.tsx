@@ -19,7 +19,9 @@ export async function AdminAccessSection({
         <p className="mt-3 text-xs text-gray-500">{t('alreadyAdmin')}</p>
       ) : (
         <form action={action} className="mt-3">
-          <Button type="submit" variant="secondary">{t('grant')}</Button>
+          <Button type="submit" variant="secondary">
+            {t('grant')}
+          </Button>
         </form>
       )}
     </section>

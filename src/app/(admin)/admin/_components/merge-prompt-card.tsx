@@ -14,10 +14,10 @@
  * hides the card on the next page load.
  */
 
-import { useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
-import { dismissMergePrompt, startAdminMerge } from '@/lib/auth/start-admin-merge';
+import { useState, useTransition } from 'react';
 import { Button } from '@/components/ui/button';
+import { dismissMergePrompt, startAdminMerge } from '@/lib/auth/start-admin-merge';
 
 export function MergePromptCard() {
   const t = useTranslations('mergeWizard');

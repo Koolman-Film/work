@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
-import { prisma } from '@/lib/db/prisma';
 import { computeTier } from '@/lib/auth/user-tier';
+import { prisma } from '@/lib/db/prisma';
 import { assignAdminRole } from '@/lib/employee/assign-admin-role';
 
 async function resetDb() {
@@ -19,7 +19,13 @@ async function resetDb() {
   await prisma.payrollConfig.deleteMany({});
   await prisma.roleDefinition.deleteMany({});
   await prisma.roleDefinition.create({
-    data: { key: 'admin', name: 'Admin', permissions: ['liff.admin'], isSuperadmin: false, isSystem: true },
+    data: {
+      key: 'admin',
+      name: 'Admin',
+      permissions: ['liff.admin'],
+      isSuperadmin: false,
+      isSystem: true,
+    },
   });
   await prisma.roleDefinition.create({
     data: { key: 'staff', name: 'Staff', permissions: [], isSuperadmin: false, isSystem: true },
@@ -27,18 +33,28 @@ async function resetDb() {
 }
 
 beforeEach(resetDb);
-afterAll(async () => { await prisma.$disconnect(); });
+afterAll(async () => {
+  await prisma.$disconnect();
+});
 
 describe('admin-employee gating invariants', () => {
   it('an employee granted admin is tier Admin yet still has an Employee record', async () => {
     const user = await prisma.user.create({ data: {} });
     const branch = await prisma.branch.create({ data: { name: 'B' } });
     const staff = await prisma.roleDefinition.findUniqueOrThrow({ where: { key: 'staff' } });
-    await prisma.userRoleAssignment.create({ data: { userId: user.id, roleId: staff.id, branchId: null } });
+    await prisma.userRoleAssignment.create({
+      data: { userId: user.id, roleId: staff.id, branchId: null },
+    });
     const emp = await prisma.employee.create({
       data: {
-        userId: user.id, firstName: 'A', lastName: 'B', branchId: branch.id,
-        salaryType: 'Monthly', baseSalary: 20000, status: 'Active', hiredAt: new Date('2026-01-01'),
+        userId: user.id,
+        firstName: 'A',
+        lastName: 'B',
+        branchId: branch.id,
+        salaryType: 'Monthly',
+        baseSalary: 20000,
+        status: 'Active',
+        hiredAt: new Date('2026-01-01'),
       },
     });
 
