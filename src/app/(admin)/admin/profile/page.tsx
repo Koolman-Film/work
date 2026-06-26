@@ -1,6 +1,8 @@
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageHeader } from '@/components/ui/page-header';
 import { requireRole } from '@/lib/auth/require-role';
+import { prisma } from '@/lib/db/prisma';
+import { MergePromptCard } from '../_components/merge-prompt-card';
 import { ChangePasswordForm } from './change-password-form';
 
 /**
@@ -23,6 +25,15 @@ export default async function AdminProfilePage() {
   // column that's about to go away in Phase 4.6).
   const { user, tier } = await requireRole(['Admin', 'Superadmin']);
 
+  // Pure admins (no Employee row) can link an employee account here. This is
+  // the PERMANENT entry point — the dashboard nudge is dismissible one-way, so
+  // the profile must always offer the door regardless of mergePromptDismissedAt.
+  const me = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: { employee: { select: { id: true } } },
+  });
+  const isPureAdmin = me?.employee == null;
+
   return (
     <div className="mx-auto max-w-2xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
       <PageHeader title="โปรไฟล์ของฉัน" subtitle="ข้อมูลบัญชี + เปลี่ยนรหัสผ่าน" />
@@ -40,6 +51,9 @@ export default async function AdminProfilePage() {
           />
         </CardBody>
       </Card>
+
+      {/* ─── Link employee account (pure admins only) ─────────────────── */}
+      {isPureAdmin && <MergePromptCard dismissible={false} />}
 
       {/* ─── Change password ──────────────────────────────────────────── */}
       <ChangePasswordForm />
