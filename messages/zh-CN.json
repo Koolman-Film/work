@@ -525,5 +525,13 @@
     "description": "允许此员工使用同一个 LINE 账号访问管理员工具（审批申请等）",
     "grant": "授予管理员权限",
     "alreadyAdmin": "该员工已是管理员 — 请在「团队」页面管理角色"
+  },
+  "mergeWizard": {
+    "working": "正在关联账号…",
+    "successTitle": "账号已关联",
+    "successBody": "现在您可以使用这个 LINE 账号同时访问员工和管理员功能了",
+    "errorTitle": "账号关联失败",
+    "retry": "重试",
+    "openHome": "前往首页"
   }
 }

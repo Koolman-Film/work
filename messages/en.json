@@ -560,5 +560,13 @@
     "description": "Let this employee use admin tools (approvals, etc.) with the same LINE account",
     "grant": "Grant admin access",
     "alreadyAdmin": "Already an admin — manage roles on the Team page"
+  },
+  "mergeWizard": {
+    "working": "Linking your accounts…",
+    "successTitle": "Accounts linked",
+    "successBody": "You can now use this LINE account for both employee and admin tools.",
+    "errorTitle": "Couldn't link accounts",
+    "retry": "Try again",
+    "openHome": "Go to home"
   }
 }
