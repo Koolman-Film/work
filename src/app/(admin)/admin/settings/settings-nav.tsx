@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { ADMIN_LINE_LINK_ENABLED } from '@/lib/auth/admin-line-feature';
 import { cn } from '@/lib/utils';
 
 type Item = { href: string; label: string; desc: string; Icon: LucideIcon };
@@ -56,7 +57,10 @@ const ITEMS: Item[] = [
   },
   { href: '/admin/settings/team', label: 'ทีมผู้ดูแล', desc: 'Admin + Superadmin', Icon: ShieldCheck },
   { href: '/admin/settings/roles', label: 'บทบาทและสิทธิ์', desc: 'สิทธิ์การเข้าถึง', Icon: KeyRound },
-  { href: '/admin/settings/line', label: 'LINE', desc: 'เชื่อมบัญชีแอดมิน', Icon: MessageCircle },
+  // Admin LINE link temporarily disabled — see ADMIN_LINE_LINK_ENABLED.
+  ...(ADMIN_LINE_LINK_ENABLED
+    ? [{ href: '/admin/settings/line', label: 'LINE', desc: 'เชื่อมบัญชีแอดมิน', Icon: MessageCircle }]
+    : []),
 ];
 
 /**

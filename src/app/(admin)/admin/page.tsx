@@ -21,6 +21,7 @@ import { Pill } from '@/components/ui/pill';
 import { StatCard } from '@/components/ui/stat-card';
 import { bangkokDateUtcMidnight, isClosedDay } from '@/lib/attendance/date';
 import { isScheduledWorkday } from '@/lib/attendance/schedule';
+import { ADMIN_LINE_LINK_ENABLED } from '@/lib/auth/admin-line-feature';
 import { canDo, requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { getOrgCalendarData } from '@/lib/leave/team-calendar';
@@ -183,7 +184,12 @@ export default async function AdminHomePage() {
   // Show the "link your employee account" card only to pure admins (no Employee
   // row) who haven't dismissed it. The layout already enforced Admin/Superadmin,
   // so we only need the employee + dismissed checks here.
-  const showMergeCard = me !== null && me.employee === null && me.mergePromptDismissedAt === null;
+  // Gated off while the admin LINE experience is disabled (ADMIN_LINE_LINK_ENABLED).
+  const showMergeCard =
+    ADMIN_LINE_LINK_ENABLED &&
+    me !== null &&
+    me.employee === null &&
+    me.mergePromptDismissedAt === null;
 
   const checkedInTodayCount = checkedInTodayRows.length;
   const onLeaveTodayCount = onLeaveTodayRows.length;

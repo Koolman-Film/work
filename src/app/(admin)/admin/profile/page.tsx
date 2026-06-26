@@ -1,5 +1,6 @@
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageHeader } from '@/components/ui/page-header';
+import { ADMIN_LINE_LINK_ENABLED } from '@/lib/auth/admin-line-feature';
 import { requireRole } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
 import { MergePromptCard } from '../_components/merge-prompt-card';
@@ -53,7 +54,8 @@ export default async function AdminProfilePage() {
       </Card>
 
       {/* ─── Link employee account (pure admins only) ─────────────────── */}
-      {isPureAdmin && <MergePromptCard dismissible={false} />}
+      {/* Hidden while the admin LINE experience is disabled (ADMIN_LINE_LINK_ENABLED). */}
+      {ADMIN_LINE_LINK_ENABLED && isPureAdmin && <MergePromptCard dismissible={false} />}
 
       {/* ─── Change password ──────────────────────────────────────────── */}
       <ChangePasswordForm />

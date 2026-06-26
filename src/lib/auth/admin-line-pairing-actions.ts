@@ -13,6 +13,7 @@
 
 import QRCode from 'qrcode';
 import { auditLog } from '@/lib/audit/log';
+import { ADMIN_LINE_LINK_ENABLED } from '@/lib/auth/admin-line-feature';
 import { requireRole } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
 import { appBaseUrl } from '@/lib/line/flex-templates';
@@ -24,6 +25,9 @@ export async function createMyLinePairingLink(): Promise<
   { ok: true; url: string; qrDataUrl: string; expiresAt: string } | { ok: false; message: string }
 > {
   const { user } = await requireRole(['Admin']);
+  if (!ADMIN_LINE_LINK_ENABLED) {
+    return { ok: false, message: 'ฟีเจอร์เชื่อมต่อ LINE สำหรับผู้ดูแลถูกปิดใช้งานชั่วคราว' };
+  }
   if (user.lineUserId) {
     return { ok: false, message: 'บัญชีนี้เชื่อมต่อ LINE แล้ว' };
   }
