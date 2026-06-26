@@ -631,6 +631,6 @@ export async function grantAdminAccess(employeeId: string): Promise<void> {
   });
   revalidatePath(`/admin/employees/${employeeId}/edit`);
   redirect(
-    `/admin/employees/${employeeId}/edit?notice=${encodeURIComponent('มอบสิทธิ์แอดมินเรียบร้อย')}`,
+    `/admin/employees/${employeeId}/edit?ok=1`,
   );
 }
