@@ -72,6 +72,7 @@ if (oldRichMenuId) {
       SELECT u."lineUserId" FROM "User" u
       WHERE u."lineUserId" IS NOT NULL AND u."archivedAt" IS NULL
         AND EXISTS (SELECT 1 FROM "Employee" e WHERE e."userId" = u.id)
+        -- Mirrors the runtime decision core (computeTier): key-based 'admin'. The admin script uses a permission-based predicate ('liff.admin'), so the two rotations may select slightly different populations.
         AND EXISTS (
           SELECT 1 FROM "UserRoleAssignment" a
           JOIN "RoleDefinition" r ON r.id = a."roleId"

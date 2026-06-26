@@ -52,4 +52,10 @@ describe('resolveCapabilities', () => {
       hasAdmin: false,
     });
   });
+  it('no role assignments → neither capability', () => {
+    expect(resolveCapabilities({ employee: null, roleAssignments: [] })).toEqual({
+      hasEmployee: false,
+      hasAdmin: false,
+    });
+  });
 });

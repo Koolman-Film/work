@@ -68,7 +68,7 @@ export async function syncRichMenuForUser(userId: string): Promise<void> {
   let user: {
     lineUserId: string | null;
     employee: { id: string } | null;
-    roleAssignments: TierAssignment[];
+    roleAssignments: ReadonlyArray<TierAssignment>;
   } | null;
   try {
     user = await prisma.user.findUnique({
@@ -92,6 +92,7 @@ export async function syncRichMenuForUser(userId: string): Promise<void> {
   try {
     const client = getLineMessagingClient();
     if (target === 'none') {
+      // No env-id guard needed — unlinking takes no menu id.
       await client.unlinkRichMenuIdFromUser(lineUserId);
       return;
     }

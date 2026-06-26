@@ -626,6 +626,7 @@ export async function grantAdminAccess(employeeId: string): Promise<void> {
     where: { id: employeeId },
     select: { userId: true },
   });
+  // Employee.userId is non-nullable (schema), so linked.userId is always set when the row exists.
   if (linked) await syncRichMenuForUser(linked.userId);
   const ctx = await readRequestContext();
   auditLog({
