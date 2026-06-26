@@ -572,6 +572,14 @@
     "cardBody": "If you're also an employee here, link accounts to use one LINE for both menus.",
     "cardCta": "Link account",
     "dismiss": "Not now",
-    "scanHint": "Open this with your employee LINE account."
+    "scanHint": "Open this with your employee LINE account.",
+    "confirmTitle": "Confirm account link",
+    "confirmAdmin": "Admin",
+    "confirmEmployee": "Employee",
+    "confirmBody": "Grants admin access to this employee account. The admin's email login stays active.",
+    "confirmCta": "Confirm link",
+    "cancel": "Cancel",
+    "cancelledTitle": "Cancelled",
+    "cancelledBody": "Nothing was changed."
   }
 }

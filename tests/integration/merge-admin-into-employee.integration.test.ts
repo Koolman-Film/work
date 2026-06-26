@@ -82,25 +82,37 @@ async function seedPair() {
 }
 
 describe('mergeAdminIntoEmployee', () => {
-  it('moves admin role to the employee user, re-points attribution, archives the admin', async () => {
+  it('grants admin to the employee while keeping the admin account fully intact + audited', async () => {
     const { ua, ue, emp } = await seedPair();
     const res = await mergeAdminIntoEmployee({ adminUserId: ua.id, employeeUserId: ue.id });
     expect(res.ok).toBe(true);
 
+    // Employee gained admin (and kept staff).
     const ueRoles = await prisma.userRoleAssignment.findMany({
       where: { userId: ue.id },
       include: { role: true },
     });
     expect(ueRoles.map((r) => r.role.key).sort()).toEqual(['admin', 'staff']);
 
+    // Attribution is NOT re-pointed — the admin's manual attendance stays theirs.
     const att = await prisma.attendance.findFirstOrThrow({ where: { employeeId: emp.id } });
-    expect(att.createdById).toBe(ue.id); // re-pointed
+    expect(att.createdById).toBe(ua.id);
 
-    const archivedUa = await prisma.user.findUniqueOrThrow({ where: { id: ua.id } });
-    expect(archivedUa.archivedAt).not.toBeNull();
-    expect(archivedUa.email).toBeNull();
-    expect(archivedUa.lineUserId).toBeNull();
-    expect(archivedUa.authUserId).toBeNull();
+    // The admin account is NEVER archived; email / auth / line stay intact, so
+    // the admin can always still log in. It also keeps its own admin role.
+    const adminAfter = await prisma.user.findUniqueOrThrow({ where: { id: ua.id } });
+    expect(adminAfter.archivedAt).toBeNull();
+    expect(adminAfter.email).toBe('boss@x.co');
+    expect(adminAfter.authUserId).not.toBeNull();
+    expect(adminAfter.lineUserId).toBe('line-admin');
+    const uaRoles = await prisma.userRoleAssignment.findMany({ where: { userId: ua.id } });
+    expect(uaRoles.length).toBe(1); // its admin assignment is untouched
+
+    // The privilege grant is audited.
+    const audit = await prisma.auditLog.findFirst({
+      where: { action: 'user.account-merge', entityId: ue.id },
+    });
+    expect(audit).not.toBeNull();
   });
 
   it('preserves headcount (exactly one Employee before and after)', async () => {
