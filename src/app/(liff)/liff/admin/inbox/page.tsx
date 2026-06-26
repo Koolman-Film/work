@@ -4,7 +4,7 @@
  * Three sections (same pending where-clauses as the admin web inboxes):
  *   - คำขอลา      → /liff/admin/leave/[id]
  *   - คำขอเบิก    → /liff/admin/advance/[id]
- *   - ลงเวลารอตรวจสอบ → admin web disputed page (no LIFF detail in v1)
+ *   - ลงเวลารอตรวจสอบ → /liff/admin/dispute/[id]
  *
  * Thai-only literals — admin-facing, matches the untranslated admin panel.
  */
@@ -122,8 +122,7 @@ export default async function LiffAdminInboxPage() {
 
           <Section title="ลงเวลารอตรวจสอบ" count={disputes.length}>
             {disputes.map((r) => (
-              // v1: no LIFF dispute detail — link to the admin web page.
-              <ItemCard key={r.id} href="/admin/attendance/disputed">
+              <ItemCard key={r.id} href={`/liff/admin/dispute/${r.id}`}>
                 <p className="text-sm font-medium text-gray-900">{fullName(r.employee)}</p>
                 <p className="mt-0.5 text-xs text-gray-500">
                   {r.clockInAt ? `เช็คอิน ${formatBkk(r.clockInAt)}` : 'ไม่มีเวลาเช็คอิน'}
