@@ -27,7 +27,11 @@ export default async function LiffHomePage() {
   const pending = isAdmin
     ? await prisma.leaveRequest
         .count({ where: { status: 'Pending', deletedAt: null } })
-        .then(async (lv) => lv + (await prisma.cashAdvance.count({ where: { status: 'Pending', deletedAt: null } })))
+        .then(
+          async (lv) =>
+            lv +
+            (await prisma.cashAdvance.count({ where: { status: 'Pending', deletedAt: null } })),
+        )
     : 0;
 
   return (
@@ -40,9 +44,15 @@ export default async function LiffHomePage() {
             {t('employeeGroup')}
           </p>
           <div className="grid grid-cols-3 gap-2.5">
-            <a href="/liff/check-in" className={tileCls}>{t('checkIn')}</a>
-            <a href="/liff/leave" className={tileCls}>{t('leave')}</a>
-            <a href="/liff/advance" className={tileCls}>{t('advance')}</a>
+            <a href="/liff/check-in" className={tileCls}>
+              {t('checkIn')}
+            </a>
+            <a href="/liff/leave" className={tileCls}>
+              {t('leave')}
+            </a>
+            <a href="/liff/advance" className={tileCls}>
+              {t('advance')}
+            </a>
           </div>
         </section>
       )}
@@ -61,8 +71,12 @@ export default async function LiffHomePage() {
               )}
               {t('approvals')}
             </a>
-            <a href="/admin" className={tileCls}>{t('dashboard')}</a>
-            <a href="/admin/reports" className={tileCls}>{t('reports')}</a>
+            <a href="/admin" className={tileCls}>
+              {t('dashboard')}
+            </a>
+            <a href="/admin/reports" className={tileCls}>
+              {t('reports')}
+            </a>
           </div>
         </section>
       )}

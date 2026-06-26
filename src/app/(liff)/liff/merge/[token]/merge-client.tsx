@@ -11,9 +11,9 @@
  * menus will now be accessible via this single LINE account.
  */
 
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
+import { useEffect, useState } from 'react';
 import { linkMergeAccounts } from '@/lib/auth/link-merge-accounts';
 import { type LiffBootstrapError, liffBootstrap } from '@/lib/liff/init';
 

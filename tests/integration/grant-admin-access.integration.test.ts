@@ -18,7 +18,13 @@ async function resetDb() {
   await prisma.payrollConfig.deleteMany({});
   await prisma.roleDefinition.deleteMany({});
   await prisma.roleDefinition.create({
-    data: { key: 'admin', name: 'Admin', permissions: ['liff.admin'], isSuperadmin: false, isSystem: true },
+    data: {
+      key: 'admin',
+      name: 'Admin',
+      permissions: ['liff.admin'],
+      isSuperadmin: false,
+      isSystem: true,
+    },
   });
   await prisma.roleDefinition.create({
     data: { key: 'staff', name: 'Staff', permissions: [], isSuperadmin: false, isSystem: true },
@@ -29,25 +35,36 @@ async function makeWorker() {
   const user = await prisma.user.create({ data: {} });
   const branch = await prisma.branch.create({ data: { name: 'B' } });
   const staff = await prisma.roleDefinition.findUniqueOrThrow({ where: { key: 'staff' } });
-  await prisma.userRoleAssignment.create({ data: { userId: user.id, roleId: staff.id, branchId: null } });
+  await prisma.userRoleAssignment.create({
+    data: { userId: user.id, roleId: staff.id, branchId: null },
+  });
   const emp = await prisma.employee.create({
     data: {
-      userId: user.id, firstName: 'A', lastName: 'B', branchId: branch.id,
-      salaryType: 'Monthly', baseSalary: 20000, status: 'Active', hiredAt: new Date('2026-01-01'),
+      userId: user.id,
+      firstName: 'A',
+      lastName: 'B',
+      branchId: branch.id,
+      salaryType: 'Monthly',
+      baseSalary: 20000,
+      status: 'Active',
+      hiredAt: new Date('2026-01-01'),
     },
   });
   return { user, emp };
 }
 
 beforeEach(resetDb);
-afterAll(async () => { await prisma.$disconnect(); });
+afterAll(async () => {
+  await prisma.$disconnect();
+});
 
 describe('assignAdminRole', () => {
   it('adds a global admin assignment to the employee user', async () => {
     const { user, emp } = await makeWorker();
     await assignAdminRole(emp.id);
     const assignments = await prisma.userRoleAssignment.findMany({
-      where: { userId: user.id }, include: { role: true },
+      where: { userId: user.id },
+      include: { role: true },
     });
     const keys = assignments.map((a) => a.role.key).sort();
     expect(keys).toEqual(['admin', 'staff']);

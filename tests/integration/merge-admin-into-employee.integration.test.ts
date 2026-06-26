@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
-import { prisma } from '@/lib/db/prisma';
 import { mergeAdminIntoEmployee } from '@/lib/auth/merge-admin-into-employee';
+import { prisma } from '@/lib/db/prisma';
 
 async function resetDb() {
   // Safe FK delete order: children before parents
@@ -20,7 +20,13 @@ async function resetDb() {
   await prisma.payrollConfig.deleteMany({});
   await prisma.roleDefinition.deleteMany({});
   await prisma.roleDefinition.create({
-    data: { key: 'admin', name: 'Admin', permissions: ['liff.admin'], isSuperadmin: false, isSystem: true },
+    data: {
+      key: 'admin',
+      name: 'Admin',
+      permissions: ['liff.admin'],
+      isSuperadmin: false,
+      isSystem: true,
+    },
   });
   await prisma.roleDefinition.create({
     data: { key: 'staff', name: 'Staff', permissions: [], isSuperadmin: false, isSystem: true },
@@ -40,10 +46,16 @@ async function seedPair() {
   const ua = await prisma.user.create({
     data: { email: 'boss@x.co', authUserId: crypto.randomUUID(), lineUserId: 'line-admin' },
   });
-  await prisma.userRoleAssignment.create({ data: { userId: ua.id, roleId: adminRole.id, branchId: null } });
+  await prisma.userRoleAssignment.create({
+    data: { userId: ua.id, roleId: adminRole.id, branchId: null },
+  });
   // Ue: worker (employee LINE)
-  const ue = await prisma.user.create({ data: { authUserId: crypto.randomUUID(), lineUserId: 'line-emp' } });
-  await prisma.userRoleAssignment.create({ data: { userId: ue.id, roleId: staffRole.id, branchId: null } });
+  const ue = await prisma.user.create({
+    data: { authUserId: crypto.randomUUID(), lineUserId: 'line-emp' },
+  });
+  await prisma.userRoleAssignment.create({
+    data: { userId: ue.id, roleId: staffRole.id, branchId: null },
+  });
   const emp = await prisma.employee.create({
     data: {
       userId: ue.id,
@@ -58,7 +70,13 @@ async function seedPair() {
   });
   // An attendance the admin created manually (attribution points at Ua)
   await prisma.attendance.create({
-    data: { employeeId: emp.id, date: new Date('2026-06-01'), type: 'Absent', source: 'Manual', createdById: ua.id },
+    data: {
+      employeeId: emp.id,
+      date: new Date('2026-06-01'),
+      type: 'Absent',
+      source: 'Manual',
+      createdById: ua.id,
+    },
   });
   return { ua, ue, emp };
 }
