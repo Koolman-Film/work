@@ -3,6 +3,22 @@
 **Date:** 2026-06-24
 **Status:** Approved design — ready for implementation plan
 
+> **Re-verification (2026-06-26, against `main` @ a080fd0).** `main` advanced ~40
+> commits after the first draft (payslip PDF, leave derive-on-read + freeze, in-app
+> leave recompute tool, list pagination + admin name search, `attention` button).
+> Re-checked every load-bearing assumption — all still hold:
+> - `computeTier` still highest-wins; root router still tier-based; `User` model
+>   unchanged (no conflict with the new `merge*` columns); `/liff/home` still free.
+> - Data/calc safety intact: payroll still selects by `Employee.status`
+>   (`payroll/run.ts:70`); `reports/queries.ts` `employeeWhere` is still
+>   Employee-scoped (no role filter) post-pagination; leave derive-on-read has no
+>   role/tier dependency; attribution columns still calc-irrelevant.
+> - **One change folded in:** the payslip feature added two new `Staff` gates
+>   (`/liff/payslip/page.tsx` and the Route Handler `/liff/payslip/pdf/route.ts`),
+>   now included in the §2 audit list.
+>
+> The feature branch was rebased onto `main`, so the plan builds against current code.
+
 ## Problem
 
 Some people are **both** an admin **and** a real employee on payroll (e.g. an
@@ -124,10 +140,23 @@ mechanical:
   still excluded from check-in, as today).
 
 **Implementation note:** the plan must **audit every `requireRole(['Staff'])` call
-site** and every employee-facing LIFF route guard (`/liff/check-in`, `/liff/leave`,
-`/liff/advance`, `/liff/payslip`, `/liff/summary`, `/liff/calendar`,
-`/liff/profile`) and apply this widen-then-require-employee pattern consistently.
-Consider extracting a single `requireEmployee()` helper so the rule lives in one
+site** and apply this widen-then-require-employee pattern consistently. The complete
+current surface (verified against `main` @ a080fd0, 2026-06-26):
+
+- Server actions / lib: `src/lib/attendance/check-in.ts` (134, 159, 429),
+  `src/lib/leave/actions.ts` (109, 329), `src/lib/advance/actions.ts` (69, 186),
+  `src/lib/employee/profile-actions.ts` (78), `requireCheckInPermission`
+  (`require-role.ts:157`).
+- LIFF pages: `/liff/check-in`, `/liff/summary`, `/liff/profile`, `/liff/calendar`,
+  `/liff/leave` (+ `/[id]`, `/new`), `/liff/advance` (+ `/[id]`, `/new`),
+  **`/liff/payslip`** — and the **Route Handler** `/liff/payslip/pdf/route.ts:20`
+  (new since the original draft; same pattern — widen the role list, keep the
+  `if (!employee) notFound()`).
+
+The `/liff/payslip` page **and** its `pdf` download route are the two gates the
+payslip feature (merged to `main` after this spec's first draft) added; both must be
+covered so an admin-employee can download their own payslip. Extracting a single
+`requireEmployee()` helper so the rule lives in one
 place rather than being copy-pasted.
 
 ### 3. Combined LIFF home — capability-aware screen
@@ -317,7 +346,10 @@ any stored values or computations. Verified against the calc/data code:
 
 - `src/lib/auth/require-role.ts` — widen `requireCheckInPermission` / Staff gates;
   consider a shared `requireEmployee()` helper.
-- All employee-facing LIFF route guards under `src/app/(liff)/liff/*`.
+- All employee-facing LIFF route guards under `src/app/(liff)/liff/*` (pages **and**
+  the `src/app/(liff)/liff/payslip/pdf/route.ts` Route Handler) plus the lib gates in
+  `attendance/check-in.ts`, `leave/actions.ts`, `advance/actions.ts`,
+  `employee/profile-actions.ts` — full list in §2.
 - `src/app/page.tsx` — root-router: detect admin-employee, route to `/liff/home`.
 - `src/app/(liff)/liff/home/` — **new** combined home screen (capability-aware).
 - `src/lib/auth/link-line-to-admin.ts`, `src/lib/auth/link-line-to-employee.ts` —
