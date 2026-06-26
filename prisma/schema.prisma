@@ -104,7 +104,7 @@ enum LeaveUnit {
 
 /// What happens when an approved leave would exceed the year's entitlement.
 enum OverQuotaPolicy {
-  Block     // over-quota requests cannot be approved (e.g. vacation)
+  Block // over-quota requests cannot be approved (e.g. vacation)
   DeductPay // approval allowed; the over-quota portion is salary-deducted
 }
 
@@ -132,28 +132,28 @@ enum NotifChannel {
 /// for each role; Staff users get their authUserId populated lazily after
 /// their first LINE sign-in via signInWithIdToken (W3 pairing flow).
 model User {
-  id         String    @id @default(uuid()) @db.Uuid
-  authUserId String?   @unique @db.Uuid // FK to auth.users.id (Supabase-managed; no DB constraint)
-  email      String?   @unique // Admin / Superadmin only
-  lineUserId String?   @unique // Set after LIFF pairing — staff (worker pair) AND admins (admin pair via lineInviteToken)
+  id                       String    @id @default(uuid()) @db.Uuid
+  authUserId               String?   @unique @db.Uuid // FK to auth.users.id (Supabase-managed; no DB constraint)
+  email                    String?   @unique // Admin / Superadmin only
+  lineUserId               String?   @unique // Set after LIFF pairing — staff (worker pair) AND admins (admin pair via lineInviteToken)
   /// Single-use admin LINE-pairing token (JWT, scope='admin-pair').
   /// Mirrors Employee.inviteToken but lives on User because admins have
   /// no Employee row. Nulled on successful pair (consume) or regenerate.
-  lineInviteToken     String?   @unique
-  lineInviteExpiresAt DateTime?
+  lineInviteToken          String?   @unique
+  lineInviteExpiresAt      DateTime?
   /// Effective UI language (BCP 47 — 'th','en','my','lo','zh-CN','km').
   /// Written by BOTH the worker (modal/switcher) and an admin (employee
   /// edit page). Last write wins. DB-authoritative on LIFF entry — see
   /// src/lib/i18n/liff-locale.ts. NULL until anyone sets it.
-  locale     String?
+  locale                   String?
   /// When the WORKER explicitly picked a language (modal or switcher).
   /// NULL ⇒ the LIFF first-run language modal fires. Admin writes to
   /// `locale` never touch this. See src/lib/i18n/modal-trigger.ts.
   localeChosenByEmployeeAt DateTime?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-  archivedAt DateTime?
-  employee   Employee?
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+  archivedAt               DateTime?
+  employee                 Employee?
 
   notifications   Notification[]
   roleAssignments UserRoleAssignment[]
@@ -213,14 +213,14 @@ model RoleDefinition {
 /// Phase 1 records branchId but `canDo()` doesn't yet enforce it.
 /// Phase 3 wires up real scope checks. See docs/v2/permissions.md.
 model UserRoleAssignment {
-  id        String          @id @default(uuid()) @db.Uuid
-  userId    String          @db.Uuid
-  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  roleId    String          @db.Uuid
-  role      RoleDefinition  @relation(fields: [roleId], references: [id], onDelete: Restrict)
-  branchId  String?         @db.Uuid
-  branch    Branch?         @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  createdAt DateTime        @default(now())
+  id        String         @id @default(uuid()) @db.Uuid
+  userId    String         @db.Uuid
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roleId    String         @db.Uuid
+  role      RoleDefinition @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  branchId  String?        @db.Uuid
+  branch    Branch?        @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  createdAt DateTime       @default(now())
 
   /// A user can't have two identical assignments. (Same role, same scope.)
   @@unique([userId, roleId, branchId])
@@ -232,12 +232,12 @@ model UserRoleAssignment {
 // ─── Organization ──────────────────────────────────────────────────────────
 
 model Department {
-  id          String    @id @default(uuid()) @db.Uuid
-  name        String    @unique
+  id          String     @id @default(uuid()) @db.Uuid
+  name        String     @unique
   description String?
   archivedAt  DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
   employees   Employee[]
 }
 
@@ -245,13 +245,13 @@ model Department {
 /// company-expense group vs paid-on-behalf/refundable group. PEAK CSV export
 /// in Phase 3 splits by this.
 model AccountingGroup {
-  id          String    @id @default(uuid()) @db.Uuid
-  name        String    @unique
-  peakCode    String?   @unique // PEAK chart-of-accounts code for export grouping
+  id          String     @id @default(uuid()) @db.Uuid
+  name        String     @unique
+  peakCode    String?    @unique // PEAK chart-of-accounts code for export grouping
   description String?
   archivedAt  DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
   employees   Employee[]
 }
 
@@ -272,7 +272,7 @@ model Bank {
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
-  employees  Employee[]
+  employees Employee[]
 
   @@index([archivedAt])
 }
@@ -306,9 +306,9 @@ model Branch {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
-  employees           Employee[]           @relation("HomeBranch")
-  attendanceCheckIns  Attendance[]         @relation("CheckInBranch")
-  roleAssignments     UserRoleAssignment[]
+  employees          Employee[]           @relation("HomeBranch")
+  attendanceCheckIns Attendance[]         @relation("CheckInBranch")
+  roleAssignments    UserRoleAssignment[]
 }
 
 /// A named work-schedule template — different employees / roles can be
@@ -353,31 +353,31 @@ model WorkScheduleDay {
 // ─── Employee ──────────────────────────────────────────────────────────────
 
 model Employee {
-  id                String   @id @default(uuid()) @db.Uuid
-  userId            String   @unique @db.Uuid
-  user              User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @unique @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
 
-  firstName         String
-  lastName          String
-  nickname          String?
+  firstName String
+  lastName  String
+  nickname  String?
 
   // ─── Employee-managed contact fields (Sprint 2, /liff/profile) ──────────
   // All optional — employees self-service via /liff/profile after pairing.
   // Admin can also edit via /admin/employees/[id]/edit (Phase-2 work).
   // `personalEmail` is distinct from `User.email` (which is admin/owner auth).
-  phone             String?
-  personalEmail     String?
-  address           String?
-  emergencyContact  String?
+  phone            String?
+  personalEmail    String?
+  address          String?
+  emergencyContact String?
 
   // ─── Profile extras (admin-managed) ────────────────────────────────────
   /// Storage key within the `attendance-photos` bucket; signed at view-time.
-  photoKey          String?
-  dateOfBirth       DateTime? @db.Date
+  photoKey    String?
+  dateOfBirth DateTime? @db.Date
 
   /// Salary / advance payout destination.
-  bankId            String?  @db.Uuid
-  bank              Bank?    @relation(fields: [bankId], references: [id], onDelete: Restrict)
+  bankId            String? @db.Uuid
+  bank              Bank?   @relation(fields: [bankId], references: [id], onDelete: Restrict)
   bankAccountNumber String?
   bankAccountName   String?
 
@@ -386,17 +386,17 @@ model Employee {
   /// Multi-branch employees (e.g., rotating installers). Includes home branchId.
   assignedBranchIds String[] @default([])
 
-  departmentId      String?  @db.Uuid
-  department        Department? @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  departmentId String?     @db.Uuid
+  department   Department? @relation(fields: [departmentId], references: [id], onDelete: Restrict)
 
-  accountingGroupId String?  @db.Uuid
+  accountingGroupId String?          @db.Uuid
   accountingGroup   AccountingGroup? @relation(fields: [accountingGroupId], references: [id], onDelete: Restrict)
 
-  workScheduleId    String?  @db.Uuid
-  workSchedule      WorkSchedule? @relation(fields: [workScheduleId], references: [id], onDelete: Restrict)
+  workScheduleId String?       @db.Uuid
+  workSchedule   WorkSchedule? @relation(fields: [workScheduleId], references: [id], onDelete: Restrict)
 
-  salaryType        SalaryType
-  baseSalary        Decimal  @db.Decimal(12, 2)
+  salaryType           SalaryType
+  baseSalary           Decimal     @db.Decimal(12, 2)
   // Per-employee default OT rate (overridable per OvertimeEntry).
   defaultOtRateType    OtRateType?
   defaultOtRatePerHour Decimal?    @db.Decimal(12, 2)
@@ -405,18 +405,18 @@ model Employee {
   /// SSO from base salary per PayrollConfig (5% capped). Frozen into the
   /// Payroll row at calc time, so published slips never change retroactively.
   /// Default false: admin explicitly ticks enrolled employees.
-  hasSso            Boolean  @default(false)
-  status            EmpStatus
-  canCheckIn        Boolean  @default(true)
-  hiredAt           DateTime @db.Date
-  archivedAt        DateTime?
+  hasSso               Boolean     @default(false)
+  status               EmpStatus
+  canCheckIn           Boolean     @default(true)
+  hiredAt              DateTime    @db.Date
+  archivedAt           DateTime?
 
   // Single-use pairing JWT for LINE link; nulled after consumption.
-  inviteToken       String?  @unique
-  inviteExpiresAt   DateTime?
+  inviteToken     String?   @unique
+  inviteExpiresAt DateTime?
 
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   attendances         Attendance[]
   leaveRequests       LeaveRequest[]
@@ -436,47 +436,47 @@ model Employee {
 // ─── Attendance ────────────────────────────────────────────────────────────
 
 model Attendance {
-  id                String    @id @default(uuid()) @db.Uuid
-  employeeId        String    @db.Uuid
-  employee          Employee  @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  id         String   @id @default(uuid()) @db.Uuid
+  employeeId String   @db.Uuid
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Restrict)
 
-  date              DateTime  @db.Date
-  type              AttType
-  source            AttSource
+  date   DateTime  @db.Date
+  type   AttType
+  source AttSource
 
   /// Duration per requirement.docx — e.g., 30 (minutes late), 480 (1-day leave).
-  durationMinutes   Int?
+  durationMinutes Int?
 
   // LIFF check-in/out evidence
-  clockInAt         DateTime?
-  clockOutAt        DateTime?
-  checkInLat        Decimal?  @db.Decimal(10, 7)
-  checkInLng        Decimal?  @db.Decimal(10, 7)
-  checkInBranchId   String?   @db.Uuid
-  checkInBranch     Branch?   @relation("CheckInBranch", fields: [checkInBranchId], references: [id], onDelete: SetNull)
-  checkInSelfieUrl  String?
-  checkInStatus     CheckInStatus?
-  disputeReason     String?
+  clockInAt        DateTime?
+  clockOutAt       DateTime?
+  checkInLat       Decimal?       @db.Decimal(10, 7)
+  checkInLng       Decimal?       @db.Decimal(10, 7)
+  checkInBranchId  String?        @db.Uuid
+  checkInBranch    Branch?        @relation("CheckInBranch", fields: [checkInBranchId], references: [id], onDelete: SetNull)
+  checkInSelfieUrl String?
+  checkInStatus    CheckInStatus?
+  disputeReason    String?
 
   /// When type=OnLeave, the LeaveRequest that produced these auto-rows.
-  leaveRequestId    String?   @db.Uuid
-  leaveRequest      LeaveRequest? @relation(fields: [leaveRequestId], references: [id], onDelete: SetNull)
+  leaveRequestId String?       @db.Uuid
+  leaveRequest   LeaveRequest? @relation(fields: [leaveRequestId], references: [id], onDelete: SetNull)
 
   /// OT entries surfaced from this check-in's clock-out (back-relation).
-  overtimeEntries   OvertimeEntry[]
+  overtimeEntries OvertimeEntry[]
 
-  deductAmount      Decimal?  @db.Decimal(12, 2)
-  isOverridden      Boolean   @default(false)
-  overrideNote      String?
+  deductAmount Decimal? @db.Decimal(12, 2)
+  isOverridden Boolean  @default(false)
+  overrideNote String?
 
-  deletedAt         DateTime?
-  deletedById       String?   @db.Uuid
-  deleteReason      String?
+  deletedAt    DateTime?
+  deletedById  String?   @db.Uuid
+  deleteReason String?
 
-  createdAt         DateTime  @default(now())
+  createdAt   DateTime @default(now())
   /// User.id of whoever recorded this — employee for LIFF, admin for manual,
   /// system for cron (e.g., force-checkout-eod). Not a FK; users are soft-deleted.
-  createdById       String    @db.Uuid
+  createdById String   @db.Uuid
 
   // NOTE: the (employeeId, date, type) uniqueness is enforced by a PARTIAL
   // unique index `WHERE "deletedAt" IS NULL` created in migration 0014.
@@ -491,21 +491,21 @@ model Attendance {
 // ─── Leave & Cash Advance ──────────────────────────────────────────────────
 
 model LeaveType {
-  id          String    @id @default(uuid()) @db.Uuid
-  name        String    @unique // "ลาป่วย", "ลากิจ", "ลาพักร้อน"
+  id              String             @id @default(uuid()) @db.Uuid
+  name            String             @unique // "ลาป่วย", "ลากิจ", "ลาพักร้อน"
   /// Optional per-locale display names for worker-facing UI, keyed by app
   /// locale ({"en": "Personal leave", "my": "..."}). Missing/blank locales
   /// fall back to `name` (the Thai canonical name the admin UI shows).
-  nameByLocale Json?
-  isPaid      Boolean   @default(true)
-  annualQuota Int?      // null = unlimited (e.g., unpaid leave)
-  overQuotaPolicy OverQuotaPolicy @default(DeductPay)
-  allowFullDay Boolean  @default(true)
-  allowHalfDay Boolean  @default(false)
-  allowHourly  Boolean  @default(false)
-  archivedAt  DateTime?
-  requests    LeaveRequest[]
-  entitlements LeaveEntitlement[]
+  nameByLocale    Json?
+  isPaid          Boolean            @default(true)
+  annualQuota     Int? // null = unlimited (e.g., unpaid leave)
+  overQuotaPolicy OverQuotaPolicy    @default(DeductPay)
+  allowFullDay    Boolean            @default(true)
+  allowHalfDay    Boolean            @default(false)
+  allowHourly     Boolean            @default(false)
+  archivedAt      DateTime?
+  requests        LeaveRequest[]
+  entitlements    LeaveEntitlement[]
 }
 
 /// Company-wide leave-unit configuration (singleton — read via findFirst()).
@@ -530,8 +530,8 @@ model LeaveEntitlement {
   employee          Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   leaveTypeId       String    @db.Uuid
   leaveType         LeaveType @relation(fields: [leaveTypeId], references: [id], onDelete: Restrict)
-  periodYear        Int       // calendar year
-  grantedMinutes    Int?      // null = unlimited (mirrors annualQuota = null)
+  periodYear        Int // calendar year
+  grantedMinutes    Int? // null = unlimited (mirrors annualQuota = null)
   carryoverMinutes  Int       @default(0)
   adjustmentMinutes Int       @default(0) // signed; opening balance / corrections
   note              String?
@@ -543,35 +543,35 @@ model LeaveEntitlement {
 }
 
 model LeaveRequest {
-  id            String    @id @default(uuid()) @db.Uuid
-  employeeId    String    @db.Uuid
-  employee      Employee  @relation(fields: [employeeId], references: [id], onDelete: Restrict)
-  leaveTypeId   String    @db.Uuid
-  leaveType     LeaveType @relation(fields: [leaveTypeId], references: [id], onDelete: Restrict)
-  startDate     DateTime  @db.Date
-  endDate       DateTime  @db.Date
-  unit           LeaveUnit @default(FullDay)
-  startTime      String?   // "HH:MM" — set for HalfMorning/HalfAfternoon/Hourly
-  endTime        String?
-  chargedMinutes Int?      // frozen at approval; the amount deducted from balance
+  id                  String       @id @default(uuid()) @db.Uuid
+  employeeId          String       @db.Uuid
+  employee            Employee     @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  leaveTypeId         String       @db.Uuid
+  leaveType           LeaveType    @relation(fields: [leaveTypeId], references: [id], onDelete: Restrict)
+  startDate           DateTime     @db.Date
+  endDate             DateTime     @db.Date
+  unit                LeaveUnit    @default(FullDay)
+  startTime           String? // "HH:MM" — set for HalfMorning/HalfAfternoon/Hourly
+  endTime             String?
+  chargedMinutes      Int? // frozen at approval; the amount deducted from balance
   /// Minutes beyond the year entitlement, frozen at approval (0/null = within quota).
   overQuotaMinutes    Int?
   /// Money value of overQuotaMinutes at the employee's per-minute rate, frozen at approval.
-  deductAmount        Decimal?  @db.Decimal(12, 2)
+  deductAmount        Decimal?     @db.Decimal(12, 2)
   /// Payroll row that swept this deduction (null = not yet deducted). Mirrors CashAdvance.
-  deductedInPayrollId String?   @db.Uuid
-  reason        String
-  attachmentUrl String?   // medical certificate / supporting doc
-  status        LeaveStatus
-  reviewedById  String?   @db.Uuid
-  reviewedAt    DateTime?
-  reviewNote    String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  deletedAt     DateTime?
-  deletedById   String?   @db.Uuid
-  deleteReason  String?
-  attendances   Attendance[]
+  deductedInPayrollId String?      @db.Uuid
+  reason              String
+  attachmentUrl       String? // medical certificate / supporting doc
+  status              LeaveStatus
+  reviewedById        String?      @db.Uuid
+  reviewedAt          DateTime?
+  reviewNote          String?
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+  deletedAt           DateTime?
+  deletedById         String?      @db.Uuid
+  deleteReason        String?
+  attendances         Attendance[]
 
   @@index([employeeId, status])
   @@index([status])
@@ -579,13 +579,13 @@ model LeaveRequest {
 }
 
 model CashAdvance {
-  id                  String    @id @default(uuid()) @db.Uuid
-  employeeId          String    @db.Uuid
-  employee            Employee  @relation(fields: [employeeId], references: [id], onDelete: Restrict)
-  amount              Decimal   @db.Decimal(12, 2)
-  requestedAt         DateTime  @default(now())
+  id                  String        @id @default(uuid()) @db.Uuid
+  employeeId          String        @db.Uuid
+  employee            Employee      @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  amount              Decimal       @db.Decimal(12, 2)
+  requestedAt         DateTime      @default(now())
   status              AdvanceStatus
-  approvedById        String?   @db.Uuid
+  approvedById        String?       @db.Uuid
   approvedAt          DateTime?
   receiptUrl          String?
   /// Two-step payment: set the FIRST time a transfer slip is attached
@@ -593,12 +593,12 @@ model CashAdvance {
   /// Slip re-upload replaces receiptUrl but never overwrites paidAt.
   paidAt              DateTime?
   /// Set by Phase 2 payroll publish; once true, this advance is consumed.
-  isDeducted          Boolean   @default(false)
-  deductedInPayrollId String?   @db.Uuid
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
+  isDeducted          Boolean       @default(false)
+  deductedInPayrollId String?       @db.Uuid
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
   deletedAt           DateTime?
-  deletedById         String?   @db.Uuid
+  deletedById         String?       @db.Uuid
   deleteReason        String?
 
   // NOTE: "one active pending advance per employee" is enforced by a PARTIAL
@@ -620,7 +620,7 @@ model RecurringDeduction {
   id              String    @id @default(uuid()) @db.Uuid
   employeeId      String    @db.Uuid
   employee        Employee  @relation(fields: [employeeId], references: [id], onDelete: Restrict)
-  reason          String    // "เงินกู้บริษัท", "ผ่อนอุปกรณ์"
+  reason          String // "เงินกู้บริษัท", "ผ่อนอุปกรณ์"
   monthlyAmount   Decimal   @db.Decimal(12, 2)
   monthsRemaining Int
   startedAt       DateTime  @default(now())
@@ -649,10 +649,10 @@ model PayrollAdjustment {
   employeeId String         @db.Uuid
   employee   Employee       @relation(fields: [employeeId], references: [id], onDelete: Restrict)
   kind       AdjustmentKind
-  reason     String         // "ค่าคอมมิชชั่น", "หักค่าชุดฟอร์ม", ...
+  reason     String // "ค่าคอมมิชชั่น", "หักค่าชุดฟอร์ม", ...
   amount     Decimal        @db.Decimal(12, 2)
-  startMonth String         // "YYYY-MM" — first month it applies
-  endMonth   String?        // null = open-ended monthly
+  startMonth String // "YYYY-MM" — first month it applies
+  endMonth   String? // null = open-ended monthly
   note       String?
   deletedAt  DateTime?
   createdAt  DateTime       @default(now())
@@ -663,36 +663,36 @@ model PayrollAdjustment {
 }
 
 model Payroll {
-  id               String        @id @default(uuid()) @db.Uuid
-  employeeId       String        @db.Uuid
-  employee         Employee      @relation(fields: [employeeId], references: [id], onDelete: Restrict)
-  month            String        // "2026-04" YYYY-MM
+  id         String   @id @default(uuid()) @db.Uuid
+  employeeId String   @db.Uuid
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  month      String // "2026-04" YYYY-MM
 
-  incomeBase       Decimal       @db.Decimal(12, 2)
-  incomeOther      Decimal       @db.Decimal(12, 2) @default(0)
+  incomeBase  Decimal @db.Decimal(12, 2)
+  incomeOther Decimal @default(0) @db.Decimal(12, 2)
 
-  deductSso        Decimal       @db.Decimal(12, 2) @default(0)
-  deductAdvance    Decimal       @db.Decimal(12, 2) @default(0)
-  deductAttendance Decimal       @db.Decimal(12, 2) @default(0)
-  deductLeave      Decimal       @db.Decimal(12, 2) @default(0)
+  deductSso        Decimal @default(0) @db.Decimal(12, 2)
+  deductAdvance    Decimal @default(0) @db.Decimal(12, 2)
+  deductAttendance Decimal @default(0) @db.Decimal(12, 2)
+  deductLeave      Decimal @default(0) @db.Decimal(12, 2)
   /// Per requirement.docx §4 Deduct_Debt
-  deductDebt       Decimal       @db.Decimal(12, 2) @default(0)
+  deductDebt       Decimal @default(0) @db.Decimal(12, 2)
   /// Sum of Deduction-kind PayrollAdjustments for the month (เงินลด).
   /// Income-kind adjustments land in incomeOther.
-  deductOther      Decimal       @db.Decimal(12, 2) @default(0)
+  deductOther      Decimal @default(0) @db.Decimal(12, 2)
 
-  netPay           Decimal       @db.Decimal(12, 2)
+  netPay Decimal @db.Decimal(12, 2)
 
-  status           PayrollStatus
-  publishedAt      DateTime?
-  pdfUrl           String?
+  status      PayrollStatus
+  publishedAt DateTime?
+  pdfUrl      String?
 
-  revisionOfId     String?       @db.Uuid
-  revisionOf       Payroll?      @relation("Revision", fields: [revisionOfId], references: [id], onDelete: SetNull)
-  revisions        Payroll[]     @relation("Revision")
+  revisionOfId String?   @db.Uuid
+  revisionOf   Payroll?  @relation("Revision", fields: [revisionOfId], references: [id], onDelete: SetNull)
+  revisions    Payroll[] @relation("Revision")
 
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([employeeId, month])
   @@index([month])
@@ -711,7 +711,7 @@ model OvertimeEntry {
   minutes            Int
   rateType           OtRateType
   ratePerHour        Decimal?    @db.Decimal(12, 2) // when PerHourAmount
-  multiplier         Decimal?    @db.Decimal(3, 2)  // when Multiplier
+  multiplier         Decimal?    @db.Decimal(3, 2) // when Multiplier
   computedAmount     Decimal     @db.Decimal(12, 2) // frozen pay at approval
   status             OtStatus
   sourceAttendanceId String?     @db.Uuid
@@ -724,12 +724,12 @@ model OvertimeEntry {
   deleteReason       String?
   createdAt          DateTime    @default(now())
   createdById        String      @db.Uuid
+  // PARTIAL unique (employeeId, date) WHERE deletedAt IS NULL — raw SQL in the
+  // migration (Prisma DSL can't express partial-unique; see Attendance 0014).
 
   @@index([employeeId, date])
   @@index([status])
   @@index([deletedAt])
-  // PARTIAL unique (employeeId, date) WHERE deletedAt IS NULL — raw SQL in the
-  // migration (Prisma DSL can't express partial-unique; see Attendance 0014).
 }
 
 /// Singleton configuration for the payroll calc engine (Phase 2).
@@ -737,36 +737,36 @@ model OvertimeEntry {
 /// via `findFirst()`. Seed creates one row; admin edits via the future
 /// /admin/settings/payroll-config page (Phase 3).
 model PayrollConfig {
-  id        String   @id @default(uuid()) @db.Uuid
+  id                     String  @id @default(uuid()) @db.Uuid
   /// Social Security rate, e.g. 0.0500 = 5%.
-  ssoRate   Decimal  @db.Decimal(5, 4)
+  ssoRate                Decimal @db.Decimal(5, 4)
   /// Cap on the base-salary value used for SSO calculation (₿15,000 per Thai law).
-  ssoSalaryCap Decimal @db.Decimal(12, 2)
+  ssoSalaryCap           Decimal @db.Decimal(12, 2)
   /// Cap on the monthly SSO deduction itself (₿750 per Thai law).
-  ssoAmountCap Decimal @db.Decimal(12, 2)
+  ssoAmountCap           Decimal @db.Decimal(12, 2)
   /// Overtime multiplier (1.5 = OT pays 1.5× regular).
-  otMultiplier Decimal @db.Decimal(3, 2)
+  otMultiplier           Decimal @db.Decimal(3, 2)
   /// Days/month used to derive an hourly wage from a monthly salary for OT
   /// multiplier-mode pricing (Thai convention ÷30).
-  workingDaysPerMonth Int @default(30)
+  workingDaysPerMonth    Int     @default(30)
   /// Clock-out must beat the scheduled end by at least this many minutes to
   /// surface as an OT candidate.
-  otThresholdMinutes  Int @default(30)
+  otThresholdMinutes     Int     @default(30)
   /// Day of month payroll cut-off — e.g., 25 means "calculate for the
   /// 26th of prior month through the 25th of this month".
-  cutoffDay    Int      @default(25)
+  cutoffDay              Int     @default(25)
   /// Flat deduction per "Absent" day. Phase-2 polish may auto-derive from baseSalary/30.
-  absentDeductionPerDay Decimal @db.Decimal(12, 2)
+  absentDeductionPerDay  Decimal @db.Decimal(12, 2)
   /// Flat deduction per "Late" attendance row (count-based, ignores duration).
-  lateDeduction         Decimal @db.Decimal(12, 2)
+  lateDeduction          Decimal @db.Decimal(12, 2)
   /// Flat deduction per "EarlyLeave" attendance row.
-  earlyLeaveDeduction   Decimal @db.Decimal(12, 2)
+  earlyLeaveDeduction    Decimal @db.Decimal(12, 2)
   /// Company default scheduled work start, "HH:MM" (Asia/Bangkok). The
   /// reference time for late-arrival detection until per-employee
   /// WorkSchedules are assigned. Admin-editable via /admin/settings/attendance.
-  workStartTime         String  @default("09:00")
+  workStartTime          String  @default("09:00")
   /// Minutes after workStartTime before a check-in is flagged "Late".
-  lateGraceMinutes      Int     @default(15)
+  lateGraceMinutes       Int     @default(15)
   /// Late-penalty policy (C9) — money-based, each rule independently
   /// toggleable; the "1 day" penalty reuses `absentDeductionPerDay`.
   /// "N lates in a pay period = 1 day deducted" (replaces the flat
@@ -785,12 +785,12 @@ model PayrollConfig {
 // ─── Cross-cutting ─────────────────────────────────────────────────────────
 
 model Holiday {
-  id           String   @id @default(uuid()) @db.Uuid
-  date         DateTime @db.Date @unique
-  name         String   // "วันแรงงาน"
+  id           String    @id @default(uuid()) @db.Uuid
+  date         DateTime  @unique @db.Date
+  name         String // "วันแรงงาน"
   /// True if this is a substitute day (Thai cabinet decree, or auto-shifted
   /// because the original Mon-holiday fell on Koolman's closed day).
-  isSubstitute Boolean  @default(false)
+  isSubstitute Boolean   @default(false)
   archivedAt   DateTime?
 }
 
@@ -799,7 +799,7 @@ model Notification {
   userId    String       @db.Uuid
   user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   channel   NotifChannel
-  event     String       // "leave.approved", "advance.approved", "payroll.published", ...
+  event     String // "leave.approved", "advance.approved", "payroll.published", ...
   payload   Json
   readAt    DateTime?
   sentAt    DateTime?
@@ -813,15 +813,36 @@ model AuditLog {
   id          String   @id @default(uuid()) @db.Uuid
   /// User.id of the actor, or null for system actions / when actor deleted.
   actorId     String?  @db.Uuid
-  action      String   // "employee.create", "payroll.publish", "leave.approve", ...
-  entityType  String   // "Employee", "Payroll", "LeaveRequest", ...
+  action      String // "employee.create", "payroll.publish", "leave.approve", ...
+  entityType  String // "Employee", "Payroll", "LeaveRequest", ...
   entityId    String   @db.Uuid
   beforeValue Json?
   afterValue  Json?
-  metadata    Json?    // IP, user-agent, source location, etc.
+  metadata    Json? // IP, user-agent, source location, etc.
   createdAt   DateTime @default(now())
 
   @@index([entityType, entityId, createdAt(sort: Desc)])
   @@index([actorId, createdAt(sort: Desc)])
   @@index([action])
+}
+
+/// Generic machine-translation cache. Keyed by a hash of the source text +
+/// target language so ANY free-text field (leave reasons, void reasons,
+/// review notes, …) can be translated on demand and re-served for free.
+/// Rows are immutable — a given (sourceHash, targetLang) always maps to the
+/// same translation, so there is no update path and no TTL.
+model Translation {
+  id                 String   @id @default(uuid()) @db.Uuid
+  /// sha256 hex of the normalized (trimmed) source text.
+  sourceHash         String
+  /// BCP-47-ish target language code, e.g. "th".
+  targetLang         String
+  /// Original text, stored verbatim for debugging / cache audits.
+  sourceText         String
+  translatedText     String
+  /// Source language Google auto-detected, e.g. "my" (Burmese), "th".
+  detectedSourceLang String
+  createdAt          DateTime @default(now())
+
+  @@unique([sourceHash, targetLang])
 }
