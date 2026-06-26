@@ -23,14 +23,20 @@ type Props = {
   /** Modal headline while running, e.g. "กำลังคำนวณเงินเดือน…" */
   pendingLabel: string;
   variant?: 'primary' | 'secondary';
+  /**
+   * When true, the button is rendered as a loud amber "action needed" CTA with
+   * a ⚠ prefix — overriding `variant`. Used for the recalc button when draft
+   * numbers are stale, so the action that fixes it is impossible to miss.
+   */
+  attention?: boolean;
 };
 
-function Inner({ label, pendingLabel, variant }: Omit<Props, 'action' | 'month'>) {
+function Inner({ label, pendingLabel, variant, attention }: Omit<Props, 'action' | 'month'>) {
   const { pending } = useFormStatus();
   return (
     <>
-      <Button type="submit" variant={variant} disabled={pending}>
-        {label}
+      <Button type="submit" variant={attention ? 'attention' : variant} disabled={pending}>
+        {attention ? `⚠ ${label}` : label}
       </Button>
 
       {/* Shared Dialog primitive, locked non-dismissable while the mutation
@@ -49,11 +55,11 @@ function Inner({ label, pendingLabel, variant }: Omit<Props, 'action' | 'month'>
   );
 }
 
-export function RunActionForm({ action, month, label, pendingLabel, variant }: Props) {
+export function RunActionForm({ action, month, label, pendingLabel, variant, attention }: Props) {
   return (
     <form action={action}>
       <input type="hidden" name="month" value={month} />
-      <Inner label={label} pendingLabel={pendingLabel} variant={variant} />
+      <Inner label={label} pendingLabel={pendingLabel} variant={variant} attention={attention} />
     </form>
   );
 }

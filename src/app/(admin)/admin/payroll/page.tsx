@@ -418,6 +418,7 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
             label={rows.length > 0 ? 'คำนวณใหม่ (ฉบับร่าง)' : 'คำนวณเงินเดือน'}
             pendingLabel="กำลังคำนวณเงินเดือน…"
             variant="secondary"
+            attention={staleVisibleCount > 0}
           />
         )}
         {mayPublish && statusCounts.Draft > 0 && (

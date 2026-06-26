@@ -1,7 +1,14 @@
 import type { ButtonHTMLAttributes } from 'react';
 import { cn } from '@/lib/utils';
 
-type Variant = 'primary' | 'secondary' | 'destructive' | 'ghost' | 'approve' | 'reject';
+type Variant =
+  | 'primary'
+  | 'secondary'
+  | 'destructive'
+  | 'ghost'
+  | 'approve'
+  | 'reject'
+  | 'attention';
 type Size = 'sm' | 'md' | 'lg';
 
 const variantClasses: Record<Variant, string> = {
@@ -17,6 +24,10 @@ const variantClasses: Record<Variant, string> = {
   // Reject = neutral-bordered (the dangerous part is confirmed in the dialog).
   reject:
     'border border-gray-300 bg-white text-ink-2 hover:bg-gray-50 focus-visible:ring-primary-500/30',
+  // Attention = "action needed now" (amber CTA). Used when state is stale and a
+  // recompute is required — matches the amber stale-warning banner's language.
+  attention:
+    'bg-amber-500 text-white shadow-sm ring-2 ring-amber-300 ring-offset-1 hover:bg-amber-600 focus-visible:ring-amber-500/60',
 };
 
 const sizeClasses: Record<Size, string> = {
