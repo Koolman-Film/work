@@ -55,3 +55,8 @@ export async function startAdminMerge(): Promise<
 
   return { ok: true, url, qrDataUrl, expiresAt };
 }
+
+export async function dismissMergePrompt(): Promise<void> {
+  const { user } = await requireRole(['Admin']);
+  await prisma.user.update({ where: { id: user.id }, data: { mergePromptDismissedAt: new Date() } });
+}
