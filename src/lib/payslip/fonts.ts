@@ -8,8 +8,10 @@ const face = (family: string, file: string, weight: number) =>
   `@font-face{font-family: '${family}';font-weight:${weight};font-style:normal;` +
   `src:url(data:font/ttf;base64,${b64(file)}) format('truetype');}`;
 
+// Latin + Thai are ALWAYS embedded (see fontFaceCss). The viewer's own script
+// (Lao/Myanmar/Khmer/SC) is added on top for that locale. Thai is NOT here — it
+// is always loaded, so 'th' needs no extra entry.
 const SCRIPT: Record<string, { family: string; reg: string; bold: string }> = {
-  th: { family: 'Noto Sans Thai', reg: 'NotoSansThai-Regular.ttf', bold: 'NotoSansThai-Bold.ttf' },
   lo: { family: 'Noto Sans Lao', reg: 'NotoSansLao-Regular.ttf', bold: 'NotoSansLao-Bold.ttf' },
   my: {
     family: 'Noto Sans Myanmar',
@@ -28,9 +30,14 @@ export const FONT_STACK =
   "'Noto Sans','Noto Sans Thai','Noto Sans Lao','Noto Sans Myanmar','Noto Sans Khmer','Noto Sans SC',sans-serif";
 
 export function fontFaceCss(locale: string): string {
+  // Latin (labels/digits) + Thai (company name + most employee/branch names —
+  // a Thai company) are always embedded so they render on EVERY locale's PDF,
+  // including on Vercel's headless Chromium which has no system-font fallback.
   const out = [
     face('Noto Sans', 'NotoSans-Regular.ttf', 400),
     face('Noto Sans', 'NotoSans-Bold.ttf', 700),
+    face('Noto Sans Thai', 'NotoSansThai-Regular.ttf', 400),
+    face('Noto Sans Thai', 'NotoSansThai-Bold.ttf', 700),
   ];
   const s = SCRIPT[locale];
   if (s) {

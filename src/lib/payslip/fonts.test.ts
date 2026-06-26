@@ -16,4 +16,14 @@ describe('fontFaceCss', () => {
     expect(fontFaceCss('zh-CN')).toContain("font-family: 'Noto Sans SC'");
     expect(fontFaceCss('km')).not.toContain("font-family: 'Noto Sans SC'");
   });
+  it('ALWAYS embeds Thai (company name + Thai data appears on every locale)', () => {
+    // Thai is the company's data language; it must render on Vercel (no system fonts).
+    expect(fontFaceCss('en')).toContain("font-family: 'Noto Sans Thai'");
+    expect(fontFaceCss('km')).toContain("font-family: 'Noto Sans Thai'");
+    expect(fontFaceCss('zh-CN')).toContain("font-family: 'Noto Sans Thai'");
+  });
+  it('adds the viewer locale script on top of Latin+Thai', () => {
+    expect(fontFaceCss('km')).toContain("font-family: 'Noto Sans Khmer'");
+    expect(fontFaceCss('my')).toContain("font-family: 'Noto Sans Myanmar'");
+  });
 });
