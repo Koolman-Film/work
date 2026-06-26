@@ -1,156 +1,200 @@
-# Unify admin LINE connect: one smart "pair-or-merge" flow
+# Admin–employee LINE identity: bind, sync, and capability menus
 
 **Date:** 2026-06-26
-**Status:** Design approved — pending spec review → implementation plan
+**Status:** Design — pending spec review → implementation plan
 **Related:** [`2026-06-24-admin-employee-unified-identity-design.md`](2026-06-24-admin-employee-unified-identity-design.md), [`2026-06-11-admin-line-experience-design.md`](2026-06-11-admin-line-experience-design.md)
 
 ## Problem
 
-There are two separate admin-facing ways to connect a LINE account, and they look
-near-identical (both show a QR an admin mints from their phone):
+LINE identity for admins and employees grew piecemeal, and the surfaces don't
+compose smoothly:
 
-1. **LINE pairing** — `/admin/settings/line` → `link-line-to-admin.ts`. Binds
-   `User.lineUserId` onto a single admin User (gives the admin rich menu in the OA
-   chat, LINE notifications, an admin LIFF session).
-2. **Account merge** — dashboard nudge + profile card → `start-admin-merge.ts` →
-   `/liff/merge/[token]` → `merge-admin-into-employee.ts`. Collapses a legacy
-   dual account (a pure admin User + a separate employee User who are the same
-   human) into one User.
+- **Four overlapping surfaces** set or use `User.lineUserId`: admin self-pairing
+  (`/admin/settings/line`), admin-managed employee pairing
+  (`/admin/employees/[id]/edit`), employee self-pairing (`/liff/pair`), and the
+  account merge (`startAdminMerge` → `/liff/merge`).
+- **Binding collisions dead-end.** `lineUserId` is `@unique`
+  (`prisma/schema.prisma:138`). If an admin tries to bind a LINE already held by
+  their employee account, they get `line-account-in-use` — a wall, not a path to
+  the obviously-intended outcome (unify the two accounts).
+- **Sync is one-directional.** Only admin→employee merge exists; an employee
+  can't initiate linking to their admin account.
+- **No "both" rich menu.** Only an admin menu exists (`ADMIN_RICH_MENU_ID`,
+  per-user linked); employees get the OA default menu. A person who is *both*
+  (after merge) gets the admin menu only and silently loses their employee
+  buttons.
 
-They are confusing because they overlap in appearance but diverge in outcome, and
-the split is forced only by an implementation detail: `lineUserId` is `@unique`
-(`prisma/schema.prisma:138`), so when an admin scans with a LINE that already
-belongs to an employee, pairing **errors** (`line-account-in-use`) instead of
-doing the obviously-right thing (merge).
-
-The admin population is **mixed**: some admins are "pure" (owner/office staff who
-never clock in and have no Employee record), some are also employees (legacy dual
-accounts). A single entry point should detect which case applies and do the right
-thing.
+The admin population is **mixed**: some pure admins (owner/office, no Employee
+record), some are also employees (legacy dual accounts).
 
 ## Goals
 
-- One admin-facing "connect LINE" flow that **auto-detects** bind-vs-merge from
-  what the scanned LINE already is.
-- The irreversible merge branch is **confirmed first** (today's merge has no
-  explicit confirm — it auto-runs on opening the link).
-- Single home at `/admin/settings/line`, with a lightweight dashboard nudge that
-  links there. Retire the now-redundant profile merge card.
-- No change to data-safety guarantees: merge stays atomic and value-preserving
-  (never edits Employee/attendance/leave/advance VALUES).
+Every surface works smoothly, around two clean, decoupled capabilities plus a
+capability-driven rich menu:
+
+1. **Bind a LINE** to an account — a fresh LINE pairs to an admin *or* an
+   employee. Binding never surprises the user by merging.
+2. **Sync two accounts** — an admin account and an employee account (same person)
+   link into one identity. Deliberate, explicit, and **initiatable from either
+   side**.
+3. **Rich menu follows capabilities** — three states: employee-only, admin-only,
+   admin+employee.
+4. A binding **collision becomes a doorway to sync**, never a dead-end.
 
 ## Non-goals
 
-- No change to the employee-side LINE pairing (`/liff/pair`, `link-line-to-employee.ts`).
-- No change to the merge executor's semantics (`merge-admin-into-employee.ts`) —
-  it is reused as-is.
-- No "un-merge"/reversal feature (merge remains one-way by design).
+- No "un-merge"/reversal (merge stays one-way by design; value-preserving).
+- No change to employee-side feature gating (`requireEmployee`) or `/liff/home`
+  capability groups.
+- Rich-menu *images/content* are an ops asset, not produced by this code change
+  (see Dependencies).
 
-## Key decisions (from brainstorming)
+## Confirmed decisions
 
-1. **Mixed population → one smart button** that branches at redeem time.
-2. **Merge branch → confirm screen first**, reusing/extending the merge UI.
-3. **Entry points → `settings/line` is the one home**; keep a lightweight
-   dashboard nudge linking there; remove the profile merge card.
+1. **Bind and sync are decoupled** — not one auto-detecting scan. This removes the
+   ordering edge cases of conflating them.
+2. **Sync = merge into one identity** — one User carrying both the Employee record
+   and the admin role; the redundant login is archived. (Consistent with the
+   shipped unified-identity architecture; reuses `mergeAdminIntoEmployee`.)
+3. **Sync is bidirectional** — generatable from the admin profile *and* the
+   employee LIFF profile; redeemed in the counterpart account's session.
+4. **Confirm-first on sync**, and the confirm screen shows **both identities**
+   (admin email + employee name) so a mis-scanned bearer token is caught.
+5. **Rich menu = pure function of capabilities**; employee-only uses the OA
+   default (no per-user link), so only **one new menu object** (Combined) is built.
 
-## The insight
+## Capability 1 — Bind a LINE to an account
 
-Both existing flows are already the same shape: an admin mints a token
-(`sub = admin User.id`) and someone opens it in a LINE session. The only real
-difference is what redeem does with the scanning LINE:
+A fresh (unbound) LINE binds to exactly one account. Unchanged mechanics, made
+consistent:
 
-| Scanning LINE is… | Pairing today | Merge today | Unified |
-|---|---|---|---|
-| Not bound to anyone | bind → admin User | — | **bind** |
-| Already an employee User | errors (`line-account-in-use`) | merge admin → employee | **confirm → merge** |
-| Another non-employee user | errors | — | **collision error** |
+| Surface | Target | Flow |
+|---|---|---|
+| `/admin/settings/line` | the admin's own User | mint admin-pair token → `/liff/pair-admin/[token]` → `linkLineToAdmin` |
+| `/admin/employees/[id]/edit` pairing card | an employee's User | mint pairing token → `/liff/pair/[token]` → `linkLineToEmployee` |
+| `/liff/pair` (employee self) | the employee's User | same redeem |
 
-So "unify" = turn that error into a branch. One token, one QR, one redeem route.
+**Change:** after a successful bind, call `applyRichMenuForUser` (capability
+resolver, below) instead of the hardcoded `linkAdminRichMenu`.
 
-## Design
+**Collision → doorway (the key smoothness fix).** When a bind targets a LINE
+already bound to a *different* User, do not dead-end. Instead:
 
-### 1. Unified redeem (core)
+- Surface: *"This LINE is already linked to [account label]. If that's you, sync
+  your accounts."* with a button into **Capability 2**.
+- The sync's confirm-both-identities screen is the authorization check (the system
+  can't prove two accounts are the same person; the human confirms).
 
-One token — the **existing admin-pair token** (`lineInviteToken`, scope
-`admin-pair`). One QR on `settings/line`. The redeem route
-`/liff/pair-admin/[token]` resolves the LINE identity, then branches:
+## Capability 2 — Sync two accounts into one identity
 
-```
-liffBootstrap() → LINE identity (lineUserId)
-  → resolveAdminLineLink({ token, lineUserId })
-      ├─ unbound                 → BIND   (set lineUserId on admin User — runs immediately; reversible)
-      ├─ existing User w/ Employee → MERGE  (return { employeeName, adminEmail } → confirm → execute)
-      └─ existing User, no Employee → COLLISION error (unchanged semantics)
-```
+One **account-sync token**, generatable from either account, redeemed in the
+counterpart account's authenticated session. The merge result is invariant
+regardless of who initiates: keep the **employee** User (it holds the Employee
+record), copy the admin role onto it, archive the **admin** User — i.e.
+`mergeAdminIntoEmployee`, reused unchanged.
 
-- The branch key is exactly today's collision check
-  (`link-line-to-admin.ts:130-137`): if the existing user **has an Employee
-  record**, it's a merge candidate rather than an error.
-- `resolveAdminLineLink` is a new server action that **validates the token**
-  (single-use, not expired, target holds an admin-tier role) and **classifies the
-  outcome without mutating** — so the client can show a confirm before any merge.
-  Both `adminUserId` (token `sub`) and the scanning employee's User (looked up by
-  `lineUserId`) are known at this point.
-- Resolve returns the classification; the client then dispatches the matching
-  **act** call. The act calls re-validate (TOCTOU) before mutating.
-- **BIND path:** on a `bind` classification the client immediately calls the
-  existing bind action (`linkLineToAdmin`: binds `lineUserId` + audits +
-  best-effort rich-menu link) — **no confirm**, because binding is reversible.
-- **MERGE path:** on a `merge` classification the client shows a **confirm
-  interstitial** (new), then on confirm calls the executor via the existing
-  `linkMergeAccounts` → `mergeAdminIntoEmployee`.
+**Token:** reuse the existing `mergeToken` / `mergeTokenExpiresAt` columns
+(repurposed as the generic account-sync token; rename is cosmetic and optional).
+`sub` = the initiator's User.id; single-use; short expiry.
 
-### 2. `settings/line` — the one home
+**Initiation surfaces:**
+- Admin side: `/admin/profile` — "link my employee account" → QR. (This repurposes
+  the profile card added in `bb080bf`; it now has a first-class home.)
+- Employee side: `/liff/profile` (or `/liff/home`) — "link my admin account" → QR.
 
-`LinePairingCard` keeps mint-token + QR + unpair. Copy updates to set
-expectations for both outcomes, e.g.: *"เชื่อมต่อ LINE — ถ้าคุณเป็นพนักงานด้วย
-สแกนด้วย LINE ของบัญชีพนักงานเพื่อรวมบัญชี"*. The "unpair / change LINE" control
-stays (relevant to the bind case).
+**Redeem surfaces (the counterpart session opens the QR):**
+- Redeemed in a **LINE** session (LIFF) when the counterpart is the employee.
+- Redeemed in a **web/email** session when the counterpart is the admin.
+- Both first run the **confirm-both-identities** screen, then execute.
 
-### 3. Dashboard nudge (simplified)
+**Classification at redeem:** given the two Users (token initiator + redeemer
+session), one must be a pure admin (admin role, no Employee record) and the other
+an employee (has Employee record). Merge admin→employee. If both are employees or
+both pure admins → cannot-sync error. Existing executor guards (`same-user`,
+`admin-not-pure`, `employee-no-record`) remain the backstop.
 
-`MergePromptCard` becomes a lightweight link card pointing to
-`/admin/settings/line` — drop its inline QR / `startAdminMerge`. Re-gated on
-**`lineUserId == null`** (admin hasn't connected LINE yet), still dismissible via
-`mergePromptDismissedAt`.
+**Post-sync:** call `applyRichMenuForUser` on the surviving User's `lineUserId`
+(now admin+employee → Combined menu).
 
-### 4. Retire
+## Capability-driven rich menu
 
-- **Profile merge card** — revert the recent `profile/page.tsx` +
-  `MergePromptCard dismissible` addition. `settings/line` is now the permanent
-  always-available home, so the profile re-entry is redundant.
-- **`startAdminMerge` / `dismissMergePrompt`** — `startAdminMerge` (separate merge
-  token mint) is retired; merge now rides the admin-pair token. `dismissMergePrompt`
-  stays (nudge still dismissible).
-- **`/liff/merge/[token]` route + `merge-client.tsx`** — folded into the
-  pair-admin redeem. `linkMergeAccounts` (executor wrapper) and
-  `mergeAdminIntoEmployee` are **kept and reused**.
-- **`mergeToken` / `mergeTokenExpiresAt` columns** — become unused → drop in a
-  small follow-up migration (safe: unused, additive-then-drop). `mergePromptDismissedAt`
-  stays.
+`applyRichMenuForUser(lineUserId, { hasEmployee, hasAdmin })` — the single source
+of truth for which menu a user sees:
 
-### 5. Edge cases (all preserved)
+| Capabilities | Action |
+|---|---|
+| admin **+** employee | link `COMBINED_RICH_MENU_ID` |
+| admin only | link `ADMIN_RICH_MENU_ID` (exists) |
+| employee only | **unlink** per-user → OA default (employee) menu shows |
+| neither | unlink |
 
-- Admin already LINE-bound, scans an employee LINE → merge; the executor nulls the
-  archived admin's `lineUserId`, so no unique-constraint clash.
-- Pure admin who will never be an employee → binds, exactly as today.
-- Executor guards (`same-user`, `admin-not-pure`, `employee-no-record`) stay.
-- Token expiry / single-use / not-admin errors unchanged.
-- `?merge` deep-link dispatcher in `/liff/pair/pair-client.tsx` (added in f49c0cc)
-  is removed/redirected to the unified pair-admin path.
+**Call sites:** after binding a LINE (admin or employee), after sync/merge, after
+granting/revoking admin role, after archiving an employee. Replaces direct
+`linkAdminRichMenu` / `unlinkAdminRichMenu` calls.
+
+This delivers the three menu types **and** fixes the current gap where a merged
+admin-employee gets the admin-only menu.
+
+## Surface map (every surface, after)
+
+| Surface | Capability | Behavior |
+|---|---|---|
+| `settings/line` | Bind (admin) | bind own LINE; collision → offer sync |
+| employee pairing card / `/liff/pair` | Bind (employee) | bind employee LINE; collision → offer sync |
+| `/admin/profile` | Sync (admin-initiated) | QR → employee redeems → merge |
+| `/liff/profile` | Sync (employee-initiated) | QR → admin redeems → merge |
+| dashboard nudge | discovery | lightweight link → `settings/line` (gated on `lineUserId == null`, dismissible) |
+| any rich menu | — | resolved by `applyRichMenuForUser` |
+
+## Retire / change
+
+- **Drop the "auto-detect bind-vs-merge at scan" idea** (former Approach A) —
+  superseded by the two-capability model.
+- **`startAdminMerge`** generalizes into the bidirectional account-sync
+  initiation (admin side); add the employee-side initiator.
+- **`/liff/merge/[token]` auto-running merge** becomes the confirm-first sync
+  redeem (LINE-session variant); add the web-session variant.
+- **`linkMergeAccounts` / `mergeAdminIntoEmployee`** — kept, reused.
+- **`mergeToken` columns** — kept, repurposed (no column drop).
+- **Hardcoded `linkAdminRichMenu`** call sites — replaced by `applyRichMenuForUser`.
+
+## Edge cases
+
+- Bind collision where the LINE is on the person's own other account → offer sync
+  (not an error).
+- Bind collision where the LINE genuinely belongs to someone else → real error;
+  the confirm-both-identities screen in sync prevents accidental cross-person merge.
+- Admin already LINE-bound, then syncs via employee LINE → executor nulls the
+  archived admin's `lineUserId`; no unique clash.
+- Both-pure-admin or both-employee redeem → cannot-sync error.
+- Token expiry / single-use / not-authorized unchanged.
+
+## Dependencies (ops)
+
+- **Combined rich menu asset:** a designed menu image + `scripts/setup-combined-rich-menu.ts`
+  (mirrors `setup-admin-rich-menu.ts`) + `COMBINED_RICH_MENU_ID` env var on Vercel.
+  Code ships independently; the menu appears once the asset is created and script run.
 
 ## Testing
 
-- **Unit:** `resolveAdminLineLink` outcome table — unbound→bind, employee→merge,
-  non-employee→collision, expired/invalid/not-admin.
-- **Integration:** pair-admin redeem binds when LINE unbound; proposes + (on
-  confirm) executes merge when the LINE is an employee; collision errors for a
-  non-employee user. Reuse existing value-preserving assertions from the merge
-  executor tests.
-- Existing `mergeAdminIntoEmployee` integration tests carry over unchanged.
+- **Unit:** `applyRichMenuForUser` capability→menu table; sync classification
+  (admin+employee→merge, both-same→error); collision detection returns
+  offer-sync vs hard-error.
+- **Integration:** bind (admin/employee) sets `lineUserId` + applies correct menu;
+  sync from each direction executes a value-preserving merge (reuse existing
+  executor assertions) and applies the Combined menu; collision routes to sync.
+- Existing `mergeAdminIntoEmployee` tests carry over unchanged.
+
+## Suggested phasing (for the implementation plan)
+
+1. **Rich-menu resolver** — `applyRichMenuForUser` + Combined-menu wiring +
+   swap call sites. Self-contained; fixes the merged-person gap immediately.
+2. **Bidirectional sync** — generalize the token/initiation to either side; add
+   the web-session redeem; confirm-both-identities screen.
+3. **Collision → doorway** — bind surfaces offer sync instead of dead-ending;
+   entry-point/nudge cleanup.
 
 ## Rollout
 
-- Code change + one small migration (drop `mergeToken`, `mergeTokenExpiresAt`).
-  Additive-then-drop of unused columns is data-safe.
-- Deploys to production via push to `main` (auto-deploy), same as prior work.
+Code + one rich-menu setup script + one env var. No destructive migration
+(`mergeToken` columns reused). Deploys to production via push to `main`.
