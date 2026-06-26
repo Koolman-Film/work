@@ -554,5 +554,11 @@
     "approvals": "Approvals",
     "dashboard": "Dashboard",
     "reports": "Reports"
+  },
+  "adminAccess": {
+    "title": "Admin access",
+    "description": "Let this employee use admin tools (approvals, etc.) with the same LINE account",
+    "grant": "Grant admin access",
+    "alreadyAdmin": "Already an admin — manage roles on the Team page"
   }
 }
