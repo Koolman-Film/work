@@ -567,6 +567,11 @@
     "successBody": "You can now use this LINE account for both employee and admin tools.",
     "errorTitle": "Couldn't link accounts",
     "retry": "Try again",
-    "openHome": "Go to home"
+    "openHome": "Go to home",
+    "cardTitle": "Link your employee account",
+    "cardBody": "If you're also an employee here, link accounts to use one LINE for both menus.",
+    "cardCta": "Link account",
+    "dismiss": "Not now",
+    "scanHint": "Open this with your employee LINE account."
   }
 }
