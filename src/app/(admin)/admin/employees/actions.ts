@@ -9,6 +9,7 @@ import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { assignAdminRole } from '@/lib/employee/assign-admin-role';
 import { maskBankAccountNumber } from '@/lib/employee/bank';
+import { syncRichMenuForUser } from '@/lib/line/rich-menu';
 import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 import { readForm } from './employee-schema';
 
@@ -620,6 +621,12 @@ export async function grantAdminAccess(employeeId: string): Promise<void> {
     );
   }
   await assignAdminRole(employeeId);
+  // The employee just gained admin → combined menu (if LINE-bound). Best-effort.
+  const linked = await prisma.employee.findUnique({
+    where: { id: employeeId },
+    select: { userId: true },
+  });
+  if (linked) await syncRichMenuForUser(linked.userId);
   const ctx = await readRequestContext();
   auditLog({
     actorId: actor.id,

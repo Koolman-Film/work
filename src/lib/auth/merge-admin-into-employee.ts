@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db/prisma';
+import { syncRichMenuForUser } from '@/lib/line/rich-menu';
 
 type Result =
   | { ok: true }
@@ -90,6 +91,10 @@ export async function mergeAdminIntoEmployee(input: {
       },
     });
   });
+
+  // The surviving employee user now also holds the admin role → combined menu.
+  // Best-effort; never throws.
+  await syncRichMenuForUser(employeeUserId);
 
   return { ok: true };
 }
