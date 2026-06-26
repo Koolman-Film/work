@@ -31,6 +31,8 @@ export async function mergeAdminIntoEmployee(input: {
   if (admin.employee !== null) return { ok: false, code: 'admin-not-pure' };
   if (employeeUser.employee === null) return { ok: false, code: 'employee-no-record' };
 
+  // Only copy admin/superadmin roles — custom or staff roles on the admin
+  // user are intentionally not carried over to the employee account.
   const adminRoles = admin.roleAssignments.filter(
     (a) => a.role.key === 'admin' || a.role.isSuperadmin,
   );
