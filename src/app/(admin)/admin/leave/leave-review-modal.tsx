@@ -2,6 +2,7 @@
 
 import { ReviewModal } from '@/components/ui/review-modal';
 import { STATUS_ICON, StatusBadge, type StatusKey } from '@/components/ui/status-badge';
+import { TranslatableText } from '@/components/ui/translatable-text';
 import { approveLeaveRequest, rejectLeaveRequest } from '@/lib/leave/admin';
 import { voidLeaveRequest } from '@/lib/leave/void';
 
@@ -131,7 +132,10 @@ function LeaveBody({ row }: { row: LeaveRowVM }) {
       )}
       <div>
         <p className="text-xs font-medium text-ink-4">เหตุผลของพนักงาน</p>
-        <p className="mt-1 whitespace-pre-wrap text-sm text-ink-2">{row.reason}</p>
+        {/* Staff may write the reason in their native language (Burmese, Lao,
+            Khmer…). TranslatableText shows it as-is with an on-demand
+            "แปลเป็นไทย" button for the (mostly Thai) admins. */}
+        <TranslatableText text={row.reason} className="mt-1" />
       </div>
       {row.attachmentUrl && (
         <div>
