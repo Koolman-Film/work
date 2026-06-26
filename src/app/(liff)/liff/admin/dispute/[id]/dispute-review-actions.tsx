@@ -23,6 +23,10 @@ export function DisputeReviewActions({ attendanceId }: { attendanceId: string })
   const [isPending, startTransition] = useTransition();
 
   function fire(kind: 'approve' | 'reject') {
+    if (note.trim().length === 0) {
+      setError('กรุณาระบุหมายเหตุ');
+      return;
+    }
     if (armed !== kind) {
       setArmed(kind);
       setError('');
@@ -58,7 +62,7 @@ export function DisputeReviewActions({ attendanceId }: { attendanceId: string })
   return (
     <section className="mt-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
       <label htmlFor="dispute-note" className="text-xs font-medium text-gray-500">
-        หมายเหตุ (ไม่บังคับ)
+        หมายเหตุ (จำเป็น)
       </label>
       <textarea
         id="dispute-note"
