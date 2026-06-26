@@ -500,7 +500,8 @@
     "detail": {
       "sso": "{pct}% · cap ฿{cap}",
       "advance": "{count}× advance",
-      "leave": "{minutes} min × ฿{rate}"
+      "leave": "{minutes} min × ฿{rate}",
+      "attendance": "{absent} absent · {late} late"
     }
   }
 }
