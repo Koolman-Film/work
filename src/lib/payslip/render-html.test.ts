@@ -81,6 +81,15 @@ describe('buildPayslipHtml', () => {
     expect(mln).toMatch(/text-transform:\s*none/);
     expect(html).toContain('<span class="ml-n">'); // native is wrapped, not a bare node
   });
+  it('localizes the pay-type VALUE via profile.salaryType (not the raw enum)', () => {
+    const html = buildPayslipHtml(doc, { ...opts, locale: 'th' });
+    expect(html).toContain('profile.salaryType.Monthly'); // stub echoes the resolved key
+  });
+  it('omits the department row entirely when there is no department', () => {
+    const noDept = { ...doc, meta: { ...doc.meta, department: null } };
+    const html = buildPayslipHtml(noDept, { ...opts, locale: 'th' });
+    expect(html).not.toContain('profile.readonly.department');
+  });
 });
 
 // --- real-resolver test: catches missing/renamed i18n keys ---

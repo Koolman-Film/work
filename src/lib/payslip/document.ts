@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db/prisma';
 import { perMinuteRate } from '@/lib/leave/over-quota';
 import { standardDayMinutes } from '@/lib/leave/units';
 import { adjustmentAppliesToMonth } from '@/lib/payroll/adjustments';
+import { payrollMonthWindow } from '@/lib/payroll/period';
 import type { PayslipDocument, PayslipLine } from './types';
 
 export type { PayslipDocument, PayslipLine } from './types';
@@ -113,7 +114,23 @@ export async function getPayslipDocument(
     advances.length > 0 ? { key: 'advance', vars: { count: advances.length } } : null;
   push('advance', 'deduct.advance', n(payroll.deductAdvance), advDetail);
 
-  push('attendance', 'deduct.attendance', n(payroll.deductAttendance)); // detail deferred
+  // Attendance detail — a factual count of absent/late days in the pay period.
+  // The frozen amount stays authoritative (3-strike/severe-late rules mean it
+  // isn't simply count × rate); this only describes the attendance.
+  let attDetail: PayslipLine['detail'] = null;
+  if (n(payroll.deductAttendance) !== 0) {
+    const { start, end } = payrollMonthWindow(month, config.cutoffDay);
+    const [absent, late] = await Promise.all([
+      prisma.attendance.count({
+        where: { employeeId, type: 'Absent', date: { gte: start, lte: end }, deletedAt: null },
+      }),
+      prisma.attendance.count({
+        where: { employeeId, type: 'Late', date: { gte: start, lte: end }, deletedAt: null },
+      }),
+    ]);
+    if (absent + late > 0) attDetail = { key: 'attendance', vars: { absent, late } };
+  }
+  push('attendance', 'deduct.attendance', n(payroll.deductAttendance), attDetail);
 
   const totalOver = leaves.reduce((s, l) => s + (l.overQuotaMinutes ?? 0), 0);
   const rate = perMinuteRate(

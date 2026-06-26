@@ -12,7 +12,7 @@ const KEYS = [
   'kept',
   'download',
 ];
-const DETAIL = ['sso', 'advance', 'leave'];
+const DETAIL = ['sso', 'advance', 'leave', 'attendance'];
 describe('payslipPdf i18n', () => {
   for (const l of LOCALES) {
     it(`${l} has the full payslipPdf namespace`, async () => {

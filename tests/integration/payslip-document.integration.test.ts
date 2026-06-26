@@ -225,4 +225,45 @@ describe('getPayslipDocument', () => {
     const other = doc!.income.lines.find((l) => l.labelKey === 'income.other');
     expect(other?.amount).toBe(500); // the frozen bucket stays authoritative
   });
+
+  it('attaches a factual absent/late count to the attendance deduction', async () => {
+    const emp = await makeEmp();
+    await prisma.payroll.create({
+      data: {
+        employeeId: emp.id,
+        month: MONTH,
+        status: 'Published',
+        publishedAt: new Date(),
+        incomeBase: new Prisma.Decimal(12_600),
+        incomeOther: new Prisma.Decimal(0),
+        deductSso: new Prisma.Decimal(0),
+        deductAdvance: new Prisma.Decimal(0),
+        deductAttendance: new Prisma.Decimal(1_000),
+        deductLeave: new Prisma.Decimal(0),
+        deductDebt: new Prisma.Decimal(0),
+        deductOther: new Prisma.Decimal(0),
+        netPay: new Prisma.Decimal(11_600),
+      },
+    });
+    const att = (ymd: string, type: 'Absent' | 'Late') =>
+      prisma.attendance.create({
+        data: {
+          employeeId: emp.id,
+          date: new Date(`${ymd}T00:00:00.000Z`),
+          type,
+          source: 'Manual',
+          createdById: crypto.randomUUID(),
+        },
+      });
+    // Period for 2026-06 (cutoff 26) = 2026-05-27 .. 2026-06-26.
+    await att('2026-06-10', 'Absent');
+    await att('2026-06-11', 'Late');
+    await att('2026-06-12', 'Late');
+    await att('2026-07-05', 'Absent'); // outside the period → not counted
+
+    const doc = await getPayslipDocument(emp.id, MONTH);
+    const a = doc!.deduct.lines.find((l) => l.key === 'attendance');
+    expect(a?.amount).toBe(1_000); // frozen bucket
+    expect(a?.detail).toEqual({ key: 'attendance', vars: { absent: 1, late: 2 } });
+  });
 });
