@@ -508,5 +508,16 @@
       "leave": "{minutes} min × ฿{rate}",
       "attendance": "{absent} absent · {late} late"
     }
+  },
+  "liffHome": {
+    "greeting": "你好 {name}",
+    "employeeGroup": "员工菜单",
+    "adminGroup": "管理菜单",
+    "checkIn": "打卡",
+    "leave": "请假",
+    "advance": "预支",
+    "approvals": "审批",
+    "dashboard": "概览",
+    "reports": "报表"
   }
 }

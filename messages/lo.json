@@ -508,5 +508,16 @@
       "leave": "{minutes} min × ฿{rate}",
       "attendance": "{absent} absent · {late} late"
     }
+  },
+  "liffHome": {
+    "greeting": "ສະບາຍດີ {name}",
+    "employeeGroup": "ເມນູພະນັກງານ",
+    "adminGroup": "ເມນູຜູ້ດູແລ",
+    "checkIn": "ລົງເວລາ",
+    "leave": "ຂໍລາ",
+    "advance": "ເບີກເງິນ",
+    "approvals": "ອະນຸມັດ",
+    "dashboard": "ພາບລວມ",
+    "reports": "ລາຍງານ"
   }
 }
