@@ -48,6 +48,7 @@ export type AuditAction =
   | 'user.admin-line-invite'
   | 'user.admin-line-link'
   | 'user.admin-line-unlink'
+  | 'user.account-merge'
   // Granular role/permission management (Phase 1+ — see docs/v2/permissions.md)
   | 'role.create'
   | 'role.update'

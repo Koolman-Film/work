@@ -537,6 +537,14 @@
     "cardBody": "如果您同时也是系统中的员工，请关联账号以便使用同一个 LINE 访问两个菜单。",
     "cardCta": "关联账号",
     "dismiss": "稍后再说",
-    "scanHint": "请使用您的员工 LINE 账号打开此链接"
+    "scanHint": "请使用您的员工 LINE 账号打开此链接",
+    "confirmTitle": "确认账号关联",
+    "confirmAdmin": "管理员",
+    "confirmEmployee": "员工",
+    "confirmBody": "将向该员工账号授予管理员权限。管理员的邮箱登录仍然有效。",
+    "confirmCta": "确认关联",
+    "cancel": "取消",
+    "cancelledTitle": "已取消",
+    "cancelledBody": "未做任何更改。"
   }
 }
