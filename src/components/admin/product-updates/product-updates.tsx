@@ -44,6 +44,7 @@ export function ProductUpdates() {
   // top of it. A user who dismisses the greeting still gets the tour once on
   // a later visit (FIRST_RUN_KEY not yet set, no pending announcement).
   const firstRunChecked = useRef(false);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: seen read once at hydrate edge
   useEffect(() => {
     if (!hydrated || firstRunChecked.current) return;
     firstRunChecked.current = true;
@@ -51,7 +52,7 @@ export function ProductUpdates() {
       markSeen(FIRST_RUN_KEY);
       startTour('welcome');
     }
-  }, [hydrated, seen, markSeen, startTour]);
+  }, [hydrated, markSeen, startTour]);
 
   // Run whichever tour is active; clean up on change/unmount.
   useEffect(() => {
