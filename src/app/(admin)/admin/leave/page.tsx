@@ -11,17 +11,21 @@
  * that expands the request into Attendance(OnLeave) rows.
  */
 
+import type { Prisma } from '@prisma/client';
 import Link from 'next/link';
 import { RestoreButton } from '@/components/admin/void-dialog';
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
+import { ListSearch } from '@/components/ui/list-search';
 import { PageHeader } from '@/components/ui/page-header';
+import { Pagination } from '@/components/ui/pagination';
 import { StatusBadge, type StatusKey } from '@/components/ui/status-badge';
 import { prisma, prismaRaw } from '@/lib/db/prisma';
 import { getLeaveConfig } from '@/lib/leave/leave-config';
 import { leaveDurationLabel } from '@/lib/leave/units';
 import { restoreLeaveRequest } from '@/lib/leave/void';
 import { expandHolidaysWithSubstitutes, workingDaysIn } from '@/lib/leave/working-days';
+import { buildPageMeta, pageArgs, parsePageParam } from '@/lib/pagination';
 import { signAttendancePhotoUrls } from '@/lib/storage/signed-urls';
 import { LeaveInbox, type LeaveRowVM } from './leave-inbox';
 import {
@@ -33,7 +37,7 @@ import {
   leaveOverQuotaVM,
 } from './leave-row-vm';
 
-type SearchParams = Promise<{ status?: string; trash?: string }>;
+type SearchParams = Promise<{ status?: string; trash?: string; q?: string; page?: string }>;
 
 const FILTER_OPTIONS = [
   { value: '', label: 'รออนุมัติ' },
@@ -47,36 +51,79 @@ export default async function AdminLeaveInboxPage({
 }: {
   searchParams: SearchParams;
 }) {
-  const { status, trash } = await searchParams;
+  const { status, trash, q: qRaw, page: pageRaw } = await searchParams;
   const isTrash = trash === '1';
+  const q = qRaw?.trim() ?? '';
+  const requestedPage = parsePageParam(pageRaw);
 
-  const where = (() => {
+  // Status filter → base where; an employee-name search (q) narrows on top.
+  const where: Prisma.LeaveRequestWhereInput = (() => {
     if (status === 'all') return {};
-    if (status === 'approved') return { status: 'Approved' as const };
-    if (status === 'rejected') return { status: 'Rejected' as const };
-    return { status: 'Pending' as const };
+    if (status === 'approved') return { status: 'Approved' };
+    if (status === 'rejected') return { status: 'Rejected' };
+    return { status: 'Pending' };
   })();
+  if (q) {
+    where.employee = {
+      OR: [
+        { firstName: { contains: q, mode: 'insensitive' } },
+        { lastName: { contains: q, mode: 'insensitive' } },
+        { nickname: { contains: q, mode: 'insensitive' } },
+      ],
+    };
+  }
 
-  const [rows, holidays, leaveCfg] = await Promise.all([
+  const trashWhere = { deletedAt: { not: null } } as const;
+  const { skip, take } = pageArgs(requestedPage);
+
+  // The page of rows + the matching total (for the pager) go through the same
+  // client: trash reads use prismaRaw (sees soft-deleted), the live inbox uses
+  // the soft-delete-filtered prisma. count mirrors findMany's where exactly.
+  const [rows, total, holidays, leaveCfg] = await Promise.all([
     isTrash
       ? prismaRaw.leaveRequest.findMany({
-          where: { deletedAt: { not: null } },
+          where: trashWhere,
           orderBy: { deletedAt: 'desc' },
-          take: 100,
+          skip,
+          take,
           select: LEAVE_SELECT,
         })
       : prisma.leaveRequest.findMany({
           where,
           orderBy: { createdAt: 'desc' },
-          take: 100,
+          skip,
+          take,
           select: LEAVE_SELECT,
         }),
+    isTrash
+      ? prismaRaw.leaveRequest.count({ where: trashWhere })
+      : prisma.leaveRequest.count({ where }),
     prisma.holiday.findMany({
       where: { archivedAt: null },
       select: { date: true, name: true },
     }),
     getLeaveConfig(),
   ]);
+
+  const meta = buildPageMeta(total, requestedPage);
+
+  // Build a list URL preserving the active status + search, resetting page
+  // unless one is given. Chips pass a new status (→ page 1); the pager passes
+  // a page (→ keep status + q).
+  function listHref(overrides: { status?: string; page?: number }): string {
+    const params = new URLSearchParams();
+    if (isTrash) {
+      // Trash is its own view (no status/search chips); only paging applies.
+      params.set('trash', '1');
+    } else {
+      const nextStatus = overrides.status !== undefined ? overrides.status : status;
+      if (nextStatus) params.set('status', nextStatus);
+      if (q) params.set('q', q);
+    }
+    if (overrides.page && overrides.page > 1) params.set('page', String(overrides.page));
+    const qs = params.toString();
+    return qs ? `/admin/leave?${qs}` : '/admin/leave';
+  }
 
   const attachmentKeys = rows
     .map((r) => r.attachmentUrl)
@@ -119,6 +166,18 @@ export default async function AdminLeaveInboxPage({
         subtitle="ตรวจสอบและอนุมัติคำขอลา — อนุมัติแล้วระบบจะสร้างรายการลงเวลา (OnLeave) อัตโนมัติ"
       />
 
+      {/* Name search — narrows the current status view (live inbox only). */}
+      {!isTrash && (
+        <div className="mb-3">
+          <ListSearch
+            basePath="/admin/leave"
+            defaultValue={q}
+            placeholder="ค้นหาชื่อพนักงาน"
+            keep={{ status }}
+          />
+        </div>
+      )}
+
       {/* Filter chips + trash toggle */}
       <div className="mb-4 flex flex-wrap items-center gap-2">
         {FILTER_OPTIONS.map((opt) => {
@@ -126,7 +185,7 @@ export default async function AdminLeaveInboxPage({
           return (
             <Link
               key={opt.value || 'pending'}
-              href={opt.value ? `/admin/leave?status=${opt.value}` : '/admin/leave'}
+              href={listHref({ status: opt.value })}
               className={
                 active
                   ? 'rounded-lg bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-700 ring-1 ring-primary-200'
@@ -161,7 +220,7 @@ export default async function AdminLeaveInboxPage({
       <Card>
         <CardHeader>
           <CardTitle>
-            ทั้งหมด <span className="tabular-nums text-ink-3">({rows.length})</span>
+            ทั้งหมด <span className="tabular-nums text-ink-3">({meta.total})</span>
           </CardTitle>
         </CardHeader>
         <CardBody className="!p-0">
@@ -170,9 +229,11 @@ export default async function AdminLeaveInboxPage({
               title={
                 isTrash
                   ? 'ถังขยะว่าง'
-                  : !status || status === 'pending'
-                    ? 'ไม่มีคำขอลาที่รออนุมัติ ✨'
-                    : 'ไม่มีรายการในตัวกรองนี้'
+                  : q
+                    ? 'ไม่พบรายการที่ตรงกับการค้นหา'
+                    : !status || status === 'pending'
+                      ? 'ไม่มีคำขอลาที่รออนุมัติ ✨'
+                      : 'ไม่มีรายการในตัวกรองนี้'
               }
               hint={isTrash ? 'ไม่มีคำขอลาที่ถูกลบ' : undefined}
             />
@@ -267,6 +328,8 @@ export default async function AdminLeaveInboxPage({
           )}
         </CardBody>
       </Card>
+
+      <Pagination meta={meta} makeHref={(p) => listHref({ page: p })} className="mt-4" />
     </div>
   );
 }

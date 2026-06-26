@@ -4,9 +4,11 @@ import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageHeader } from '@/components/ui/page-header';
+import { Pagination } from '@/components/ui/pagination';
 import { type Column, ResponsiveTable } from '@/components/ui/responsive-table';
 import { StatusBadge, type StatusKey } from '@/components/ui/status-badge';
 import { prisma } from '@/lib/db/prisma';
+import { buildPageMeta, pageArgs, parsePageParam } from '@/lib/pagination';
 import { signAttendancePhotoUrls } from '@/lib/storage/signed-urls';
 import { EmployeeFilters } from './employee-filters';
 
@@ -26,6 +28,7 @@ type SearchParams = Promise<{
   branchId?: string;
   departmentId?: string;
   status?: string;
+  page?: string;
 }>;
 
 /** Format Decimal/string baseSalary as ฿X,XXX */
@@ -74,6 +77,7 @@ export default async function EmployeeListPage({ searchParams }: { searchParams:
   const branchId = sp.branchId ?? '';
   const departmentId = sp.departmentId ?? '';
   const status = sp.status ?? '';
+  const requestedPage = parsePageParam(sp.page);
 
   // Compose the Prisma where clause from all active filters. The base is
   // the status filter (which sets either status= or archivedAt=null);
@@ -89,11 +93,13 @@ export default async function EmployeeListPage({ searchParams }: { searchParams:
     ];
   }
 
-  // Single round-trip for the data + the dropdown options.
-  const [employees, branches, departments] = await Promise.all([
+  // Single round-trip for the page of data, its total (for the pager), and the
+  // dropdown options.
+  const [employees, total, branches, departments] = await Promise.all([
     prisma.employee.findMany({
       where,
       orderBy: [{ status: 'asc' }, { firstName: 'asc' }],
+      ...pageArgs(requestedPage),
       select: {
         id: true,
         firstName: true,
@@ -107,6 +113,7 @@ export default async function EmployeeListPage({ searchParams }: { searchParams:
         department: { select: { name: true } },
       },
     }),
+    prisma.employee.count({ where }),
     prisma.branch.findMany({
       where: { archivedAt: null },
       orderBy: { name: 'asc' },
@@ -118,6 +125,21 @@ export default async function EmployeeListPage({ searchParams }: { searchParams:
       select: { id: true, name: true },
     }),
   ]);
+
+  const meta = buildPageMeta(total, requestedPage);
+
+  // Preserve the active filters when paging; new filters reset to page 1
+  // (EmployeeFilters builds its URL without a page param).
+  function pageHref(p: number): string {
+    const params = new URLSearchParams();
+    if (q) params.set('q', q);
+    if (branchId) params.set('branchId', branchId);
+    if (departmentId) params.set('departmentId', departmentId);
+    if (status) params.set('status', status);
+    if (p > 1) params.set('page', String(p));
+    const qs = params.toString();
+    return qs ? `/admin/employees?${qs}` : '/admin/employees';
+  }
 
   const photoUrls = await signAttendancePhotoUrls(
     employees.map((e) => e.photoKey).filter((k): k is string => Boolean(k)),
@@ -195,7 +217,7 @@ export default async function EmployeeListPage({ searchParams }: { searchParams:
           initial={{ q, branchId, departmentId, status }}
           branches={branches}
           departments={departments}
-          matchedCount={employees.length}
+          matchedCount={meta.total}
         />
       </div>
 
@@ -233,6 +255,8 @@ export default async function EmployeeListPage({ searchParams }: { searchParams:
           </div>
         }
       />
+
+      <Pagination meta={meta} makeHref={pageHref} className="mt-4" />
     </div>
   );
 }

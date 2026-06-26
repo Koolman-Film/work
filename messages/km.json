@@ -1,4 +1,9 @@
 {
+  "pagination": {
+    "prev": "មុន",
+    "next": "បន្ទាប់",
+    "pageOf": "ទំព័រ {page} / {pageCount}"
+  },
   "_meta": {
     "locale": "km",
     "note": "Khmer — AI-DRAFT (profile namespace), pending native review. Other namespaces fall back to en/th until populated."

@@ -9,10 +9,12 @@
 
 import Link from 'next/link';
 import { getLocale, getTranslations } from 'next-intl/server';
+import { Pagination } from '@/components/ui/pagination';
 import { requireRole } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
 import type { Locale } from '@/lib/i18n/config';
 import { localizedLeaveTypeName } from '@/lib/leave/localized-name';
+import { buildPageMeta, pageArgs, parsePageParam } from '@/lib/pagination';
 
 const STATUS_CLS: Record<string, string> = {
   Pending: 'bg-amber-100 text-amber-800',
@@ -49,15 +51,23 @@ function formatRange(start: Date, end: Date, locale: Locale): string {
   return `${startStr} – ${endStr}`;
 }
 
-export default async function LiffLeaveListPage() {
+export default async function LiffLeaveListPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
   const { employee } = await requireRole(['Staff']);
   if (!employee) throw new Error('requireRole did not return Employee');
 
-  const [rows, t, locale] = await Promise.all([
+  const { page: pageRaw } = await searchParams;
+  const requestedPage = parsePageParam(pageRaw);
+  const where = { employeeId: employee.id };
+
+  const [rows, total, t, tp, locale] = await Promise.all([
     prisma.leaveRequest.findMany({
-      where: { employeeId: employee.id },
+      where,
       orderBy: { createdAt: 'desc' },
-      take: 50,
+      ...pageArgs(requestedPage),
       select: {
         id: true,
         leaveType: { select: { name: true, nameByLocale: true } },
@@ -68,16 +78,20 @@ export default async function LiffLeaveListPage() {
         createdAt: true,
       },
     }),
+    prisma.leaveRequest.count({ where }),
     getTranslations('leave'),
+    getTranslations('pagination'),
     getLocale(),
   ]);
+
+  const meta = buildPageMeta(total, requestedPage);
 
   return (
     <main className="mx-auto max-w-md px-4 pt-8 pb-12">
       <header className="mb-6 flex items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">{t('list.title')}</h1>
-          <p className="mt-0.5 text-sm text-gray-500">{t('list.count', { n: rows.length })}</p>
+          <p className="mt-0.5 text-sm text-gray-500">{t('list.count', { n: meta.total })}</p>
         </div>
         <Link
           href="/liff/leave/new"
@@ -134,6 +148,17 @@ export default async function LiffLeaveListPage() {
           })}
         </ul>
       )}
+
+      <Pagination
+        meta={meta}
+        makeHref={(p) => (p > 1 ? `/liff/leave?page=${p}` : '/liff/leave')}
+        className="mt-6"
+        labels={{
+          prev: tp('prev'),
+          next: tp('next'),
+          summary: (m) => tp('pageOf', { page: m.page, pageCount: m.pageCount }),
+        }}
+      />
 
       <nav className="mt-8 flex justify-center gap-4 text-xs">
         <Link href="/liff/check-in" className="text-gray-500 hover:text-gray-700">

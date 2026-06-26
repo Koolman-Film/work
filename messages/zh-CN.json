@@ -1,4 +1,9 @@
 {
+  "pagination": {
+    "prev": "上一页",
+    "next": "下一页",
+    "pageOf": "第 {page} / {pageCount} 页"
+  },
   "_meta": {
     "locale": "zh-CN",
     "note": "Simplified Chinese — AI-DRAFT (profile namespace), pending native review. Other namespaces fall back to en/th until populated."

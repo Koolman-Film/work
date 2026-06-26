@@ -1,4 +1,9 @@
 {
+  "pagination": {
+    "prev": "နောက်သို့",
+    "next": "ရှေ့သို့",
+    "pageOf": "စာမျက်နှာ {page} / {pageCount}"
+  },
   "_meta": {
     "locale": "my",
     "note": "Burmese — AI-DRAFT (profile namespace), pending native review. Other namespaces fall back to en/th until populated."
