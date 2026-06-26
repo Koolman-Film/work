@@ -1,0 +1,19 @@
+<svg viewBox="0 0 2500 1686" xmlns="http://www.w3.org/2000/svg" style="font-family:'Noto Sans Thai','Noto Sans','Noto Sans Lao','Noto Sans Myanmar','Noto Sans Khmer','Noto Sans SC',sans-serif">
+  <rect width="2500" height="1686" fill="#ffffff"/>
+  <rect x="16" y="16" width="806" height="1654" rx="28" fill="#E9F6EE"/>
+  <circle cx="420" cy="560" r="150" fill="#2EA86A"/><path d="M352 560 l46 50 l92 -110" fill="none" stroke="#fff" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="420" y="900" font-size="170" font-weight="800" fill="#14532D" text-anchor="middle">อนุมัติ</text>
+  <text x="420" y="1010" font-size="42" fill="#3E7A57" text-anchor="middle">Approvals · អនុម័ត</text>
+  <text x="420" y="1072" font-size="42" fill="#3E7A57" text-anchor="middle">ອະນຸມັດ · 审批 · အတည်ပြု</text>
+  <rect x="846" y="16" width="806" height="1654" rx="28" fill="#E8F1FC"/>
+  <rect x="1150" y="640" width="60" height="120" rx="14" fill="#2D6CDF"/><rect x="1240" y="540" width="60" height="220" rx="14" fill="#2D6CDF"/><rect x="1330" y="460" width="60" height="300" rx="14" fill="#2D6CDF"/><rect x="1420" y="600" width="60" height="160" rx="14" fill="#2D6CDF"/>
+  <text x="1249" y="900" font-size="170" font-weight="800" fill="#1E3A5F" text-anchor="middle">ภาพรวม</text>
+  <text x="1249" y="1010" font-size="42" fill="#4B6B93" text-anchor="middle">Dashboard · ទិដ្ឋភាព</text>
+  <text x="1249" y="1072" font-size="42" fill="#4B6B93" text-anchor="middle">ພາບລວມ · 概览 · ခြုံငုံ</text>
+  <rect x="1676" y="16" width="808" height="1654" rx="28" fill="#F1ECFB"/>
+  <rect x="2000" y="450" width="160" height="220" rx="16" fill="#fff" stroke="#7C5BD6" stroke-width="10"/>
+  <rect x="2030" y="500" width="100" height="13" rx="6" fill="#C9B8EE"/><rect x="2030" y="540" width="100" height="13" rx="6" fill="#C9B8EE"/><rect x="2030" y="580" width="66" height="13" rx="6" fill="#C9B8EE"/>
+  <text x="2080" y="900" font-size="170" font-weight="800" fill="#3A2A6B" text-anchor="middle">รายงาน</text>
+  <text x="2080" y="1010" font-size="42" fill="#6A5A93" text-anchor="middle">Reports · របាយការណ៍</text>
+  <text x="2080" y="1072" font-size="42" fill="#6A5A93" text-anchor="middle">ລາຍງານ · 报表 · အစီရင်ခံစာ</text>
+</svg>
