@@ -1,10 +1,9 @@
 import { advanceBalanceFor } from '@/lib/advance/available';
-import { requireRole } from '@/lib/auth/require-role';
+import { requireEmployee } from '@/lib/auth/require-role';
 import { AdvanceNewForm } from './advance-new-form';
 
 export default async function NewAdvancePage() {
-  const { employee } = await requireRole(['Staff']);
-  if (!employee) throw new Error('requireRole did not return Employee');
+  const { employee } = await requireEmployee();
 
   // Soft cap for the warning banner — same number the admin approval guard
   // enforces (advanceBalanceFor is the single source of truth). May be null

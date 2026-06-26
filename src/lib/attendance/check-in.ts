@@ -36,7 +36,7 @@ import { type Employee, Prisma } from '@prisma/client';
 import { headers } from 'next/headers';
 import { getTranslations } from 'next-intl/server';
 import { auditLogTx } from '@/lib/audit/log';
-import { requireRole } from '@/lib/auth/require-role';
+import { requireCheckInPermission, requireEmployee } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
 import { notifyAdminsOnLine } from '@/lib/notifications/admin-line';
 import { notifyAdminsInApp } from '@/lib/notifications/in-app-bell';
@@ -131,11 +131,7 @@ async function loadCandidateBranches(employeeId: string) {
 
 /** Read-only — fetches today's attendance row (if any) to drive the UI button state. */
 export async function getCheckInState(): Promise<CheckInState> {
-  const { employee } = await requireRole(['Staff']);
-  if (!employee) {
-    // requireRole would have notFound()'d already; this is just for type narrowing.
-    throw new Error('requireRole returned no employee');
-  }
+  const { employee } = await requireEmployee();
 
   const today = bangkokDateUtcMidnight(new Date());
 
@@ -156,22 +152,10 @@ export async function getCheckInState(): Promise<CheckInState> {
 }
 
 export async function submitCheckIn(input: SubmitCheckInInput): Promise<SubmitCheckInResult> {
-  const { user, employee, authUserId } = await requireRole(['Staff']);
+  const { user, employee, authUserId } = await requireCheckInPermission();
   // Worker-facing strings are localized to the requester's locale (NEXT_LOCALE
   // cookie). `code` stays the stable machine-readable discriminant.
   const t = await getTranslations('checkin');
-  if (!employee) {
-    return { ok: false, code: 'forbidden', message: t('error.noEmployee') };
-  }
-
-  // Defensive — requireRole archived-check is for User, not Employee.
-  if (employee.archivedAt || employee.status === 'Archived' || !employee.canCheckIn) {
-    return {
-      ok: false,
-      code: 'forbidden',
-      message: t('error.checkInDisabled'),
-    };
-  }
 
   const now = new Date();
   const today = bangkokDateUtcMidnight(now);
@@ -426,14 +410,8 @@ export async function submitCheckOut(): Promise<SubmitCheckInResult> {
   // For now check-out is a simple "set clockOutAt on today's row" — no
   // geofence re-check on the out side. v2 build-plan keeps it minimal in
   // W3b; W3c can layer geofence-out if we decide it's needed.
-  const { user, employee } = await requireRole(['Staff']);
+  const { user, employee } = await requireCheckInPermission();
   const t = await getTranslations('checkin');
-  if (!employee) {
-    return { ok: false, code: 'forbidden', message: t('error.noEmployee') };
-  }
-  if (employee.archivedAt || employee.status === 'Archived') {
-    return { ok: false, code: 'forbidden', message: t('error.archived') };
-  }
 
   const now = new Date();
   const today = bangkokDateUtcMidnight(now);
