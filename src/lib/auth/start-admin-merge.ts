@@ -10,6 +10,7 @@
  */
 
 import QRCode from 'qrcode';
+import { ADMIN_LINE_LINK_ENABLED } from '@/lib/auth/admin-line-feature';
 import { requireRole } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
 import { appBaseUrl } from '@/lib/line/flex-templates';
@@ -19,6 +20,9 @@ export async function startAdminMerge(): Promise<
   { ok: true; url: string; qrDataUrl: string; expiresAt: Date } | { ok: false; message: string }
 > {
   const { user } = await requireRole(['Admin']);
+  if (!ADMIN_LINE_LINK_ENABLED) {
+    return { ok: false, message: 'ฟีเจอร์เชื่อมบัญชีถูกปิดใช้งานชั่วคราว' };
+  }
 
   // requireRole returns a stripped User; re-fetch the employee relation to
   // guarantee we are dealing with a pure admin (no Employee row).
