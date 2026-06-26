@@ -22,6 +22,9 @@ describe('pickText', () => {
   it('falls back to th when the locale value is missing', () => {
     expect(pickText({ th: 'สวัสดี' }, 'en')).toBe('สวัสดี');
   });
+  it('returns the th value for the th locale', () => {
+    expect(pickText({ th: 'สวัสดี', en: 'Hi' }, 'th')).toBe('สวัสดี');
+  });
 });
 
 describe('sortByDateDesc', () => {
@@ -38,8 +41,14 @@ describe('unseenItems / unseenCount', () => {
     expect(unseenItems(items, seen).map((i) => i.id)).toEqual(['c']);
     expect(unseenCount(items, seen)).toBe(1);
   });
+  it('returns remaining unseen items newest-first', () => {
+    expect(unseenItems(items, new Set(['b'])).map((i) => i.id)).toEqual(['c', 'a']);
+  });
   it('treats an empty seen set as everything unseen', () => {
     expect(unseenCount(items, new Set())).toBe(3);
+  });
+  it('counts zero when everything is seen', () => {
+    expect(unseenCount(items, new Set(['a', 'b', 'c']))).toBe(0);
   });
 });
 
