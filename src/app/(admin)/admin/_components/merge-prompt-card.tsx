@@ -1,17 +1,20 @@
 'use client';
 
 /**
- * MergePromptCard — dismissible entry-point for the admin→employee identity merge.
+ * MergePromptCard — entry-point for the admin→employee identity merge.
  *
- * Shown on the admin dashboard ONLY for pure admins (no Employee row) who
- * haven't dismissed it yet (mergePromptDismissedAt === null). The server
- * component (page.tsx) computes that condition and conditionally renders this.
+ * Two placements share this component:
+ *   - Dashboard (dismissible): shown to pure admins who haven't dismissed it
+ *     (mergePromptDismissedAt === null). The "Not now" button hides it for good.
+ *   - Profile page (dismissible={false}): the PERMANENT door. Because dismiss
+ *     is one-way, an admin who dismissed the nudge — or changed their mind —
+ *     still needs a way back; the profile card always offers it.
  *
  * "Link account" triggers startAdminMerge(), which issues a merge token + QR;
  * the user scans the QR with their employee LINE account to complete the merge.
  *
  * "Not now" calls dismissMergePrompt(), which sets mergePromptDismissedAt and
- * hides the card on the next page load.
+ * hides the card on the next page load (only rendered when dismissible).
  */
 
 import { useTranslations } from 'next-intl';
@@ -19,7 +22,7 @@ import { useState, useTransition } from 'react';
 import { Button } from '@/components/ui/button';
 import { dismissMergePrompt, startAdminMerge } from '@/lib/auth/start-admin-merge';
 
-export function MergePromptCard() {
+export function MergePromptCard({ dismissible = true }: { dismissible?: boolean }) {
   const t = useTranslations('mergeWizard');
 
   // null = initial state (card visible, no QR yet)
@@ -93,14 +96,16 @@ export function MergePromptCard() {
               {isPendingLink ? t('working') : t('cardCta')}
             </Button>
           )}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleDismiss}
-            disabled={isPendingDismiss || isPendingLink}
-          >
-            {t('dismiss')}
-          </Button>
+          {dismissible && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleDismiss}
+              disabled={isPendingDismiss || isPendingLink}
+            >
+              {t('dismiss')}
+            </Button>
+          )}
         </div>
       </div>
     </div>
