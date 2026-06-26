@@ -23,7 +23,7 @@ import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
 import { getTranslations } from 'next-intl/server';
 import { auditLog } from '@/lib/audit/log';
-import { requireRole } from '@/lib/auth/require-role';
+import { requireEmployee } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
 import { notifyAdminsOnLine } from '@/lib/notifications/admin-line';
 import { notifyAdminsInApp } from '@/lib/notifications/in-app-bell';
@@ -66,13 +66,10 @@ const MAX_AMOUNT = 100_000; // ฿100,000
 type SubmitInput = { amount: number };
 
 export async function submitCashAdvance(input: SubmitInput): Promise<SubmitAdvanceResult> {
-  const { user, employee } = await requireRole(['Staff']);
+  const { user, employee } = await requireEmployee();
   // Worker-facing strings localized to the requester's locale (NEXT_LOCALE
   // cookie); `code` stays the stable machine-readable discriminant.
   const t = await getTranslations('advance');
-  if (!employee) {
-    return { ok: false, code: 'forbidden', message: t('errors.noEmployee') };
-  }
   if (employee.archivedAt || employee.status === 'Archived') {
     return { ok: false, code: 'forbidden', message: t('errors.employeeArchived') };
   }
@@ -183,11 +180,8 @@ export async function submitCashAdvance(input: SubmitInput): Promise<SubmitAdvan
 }
 
 export async function cancelCashAdvance(id: string): Promise<CancelAdvanceResult> {
-  const { user, employee } = await requireRole(['Staff']);
+  const { user, employee } = await requireEmployee();
   const t = await getTranslations('advance');
-  if (!employee) {
-    return { ok: false, code: 'forbidden', message: t('errors.noEmployee') };
-  }
 
   const row = await prisma.cashAdvance.findUnique({
     where: { id },

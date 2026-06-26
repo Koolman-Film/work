@@ -33,7 +33,7 @@ import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
 import { getTranslations } from 'next-intl/server';
 import { auditLog } from '@/lib/audit/log';
-import { requireRole } from '@/lib/auth/require-role';
+import { requireEmployee } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
 import { notifyAdminsOnLine } from '@/lib/notifications/admin-line';
 import { notifyAdminsInApp } from '@/lib/notifications/in-app-bell';
@@ -106,14 +106,11 @@ function todayUtcMidnight(): Date {
 }
 
 export async function submitLeaveRequest(input: SubmitInput): Promise<SubmitLeaveResult> {
-  const { user, employee, authUserId } = await requireRole(['Staff']);
+  const { user, employee, authUserId } = await requireEmployee();
   // Worker-facing messages are localized to the requester's locale (resolved
   // from the NEXT_LOCALE cookie). `code` stays the stable machine-readable
   // discriminant; `message` is the already-translated string the form shows.
   const t = await getTranslations('leave');
-  if (!employee) {
-    return { ok: false, code: 'forbidden', message: t('errors.noEmployee') };
-  }
   if (employee.archivedAt || employee.status === 'Archived') {
     return { ok: false, code: 'forbidden', message: t('errors.employeeArchived') };
   }
@@ -326,11 +323,8 @@ export async function submitLeaveRequest(input: SubmitInput): Promise<SubmitLeav
 }
 
 export async function cancelLeaveRequest(leaveRequestId: string): Promise<CancelLeaveResult> {
-  const { user, employee } = await requireRole(['Staff']);
+  const { user, employee } = await requireEmployee();
   const t = await getTranslations('leave');
-  if (!employee) {
-    return { ok: false, code: 'forbidden', message: t('errors.noEmployee') };
-  }
 
   const row = await prisma.leaveRequest.findUnique({
     where: { id: leaveRequestId },

@@ -22,7 +22,7 @@ import { format } from 'date-fns';
 import { th } from 'date-fns/locale';
 import Link from 'next/link';
 import { getLocale, getTranslations } from 'next-intl/server';
-import { requireRole } from '@/lib/auth/require-role';
+import { requireEmployee } from '@/lib/auth/require-role';
 import type { Locale } from '@/lib/i18n/config';
 import { getTeamCalendarData } from '@/lib/leave/team-calendar';
 import {
@@ -54,8 +54,7 @@ function buildMonthLabel(locale: string, start: Date, year: number, month0: numb
 }
 
 export default async function LiffCalendarPage({ searchParams }: { searchParams: SearchParams }) {
-  const { employee } = await requireRole(['Staff']);
-  if (!employee) throw new Error('requireRole did not return Employee');
+  const { employee } = await requireEmployee();
 
   const { ym } = await searchParams;
   // Validate `ym` from the URL. If it's missing or malformed, fall back

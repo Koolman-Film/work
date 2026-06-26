@@ -13,7 +13,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
-import { requireRole } from '@/lib/auth/require-role';
+import { requireEmployee } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
 import type { Locale } from '@/lib/i18n/config';
 import { formatDate, formatTime } from '@/lib/i18n/format';
@@ -38,8 +38,7 @@ function formatDateTime(d: Date, locale: Locale): string {
 
 export default async function LeaveDetailPage({ params }: { params: Params }) {
   const { id } = await params;
-  const { employee } = await requireRole(['Staff']);
-  if (!employee) throw new Error('requireRole did not return Employee');
+  const { employee } = await requireEmployee();
 
   const [row, t, locale] = await Promise.all([
     prisma.leaveRequest.findUnique({

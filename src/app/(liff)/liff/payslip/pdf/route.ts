@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { auditLog } from '@/lib/audit/log';
-import { requireRole } from '@/lib/auth/require-role';
+import { requireEmployee } from '@/lib/auth/require-role';
 import type { Locale } from '@/lib/i18n/config';
 import { formatMoney } from '@/lib/i18n/format';
 import { getPayslipDocument } from '@/lib/payslip/document';
@@ -17,8 +17,7 @@ export const maxDuration = 60;
 const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 export async function GET(req: Request): Promise<Response> {
-  const { user, employee } = await requireRole(['Staff']);
-  if (!employee) return new NextResponse('Not found', { status: 404 });
+  const { user, employee } = await requireEmployee();
 
   const month = new URL(req.url).searchParams.get('m') ?? '';
   if (!MONTH_RE.test(month)) return new NextResponse('Bad month', { status: 400 });

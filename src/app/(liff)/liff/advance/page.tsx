@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { Pagination } from '@/components/ui/pagination';
 import { advanceBalanceFor } from '@/lib/advance/available';
-import { requireRole } from '@/lib/auth/require-role';
+import { requireEmployee } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
 import type { Locale } from '@/lib/i18n/config';
 import { formatDate, formatMoney, formatTime } from '@/lib/i18n/format';
@@ -31,8 +31,7 @@ export default async function LiffAdvanceListPage({
 }: {
   searchParams: Promise<{ page?: string }>;
 }) {
-  const { employee } = await requireRole(['Staff']);
-  if (!employee) throw new Error('requireRole did not return Employee');
+  const { employee } = await requireEmployee();
 
   const { page: pageRaw } = await searchParams;
   const requestedPage = parsePageParam(pageRaw);
