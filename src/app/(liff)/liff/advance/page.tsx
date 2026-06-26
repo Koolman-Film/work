@@ -4,11 +4,13 @@
 
 import Link from 'next/link';
 import { getLocale, getTranslations } from 'next-intl/server';
+import { Pagination } from '@/components/ui/pagination';
 import { advanceBalanceFor } from '@/lib/advance/available';
 import { requireRole } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
 import type { Locale } from '@/lib/i18n/config';
 import { formatDate, formatMoney, formatTime } from '@/lib/i18n/format';
+import { buildPageMeta, pageArgs, parsePageParam } from '@/lib/pagination';
 import { BalanceCard } from './balance-card';
 
 const STATUS_CLS: Record<string, string> = {
@@ -24,21 +26,29 @@ function formatDateTime(d: Date, locale: Locale): string {
   return `${datePart} ${timePart}`;
 }
 
-export default async function LiffAdvanceListPage() {
+export default async function LiffAdvanceListPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
   const { employee } = await requireRole(['Staff']);
   if (!employee) throw new Error('requireRole did not return Employee');
 
-  // Fetch in parallel: the full list (UI) and the balance (the shared
-  // advanceBalanceFor helper — same numbers the admin approval guard sees,
-  // including period earnings for Daily/Hourly employees).
-  const [rows, balance, t, locale] = await Promise.all([
+  const { page: pageRaw } = await searchParams;
+  const requestedPage = parsePageParam(pageRaw);
+  // `deletedAt: null` is explicit defence-in-depth: the soft-delete client
+  // extension already filters top-level reads, but the balance/history of
+  // someone's salary is load-bearing enough to state the intent here too.
+  const where = { employeeId: employee.id, deletedAt: null };
+
+  // Fetch in parallel: the page of rows, the matching total (for the pager),
+  // and the balance (the shared advanceBalanceFor helper — same numbers the
+  // admin approval guard sees, including period earnings for Daily/Hourly).
+  const [rows, total, balance, t, tp, locale] = await Promise.all([
     prisma.cashAdvance.findMany({
-      // `deletedAt: null` is explicit defence-in-depth: the soft-delete client
-      // extension already filters top-level reads, but the balance/history of
-      // someone's salary is load-bearing enough to state the intent here too.
-      where: { employeeId: employee.id, deletedAt: null },
+      where,
       orderBy: { requestedAt: 'desc' },
-      take: 50,
+      ...pageArgs(requestedPage),
       select: {
         id: true,
         amount: true,
@@ -48,17 +58,21 @@ export default async function LiffAdvanceListPage() {
         isDeducted: true,
       },
     }),
+    prisma.cashAdvance.count({ where }),
     advanceBalanceFor(employee.id),
     getTranslations('advance'),
+    getTranslations('pagination'),
     getLocale(),
   ]);
+
+  const meta = buildPageMeta(total, requestedPage);
 
   return (
     <main className="mx-auto max-w-md px-4 pt-8 pb-12">
       <header className="mb-6 flex items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">{t('list.title')}</h1>
-          <p className="mt-0.5 text-sm text-gray-500">{t('list.count', { n: rows.length })}</p>
+          <p className="mt-0.5 text-sm text-gray-500">{t('list.count', { n: meta.total })}</p>
         </div>
         <Link
           href="/liff/advance/new"
@@ -124,6 +138,17 @@ export default async function LiffAdvanceListPage() {
           })}
         </ul>
       )}
+
+      <Pagination
+        meta={meta}
+        makeHref={(p) => (p > 1 ? `/liff/advance?page=${p}` : '/liff/advance')}
+        className="mt-6"
+        labels={{
+          prev: tp('prev'),
+          next: tp('next'),
+          summary: (m) => tp('pageOf', { page: m.page, pageCount: m.pageCount }),
+        }}
+      />
 
       <nav className="mt-8 flex justify-center text-xs">
         <Link href="/liff/check-in" className="text-gray-500 hover:text-gray-700">
