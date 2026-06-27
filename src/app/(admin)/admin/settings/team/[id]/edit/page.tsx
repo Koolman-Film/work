@@ -110,12 +110,12 @@ export default async function EditTeamMemberPage({
         )}
 
         {/* ─── Role assignments (Phase 2b — new model) ──────────────────── */}
-        {/* actorTier is 'Admin' | 'Superadmin' here because team.update is
-          not in Staff's default perms — but TS can't narrow that, so an
-          explicit cast keeps the AssignmentsSection prop type strict. */}
+        {/* actorTier may be null for a custom-role user who holds team.update.
+          Treat tier-less actors as Admin-level for the assignment UI's
+          Superadmin-hiding logic; the server action re-checks every grant. */}
         <AssignmentsSection
           userId={id}
-          actorRole={actorTier as 'Admin' | 'Superadmin'}
+          actorRole={actorTier === 'Superadmin' ? 'Superadmin' : 'Admin'}
           actorId={actor.id}
         />
 
