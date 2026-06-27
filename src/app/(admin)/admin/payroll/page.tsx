@@ -5,8 +5,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { type Column, ResponsiveTable } from '@/components/ui/responsive-table';
 import { StatCard } from '@/components/ui/stat-card';
 import { StatusBadge, type StatusKey } from '@/components/ui/status-badge';
-import { canDo } from '@/lib/auth/check-permission';
-import { requireRole } from '@/lib/auth/require-role';
+import { canDo, requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { formatTHB, formatTHB2, monthLabelTh } from '@/lib/format';
 import { deductionBreakdown, deductionBreakdownLabel } from '@/lib/payroll/deduction-breakdown';
@@ -77,7 +76,7 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
     (branchId ? `&branchId=${branchId}` : '') +
     (departmentId ? `&departmentId=${departmentId}` : '');
 
-  const { user } = await requireRole(['Admin', 'Superadmin']);
+  const { user } = await requirePermission('payroll.read');
   const [mayRun, mayPublish] = await Promise.all([
     canDo(user, 'payroll.run'),
     canDo(user, 'payroll.publish'),
