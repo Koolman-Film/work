@@ -1,6 +1,7 @@
 import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { PageHeader } from '@/components/ui/page-header';
+import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { isLocale } from '@/lib/i18n/config';
 import { resolveStoredImageUrl } from '@/lib/storage/signed-urls';
@@ -23,6 +24,7 @@ export default async function EditEmployeePage({
   params: Params;
   searchParams: SearchParams;
 }) {
+  await requirePermission('employee.read');
   const { id } = await params;
   const { error, ok, year: yearParam } = await searchParams;
   const currentYear = Number(

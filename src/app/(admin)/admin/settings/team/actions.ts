@@ -60,7 +60,7 @@ import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { auditLog } from '@/lib/audit/log';
 import { canDo, requirePermission } from '@/lib/auth/check-permission';
-import { canActOnRole, canActOnUserScope } from '@/lib/auth/team-guards';
+import { canActOnRole, canActOnUserScope, canManageSystemRole } from '@/lib/auth/team-guards';
 import { computeTier } from '@/lib/auth/user-tier';
 import { prisma } from '@/lib/db/prisma';
 import { getSupabaseAdminClient } from '@/lib/supabase/admin';
@@ -615,6 +615,14 @@ export async function addRoleAssignment(userId: string, formData: FormData): Pro
     );
   }
 
+  // Tier-conferring (system) roles can't be granted by a permission-only
+  // (tier-null) or Staff actor — privilege-escalation guard.
+  if (!canManageSystemRole(actorTier, role)) {
+    redirect(
+      `/admin/settings/team/${userId}/edit?error=${encodeURIComponent('ต้องมีสิทธิ์ระดับผู้ดูแลเพื่อมอบบทบาทระบบ')}`,
+    );
+  }
+
   // Phase 3.7 branch-scope check on the GRANT:
   //   - Granting a GLOBAL assignment (branchId=null) requires actor have
   //     global authority (Superadmin or a global role.assign).
@@ -702,7 +710,7 @@ export async function removeRoleAssignment(assignmentId: string): Promise<void> 
   const assignment = await prisma.userRoleAssignment.findUnique({
     where: { id: assignmentId },
     include: {
-      role: { select: { key: true, isSuperadmin: true, name: true } },
+      role: { select: { key: true, isSuperadmin: true, isSystem: true, name: true } },
       user: { select: { id: true, email: true } },
     },
   });
@@ -714,6 +722,14 @@ export async function removeRoleAssignment(assignmentId: string): Promise<void> 
   if (assignment.role.isSuperadmin && actorTier !== 'Superadmin') {
     redirect(
       `/admin/settings/team/${assignment.userId}/edit?error=${encodeURIComponent('ต้องเป็น Superadmin เพื่อเอาบทบาท Superadmin ออก')}`,
+    );
+  }
+
+  // Tier-conferring (system) roles can't be removed by a permission-only
+  // (tier-null) or Staff actor — privilege-escalation guard.
+  if (!canManageSystemRole(actorTier, assignment.role)) {
+    redirect(
+      `/admin/settings/team/${assignment.userId}/edit?error=${encodeURIComponent('ต้องมีสิทธิ์ระดับผู้ดูแลเพื่อถอดบทบาทระบบ')}`,
     );
   }
 

@@ -17,6 +17,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Pagination } from '@/components/ui/pagination';
 import { StatusBadge, type StatusKey } from '@/components/ui/status-badge';
 import { restoreCashAdvance } from '@/lib/advance/void';
+import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma, prismaRaw } from '@/lib/db/prisma';
 import { buildPageMeta, pageArgs, parsePageParam } from '@/lib/pagination';
 import { signAttendancePhotoUrls } from '@/lib/storage/signed-urls';
@@ -44,6 +45,7 @@ export default async function AdminAdvanceInboxPage({
 }: {
   searchParams: SearchParams;
 }) {
+  await requirePermission('advance.read');
   const { status, trash, q: qRaw, page: pageRaw } = await searchParams;
   const isTrash = trash === '1';
   const q = qRaw?.trim() ?? '';

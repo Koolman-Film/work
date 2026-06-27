@@ -1,4 +1,6 @@
 import { redirect } from 'next/navigation';
+import { hasAdminAreaAccess } from '@/lib/auth/admin-area';
+import { permissionsFromAssignments } from '@/lib/auth/check-permission';
 import { computeTier } from '@/lib/auth/user-tier';
 import { prisma } from '@/lib/db/prisma';
 import { createClient } from '@/lib/supabase/server';
@@ -10,12 +12,13 @@ import { createClient } from '@/lib/supabase/server';
  *   - Admin-employee (both)    → /liff/home  (unified identity home)
  *   - Employee-only            → /liff/check-in
  *   - Admin/Superadmin-only    → /admin
+ *   - Custom-role-only (back-office perms) → /admin
  *   - Auth-but-no-User         → /login  (defensive — happens mid-seed only)
  *   - Auth-but-archived        → /login  (former employee revoked)
  *
  * Routing is on two real booleans derived from the DB:
  *   hasEmployee    — the User has an Employee record
- *   isAdminCapable — computed tier is Admin or Superadmin
+ *   isAdminCapable — has back-office access (system tier OR a custom role with admin permissions)
  *
  * This replaces the old TIER_HOMES map (highest-wins tier → single route),
  * which could never reach /liff/home for an admin-employee because
@@ -46,15 +49,19 @@ export default async function HomePage() {
         employee: { select: { id: true } },
         roleAssignments: {
           select: {
-            role: { select: { key: true, isSuperadmin: true, archivedAt: true } },
+            branchId: true,
+            role: {
+              select: { key: true, isSuperadmin: true, archivedAt: true, permissions: true },
+            },
           },
         },
       },
     });
     if (user && !user.archivedAt) {
       const tier = computeTier(user.roleAssignments);
+      const permissions = permissionsFromAssignments(user.roleAssignments);
       const hasEmployee = user.employee !== null;
-      const isAdminCapable = tier === 'Admin' || tier === 'Superadmin';
+      const isAdminCapable = hasAdminAreaAccess(permissions, tier);
       if (hasEmployee && isAdminCapable) redirect('/liff/home');
       if (hasEmployee) redirect('/liff/check-in');
       if (isAdminCapable) redirect('/admin');
