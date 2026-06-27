@@ -48,6 +48,6 @@ describe('resolveAuthedUser', () => {
     expect(res.user.id).toBe('u1');
     expect(res.authUserId).toBe('auth-1');
     expect(res.assignments).toHaveLength(1);
-    expect(res.assignments[0].role.permissions).toEqual(['attendance.read']);
+    expect(res.assignments[0]?.role.permissions).toEqual(['attendance.read']);
   });
 });
