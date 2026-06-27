@@ -99,6 +99,20 @@ export function checkUserScope(
 }
 
 /**
+ * Tier-conferring (system) roles — admin/staff/superadmin — may only be
+ * granted or removed by an actor who actually holds an admin tier. A
+ * permission-only actor (tier null) or Staff with role.assign must not be
+ * able to mint or strip system roles: that would be privilege escalation
+ * now that permission-based admission lets tier-less users reach the
+ * role-assignment actions. Custom roles (isSystem=false) are governed by
+ * the existing canDo / branch-scope guards, not this one.
+ */
+export function canManageSystemRole(actorRole: Role | null, role: { isSystem: boolean }): boolean {
+  if (!role.isSystem) return true;
+  return actorRole === 'Admin' || actorRole === 'Superadmin';
+}
+
+/**
  * Async I/O wrapper around `checkUserScope`. Fetches the two assignment
  * sets in parallel.
  */

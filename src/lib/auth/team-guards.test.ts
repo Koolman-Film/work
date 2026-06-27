@@ -7,7 +7,12 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { canActOnRole, checkUserScope, type ScopeAssignment } from './team-guards';
+import {
+  canActOnRole,
+  canManageSystemRole,
+  checkUserScope,
+  type ScopeAssignment,
+} from './team-guards';
 
 describe('canActOnRole with null actor', () => {
   it('a tier-less (custom-only) actor cannot act on any tier', () => {
@@ -127,6 +132,44 @@ describe('checkUserScope (branch jurisdiction guard)', () => {
       // its own branch-scoped permission check) — not through the
       // user-scope guard.
       expect(checkUserScope([admin(BRANCH_A)], [], false)).toBe(false);
+    });
+  });
+
+  describe('canManageSystemRole (privilege-escalation guard)', () => {
+    describe('custom roles (isSystem: false) — always allowed', () => {
+      it('null actor can manage a custom role', () => {
+        expect(canManageSystemRole(null, { isSystem: false })).toBe(true);
+      });
+
+      it('Staff actor can manage a custom role', () => {
+        expect(canManageSystemRole('Staff', { isSystem: false })).toBe(true);
+      });
+
+      it('Admin actor can manage a custom role', () => {
+        expect(canManageSystemRole('Admin', { isSystem: false })).toBe(true);
+      });
+
+      it('Superadmin actor can manage a custom role', () => {
+        expect(canManageSystemRole('Superadmin', { isSystem: false })).toBe(true);
+      });
+    });
+
+    describe('system roles (isSystem: true) — admin tier required', () => {
+      it('null actor CANNOT manage a system role', () => {
+        expect(canManageSystemRole(null, { isSystem: true })).toBe(false);
+      });
+
+      it('Staff actor CANNOT manage a system role', () => {
+        expect(canManageSystemRole('Staff', { isSystem: true })).toBe(false);
+      });
+
+      it('Admin actor CAN manage a system role', () => {
+        expect(canManageSystemRole('Admin', { isSystem: true })).toBe(true);
+      });
+
+      it('Superadmin actor CAN manage a system role', () => {
+        expect(canManageSystemRole('Superadmin', { isSystem: true })).toBe(true);
+      });
     });
   });
 
