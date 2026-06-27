@@ -20,6 +20,11 @@ type Parties = {
  * parties — WITHOUT mutating anything. Shared by the preview (confirm screen)
  * and the actual link, so the same single-use / expiry / membership checks run
  * in both. The merge only proceeds once the employee taps confirm.
+ *
+ * Identity is STATED by the signed token (verifyMergeToken → { adminUserId,
+ * employeeUserId }), never inferred from the session. The LINE session only
+ * establishes consent: the scanning LINE must belong to one side of the stated
+ * pair (admin row OR employee row), or be unbound. Bound to anyone else → reject.
  */
 async function resolveMergeParties(
   mergeToken: string,
@@ -34,33 +39,32 @@ async function resolveMergeParties(
   if (!authUser) return { ok: false, code: 'no-session', message: 'ไม่พบเซสชัน กรุณาลองใหม่' };
 
   const lineSub = (authUser.identities ?? []).find((i) => i.provider === 'custom:line')?.id;
-  if (!lineSub) return { ok: false, code: 'not-line', message: 'ต้องเข้าสู่ระบบด้วยบัญชี LINE ของพนักงาน' };
+  if (!lineSub) return { ok: false, code: 'not-line', message: 'ต้องเข้าสู่ระบบด้วยบัญชี LINE' };
 
-  // The employee User is whoever this LINE account belongs to.
-  const employeeUser = await prisma.user.findUnique({
-    where: { lineUserId: lineSub },
-    select: {
-      id: true,
-      employee: { select: { firstName: true, lastName: true, nickname: true } },
-    },
-  });
-  if (!employeeUser?.employee) {
-    return { ok: false, code: 'not-employee', message: 'บัญชี LINE นี้ไม่ใช่พนักงานในระบบ' };
-  }
-
+  // Identity is STATED by the signed token, never inferred from the session.
   let adminUserId: string;
+  let employeeUserId: string;
   try {
-    ({ adminUserId } = await verifyMergeToken(mergeToken));
+    ({ adminUserId, employeeUserId } = await verifyMergeToken(mergeToken));
   } catch {
     return { ok: false, code: 'invalid-token', message: 'ลิงก์ไม่ถูกต้องหรือหมดอายุ' };
   }
 
-  // Single-use + not-expired: the live token must still be on the admin row.
+  // The admin must be a live, pure admin still holding this single-use token.
   const admin = await prisma.user.findUnique({
     where: { id: adminUserId },
-    select: { email: true, mergeToken: true, mergeTokenExpiresAt: true, archivedAt: true },
+    select: {
+      email: true,
+      mergeToken: true,
+      mergeTokenExpiresAt: true,
+      archivedAt: true,
+      employee: { select: { id: true } },
+    },
   });
   if (!admin || admin.archivedAt) return { ok: false, code: 'admin-gone', message: 'ไม่พบบัญชีผู้ดูแล' };
+  if (admin.employee) {
+    return { ok: false, code: 'admin-not-pure', message: 'บัญชีผู้ดูแลนี้เป็นพนักงานอยู่แล้ว' };
+  }
   if (admin.mergeToken !== mergeToken) {
     return { ok: false, code: 'consumed', message: 'ลิงก์ถูกใช้ไปแล้ว กรุณาสร้างใหม่' };
   }
@@ -68,14 +72,36 @@ async function resolveMergeParties(
     return { ok: false, code: 'expired', message: 'ลิงก์หมดอายุ กรุณาสร้างใหม่' };
   }
 
-  const e = employeeUser.employee;
+  // The chosen employee must exist and actually be an employee.
+  const employee = await prisma.user.findUnique({
+    where: { id: employeeUserId },
+    select: {
+      employee: { select: { firstName: true, lastName: true, nickname: true } },
+    },
+  });
+  if (!employee?.employee) {
+    return { ok: false, code: 'not-employee', message: 'บัญชีพนักงานที่เลือกไม่ถูกต้อง' };
+  }
+
+  // Consent: the scanning LINE must belong to one side of the stated pair, or be
+  // unbound (a fresh LINE the merge will bind to the employee). Bound to anyone
+  // else means a stranger scanned the QR — refuse.
+  const lineOwner = await prisma.user.findUnique({
+    where: { lineUserId: lineSub },
+    select: { id: true },
+  });
+  if (lineOwner && lineOwner.id !== adminUserId && lineOwner.id !== employeeUserId) {
+    return { ok: false, code: 'not-a-party', message: 'บัญชี LINE นี้ไม่เกี่ยวข้องกับการเชื่อมบัญชีนี้' };
+  }
+
+  const e = employee.employee;
   const employeeName = e.nickname?.trim() || `${e.firstName} ${e.lastName}`.trim();
   return {
     ok: true,
     parties: {
       adminUserId,
       adminEmail: admin.email,
-      employeeUserId: employeeUser.id,
+      employeeUserId,
       employeeName,
       lineUserId: lineSub,
     },
