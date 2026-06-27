@@ -17,49 +17,93 @@ import {
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ADMIN_LINE_LINK_ENABLED } from '@/lib/auth/admin-line-feature';
+import type { Permission } from '@/lib/auth/permissions';
 import { cn } from '@/lib/utils';
 
-type Item = { href: string; label: string; desc: string; Icon: LucideIcon };
+type Item = { href: string; label: string; desc: string; Icon: LucideIcon; permission: Permission };
 
 const ITEMS: Item[] = [
-  { href: '/admin/settings/branches', label: 'สาขา', desc: 'ตำแหน่ง + geofence', Icon: Building2 },
-  { href: '/admin/settings/departments', label: 'แผนก', desc: 'จัดกลุ่มพนักงาน', Icon: FolderTree },
+  {
+    href: '/admin/settings/branches',
+    label: 'สาขา',
+    desc: 'ตำแหน่ง + geofence',
+    Icon: Building2,
+    permission: 'settings.branch.manage',
+  },
+  {
+    href: '/admin/settings/departments',
+    label: 'แผนก',
+    desc: 'จัดกลุ่มพนักงาน',
+    Icon: FolderTree,
+    permission: 'settings.department.manage',
+  },
   {
     href: '/admin/settings/accounting-groups',
     label: 'กลุ่มบัญชี',
     desc: 'PEAK export',
     Icon: Calculator,
+    permission: 'settings.accounting-group.manage',
   },
   {
     href: '/admin/settings/leave-types',
     label: 'ประเภทการลา',
     desc: 'ลาป่วย / ลากิจ',
     Icon: CalendarOff,
+    permission: 'settings.leave-type.manage',
   },
   {
     href: '/admin/settings/leave-config',
     label: 'ตั้งค่าการลา',
     desc: 'ครึ่งวัน / รายชั่วโมง',
     Icon: Hourglass,
+    permission: 'settings.leave-config.manage',
   },
-  { href: '/admin/settings/holidays', label: 'วันหยุด', desc: 'ราชการ + ชดเชย', Icon: CalendarDays },
+  {
+    href: '/admin/settings/holidays',
+    label: 'วันหยุด',
+    desc: 'ราชการ + ชดเชย',
+    Icon: CalendarDays,
+    permission: 'settings.holiday.manage',
+  },
   {
     href: '/admin/settings/work-schedules',
     label: 'ตารางงาน',
     desc: 'วันทำงาน + เวลา',
     Icon: Clock,
+    permission: 'settings.work-schedule.manage',
   },
   {
     href: '/admin/settings/attendance',
     label: 'การมาสาย & รอบจ่าย',
     desc: 'เวลาเข้างาน + วันตัดรอบ',
     Icon: AlarmClock,
+    permission: 'settings.attendance.manage',
   },
-  { href: '/admin/settings/team', label: 'ทีมผู้ดูแล', desc: 'Admin + Superadmin', Icon: ShieldCheck },
-  { href: '/admin/settings/roles', label: 'บทบาทและสิทธิ์', desc: 'สิทธิ์การเข้าถึง', Icon: KeyRound },
+  {
+    href: '/admin/settings/team',
+    label: 'ทีมผู้ดูแล',
+    desc: 'Admin + Superadmin',
+    Icon: ShieldCheck,
+    permission: 'team.read',
+  },
+  {
+    href: '/admin/settings/roles',
+    label: 'บทบาทและสิทธิ์',
+    desc: 'สิทธิ์การเข้าถึง',
+    Icon: KeyRound,
+    permission: 'role.read',
+  },
   // Admin LINE link temporarily disabled — see ADMIN_LINE_LINK_ENABLED.
   ...(ADMIN_LINE_LINK_ENABLED
-    ? [{ href: '/admin/settings/line', label: 'LINE', desc: 'เชื่อมบัญชีแอดมิน', Icon: MessageCircle }]
+    ? [
+        {
+          href: '/admin/settings/line',
+          label: 'LINE',
+          desc: 'เชื่อมบัญชีแอดมิน',
+          Icon: MessageCircle,
+          permission: 'team.read' as Permission,
+        },
+      ]
     : []),
 ];
 
@@ -68,7 +112,9 @@ const ITEMS: Item[] = [
  * with a section header and active accent bar), collapsing to a horizontally-
  * scrollable pill strip below lg so it stays usable on phones.
  */
-export function SettingsNav() {
+export function SettingsNav({ allowedPermissions }: { allowedPermissions: Permission[] }) {
+  const allowed = new Set(allowedPermissions);
+  const visible = ITEMS.filter((i) => allowed.has(i.permission));
   const pathname = usePathname();
   return (
     <nav
@@ -78,7 +124,7 @@ export function SettingsNav() {
       <p className="hidden px-3 pb-1 text-xs font-semibold uppercase tracking-wider text-ink-4 lg:block">
         ตั้งค่า
       </p>
-      {ITEMS.map(({ href, label, desc, Icon }) => {
+      {visible.map(({ href, label, desc, Icon }) => {
         const active = pathname === href || pathname.startsWith(`${href}/`);
         return (
           <Link
