@@ -12,6 +12,7 @@ type Parties = {
   adminEmail: string | null;
   employeeUserId: string;
   employeeName: string;
+  lineUserId: string;
 };
 
 /**
@@ -76,6 +77,7 @@ async function resolveMergeParties(
       adminEmail: admin.email,
       employeeUserId: employeeUser.id,
       employeeName,
+      lineUserId: lineSub,
     },
   };
 }
@@ -108,6 +110,7 @@ export async function linkMergeAccounts(input: { mergeToken: string }): Promise<
   const res = await mergeAdminIntoEmployee({
     adminUserId: resolved.parties.adminUserId,
     employeeUserId: resolved.parties.employeeUserId,
+    lineUserId: resolved.parties.lineUserId,
   });
   if (!res.ok) return { ok: false, code: res.code, message: 'ไม่สามารถเชื่อมบัญชีได้' };
   return { ok: true };

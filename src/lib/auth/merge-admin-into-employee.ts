@@ -3,7 +3,10 @@ import { prisma } from '@/lib/db/prisma';
 
 type Result =
   | { ok: true }
-  | { ok: false; code: 'same-user' | 'admin-not-pure' | 'employee-no-record' | 'not-found' };
+  | {
+      ok: false;
+      code: 'same-user' | 'admin-not-pure' | 'employee-no-record' | 'not-found' | 'line-conflict';
+    };
 
 /**
  * Grant a pure-admin account's admin access to an employee account, so the
@@ -11,12 +14,15 @@ type Result =
  *
  * NON-DESTRUCTIVE (reworked 2026-06-26 after an incident where a mis-scanned
  * merge QR archived a real admin and handed their Superadmin to a stranger):
- * the admin account is NEVER archived and its email / authUserId / lineUserId
- * are NEVER cleared — the admin can always still log in with their email. This
- * function only:
+ * the admin account is NEVER archived and its email / authUserId are NEVER
+ * cleared — the admin can always still log in with their email. This function
+ * only:
  *   1. copies the admin's admin/superadmin role assignments onto the employee,
- *   2. consumes the single-use merge token on the admin row, and
- *   3. writes an audit row.
+ *   2. enforces the invariant that the LINE binding lives on the employee row
+ *      (binds if fresh, relocates from the admin row if self-paired, refuses
+ *      if the LINE already belongs to a third party),
+ *   3. consumes the single-use merge token on the admin row, and
+ *   4. writes an audit row (including the LINE action taken).
  * It does NOT re-point attribution (the admin stays alive, so its history stays
  * correctly attributed to it). The grant is fully reversible — remove the copied
  * role assignments from the employee.
@@ -24,11 +30,12 @@ type Result =
 export async function mergeAdminIntoEmployee(input: {
   adminUserId: string;
   employeeUserId: string;
+  lineUserId: string;
 }): Promise<Result> {
-  const { adminUserId, employeeUserId } = input;
+  const { adminUserId, employeeUserId, lineUserId } = input;
   if (adminUserId === employeeUserId) return { ok: false, code: 'same-user' };
 
-  const [admin, employeeUser] = await Promise.all([
+  const [admin, employeeUser, lineOwner] = await Promise.all([
     prisma.user.findUnique({
       where: { id: adminUserId },
       include: { employee: { select: { id: true } }, roleAssignments: { include: { role: true } } },
@@ -37,10 +44,17 @@ export async function mergeAdminIntoEmployee(input: {
       where: { id: employeeUserId },
       include: { employee: { select: { id: true } } },
     }),
+    prisma.user.findUnique({ where: { lineUserId }, select: { id: true } }),
   ]);
   if (!admin || !employeeUser) return { ok: false, code: 'not-found' };
   if (admin.employee !== null) return { ok: false, code: 'admin-not-pure' };
   if (employeeUser.employee === null) return { ok: false, code: 'employee-no-record' };
+
+  // The scanning LINE must be unbound, or belong to the admin or the employee of
+  // this pair. Bound to anyone else → a different human; refuse, mutate nothing.
+  if (lineOwner && lineOwner.id !== adminUserId && lineOwner.id !== employeeUserId) {
+    return { ok: false, code: 'line-conflict' };
+  }
 
   // Only copy admin/superadmin roles — custom or staff roles on the admin
   // user are intentionally not carried over to the employee account.
@@ -64,21 +78,39 @@ export async function mergeAdminIntoEmployee(input: {
       }
     }
 
-    // 2. Consume the single-use merge token on the admin row. We deliberately do
-    //    NOT archive the admin, clear its email/authUserId/lineUserId, or
-    //    re-point attribution — the admin account stays fully usable.
+    // 2. Enforce the invariant: the LINE binding lives on the employee row.
+    //    Skip if the employee already holds its own LINE. We move at most one
+    //    `lineUserId` column — never touch email/authUserId (non-destructive).
+    let lineAction: 'none' | 'bound' | 'relocated' = 'none';
+    if (employeeUser.lineUserId === null) {
+      if (lineOwner?.id === adminUserId) {
+        // Self-paired admin: clear the admin's LINE first (unique), then set it
+        // on the employee row.
+        await tx.user.update({ where: { id: adminUserId }, data: { lineUserId: null } });
+        await tx.user.update({ where: { id: employeeUserId }, data: { lineUserId } });
+        lineAction = 'relocated';
+      } else if (lineOwner === null) {
+        // Fresh LINE: bind it to the employee row.
+        await tx.user.update({ where: { id: employeeUserId }, data: { lineUserId } });
+        lineAction = 'bound';
+      }
+    }
+
+    // 3. Consume the single-use merge token on the admin row. We deliberately do
+    //    NOT archive the admin, clear its email/authUserId, or re-point
+    //    attribution — the admin account stays fully usable.
     await tx.user.update({
       where: { id: adminUserId },
       data: { mergeToken: null, mergeTokenExpiresAt: null },
     });
 
-    // 3. Audit the privilege grant (the most security-sensitive action here).
+    // 4. Audit the privilege grant + any LINE move (the security-sensitive bits).
     await auditLogTx(tx, {
       actorId: adminUserId,
       action: 'user.account-merge',
       entityType: 'User',
       entityId: employeeUserId,
-      after: { grantedRoles: granted, fromAdminUserId: adminUserId },
+      after: { grantedRoles: granted, fromAdminUserId: adminUserId, lineAction, lineUserId },
       metadata: { adminUserId, employeeUserId },
     });
   });
