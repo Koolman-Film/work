@@ -133,6 +133,17 @@ export async function linkMergeAccounts(input: { mergeToken: string }): Promise<
   const resolved = await resolveMergeParties(input.mergeToken);
   if (!resolved.ok) return resolved;
 
+  // Atomically consume the token so concurrent double-scans race on a DB write
+  // and only one proceeds. A permanent merge failure (e.g. line-conflict) after
+  // this point burns the token — acceptable; admin regenerates.
+  const consumed = await prisma.user.updateMany({
+    where: { id: resolved.parties.adminUserId, mergeToken: input.mergeToken },
+    data: { mergeToken: null, mergeTokenExpiresAt: null },
+  });
+  if (consumed.count === 0) {
+    return { ok: false, code: 'consumed', message: 'ลิงก์ถูกใช้ไปแล้ว กรุณาสร้างใหม่' };
+  }
+
   const res = await mergeAdminIntoEmployee({
     adminUserId: resolved.parties.adminUserId,
     employeeUserId: resolved.parties.employeeUserId,
