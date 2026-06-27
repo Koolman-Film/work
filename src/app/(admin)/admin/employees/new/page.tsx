@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardBody } from '@/components/ui/card';
 import { PageHeader } from '@/components/ui/page-header';
+import { requirePermission } from '@/lib/auth/check-permission';
 import { loadEmployeeFormOptions } from '../_load-options';
 import { createEmployee } from '../actions';
 import { EmployeeForm } from '../employee-form';
@@ -9,6 +10,7 @@ import { EmployeeForm } from '../employee-form';
 type SearchParams = Promise<{ error?: string }>;
 
 export default async function NewEmployeePage({ searchParams }: { searchParams: SearchParams }) {
+  await requirePermission('employee.create');
   const { error } = await searchParams;
   const options = await loadEmployeeFormOptions();
 
