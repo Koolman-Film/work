@@ -20,6 +20,7 @@ import { ListSearch } from '@/components/ui/list-search';
 import { PageHeader } from '@/components/ui/page-header';
 import { Pagination } from '@/components/ui/pagination';
 import { StatusBadge, type StatusKey } from '@/components/ui/status-badge';
+import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma, prismaRaw } from '@/lib/db/prisma';
 import { getLeaveConfig } from '@/lib/leave/leave-config';
 import { leaveDurationLabel } from '@/lib/leave/units';
@@ -51,6 +52,7 @@ export default async function AdminLeaveInboxPage({
 }: {
   searchParams: SearchParams;
 }) {
+  await requirePermission('leave.read');
   const { status, trash, q: qRaw, page: pageRaw } = await searchParams;
   const isTrash = trash === '1';
   const q = qRaw?.trim() ?? '';

@@ -7,6 +7,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Pagination } from '@/components/ui/pagination';
 import { type Column, ResponsiveTable } from '@/components/ui/responsive-table';
 import { StatusBadge, type StatusKey } from '@/components/ui/status-badge';
+import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { buildPageMeta, pageArgs, parsePageParam } from '@/lib/pagination';
 import { signAttendancePhotoUrls } from '@/lib/storage/signed-urls';
@@ -71,6 +72,7 @@ function statusWhere(status: string): Prisma.EmployeeWhereInput {
 }
 
 export default async function EmployeeListPage({ searchParams }: { searchParams: SearchParams }) {
+  await requirePermission('employee.read');
   const sp = await searchParams;
   const error = sp.error;
   const q = sp.q?.trim() ?? '';
