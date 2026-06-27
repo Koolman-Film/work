@@ -545,6 +545,10 @@
     "confirmCta": "确认关联",
     "cancel": "取消",
     "cancelledTitle": "已取消",
-    "cancelledBody": "未做任何更改。"
+    "cancelledBody": "未做任何更改。",
+    "pickerLabel": "选择代表您的员工账号",
+    "pickerCta": "生成二维码",
+    "pickerEmpty": "未找到在职员工",
+    "pickerPlaceholder": "— 请选择员工 —"
   }
 }

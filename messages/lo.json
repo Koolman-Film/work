@@ -545,6 +545,10 @@
     "confirmCta": "ຢືນຢັນການເຊື່ອມ",
     "cancel": "ຍົກເລີກ",
     "cancelledTitle": "ຍົກເລີກແລ້ວ",
-    "cancelledBody": "ບໍ່ມີການປ່ຽນແປງ."
+    "cancelledBody": "ບໍ່ມີການປ່ຽນແປງ.",
+    "pickerLabel": "ເລືອກພະນັກງານທີ່ເປັນຕົວທ່ານ",
+    "pickerCta": "ສ້າງ QR",
+    "pickerEmpty": "ບໍ່ພົບພະນັກງານທີ່ໃຊ້ງານຢູ່",
+    "pickerPlaceholder": "— ເລືອກພະນັກງານ —"
   }
 }

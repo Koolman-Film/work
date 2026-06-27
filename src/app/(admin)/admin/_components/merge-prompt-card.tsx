@@ -20,17 +20,18 @@
 import { useTranslations } from 'next-intl';
 import { useState, useTransition } from 'react';
 import { Button } from '@/components/ui/button';
-import { dismissMergePrompt, startAdminMerge } from '@/lib/auth/start-admin-merge';
+import {
+  dismissMergePrompt,
+  listMergeableEmployees,
+  startAdminMerge,
+} from '@/lib/auth/start-admin-merge';
 
 export function MergePromptCard({ dismissible = true }: { dismissible?: boolean }) {
   const t = useTranslations('mergeWizard');
 
-  // null = initial state (card visible, no QR yet)
-  // object = QR issued successfully
-  // 'dismissed' = admin clicked "Not now"
-  // 'error' = startAdminMerge returned ok: false
   type State =
     | { phase: 'idle' }
+    | { phase: 'picker'; employees: { userId: string; name: string }[]; selected: string }
     | { phase: 'qr'; url: string; qrDataUrl: string }
     | { phase: 'dismissed' }
     | { phase: 'error'; message: string };
@@ -41,9 +42,16 @@ export function MergePromptCard({ dismissible = true }: { dismissible?: boolean 
 
   if (state.phase === 'dismissed') return null;
 
-  function handleLink() {
+  function openPicker() {
     startLinkTransition(async () => {
-      const result = await startAdminMerge();
+      const employees = await listMergeableEmployees();
+      setState({ phase: 'picker', employees, selected: employees[0]?.userId ?? '' });
+    });
+  }
+
+  function generateQr(employeeUserId: string) {
+    startLinkTransition(async () => {
+      const result = await startAdminMerge({ employeeUserId });
       if (result.ok) {
         setState({ phase: 'qr', url: result.url, qrDataUrl: result.qrDataUrl });
       } else {
@@ -70,6 +78,32 @@ export function MergePromptCard({ dismissible = true }: { dismissible?: boolean 
             <p className="mt-2 text-sm font-medium text-red-600">{state.message}</p>
           )}
 
+          {state.phase === 'picker' && (
+            <div className="mt-3 space-y-2">
+              {state.employees.length === 0 ? (
+                <p className="text-sm text-primary-700">{t('pickerEmpty')}</p>
+              ) : (
+                <>
+                  <label className="block text-xs text-primary-600" htmlFor="merge-employee">
+                    {t('pickerLabel')}
+                  </label>
+                  <select
+                    id="merge-employee"
+                    value={state.selected}
+                    onChange={(e) => setState({ ...state, selected: e.target.value })}
+                    className="w-full rounded-md border border-primary-200 bg-white px-3 py-2 text-sm"
+                  >
+                    {state.employees.map((emp) => (
+                      <option key={emp.userId} value={emp.userId}>
+                        {emp.name}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              )}
+            </div>
+          )}
+
           {state.phase === 'qr' && (
             <div className="mt-3 space-y-2">
               <p className="text-xs text-primary-600">{t('scanHint')}</p>
@@ -86,17 +120,27 @@ export function MergePromptCard({ dismissible = true }: { dismissible?: boolean 
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
-          {state.phase !== 'qr' && (
+          {state.phase === 'idle' && (
             <Button
               variant="primary"
               size="sm"
-              onClick={handleLink}
+              onClick={openPicker}
               disabled={isPendingLink || isPendingDismiss}
             >
               {isPendingLink ? t('working') : t('cardCta')}
             </Button>
           )}
-          {dismissible && (
+          {state.phase === 'picker' && state.employees.length > 0 && (
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => generateQr(state.selected)}
+              disabled={isPendingLink || !state.selected}
+            >
+              {isPendingLink ? t('working') : t('pickerCta')}
+            </Button>
+          )}
+          {dismissible && state.phase !== 'qr' && (
             <Button
               variant="ghost"
               size="sm"

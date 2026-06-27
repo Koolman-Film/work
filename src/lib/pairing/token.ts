@@ -163,18 +163,17 @@ export async function verifyAdminPairingToken(token: string): Promise<{ userId: 
 const MERGE_SCOPE = 'admin-merge';
 const MERGE_TTL_SECONDS = 60 * 60; // 1 hour
 
-/**
- * Mint a merge token for an admin. Returns the JWT string and the expiration
- * Date. This token grants the admin authority to initiate an employee merge.
- */
-export async function mintMergeToken(adminUserId: string): Promise<{
+export async function mintMergeToken(
+  adminUserId: string,
+  employeeUserId: string,
+): Promise<{
   token: string;
   expiresAt: Date;
 }> {
   const now = Math.floor(Date.now() / 1000);
   const exp = now + MERGE_TTL_SECONDS;
 
-  const token = await new SignJWT({ scope: MERGE_SCOPE })
+  const token = await new SignJWT({ scope: MERGE_SCOPE, emp: employeeUserId })
     .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
     .setIssuer(ISSUER)
     .setAudience(AUDIENCE)
@@ -186,11 +185,9 @@ export async function mintMergeToken(adminUserId: string): Promise<{
   return { token, expiresAt: new Date(exp * 1000) };
 }
 
-/**
- * Verify a merge token. Throws on any failure (signature, scope, issuer/aud,
- * expiry). Returns the admin user ID on success.
- */
-export async function verifyMergeToken(token: string): Promise<{ adminUserId: string }> {
+export async function verifyMergeToken(
+  token: string,
+): Promise<{ adminUserId: string; employeeUserId: string }> {
   const { payload } = await jwtVerify(token, getSecret(), {
     issuer: ISSUER,
     audience: AUDIENCE,
@@ -203,6 +200,9 @@ export async function verifyMergeToken(token: string): Promise<{ adminUserId: st
   if (typeof payload.sub !== 'string') {
     throw new Error('Missing sub claim');
   }
+  if (typeof payload.emp !== 'string') {
+    throw new Error('Missing emp claim');
+  }
 
-  return { adminUserId: payload.sub };
+  return { adminUserId: payload.sub, employeeUserId: payload.emp };
 }

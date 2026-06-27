@@ -545,6 +545,10 @@
     "confirmCta": "បញ្ជាក់ការភ្ជាប់",
     "cancel": "បោះបង់",
     "cancelledTitle": "បានបោះបង់",
-    "cancelledBody": "មិនមានការផ្លាស់ប្ដូរទេ។"
+    "cancelledBody": "មិនមានការផ្លាស់ប្ដូរទេ។",
+    "pickerLabel": "ជ្រើសរើសបុគ្គលិកដែលជាអ្នក",
+    "pickerCta": "បង្កើត QR",
+    "pickerEmpty": "រកមិនឃើញបុគ្គលិកសកម្ម",
+    "pickerPlaceholder": "— ជ្រើសរើសបុគ្គលិក —"
   }
 }

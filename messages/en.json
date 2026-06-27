@@ -580,6 +580,10 @@
     "confirmCta": "Confirm link",
     "cancel": "Cancel",
     "cancelledTitle": "Cancelled",
-    "cancelledBody": "Nothing was changed."
+    "cancelledBody": "Nothing was changed.",
+    "pickerLabel": "Select the employee that is you",
+    "pickerCta": "Generate QR",
+    "pickerEmpty": "No active employees found",
+    "pickerPlaceholder": "— Select an employee —"
   }
 }
