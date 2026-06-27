@@ -2,11 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { mintMergeToken, verifyMergeToken } from './token';
 
 describe('merge token', () => {
-  it('round-trips the admin user id', async () => {
-    const { token, expiresAt } = await mintMergeToken('admin-123');
+  it('round-trips the admin and employee user ids', async () => {
+    const { token, expiresAt } = await mintMergeToken('admin-123', 'emp-456');
     expect(expiresAt.getTime()).toBeGreaterThan(Date.now());
-    const { adminUserId } = await verifyMergeToken(token);
+    const { adminUserId, employeeUserId } = await verifyMergeToken(token);
     expect(adminUserId).toBe('admin-123');
+    expect(employeeUserId).toBe('emp-456');
   });
 
   it('rejects an admin-pair-scoped token', async () => {

@@ -580,6 +580,10 @@
     "confirmCta": "ยืนยันเชื่อมบัญชี",
     "cancel": "ยกเลิก",
     "cancelledTitle": "ยกเลิกแล้ว",
-    "cancelledBody": "ไม่มีการเปลี่ยนแปลงใดๆ"
+    "cancelledBody": "ไม่มีการเปลี่ยนแปลงใดๆ",
+    "pickerLabel": "เลือกพนักงานที่เป็นตัวคุณ",
+    "pickerCta": "สร้าง QR",
+    "pickerEmpty": "ไม่พบพนักงานที่ใช้งานอยู่",
+    "pickerPlaceholder": "— เลือกพนักงาน —"
   }
 }
