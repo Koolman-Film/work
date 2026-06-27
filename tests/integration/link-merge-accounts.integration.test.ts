@@ -117,4 +117,14 @@ describe('link-merge-accounts — explicit pairing + consent', () => {
     expect(res.ok).toBe(false);
     if (!res.ok) expect(res.code).toBe('not-a-party');
   });
+
+  it('token is single-use: second call with same token returns consumed', async () => {
+    const { token } = await seed({ adminLine: 'L-admin', empLine: null });
+    fakeLineSub = 'L-admin';
+    const first = await linkMergeAccounts({ mergeToken: token });
+    expect(first).toEqual({ ok: true });
+    const second = await linkMergeAccounts({ mergeToken: token });
+    expect(second.ok).toBe(false);
+    if (!second.ok) expect(second.code).toBe('consumed');
+  });
 });
