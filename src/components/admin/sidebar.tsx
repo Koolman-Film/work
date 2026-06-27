@@ -179,7 +179,7 @@ export function Sidebar({
 
   const allowed = new Set(allowedPermissions);
   const canSee = (item: NavItem) => {
-    if (item.enabled === false) return true; // placeholder, always shown disabled
+    if (item.enabled !== true) return true; // placeholder (enabled omitted/false) — always shown disabled
     if (item.anyOf) return item.anyOf.some((p) => allowed.has(p));
     if (item.permission) return allowed.has(item.permission);
     return true;
