@@ -34,10 +34,10 @@ import { prisma } from '@/lib/db/prisma';
  *
  * Pure / synchronous because the caller already has both tiers in hand.
  */
-export function canActOnRole(actorRole: Role, targetRole: Role): boolean {
+export function canActOnRole(actorRole: Role | null, targetRole: Role): boolean {
   if (actorRole === 'Superadmin') return true;
   if (actorRole === 'Admin') return targetRole === 'Admin';
-  return false;
+  return false; // null or 'Staff': no team jurisdiction
 }
 
 /**

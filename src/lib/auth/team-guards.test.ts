@@ -9,6 +9,18 @@
 import { describe, expect, it } from 'vitest';
 import { canActOnRole, checkUserScope, type ScopeAssignment } from './team-guards';
 
+describe('canActOnRole with null actor', () => {
+  it('a tier-less (custom-only) actor cannot act on any tier', () => {
+    expect(canActOnRole(null, 'Admin')).toBe(false);
+    expect(canActOnRole(null, 'Superadmin')).toBe(false);
+  });
+  it('existing behaviour preserved', () => {
+    expect(canActOnRole('Superadmin', 'Superadmin')).toBe(true);
+    expect(canActOnRole('Admin', 'Admin')).toBe(true);
+    expect(canActOnRole('Admin', 'Superadmin')).toBe(false);
+  });
+});
+
 const BRANCH_A = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 const BRANCH_B = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
 
