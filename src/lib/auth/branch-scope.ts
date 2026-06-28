@@ -42,6 +42,17 @@ export function employeeBranchScope(permitted: PermittedBranches): Prisma.Employ
   };
 }
 
+/** Can an actor with these permitted branches act on an employee who belongs
+ *  to `employeeBranchIds` (home ∪ assignedBranchIds)? 'all' ⇒ yes; otherwise
+ *  true iff any of the employee's branches is permitted. */
+export function canActOnEmployeeBranches(
+  permitted: PermittedBranches,
+  employeeBranchIds: ReadonlyArray<string>,
+): boolean {
+  if (permitted === 'all') return true;
+  return employeeBranchIds.some((b) => permitted.includes(b));
+}
+
 /** For via-Employee models (Attendance/Leave/Advance/...). {} when 'all'. */
 export function viaEmployeeBranchScope(permitted: PermittedBranches): {
   employee?: Prisma.EmployeeWhereInput;

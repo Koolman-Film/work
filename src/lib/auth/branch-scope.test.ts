@@ -72,6 +72,29 @@ describe('viaEmployeeBranchScope', () => {
   });
 });
 
+describe('canActOnEmployeeBranches', () => {
+  it("'all' → true even for empty employee set", async () => {
+    const { canActOnEmployeeBranches } = await import('./branch-scope');
+    expect(canActOnEmployeeBranches('all', [])).toBe(true);
+  });
+  it("'all' → true for any employee branches", async () => {
+    const { canActOnEmployeeBranches } = await import('./branch-scope');
+    expect(canActOnEmployeeBranches('all', ['b1', 'b2'])).toBe(true);
+  });
+  it('overlap → true', async () => {
+    const { canActOnEmployeeBranches } = await import('./branch-scope');
+    expect(canActOnEmployeeBranches(['b1', 'b3'], ['b2', 'b3'])).toBe(true);
+  });
+  it('no overlap → false', async () => {
+    const { canActOnEmployeeBranches } = await import('./branch-scope');
+    expect(canActOnEmployeeBranches(['b1'], ['b2', 'b3'])).toBe(false);
+  });
+  it('empty permitted → false', async () => {
+    const { canActOnEmployeeBranches } = await import('./branch-scope');
+    expect(canActOnEmployeeBranches([], ['b1'])).toBe(false);
+  });
+});
+
 describe('getPermittedBranches (wrapper)', () => {
   it('loads assignments then resolves', async () => {
     vi.resetModules();
