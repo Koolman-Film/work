@@ -1,8 +1,9 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { redirect } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { auditLog } from '@/lib/audit/log';
+import { canActOnEmployeeBranches, getPermittedBranches } from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { isLocale } from '@/lib/i18n/config';
@@ -28,10 +29,22 @@ export async function setEmployeeDefaultLocale(employeeId: string, formData: For
 
   const emp = await prisma.employee.findUnique({
     where: { id: employeeId },
-    select: { user: { select: { id: true, locale: true } } },
+    select: {
+      branchId: true,
+      assignedBranchIds: true,
+      user: { select: { id: true, locale: true } },
+    },
   });
   if (!emp?.user) {
     redirect(`${path}?error=${encodeURIComponent('ไม่พบบัญชีผู้ใช้ของพนักงาน')}`);
+  }
+  if (
+    !canActOnEmployeeBranches(await getPermittedBranches(actor, 'employee.update'), [
+      emp.branchId,
+      ...emp.assignedBranchIds,
+    ])
+  ) {
+    notFound();
   }
 
   const before = emp.user.locale;
