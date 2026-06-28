@@ -13,6 +13,7 @@
  */
 
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { KpiHero } from '@/components/ui/kpi-hero';
@@ -21,8 +22,10 @@ import { Pill } from '@/components/ui/pill';
 import { StatCard } from '@/components/ui/stat-card';
 import { bangkokDateUtcMidnight, isClosedDay } from '@/lib/attendance/date';
 import { isScheduledWorkday } from '@/lib/attendance/schedule';
+import { requireAdminArea } from '@/lib/auth/admin-area';
+import { firstAccessibleAdminPath } from '@/lib/auth/admin-landing';
 import { ADMIN_LINE_LINK_ENABLED } from '@/lib/auth/admin-line-feature';
-import { canDo, requirePermission } from '@/lib/auth/check-permission';
+import { canDo } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { getOrgCalendarData } from '@/lib/leave/team-calendar';
 import { currentMonthYM, parseMonth } from '@/lib/leave/team-calendar-shape';
@@ -82,7 +85,10 @@ function formatDateTimeShort(d: Date): string {
 }
 
 export default async function AdminHomePage() {
-  const { user } = await requirePermission('dashboard.read');
+  const { user, permissions } = await requireAdminArea();
+  if (!permissions.has('dashboard.read')) {
+    redirect(firstAccessibleAdminPath(permissions));
+  }
   const canViewLiveBoard = await canDo(user, 'attendance.live-board');
 
   const today = bangkokDateUtcMidnight(new Date());

@@ -113,6 +113,26 @@ export function canManageSystemRole(actorRole: Role | null, role: { isSystem: bo
 }
 
 /**
+ * Static (non-branch) grant guard shared by createTeamMember and
+ * addRoleAssignment: a Superadmin role may only be granted by a Superadmin,
+ * and any system (tier-conferring) role requires the actor to hold an admin
+ * tier. Returns a Thai error string to surface, or null if allowed on these
+ * grounds. Branch/global authority is checked separately by the caller.
+ */
+export function systemRoleGrantError(
+  actorRole: Role | null,
+  role: { isSuperadmin: boolean; isSystem: boolean },
+): string | null {
+  if (role.isSuperadmin && actorRole !== 'Superadmin') {
+    return 'ต้องเป็น Superadmin เพื่อมอบบทบาท Superadmin';
+  }
+  if (!canManageSystemRole(actorRole, role)) {
+    return 'ต้องมีสิทธิ์ระดับผู้ดูแลเพื่อมอบบทบาทระบบ';
+  }
+  return null;
+}
+
+/**
  * Async I/O wrapper around `checkUserScope`. Fetches the two assignment
  * sets in parallel.
  */
