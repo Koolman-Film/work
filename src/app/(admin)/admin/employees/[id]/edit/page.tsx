@@ -87,6 +87,9 @@ export default async function EditEmployeePage({
     notFound();
   }
 
+  // Scoped admins (non-global) cannot reassign branches — show read-only branch UI.
+  const branchReadOnly = (await getPermittedBranches(user, 'employee.update')) !== 'all';
+
   const photoUrl = await resolveStoredImageUrl(emp.photoKey);
 
   // Build absolute base URL from request headers — works dev / preview / prod
@@ -119,6 +122,7 @@ export default async function EditEmployeePage({
         options={options}
         error={error ? decodeURIComponent(error) : null}
         employeeId={id}
+        branchReadOnly={branchReadOnly}
         initial={{
           firstName: emp.firstName,
           lastName: emp.lastName,

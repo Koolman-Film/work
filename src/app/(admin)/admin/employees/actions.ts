@@ -5,7 +5,11 @@ import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
 import { notFound, redirect } from 'next/navigation';
 import { auditLog } from '@/lib/audit/log';
-import { canActOnEmployeeBranches, getPermittedBranches } from '@/lib/auth/branch-scope';
+import {
+  canActOnEmployeeBranches,
+  canSetEmployeeBranches,
+  getPermittedBranches,
+} from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { assignAdminRole } from '@/lib/employee/assign-admin-role';
@@ -44,6 +48,14 @@ export async function createEmployee(formData: FormData) {
 
   const data = parsed.data;
   const assignedBranchIds = normalizeAssigned(data.branchId, data.assignedBranchIds);
+
+  // Branch-placement gate: a scoped admin may only create employees in their
+  // permitted branches. assignedBranchIds already includes home via
+  // normalizeAssigned, so this covers both home + assigned. 'all' → no filter.
+  const permitted = await getPermittedBranches(user, 'employee.create');
+  if (!canSetEmployeeBranches(permitted, assignedBranchIds)) {
+    redirect(`/admin/employees/new?error=${encodeURIComponent('ไม่มีสิทธิ์สร้างพนักงานในสาขาที่เลือก')}`);
+  }
 
   // Create User + Employee + Staff UserRoleAssignment(s) atomically.
   // Phase 4.6 dropped the legacy User.role column — the User row now
@@ -172,15 +184,14 @@ export async function updateEmployee(id: string, formData: FormData) {
 
   const before = await prisma.employee.findUnique({ where: { id } });
   if (!before) redirect('/admin/employees');
-  if (
-    !canActOnEmployeeBranches(await getPermittedBranches(user, 'employee.update'), [
-      before.branchId,
-      ...before.assignedBranchIds,
-    ])
-  ) {
+  const permitted = await getPermittedBranches(user, 'employee.update');
+  if (!canActOnEmployeeBranches(permitted, [before.branchId, ...before.assignedBranchIds])) {
     notFound();
   }
-  // Phase B2b: validate the SUBMITTED data.branchId / assignedBranchIds against permitted branches here.
+  // Branch reassignment is global-only: scoped actors keep the employee's
+  // existing branch membership regardless of what the form submitted.
+  const nextBranchId = permitted === 'all' ? data.branchId : before.branchId;
+  const nextAssignedBranchIds = permitted === 'all' ? assignedBranchIds : before.assignedBranchIds;
 
   try {
     await prisma.employee.update({
@@ -189,8 +200,8 @@ export async function updateEmployee(id: string, formData: FormData) {
         firstName: data.firstName,
         lastName: data.lastName,
         nickname: data.nickname,
-        branchId: data.branchId,
-        assignedBranchIds,
+        branchId: nextBranchId,
+        assignedBranchIds: nextAssignedBranchIds,
         departmentId: data.departmentId,
         accountingGroupId: data.accountingGroupId,
         workScheduleId: data.workScheduleId,
@@ -223,8 +234,11 @@ export async function updateEmployee(id: string, formData: FormData) {
         firstName: data.firstName,
         lastName: data.lastName,
         nickname: data.nickname,
-        branchId: data.branchId,
-        assignedBranchIds,
+        // Log what was actually PERSISTED, not what was submitted — a scoped
+        // admin's branch change is ignored (preserved from `before`), so the
+        // audit trail must reflect nextBranchId/nextAssignedBranchIds.
+        branchId: nextBranchId,
+        assignedBranchIds: nextAssignedBranchIds,
         departmentId: data.departmentId,
         accountingGroupId: data.accountingGroupId,
         workScheduleId: data.workScheduleId,

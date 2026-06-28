@@ -53,6 +53,20 @@ export function canActOnEmployeeBranches(
   return employeeBranchIds.some((b) => permitted.includes(b));
 }
 
+/**
+ * SUBSET check — may an actor with `permitted` branches SET an employee's
+ * branch membership to exactly `branchIds`? 'all' ⇒ yes; otherwise every
+ * chosen branch must be permitted. (Contrast canActOnEmployeeBranches, which
+ * is overlap/act-on. SETTING requires the stricter subset.)
+ */
+export function canSetEmployeeBranches(
+  permitted: PermittedBranches,
+  branchIds: ReadonlyArray<string>,
+): boolean {
+  if (permitted === 'all') return true;
+  return branchIds.every((b) => permitted.includes(b));
+}
+
 /** For via-Employee models (Attendance/Leave/Advance/...). {} when 'all'. */
 export function viaEmployeeBranchScope(permitted: PermittedBranches): {
   employee?: Prisma.EmployeeWhereInput;

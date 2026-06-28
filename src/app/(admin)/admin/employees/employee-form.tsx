@@ -52,6 +52,7 @@ type Props =
       /** Rendered between the form and the action bar (e.g. the LINE pairing card). */
       belowForm?: React.ReactNode;
       employeeId?: string;
+      branchReadOnly?: boolean;
     }
   | {
       mode: 'edit';
@@ -63,6 +64,7 @@ type Props =
       /** Rendered between the form and the action bar (e.g. the LINE pairing card). */
       belowForm?: React.ReactNode;
       employeeId?: string;
+      branchReadOnly?: boolean;
     };
 
 const selectClasses = cn(
@@ -90,6 +92,7 @@ export function EmployeeForm({
   extraActions,
   belowForm,
   employeeId,
+  branchReadOnly = false,
 }: Props) {
   const isEdit = mode === 'edit';
   // Bangkok "today" — the reference date for the live อายุงาน badge. Computed
@@ -317,6 +320,7 @@ export function EmployeeForm({
                     id="branchId"
                     name="branchId"
                     required
+                    disabled={branchReadOnly}
                     defaultValue={initial?.branchId ?? ''}
                     className={cn(selectClasses, 'max-w-md')}
                   >
@@ -329,6 +333,12 @@ export function EmployeeForm({
                       </option>
                     ))}
                   </select>
+                  {branchReadOnly && (
+                    <input type="hidden" name="branchId" value={initial?.branchId ?? ''} />
+                  )}
+                  {branchReadOnly && (
+                    <p className="mt-1 text-xs text-ink-4">การย้ายสาขาต้องให้ Superadmin ดำเนินการ</p>
+                  )}
                 </FormField>
 
                 <FormField
@@ -349,6 +359,7 @@ export function EmployeeForm({
                             name="assignedBranchIds"
                             value={b.id}
                             defaultChecked={checked}
+                            disabled={branchReadOnly}
                             className="size-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500/30"
                           />
                           <span>{b.name}</span>
@@ -356,6 +367,15 @@ export function EmployeeForm({
                       );
                     })}
                   </div>
+                  {branchReadOnly &&
+                    (initial?.assignedBranchIds ?? []).map((bid) => (
+                      <input
+                        key={`hidden-${bid}`}
+                        type="hidden"
+                        name="assignedBranchIds"
+                        value={bid}
+                      />
+                    ))}
                 </FormField>
 
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
