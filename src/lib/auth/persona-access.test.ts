@@ -16,6 +16,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { hasAdminAreaAccess } from './admin-area';
+import { firstAccessibleAdminPath } from './admin-landing';
 import { checkAssignments, permissionsFromAssignments } from './check-permission';
 import { ALL_PERMISSIONS, type Permission } from './permissions';
 import { SYSTEM_ROLES } from './roles';
@@ -44,6 +45,8 @@ const ADMIN = [assign('admin', false, SYSTEM_ROLES.admin.permissions)];
 const STAFF = [assign('staff', false, SYSTEM_ROLES.staff.permissions)];
 // The bug report's role: oversee check-in/out only.
 const CHECKER01 = [assign('checker01', false, ['attendance.read', 'attendance.dispute-resolve'])];
+// Live-board-only custom role (isSystem false).
+const CHECKER01_LIVE = [assign('checker01', false, ['attendance.live-board'])];
 
 const can = (a: Assignment[], p: Permission) => checkAssignments(a, p);
 const admitted = (a: Assignment[]) =>
@@ -154,5 +157,18 @@ describe('Persona access matrix', () => {
       expect(canManageSystemRole(null, customRole)).toBe(true);
       expect(canManageSystemRole('Admin', customRole)).toBe(true);
     });
+  });
+});
+
+describe('Permission-only landing', () => {
+  it('a live-board-only role lands on the live board', () => {
+    const perms = permissionsFromAssignments(CHECKER01_LIVE);
+    expect(firstAccessibleAdminPath(perms)).toBe('/admin/attendance/live');
+  });
+  it('Admin still lands on the dashboard (unchanged)', () => {
+    expect(firstAccessibleAdminPath(permissionsFromAssignments(ADMIN))).toBe('/admin');
+  });
+  it('Superadmin still lands on the dashboard (unchanged)', () => {
+    expect(firstAccessibleAdminPath(permissionsFromAssignments(SUPERADMIN))).toBe('/admin');
   });
 });
