@@ -43,7 +43,18 @@ type ReviewInput = {
 };
 
 async function review(input: ReviewInput, decision: 'approve' | 'reject'): Promise<ReviewResult> {
-  const { user } = await requirePermission('attendance.dispute-resolve');
+  // Load the disputed record's employee branch before gating (mirrors void.ts).
+  const target = await prisma.attendance.findUnique({
+    where: { id: input.attendanceId },
+    select: { employee: { select: { branchId: true } } },
+  });
+  if (!target) {
+    return { ok: false, code: 'not-found', message: 'ไม่พบรายการลงเวลา' };
+  }
+
+  const { user } = await requirePermission('attendance.dispute-resolve', {
+    branchId: target.employee.branchId,
+  });
 
   const trimmedNote = input.note.trim();
   if (trimmedNote.length === 0) {
