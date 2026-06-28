@@ -23,7 +23,9 @@
 
 import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
+import { notFound } from 'next/navigation';
 import { auditLog } from '@/lib/audit/log';
+import { canActOnEmployeeBranches, getPermittedBranches } from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 
@@ -81,13 +83,15 @@ export async function createManualAttendance(
   // Load the target employee first so we can branch-gate (mirrors void.ts).
   const emp = await prisma.employee.findUnique({
     where: { id: input.employeeId },
-    select: { id: true, archivedAt: true, status: true, branchId: true },
+    select: { id: true, archivedAt: true, status: true, branchId: true, assignedBranchIds: true },
   });
   if (!emp) {
     return { ok: false, code: 'employee-not-found', message: 'ไม่พบพนักงาน' };
   }
 
-  const { user } = await requirePermission('attendance.manual-create', { branchId: emp.branchId });
+  const { user } = await requirePermission('attendance.manual-create');
+  const permitted = await getPermittedBranches(user, 'attendance.manual-create');
+  if (!canActOnEmployeeBranches(permitted, [emp.branchId, ...emp.assignedBranchIds])) notFound();
 
   if (emp.archivedAt || emp.status === 'Archived') {
     return {
