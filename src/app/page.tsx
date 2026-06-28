@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { hasAdminAreaAccess } from '@/lib/auth/admin-area';
+import { firstAccessibleAdminPath } from '@/lib/auth/admin-landing';
 import { permissionsFromAssignments } from '@/lib/auth/check-permission';
 import { computeTier } from '@/lib/auth/user-tier';
 import { prisma } from '@/lib/db/prisma';
@@ -64,7 +65,7 @@ export default async function HomePage() {
       const isAdminCapable = hasAdminAreaAccess(permissions, tier);
       if (hasEmployee && isAdminCapable) redirect('/liff/home');
       if (hasEmployee) redirect('/liff/check-in');
-      if (isAdminCapable) redirect('/admin');
+      if (isAdminCapable) redirect(firstAccessibleAdminPath(permissions));
       // else: no employee and no admin tier → fall through to /login
     }
     // User row missing, archived, or no active assignments → fall
