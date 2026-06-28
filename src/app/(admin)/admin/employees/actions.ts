@@ -5,7 +5,11 @@ import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
 import { notFound, redirect } from 'next/navigation';
 import { auditLog } from '@/lib/audit/log';
-import { canActOnEmployeeBranches, getPermittedBranches } from '@/lib/auth/branch-scope';
+import {
+  canActOnEmployeeBranches,
+  canSetEmployeeBranches,
+  getPermittedBranches,
+} from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { assignAdminRole } from '@/lib/employee/assign-admin-role';
@@ -44,6 +48,14 @@ export async function createEmployee(formData: FormData) {
 
   const data = parsed.data;
   const assignedBranchIds = normalizeAssigned(data.branchId, data.assignedBranchIds);
+
+  // Branch-placement gate: a scoped admin may only create employees in their
+  // permitted branches. assignedBranchIds already includes home via
+  // normalizeAssigned, so this covers both home + assigned. 'all' → no filter.
+  const permitted = await getPermittedBranches(user, 'employee.create');
+  if (!canSetEmployeeBranches(permitted, assignedBranchIds)) {
+    redirect(`/admin/employees/new?error=${encodeURIComponent('ไม่มีสิทธิ์สร้างพนักงานในสาขาที่เลือก')}`);
+  }
 
   // Create User + Employee + Staff UserRoleAssignment(s) atomically.
   // Phase 4.6 dropped the legacy User.role column — the User row now
