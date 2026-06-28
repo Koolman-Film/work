@@ -184,15 +184,14 @@ export async function updateEmployee(id: string, formData: FormData) {
 
   const before = await prisma.employee.findUnique({ where: { id } });
   if (!before) redirect('/admin/employees');
-  if (
-    !canActOnEmployeeBranches(await getPermittedBranches(user, 'employee.update'), [
-      before.branchId,
-      ...before.assignedBranchIds,
-    ])
-  ) {
+  const permitted = await getPermittedBranches(user, 'employee.update');
+  if (!canActOnEmployeeBranches(permitted, [before.branchId, ...before.assignedBranchIds])) {
     notFound();
   }
-  // Phase B2b: validate the SUBMITTED data.branchId / assignedBranchIds against permitted branches here.
+  // Branch reassignment is global-only: scoped actors keep the employee's
+  // existing branch membership regardless of what the form submitted.
+  const nextBranchId = permitted === 'all' ? data.branchId : before.branchId;
+  const nextAssignedBranchIds = permitted === 'all' ? assignedBranchIds : before.assignedBranchIds;
 
   try {
     await prisma.employee.update({
@@ -201,8 +200,8 @@ export async function updateEmployee(id: string, formData: FormData) {
         firstName: data.firstName,
         lastName: data.lastName,
         nickname: data.nickname,
-        branchId: data.branchId,
-        assignedBranchIds,
+        branchId: nextBranchId,
+        assignedBranchIds: nextAssignedBranchIds,
         departmentId: data.departmentId,
         accountingGroupId: data.accountingGroupId,
         workScheduleId: data.workScheduleId,
