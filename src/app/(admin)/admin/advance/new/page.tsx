@@ -10,15 +10,17 @@
 
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageHeader } from '@/components/ui/page-header';
+import { employeeBranchScope, getPermittedBranches } from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { AdminAdvanceForm } from './admin-advance-form';
 
 export default async function AdminCreateAdvancePage() {
-  await requirePermission('advance.approve');
+  const { user } = await requirePermission('advance.approve');
+  const permitted = await getPermittedBranches(user, 'advance.approve');
 
   const employees = await prisma.employee.findMany({
-    where: { archivedAt: null, status: { not: 'Archived' } },
+    where: { archivedAt: null, status: { not: 'Archived' }, ...employeeBranchScope(permitted) },
     orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }],
     select: {
       id: true,

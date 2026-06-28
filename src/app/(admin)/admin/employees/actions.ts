@@ -3,8 +3,9 @@
 import { Prisma } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
-import { redirect } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { auditLog } from '@/lib/audit/log';
+import { canActOnEmployeeBranches, getPermittedBranches } from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { assignAdminRole } from '@/lib/employee/assign-admin-role';
@@ -171,6 +172,15 @@ export async function updateEmployee(id: string, formData: FormData) {
 
   const before = await prisma.employee.findUnique({ where: { id } });
   if (!before) redirect('/admin/employees');
+  if (
+    !canActOnEmployeeBranches(await getPermittedBranches(user, 'employee.update'), [
+      before.branchId,
+      ...before.assignedBranchIds,
+    ])
+  ) {
+    notFound();
+  }
+  // Phase B2b: validate the SUBMITTED data.branchId / assignedBranchIds against permitted branches here.
 
   try {
     await prisma.employee.update({
@@ -257,6 +267,14 @@ export async function archiveEmployee(id: string) {
 
   const before = await prisma.employee.findUnique({ where: { id } });
   if (!before || before.archivedAt) redirect('/admin/employees');
+  if (
+    !canActOnEmployeeBranches(await getPermittedBranches(user, 'employee.archive'), [
+      before.branchId,
+      ...before.assignedBranchIds,
+    ])
+  ) {
+    notFound();
+  }
 
   await prisma.employee.update({
     where: { id },
@@ -314,6 +332,8 @@ export async function deleteEmployee(id: string) {
       firstName: true,
       lastName: true,
       photoKey: true,
+      branchId: true,
+      assignedBranchIds: true,
       user: { select: { authUserId: true, lineUserId: true } },
       // NOTE: this _count intentionally counts ALL related rows, including
       // soft-deleted (voided) ones. Voided rows still hold an onDelete:Restrict
@@ -332,6 +352,14 @@ export async function deleteEmployee(id: string) {
     },
   });
   if (!emp) redirect('/admin/employees');
+  if (
+    !canActOnEmployeeBranches(await getPermittedBranches(user, 'employee.delete'), [
+      emp.branchId,
+      ...emp.assignedBranchIds,
+    ])
+  ) {
+    notFound();
+  }
 
   // Refuse if any related data exists — admin should use Archive instead.
   const counts = emp._count;
@@ -448,11 +476,21 @@ export async function unlinkLineFromEmployee(id: string): Promise<void> {
       firstName: true,
       lastName: true,
       nickname: true,
+      branchId: true,
+      assignedBranchIds: true,
       user: { select: { id: true, authUserId: true, lineUserId: true } },
     },
   });
   if (!emp) {
     redirect(`/admin/employees?error=${encodeURIComponent('ไม่พบพนักงาน')}`);
+  }
+  if (
+    !canActOnEmployeeBranches(await getPermittedBranches(actor, 'employee.line-unlink'), [
+      emp.branchId,
+      ...emp.assignedBranchIds,
+    ])
+  ) {
+    notFound();
   }
 
   // Idempotency: already unlinked → no-op.

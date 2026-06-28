@@ -11,16 +11,18 @@
 import { redirect } from 'next/navigation';
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageHeader } from '@/components/ui/page-header';
+import { employeeBranchScope, getPermittedBranches } from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { AdminLeaveForm } from './admin-leave-form';
 
 export default async function AdminCreateLeavePage() {
-  await requirePermission('leave.approve');
+  const { user } = await requirePermission('leave.approve');
+  const permitted = await getPermittedBranches(user, 'leave.approve');
 
   const [employees, leaveTypes] = await Promise.all([
     prisma.employee.findMany({
-      where: { archivedAt: null, status: { not: 'Archived' } },
+      where: { archivedAt: null, status: { not: 'Archived' }, ...employeeBranchScope(permitted) },
       orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }],
       select: {
         id: true,

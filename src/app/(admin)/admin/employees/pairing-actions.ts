@@ -1,8 +1,9 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { redirect } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { auditLog } from '@/lib/audit/log';
+import { canActOnEmployeeBranches, getPermittedBranches } from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { mintPairingToken } from '@/lib/pairing/token';
@@ -29,10 +30,20 @@ export async function generatePairingLink(employeeId: string) {
     select: {
       id: true,
       archivedAt: true,
+      branchId: true,
+      assignedBranchIds: true,
       user: { select: { authUserId: true, lineUserId: true } },
     },
   });
   if (!emp) redirect('/admin/employees');
+  if (
+    !canActOnEmployeeBranches(await getPermittedBranches(user, 'employee.update'), [
+      emp.branchId,
+      ...emp.assignedBranchIds,
+    ])
+  ) {
+    notFound();
+  }
   if (emp.archivedAt) {
     redirect(
       `/admin/employees/${employeeId}/edit?error=${encodeURIComponent('พนักงานพ้นสภาพแล้ว ไม่สามารถสร้างลิงก์ใหม่ได้')}`,
@@ -75,9 +86,17 @@ export async function revokePairingLink(employeeId: string) {
 
   const emp = await prisma.employee.findUnique({
     where: { id: employeeId },
-    select: { inviteToken: true },
+    select: { inviteToken: true, branchId: true, assignedBranchIds: true },
   });
   if (!emp?.inviteToken) redirect(`/admin/employees/${employeeId}/edit`);
+  if (
+    !canActOnEmployeeBranches(await getPermittedBranches(user, 'employee.update'), [
+      emp.branchId,
+      ...emp.assignedBranchIds,
+    ])
+  ) {
+    notFound();
+  }
 
   await prisma.employee.update({
     where: { id: employeeId },
