@@ -168,6 +168,7 @@ describe('approveDisputed — branch-scope gate', () => {
 
     expect(result).toEqual({ ok: true, nextStatus: 'Confirmed' });
     expect(transactionFn).toHaveBeenCalledOnce();
+    expect(attendanceUpdate).toHaveBeenCalledOnce();
   });
 
   it('denies cross-branch actor even when employee has other assigned branches', async () => {
@@ -233,5 +234,6 @@ describe('rejectDisputed — branch-scope gate', () => {
 
     expect(result).toEqual({ ok: true, nextStatus: 'Rejected' });
     expect(transactionFn).toHaveBeenCalledOnce();
+    expect(attendanceUpdate).toHaveBeenCalledOnce();
   });
 });

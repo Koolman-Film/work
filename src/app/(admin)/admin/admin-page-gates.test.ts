@@ -114,8 +114,9 @@ describe('Admin page permission-gate guardrail', () => {
     ).toHaveLength(0);
   });
 
-  it(`reports the total number of admin pages checked (${allPages.length})`, () => {
-    // Informational: if this ever drops to 0, the path resolution broke.
-    expect(allPages.length).toMatchInlineSnapshot(`${allPages.length}`);
+  it('discovers a non-trivial number of admin pages (guards against broken path resolution)', () => {
+    // If discovery ever collapses (e.g. __dirname/path resolution breaks), the
+    // guardrail above would pass vacuously — this floor makes that fail loudly.
+    expect(allPages.length).toBeGreaterThan(20);
   });
 });
