@@ -1,9 +1,10 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { redirect } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { z } from 'zod';
 import { auditLog } from '@/lib/audit/log';
+import { canActOnEmployeeBranches, getPermittedBranches } from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { getLeaveConfig } from '@/lib/leave/leave-config';
@@ -52,6 +53,22 @@ export async function upsertEntitlement(
     redirect(
       `${back}&error=${encodeURIComponent(parsed.error.issues[0]?.message ?? 'ข้อมูลไม่ถูกต้อง')}`,
     );
+  }
+
+  const emp = await prisma.employee.findUnique({
+    where: { id: employeeId },
+    select: { branchId: true, assignedBranchIds: true },
+  });
+  if (!emp) {
+    notFound();
+  }
+  if (
+    !canActOnEmployeeBranches(await getPermittedBranches(user, 'leave.entitlement.manage'), [
+      emp.branchId,
+      ...emp.assignedBranchIds,
+    ])
+  ) {
+    notFound();
   }
 
   const std = standardDayMinutes(await getLeaveConfig());
