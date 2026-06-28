@@ -9,6 +9,7 @@
 
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageHeader } from '@/components/ui/page-header';
+import { getPermittedBranches, viaEmployeeBranchScope } from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { signAttendancePhotoUrls } from '@/lib/storage/signed-urls';
@@ -38,9 +39,14 @@ function haversineMeters(aLat: number, aLng: number, bLat: number, bLng: number)
 }
 
 export default async function DisputedInboxPage() {
-  await requirePermission('attendance.read');
+  const { user } = await requirePermission('attendance.read');
+  const permitted = await getPermittedBranches(user, 'attendance.read');
   const rows = await prisma.attendance.findMany({
-    where: { type: 'CheckIn', checkInStatus: { in: ['Disputed'] } },
+    where: {
+      type: 'CheckIn',
+      checkInStatus: { in: ['Disputed'] },
+      ...viaEmployeeBranchScope(permitted),
+    },
     orderBy: { clockInAt: 'desc' },
     take: 50,
     select: {
