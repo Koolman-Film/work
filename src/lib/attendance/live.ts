@@ -12,6 +12,11 @@
  * which may only export async functions at runtime).
  */
 
+import {
+  employeeBranchScope,
+  getPermittedBranches,
+  viaEmployeeBranchScope,
+} from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { signAttendancePhotoUrls } from '@/lib/storage/signed-urls';
@@ -32,13 +37,14 @@ export type {
 } from './live-shape';
 
 export async function getTodayAttendance(): Promise<LiveBoardData> {
-  await requirePermission('attendance.live-board');
+  const { user } = await requirePermission('attendance.live-board');
+  const permitted = await getPermittedBranches(user, 'attendance.live-board');
 
   const today = bangkokDateUtcMidnight(new Date());
 
   const [checkInRows, rosterRows, onLeaveRows, holiday] = await Promise.all([
     prisma.attendance.findMany({
-      where: { type: 'CheckIn', date: today },
+      where: { type: 'CheckIn', date: today, ...viaEmployeeBranchScope(permitted) },
       orderBy: { clockInAt: 'desc' },
       select: {
         id: true,
@@ -60,7 +66,12 @@ export async function getTodayAttendance(): Promise<LiveBoardData> {
       },
     }),
     prisma.employee.findMany({
-      where: { archivedAt: null, status: { not: 'Archived' }, canCheckIn: true },
+      where: {
+        archivedAt: null,
+        status: { not: 'Archived' },
+        canCheckIn: true,
+        ...employeeBranchScope(permitted),
+      },
       orderBy: [{ branch: { name: 'asc' } }, { firstName: 'asc' }],
       select: {
         id: true,
@@ -73,7 +84,12 @@ export async function getTodayAttendance(): Promise<LiveBoardData> {
       },
     }),
     prisma.attendance.findMany({
-      where: { type: 'OnLeave', date: today, deletedAt: null },
+      where: {
+        type: 'OnLeave',
+        date: today,
+        deletedAt: null,
+        ...viaEmployeeBranchScope(permitted),
+      },
       orderBy: [{ employee: { branch: { name: 'asc' } } }, { employee: { firstName: 'asc' } }],
       select: {
         id: true,
