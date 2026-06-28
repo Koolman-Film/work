@@ -60,7 +60,13 @@ import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { auditLog } from '@/lib/audit/log';
 import { canDo, requirePermission } from '@/lib/auth/check-permission';
-import { canActOnRole, canActOnUserScope, canManageSystemRole } from '@/lib/auth/team-guards';
+import { parseAssignmentRows } from '@/lib/auth/team-assignment';
+import {
+  canActOnRole,
+  canActOnUserScope,
+  canManageSystemRole,
+  systemRoleGrantError,
+} from '@/lib/auth/team-guards';
 import { computeTier } from '@/lib/auth/user-tier';
 import { prisma } from '@/lib/db/prisma';
 import { getSupabaseAdminClient } from '@/lib/supabase/admin';
@@ -80,13 +86,7 @@ const EmailSchema = z
 
 const PasswordSchema = z.string().min(8, 'รหัสผ่านอย่างน้อย 8 ตัวอักษร').max(72, 'รหัสผ่านยาวเกินไป');
 
-const RoleSchema = z.enum(['Admin', 'Superadmin']);
-
-const CreateSchema = z.object({
-  email: EmailSchema,
-  password: PasswordSchema,
-  role: RoleSchema,
-});
+const NewAccountSchema = z.object({ email: EmailSchema, password: PasswordSchema });
 
 const ResetPasswordSchema = z.object({
   password: PasswordSchema,
@@ -137,21 +137,70 @@ async function countActiveSuperadmins(): Promise<number> {
 export async function createTeamMember(formData: FormData): Promise<void> {
   const { user: actor, tier: actorTier } = await requirePermission('team.create');
 
-  const parsed = CreateSchema.safeParse({
+  const base = NewAccountSchema.safeParse({
     email: formData.get('email') ?? undefined,
     password: formData.get('password') ?? undefined,
-    role: formData.get('role') ?? undefined,
   });
-  if (!parsed.success) {
-    const msg = parsed.error.issues[0]?.message ?? 'ข้อมูลไม่ถูกต้อง';
+  if (!base.success) {
+    const msg = base.error.issues[0]?.message ?? 'ข้อมูลไม่ถูกต้อง';
     redirect(`/admin/settings/team/new?error=${encodeURIComponent(msg)}`);
   }
+  const { email, password } = base.data;
 
-  const { email, password, role } = parsed.data;
+  const parsed = parseAssignmentRows(
+    formData.getAll('roleId').map(String),
+    formData.getAll('branchId').map(String),
+  );
+  if (!parsed.ok) {
+    redirect(
+      `/admin/settings/team/new?error=${encodeURIComponent(parsed.error)}&email=${encodeURIComponent(email)}`,
+    );
+  }
+  const rows = parsed.assignments;
 
-  // Privilege escalation guard: an Admin cannot create an Superadmin.
-  if (!canActOnRole(actorTier, role)) {
-    redirect(`/admin/settings/team/new?error=${encodeURIComponent('ไม่มีสิทธิ์สร้างบัญชี Superadmin')}`);
+  // Load + validate every referenced role.
+  const roles = await prisma.roleDefinition.findMany({
+    where: { id: { in: rows.map((r) => r.roleId) } },
+    select: { id: true, key: true, isSuperadmin: true, isSystem: true, archivedAt: true },
+  });
+  const roleById = new Map(roles.map((r) => [r.id, r]));
+
+  // Per-assignment privilege guards — run BEFORE creating the Supabase
+  // auth user so a rejected grant never leaves an orphan auth.users row.
+  for (const row of rows) {
+    const role = roleById.get(row.roleId);
+    if (!role || role.archivedAt) {
+      redirect(
+        `/admin/settings/team/new?error=${encodeURIComponent('ไม่พบบทบาทที่เลือก')}&email=${encodeURIComponent(email)}`,
+      );
+    }
+    // Static grant guard (superadmin-only role; system-role tier requirement).
+    const staticErr = systemRoleGrantError(actorTier, role);
+    if (staticErr) {
+      redirect(
+        `/admin/settings/team/new?error=${encodeURIComponent(staticErr)}&email=${encodeURIComponent(email)}`,
+      );
+    }
+    // Branch/global authority (mirrors addRoleAssignment).
+    if (row.branchId === null) {
+      if (actorTier !== 'Superadmin') {
+        redirect(
+          `/admin/settings/team/new?error=${encodeURIComponent('ไม่มีสิทธิ์มอบบทบาทระดับทุกสาขา (Global)')}&email=${encodeURIComponent(email)}`,
+        );
+      }
+    } else {
+      const branch = await prisma.branch.findUnique({ where: { id: row.branchId } });
+      if (!branch || branch.archivedAt) {
+        redirect(
+          `/admin/settings/team/new?error=${encodeURIComponent('ไม่พบสาขาที่เลือก')}&email=${encodeURIComponent(email)}`,
+        );
+      }
+      if (!(await canDo(actor, 'role.assign', { branchId: row.branchId }))) {
+        redirect(
+          `/admin/settings/team/new?error=${encodeURIComponent('ไม่มีสิทธิ์มอบบทบาทในสาขานี้')}&email=${encodeURIComponent(email)}`,
+        );
+      }
+    }
   }
 
   // Pre-check email uniqueness in our User table. (Supabase auth.users
@@ -164,7 +213,7 @@ export async function createTeamMember(formData: FormData): Promise<void> {
     );
   }
 
-  // Step 1: create the Supabase auth user.
+  // Step 1: create the Supabase auth user. Guards have all passed above.
   const sb = getSupabaseAdminClient();
   const { data: created, error: createErr } = await sb.auth.admin.createUser({
     email,
@@ -183,11 +232,9 @@ export async function createTeamMember(formData: FormData): Promise<void> {
 
   const authUserId = created.user.id;
 
-  // Step 2: create our User row + the matching RoleAssignment in a
-  // single transaction. The assignment is the canonical source of
-  // authorization — tier is computed from it at read time. The
-  // form-submitted `role` value is used only to decide WHICH
-  // RoleDefinition to assign (admin vs superadmin).
+  // Step 2: create our User row + all role assignments in a single
+  // transaction. The assignments are the canonical source of authorization
+  // — tier is computed from them at read time.
   let newUserId: string;
   try {
     newUserId = await prisma.$transaction(async (tx) => {
@@ -195,39 +242,18 @@ export async function createTeamMember(formData: FormData): Promise<void> {
         data: { authUserId, email },
         select: { id: true },
       });
-      // Find the matching system role definition (admin or superadmin).
-      const systemKey = role === 'Superadmin' ? 'superadmin' : 'admin';
-      const roleDef = await tx.roleDefinition.findUnique({
-        where: { key: systemKey },
-        select: { id: true },
-      });
-      if (!roleDef) {
-        // Shouldn't happen — system roles are seeded by migration 0009.
-        // If it does, fail loud rather than create a no-permission user.
-        throw new Error(`System role '${systemKey}' not found — DB seed corrupt?`);
-      }
-      // Global assignment (branchId=NULL) — admins created via this UI
-      // are global by default. Branch-scoped assignments can be added
-      // via the AssignmentsSection on the edit page.
-      await tx.userRoleAssignment.create({
-        data: { userId: dbUser.id, roleId: roleDef.id, branchId: null },
+      await tx.userRoleAssignment.createMany({
+        data: rows.map((r) => ({ userId: dbUser.id, roleId: r.roleId, branchId: r.branchId })),
       });
       return dbUser.id;
     });
   } catch (err) {
     // If our DB-side write fails after auth created, we have a dangling
     // auth.users row. Roll back the Supabase side to keep state consistent.
-    console.error(
-      '[team.create] prisma user.create failed after auth.users created; rolling back auth user',
-      err,
-    );
-    await sb.auth.admin.deleteUser(authUserId).catch((rollbackErr) => {
-      console.error('[team.create] rollback failed — orphan auth user', {
-        authUserId,
-        email,
-        rollbackErr,
-      });
-    });
+    console.error('[team.create] prisma write failed after auth user; rolling back', err);
+    await sb.auth.admin
+      .deleteUser(authUserId)
+      .catch((e) => console.error('[team.create] rollback failed', e));
     redirect(`/admin/settings/team/new?error=${encodeURIComponent('บันทึกบัญชีไม่สำเร็จ ลองใหม่อีกครั้ง')}`);
   }
 
@@ -237,12 +263,19 @@ export async function createTeamMember(formData: FormData): Promise<void> {
     action: 'user.create',
     entityType: 'User',
     entityId: newUserId,
-    after: { email, role, authUserId },
+    after: {
+      email,
+      authUserId,
+      assignments: rows.map((r) => ({
+        roleKey: roleById.get(r.roleId)?.key,
+        branchId: r.branchId,
+      })),
+    },
     metadata: { ...ctx, source: 'admin-ui' },
   });
 
   revalidatePath('/admin/settings/team');
-  redirect('/admin/settings/team');
+  redirect(`/admin/settings/team/${newUserId}/edit?notice=${encodeURIComponent('สร้างบัญชีเรียบร้อย')}`);
 }
 
 // updateTeamMemberRole removed in Phase 4.5. The legacy
@@ -608,19 +641,13 @@ export async function addRoleAssignment(userId: string, formData: FormData): Pro
     redirect(`/admin/settings/team/${userId}/edit?error=${encodeURIComponent('ไม่พบบทบาทที่เลือก')}`);
   }
 
-  // Only Superadmin can grant the Superadmin role. Privilege-escalation guard.
-  if (role.isSuperadmin && actorTier !== 'Superadmin') {
-    redirect(
-      `/admin/settings/team/${userId}/edit?error=${encodeURIComponent('ต้องเป็น Superadmin เพื่อมอบบทบาท Superadmin')}`,
-    );
-  }
-
-  // Tier-conferring (system) roles can't be granted by a permission-only
-  // (tier-null) or Staff actor — privilege-escalation guard.
-  if (!canManageSystemRole(actorTier, role)) {
-    redirect(
-      `/admin/settings/team/${userId}/edit?error=${encodeURIComponent('ต้องมีสิทธิ์ระดับผู้ดูแลเพื่อมอบบทบาทระบบ')}`,
-    );
+  // Static grant guards (shared with createTeamMember so they can't drift):
+  //   - only Superadmin may grant the Superadmin role, and
+  //   - tier-conferring (system) roles can't be granted by a permission-only
+  //     (tier-null) or Staff actor.
+  const staticErr = systemRoleGrantError(actorTier, role);
+  if (staticErr) {
+    redirect(`/admin/settings/team/${userId}/edit?error=${encodeURIComponent(staticErr)}`);
   }
 
   // Phase 3.7 branch-scope check on the GRANT:

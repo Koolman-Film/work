@@ -85,7 +85,7 @@ const SECTIONS: ReadonlyArray<{ label: string; items: ReadonlyArray<NavItem> }> 
         Icon: Clock,
         enabled: true,
         badgeKey: 'attendance',
-        permission: 'attendance.read',
+        anyOf: ['attendance.read', 'attendance.live-board'],
       },
       {
         href: '/admin/leave',
@@ -294,7 +294,11 @@ export function Sidebar({
                 </p>
                 <ul className="space-y-0.5">
                   {section.items.map((item) => {
-                    const active = isActive(item.href);
+                    const href =
+                      item.href === '/admin/attendance' && !allowed.has('attendance.read')
+                        ? '/admin/attendance/live'
+                        : item.href;
+                    const active = isActive(href);
                     const Icon = item.Icon;
                     const count = item.badgeKey ? badges[item.badgeKey] : 0;
 
@@ -320,7 +324,7 @@ export function Sidebar({
                     return (
                       <li key={item.href}>
                         <Link
-                          href={item.href}
+                          href={href}
                           aria-current={active ? 'page' : undefined}
                           className={cn(
                             'relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition',
