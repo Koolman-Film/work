@@ -38,6 +38,8 @@ vi.mock('@/lib/auth/check-permission', () => ({
 
 // ── prisma mocks ──────────────────────────────────────────────────────────────
 const employeeCreate = vi.fn();
+const employeeFindUnique = vi.fn();
+const employeeUpdate = vi.fn();
 const userCreate = vi.fn();
 const roleDefFindUnique = vi.fn();
 const userRoleAssignmentCreateMany = vi.fn();
@@ -47,6 +49,8 @@ vi.mock('@/lib/db/prisma', () => ({
   prisma: {
     employee: {
       create: (...a: unknown[]) => employeeCreate(...a),
+      findUnique: (...a: unknown[]) => employeeFindUnique(...a),
+      update: (...a: unknown[]) => employeeUpdate(...a),
     },
     user: {
       create: (...a: unknown[]) => userCreate(...a),
@@ -91,7 +95,7 @@ vi.mock('@/lib/employee/bank', () => ({
   },
 }));
 
-import { createEmployee } from './actions';
+import { createEmployee, updateEmployee } from './actions';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -219,5 +223,97 @@ describe('createEmployee — branch placement (subset)', () => {
     });
 
     expect(employeeCreate).toHaveBeenCalled();
+  });
+});
+
+// ── updateEmployee — branch reassignment is global-only ───────────────────────
+
+/** Reuse createFd (all required fields) for update submissions too. */
+function editFd(branchId: string, assigned: string[]): FormData {
+  return createFd(branchId, assigned);
+}
+
+/** Minimal before-record that updateEmployee reads from prisma.employee.findUnique */
+function makeBeforeRecord(branchId: string, assignedBranchIds: string[]) {
+  return {
+    id: 'e1',
+    branchId,
+    assignedBranchIds,
+    firstName: 'สมชาย',
+    lastName: 'ใจดี',
+    nickname: null,
+    departmentId: null,
+    accountingGroupId: null,
+    workScheduleId: null,
+    salaryType: 'Monthly',
+    baseSalary: '10000',
+    defaultOtRateType: null,
+    defaultOtRatePerHour: null,
+    defaultOtMultiplier: null,
+    status: 'Active',
+    canCheckIn: true,
+    hasSso: false,
+    hiredAt: new Date('2024-01-01'),
+    photoKey: null,
+    dateOfBirth: null,
+    bankId: null,
+    bankAccountNumber: null,
+    bankAccountName: null,
+    archivedAt: null,
+    userId: 'user-1',
+    inviteToken: null,
+    inviteExpiresAt: null,
+  };
+}
+
+// Stable UUID constants for update tests
+const BRANCH_A = '00000000-0000-0000-0000-000000000001';
+const BRANCH_B = '00000000-0000-0000-0000-000000000002';
+
+describe('updateEmployee — branch reassignment is global-only', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    requirePermission.mockResolvedValue({ user: { id: 'actor' } });
+    employeeUpdate.mockResolvedValue({});
+  });
+
+  it('scoped actor cannot change branches: update persists EXISTING branches', async () => {
+    getUserAssignments.mockResolvedValue([
+      {
+        branchId: BRANCH_A,
+        role: { permissions: ['employee.update'], isSuperadmin: false, archivedAt: null },
+      },
+    ]);
+    employeeFindUnique.mockResolvedValue(makeBeforeRecord(BRANCH_A, [BRANCH_A]));
+
+    await updateEmployee('e1', editFd(BRANCH_B, [BRANCH_B])).catch(() => {
+      // expected REDIRECT after success
+    });
+
+    expect(employeeUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ branchId: BRANCH_A, assignedBranchIds: [BRANCH_A] }),
+      }),
+    );
+  });
+
+  it('global actor can change branches: submitted values applied', async () => {
+    getUserAssignments.mockResolvedValue([
+      {
+        branchId: null, // global
+        role: { permissions: ['employee.update'], isSuperadmin: false, archivedAt: null },
+      },
+    ]);
+    employeeFindUnique.mockResolvedValue(makeBeforeRecord(BRANCH_A, [BRANCH_A]));
+
+    await updateEmployee('e1', editFd(BRANCH_B, [BRANCH_B])).catch(() => {
+      // expected REDIRECT after success
+    });
+
+    expect(employeeUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ branchId: BRANCH_B }),
+      }),
+    );
   });
 });
