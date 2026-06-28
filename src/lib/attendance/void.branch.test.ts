@@ -206,6 +206,7 @@ describe('restoreAttendance — branch-scope gate', () => {
 
     expect(result).toEqual({ ok: true });
     expect(transactionFn).toHaveBeenCalledOnce();
+    expect(attendanceUpdate).toHaveBeenCalledOnce();
   });
 
   it('allows when global actor targets employee at any branch', async () => {
@@ -224,5 +225,6 @@ describe('restoreAttendance — branch-scope gate', () => {
 
     expect(result).toEqual({ ok: true });
     expect(transactionFn).toHaveBeenCalledOnce();
+    expect(attendanceUpdate).toHaveBeenCalledOnce();
   });
 });
