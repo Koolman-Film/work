@@ -27,7 +27,9 @@
  */
 
 import { headers } from 'next/headers';
+import { notFound } from 'next/navigation';
 import { auditLogTx } from '@/lib/audit/log';
+import { canActOnEmployeeBranches, getPermittedBranches } from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { sendNotification } from '@/lib/inngest/events';
@@ -43,7 +45,24 @@ type ReviewInput = {
 };
 
 async function review(input: ReviewInput, decision: 'approve' | 'reject'): Promise<ReviewResult> {
+  // Load the disputed record's employee branch before gating (mirrors void.ts).
+  const target = await prisma.attendance.findUnique({
+    where: { id: input.attendanceId },
+    select: { employee: { select: { branchId: true, assignedBranchIds: true } } },
+  });
+  if (!target) {
+    return { ok: false, code: 'not-found', message: 'ไม่พบรายการลงเวลา' };
+  }
+
   const { user } = await requirePermission('attendance.dispute-resolve');
+  const permitted = await getPermittedBranches(user, 'attendance.dispute-resolve');
+  if (
+    !canActOnEmployeeBranches(permitted, [
+      target.employee.branchId,
+      ...target.employee.assignedBranchIds,
+    ])
+  )
+    notFound();
 
   const trimmedNote = input.note.trim();
   if (trimmedNote.length === 0) {
