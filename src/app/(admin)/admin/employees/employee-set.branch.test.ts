@@ -205,6 +205,28 @@ describe('createEmployee — branch placement (subset)', () => {
     expect(employeeCreate).toHaveBeenCalled();
   });
 
+  it('scoped actor (A) with home in-scope but an assigned branch out-of-scope is rejected', async () => {
+    getUserAssignments.mockResolvedValue([
+      {
+        branchId: '00000000-0000-0000-0000-000000000001', // branch-A
+        role: { permissions: ['employee.create'], isSuperadmin: false, archivedAt: null },
+      },
+    ]);
+
+    await expect(
+      createEmployee(
+        createFd(
+          '00000000-0000-0000-0000-000000000001', // home = branch-A (in scope)
+          [
+            '00000000-0000-0000-0000-000000000001', // branch-A
+            '00000000-0000-0000-0000-000000000002', // branch-B (NOT in scope) → subset check must fail
+          ],
+        ),
+      ),
+    ).rejects.toThrow(/REDIRECT:.*error=/);
+    expect(employeeCreate).not.toHaveBeenCalled();
+  });
+
   it('global actor (branchId=null) can create in any branch', async () => {
     getUserAssignments.mockResolvedValue([
       {

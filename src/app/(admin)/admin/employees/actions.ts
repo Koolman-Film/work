@@ -234,8 +234,11 @@ export async function updateEmployee(id: string, formData: FormData) {
         firstName: data.firstName,
         lastName: data.lastName,
         nickname: data.nickname,
-        branchId: data.branchId,
-        assignedBranchIds,
+        // Log what was actually PERSISTED, not what was submitted — a scoped
+        // admin's branch change is ignored (preserved from `before`), so the
+        // audit trail must reflect nextBranchId/nextAssignedBranchIds.
+        branchId: nextBranchId,
+        assignedBranchIds: nextAssignedBranchIds,
         departmentId: data.departmentId,
         accountingGroupId: data.accountingGroupId,
         workScheduleId: data.workScheduleId,
