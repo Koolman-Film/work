@@ -1,6 +1,7 @@
 import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { PageHeader } from '@/components/ui/page-header';
+import { canActOnEmployeeBranches, getPermittedBranches } from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { isLocale } from '@/lib/i18n/config';
@@ -24,7 +25,7 @@ export default async function EditEmployeePage({
   params: Params;
   searchParams: SearchParams;
 }) {
-  await requirePermission('employee.read');
+  const { user } = await requirePermission('employee.read');
   const { id } = await params;
   const { error, ok, year: yearParam } = await searchParams;
   const currentYear = Number(
@@ -75,6 +76,16 @@ export default async function EditEmployeePage({
     }),
   ]);
   if (!emp) notFound();
+
+  // Branch-scope enforcement: deny access if actor cannot act on this employee's branches.
+  if (
+    !canActOnEmployeeBranches(await getPermittedBranches(user, 'employee.read'), [
+      emp.branchId,
+      ...emp.assignedBranchIds,
+    ])
+  ) {
+    notFound();
+  }
 
   const photoUrl = await resolveStoredImageUrl(emp.photoKey);
 
