@@ -94,4 +94,18 @@ describe('createTeamMember', () => {
     );
     expect(createUser).not.toHaveBeenCalled();
   });
+
+  it('rejects a branch-scoped grant where the actor lacks role.assign at that branch', async () => {
+    requirePermission.mockResolvedValue({ user: { id: 'actor' }, tier: 'Admin' });
+    canDo.mockResolvedValue(false); // actor has no role.assign at branch b1
+    roleFindMany.mockResolvedValue([
+      { id: 'r-check', key: 'checker01', isSuperadmin: false, isSystem: false, archivedAt: null },
+    ]);
+    branchFindUnique.mockResolvedValue({ id: 'b1', archivedAt: null });
+
+    await expect(createTeamMember(fd('a@x.io', 'password1', [['r-check', 'b1']]))).rejects.toThrow(
+      /REDIRECT:.*error=/,
+    );
+    expect(createUser).not.toHaveBeenCalled();
+  });
 });
