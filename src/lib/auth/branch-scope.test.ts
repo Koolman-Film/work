@@ -1,6 +1,7 @@
 // src/lib/auth/branch-scope.test.ts
 import { describe, expect, it, vi } from 'vitest';
 import {
+  canSetEmployeeBranches,
   employeeBranchScope,
   permittedBranchesFromAssignments,
   viaEmployeeBranchScope,
@@ -92,6 +93,24 @@ describe('canActOnEmployeeBranches', () => {
   it('empty permitted → false', async () => {
     const { canActOnEmployeeBranches } = await import('./branch-scope');
     expect(canActOnEmployeeBranches([], ['b1'])).toBe(false);
+  });
+});
+
+describe('canSetEmployeeBranches (subset)', () => {
+  it("'all' allows any set (incl. empty)", () => {
+    expect(canSetEmployeeBranches('all', ['b1', 'b2'])).toBe(true);
+    expect(canSetEmployeeBranches('all', [])).toBe(true);
+  });
+  it('true only when every chosen branch is permitted', () => {
+    expect(canSetEmployeeBranches(['b1', 'b2'], ['b1'])).toBe(true);
+    expect(canSetEmployeeBranches(['b1', 'b2'], ['b1', 'b2'])).toBe(true);
+  });
+  it('false when any chosen branch is not permitted', () => {
+    expect(canSetEmployeeBranches(['b1'], ['b1', 'b2'])).toBe(false);
+    expect(canSetEmployeeBranches([], ['b1'])).toBe(false);
+  });
+  it('empty chosen set is vacuously true', () => {
+    expect(canSetEmployeeBranches(['b1'], [])).toBe(true);
   });
 });
 
