@@ -78,16 +78,17 @@ function bangkokTodayUtc(): Date {
 export async function createManualAttendance(
   input: CreateManualInput,
 ): Promise<CreateManualResult> {
-  const { user } = await requirePermission('attendance.manual-create');
-
-  // Validate employee
+  // Load the target employee first so we can branch-gate (mirrors void.ts).
   const emp = await prisma.employee.findUnique({
     where: { id: input.employeeId },
-    select: { id: true, archivedAt: true, status: true },
+    select: { id: true, archivedAt: true, status: true, branchId: true },
   });
   if (!emp) {
     return { ok: false, code: 'employee-not-found', message: 'ไม่พบพนักงาน' };
   }
+
+  const { user } = await requirePermission('attendance.manual-create', { branchId: emp.branchId });
+
   if (emp.archivedAt || emp.status === 'Archived') {
     return {
       ok: false,
