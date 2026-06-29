@@ -396,12 +396,13 @@ export function calcPayroll(input: CalcInput): PayrollDraft {
     ? new Decimal(latePenalty.threeStrikeDays).times(dayAmount)
     : new Decimal(latePenalty.tier1Count).times(toDec(cfg.lateDeduction));
   const severeLateMoney = new Decimal(latePenalty.severeDays).times(dayAmount);
+  const earlyLeaveMoney = toDec(cfg.earlyLeaveDeduction).times(earlyLeaveCount);
 
   const deductAttendance = dayAmount
     .times(absentCount)
     .plus(tier1LateMoney)
     .plus(severeLateMoney)
-    .plus(toDec(cfg.earlyLeaveDeduction).times(earlyLeaveCount))
+    .plus(earlyLeaveMoney)
     .toDecimalPlaces(2);
 
   // Leave deductions — over-quota leave amounts frozen at approval time.
@@ -423,7 +424,6 @@ export function calcPayroll(input: CalcInput): PayrollDraft {
     .minus(deductOther)
     .toDecimalPlaces(2);
 
-  const earlyLeaveMoney = toDec(cfg.earlyLeaveDeduction).times(earlyLeaveCount);
   const breakdown: CalcBreakdown = {
     absentCount,
     lateCount,
