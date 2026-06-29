@@ -341,9 +341,12 @@ export type PublishResult = {
  * Caller is responsible for firing notifications from the returned slips
  * (see `notifyPublishedSlips`) and writing the audit log.
  */
-export async function publishPayroll(month: string): Promise<PublishResult> {
+export async function publishPayroll(
+  month: string,
+  opts?: { employeeId?: string },
+): Promise<PublishResult> {
   const result = await prisma.$transaction(async (tx) => {
-    const { drafts, skipped } = await gatherAndCalc(tx, month);
+    const { drafts, skipped } = await gatherAndCalc(tx, month, opts?.employeeId);
 
     const existing = await tx.payroll.findMany({
       where: { month },
