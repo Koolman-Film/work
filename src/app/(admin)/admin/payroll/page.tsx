@@ -124,7 +124,10 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
     await Promise.all(
       visibleRows
         .filter((r) => r.status === 'Draft')
-        .map(async (r) => [r.employeeId, await payrollRowDetail(month, r.employeeId)] as const),
+        .map(
+          async (r) =>
+            [r.employeeId, await payrollRowDetail(month, r.employeeId).catch(() => null)] as const,
+        ),
     ),
   );
 
