@@ -27,7 +27,7 @@ const base: NormalizedPayslipInput = {
   attendance: { absent: 0, late: 0 },
   leaveOverMinutesTotal: 0,
   rateInputs: {
-    ssoRatePct: 5,
+    ssoRate: 0.05,
     ssoSalaryCap: 15000,
     salaryType: 'Monthly',
     baseSalary: 20000,
@@ -89,5 +89,33 @@ describe('assemblePayslipDocument', () => {
   it('omits zero-amount deduction lines', () => {
     const doc = assemblePayslipDocument(base); // only SSO non-zero
     expect(doc.deduct.lines.map((l) => l.key)).toEqual(['sso']);
+  });
+
+  it('itemizes deduct adjustments when they reconcile to deductOther', () => {
+    const doc = assemblePayslipDocument({
+      ...base,
+      buckets: { ...base.buckets, deductOther: 500, netPay: 18750 },
+      deductAdjustments: [
+        { id: 'd1', reason: 'หักค่าอุปกรณ์', amount: 300 },
+        { id: 'd2', reason: 'หักอื่นๆ', amount: 200 },
+      ],
+    });
+    expect(doc.deduct.lines.some((l) => l.key === 'd1' && l.amount === 300)).toBe(true);
+    expect(doc.deduct.lines.some((l) => l.key === 'd2' && l.amount === 200)).toBe(true);
+    expect(doc.deduct.lines.some((l) => l.key === 'other')).toBe(false);
+    const d1 = doc.deduct.lines.find((l) => l.key === 'd1');
+    expect(d1).toEqual({ key: 'd1', label: 'หักค่าอุปกรณ์', amount: 300, detail: null });
+  });
+
+  it('falls back to a single deduct.other line when deduct adjustments do NOT reconcile', () => {
+    const doc = assemblePayslipDocument({
+      ...base,
+      buckets: { ...base.buckets, deductOther: 500, netPay: 18750 },
+      deductAdjustments: [{ id: 'd1', reason: 'หักค่าอุปกรณ์', amount: 300 }], // sum 300 != 500
+    });
+    expect(doc.deduct.lines.some((l) => l.key === 'other' && l.amount === 500)).toBe(true);
+    expect(doc.deduct.lines.some((l) => l.key === 'd1')).toBe(false);
+    const other = doc.deduct.lines.find((l) => l.key === 'other');
+    expect(other).toEqual({ key: 'other', labelKey: 'deduct.other', amount: 500, detail: null });
   });
 });
