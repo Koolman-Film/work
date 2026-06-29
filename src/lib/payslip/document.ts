@@ -39,7 +39,7 @@ export type NormalizedPayslipInput = {
   leaveOverMinutesTotal: number;
   /** Inputs the assembler needs to compute the SSO% label and the leave per-minute rate. */
   rateInputs: {
-    ssoRatePct: number;
+    ssoRate: number;
     ssoSalaryCap: number;
     salaryType: 'Monthly' | 'Daily' | 'Hourly';
     baseSalary: number;
@@ -93,7 +93,7 @@ export function assemblePayslipDocument(input: NormalizedPayslipInput): PayslipD
       ? {
           key: 'sso',
           vars: {
-            pct: rateInputs.ssoRatePct,
+            pct: Math.round(rateInputs.ssoRate * 100),
             cap: rateInputs.ssoSalaryCap.toLocaleString('en-US'),
           },
         }
@@ -264,7 +264,7 @@ export async function getPayslipDocument(
     attendance,
     leaveOverMinutesTotal: leaves.reduce((s, l) => s + (l.overQuotaMinutes ?? 0), 0),
     rateInputs: {
-      ssoRatePct: Math.round(n(config.ssoRate) * 100),
+      ssoRate: n(config.ssoRate),
       ssoSalaryCap: n(config.ssoSalaryCap),
       salaryType: employee.salaryType,
       baseSalary: n(employee.baseSalary),
