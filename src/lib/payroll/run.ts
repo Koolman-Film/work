@@ -512,6 +512,8 @@ export async function payrollRowDetail(
       select: { kind: true, reason: true, amount: true, startMonth: true, endMonth: true },
     })
   )
+    // Mirrors gatherAndCalc's in-memory gate: SQL is a coarse month-window
+    // pre-filter; adjustmentAppliesToMonth is the authoritative rule.
     .filter((a) => adjustmentAppliesToMonth(a, month))
     .map((a) => ({
       reason: a.reason,
