@@ -69,7 +69,9 @@ describe('calcPayroll — V1 fixtures', () => {
     expect(out.deductAdvance.toString()).toBe('0');
     expect(out.deductDebt.toString()).toBe('0');
     expect(out.netPay.toString()).toBe('29250');
-    expect(out.breakdown).toEqual({ absentCount: 0, lateCount: 0, earlyLeaveCount: 0 });
+    expect(out.breakdown).toEqual(
+      expect.objectContaining({ absentCount: 0, lateCount: 0, earlyLeaveCount: 0 }),
+    );
   });
 
   // CASE 2: SSO cap-by-rate (low salary).
@@ -136,7 +138,9 @@ describe('calcPayroll — V1 fixtures', () => {
     ];
     const out = calcPayroll(baseInput({ attendances: att }));
     expect(out.deductAttendance.toString()).toBe('700');
-    expect(out.breakdown).toEqual({ absentCount: 0, lateCount: 5, earlyLeaveCount: 2 });
+    expect(out.breakdown).toEqual(
+      expect.objectContaining({ absentCount: 0, lateCount: 5, earlyLeaveCount: 2 }),
+    );
     expect(out.netPay.toString()).toBe('28550');
   });
 
@@ -433,5 +437,61 @@ describe('calcPayroll — late penalties wired through deductAttendance (C9)', (
       month: '2026-06',
     });
     expect(out.deductAttendance.toString()).toBe('200'); // 2 × ฿100 flat
+  });
+});
+
+describe('CalcBreakdown sub-amounts', () => {
+  const base = {
+    employee: { id: 'e1', salaryType: 'Monthly' as const, baseSalary: '20000', hasSso: true },
+    advances: [],
+    recurringDeductions: [],
+    config: DEFAULT_CONFIG,
+    month: '2026-06',
+  };
+
+  it('SSO: salary above the cap binds cappedBase + amountCap', () => {
+    const d = calcPayroll({ ...base, attendances: [] });
+    expect(d.breakdown.sso.cappedBase.toString()).toBe('15000'); // min(20000,15000)
+    expect(d.breakdown.sso.rate.toString()).toBe('0.05');
+    expect(d.breakdown.sso.rawAmount.toString()).toBe('750');
+    expect(d.breakdown.sso.applied.toString()).toBe(d.deductSso.toString());
+  });
+
+  it('attendance sub-amounts reconcile to deductAttendance (flat lateness)', () => {
+    const atts: AttendanceForPayroll[] = [
+      { date: new Date('2026-06-02'), type: 'Absent', durationMinutes: null },
+      { date: new Date('2026-06-03'), type: 'Late', durationMinutes: 10 },
+      { date: new Date('2026-06-04'), type: 'EarlyLeave', durationMinutes: 20 },
+    ];
+    const d = calcPayroll({ ...base, attendances: atts });
+    const b = d.breakdown.attendance;
+    expect(b.absent.money.toString()).toBe('500'); // 1 × 500
+    expect(b.lateTier1.mode).toBe('flat');
+    expect(b.lateTier1.money.toString()).toBe('100'); // 1 × 100
+    expect(b.earlyLeave.money.toString()).toBe('100'); // 1 × 100
+    const sum = b.absent.money
+      .plus(b.lateTier1.money)
+      .plus(b.lateSevere.money)
+      .plus(b.earlyLeave.money);
+    expect(sum.toString()).toBe(d.deductAttendance.toString());
+  });
+
+  it('threeStrike mode: 3 tier-1 lates → 1 day, remainder carries no charge', () => {
+    const atts: AttendanceForPayroll[] = [1, 2, 3, 6].map((day) => ({
+      date: new Date(`2026-06-0${day}`),
+      type: 'Late' as const,
+      durationMinutes: 5, // below severe threshold
+    }));
+    const d = calcPayroll({
+      ...base,
+      attendances: atts,
+      config: { ...DEFAULT_CONFIG, lateThreeStrikeEnabled: true, lateThreeStrikeCount: 3 },
+    });
+    const t1 = d.breakdown.attendance.lateTier1;
+    expect(t1.mode).toBe('threeStrike');
+    expect(t1.count).toBe(4);
+    expect(t1.threeStrikeCount).toBe(3);
+    expect(t1.days).toBe(1); // floor(4/3)
+    expect(t1.money.toString()).toBe('500'); // 1 day × 500
   });
 });
