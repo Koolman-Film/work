@@ -58,7 +58,14 @@ export function RowDetail({
   const [open, setOpen] = useState(false);
   return (
     <>
-      <Button type="button" variant="secondary" size="sm" onClick={() => setOpen(true)}>
+      <Button
+        type="button"
+        variant="secondary"
+        size="sm"
+        onClick={() => setOpen(true)}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+      >
         ดูรายละเอียด
       </Button>
       <Dialog
@@ -76,8 +83,9 @@ export function RowDetail({
               <Line label="ฐานเงินเดือน" value={detail.incomeBase} />
               {detail.adjustments
                 .filter((a) => a.kind === 'Income')
-                .map((a) => (
-                  <Line key={`inc-${a.reason}`} label={a.reason} value={`+${a.amount}`} />
+                .map((a, idx) => (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: adjustments have no stable id; list is immutable within this render
+                  <Line key={`inc-${idx}`} label={a.reason} value={`+${a.amount}`} />
                 ))}
             </section>
             {/* รายการหัก — with formulas */}
@@ -130,9 +138,10 @@ export function RowDetail({
                 // biome-ignore lint/suspicious/noArrayIndexKey: debts have no stable id; list is immutable within a render
                 <Line key={`debt-${idx}`} label="หักหนี้/ผ่อน" value={`-${d.amount}`} />
               ))}
-              {detail.leaveDeductions.map((l) => (
+              {detail.leaveDeductions.map((l, idx) => (
                 <Line
-                  key={`lv-${l.overMinutes}-${l.deduct}`}
+                  // biome-ignore lint/suspicious/noArrayIndexKey: leave lines have no stable id; list is immutable within this render
+                  key={`lv-${idx}`}
                   label="ลาเกินสิทธิ"
                   formula={`เกิน ${l.overMinutes} นาที`}
                   value={`-${l.deduct}`}
@@ -140,8 +149,9 @@ export function RowDetail({
               ))}
               {detail.adjustments
                 .filter((a) => a.kind === 'Deduction')
-                .map((a) => (
-                  <Line key={`ded-${a.reason}`} label={a.reason} value={`-${a.amount}`} />
+                .map((a, idx) => (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: adjustments have no stable id; list is immutable within this render
+                  <Line key={`ded-${idx}`} label={a.reason} value={`-${a.amount}`} />
                 ))}
             </section>
             {/* สุทธิ */}
