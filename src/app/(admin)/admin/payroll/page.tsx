@@ -9,7 +9,7 @@ import { canDo, requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { formatTHB, formatTHB2, monthLabelTh } from '@/lib/format';
 import { deductionBreakdown, deductionBreakdownLabel } from '@/lib/payroll/deduction-breakdown';
-import { previewPayrollDrafts } from '@/lib/payroll/run';
+import { payrollRowDetail, previewPayrollDrafts } from '@/lib/payroll/run';
 import { asUuid, loadReportFilterOptions } from '../reports/_load-filter-options';
 import { ReportFilters } from '../reports/report-filters';
 import {
@@ -17,9 +17,11 @@ import {
   createRowAdjustment,
   deleteRowAdjustment,
   lockPayrollAction,
+  publishOnePayrollAction,
   publishPayrollAction,
 } from './actions';
 import { RowAdjust, type RowAdjustment } from './row-adjust';
+import { type FrozenSlipVM, RowDetail } from './row-detail';
 import { RunActionForm } from './run-action-form';
 
 /**
@@ -116,6 +118,28 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
     prisma.employee.count({ where: { status: { not: 'Archived' } } }),
     loadReportFilterOptions(),
   ]);
+
+  // Live detail for Draft rows only — Published/Locked use frozen buckets (decision #5).
+  const draftDetailByEmp = new Map(
+    await Promise.all(
+      visibleRows
+        .filter((r) => r.status === 'Draft')
+        .map(async (r) => [r.employeeId, await payrollRowDetail(month, r.employeeId)] as const),
+    ),
+  );
+
+  // Frozen buckets straight off the persisted row — NO engine call.
+  const frozenOf = (r: (typeof rows)[number]): FrozenSlipVM => ({
+    incomeBase: r.incomeBase.toFixed(2),
+    incomeOther: r.incomeOther.toFixed(2),
+    deductSso: r.deductSso.toFixed(2),
+    deductAttendance: r.deductAttendance.toFixed(2),
+    deductLeave: r.deductLeave.toFixed(2),
+    deductAdvance: r.deductAdvance.toFixed(2),
+    deductDebt: r.deductDebt.toFixed(2),
+    deductOther: r.deductOther.toFixed(2),
+    netPay: r.netPay.toFixed(2),
+  });
 
   // Stale-draft detection: a Draft row is "stale" when recomputing it now
   // (same engine คำนวณใหม่ uses) yields different numbers — i.e. its inputs
@@ -449,19 +473,32 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
         columns={columns}
         rows={visibleRows}
         rowKey={(r) => r.id}
-        actions={(r) =>
-          r.status === 'Draft' && mayRun ? (
-            <RowAdjust
-              employeeId={r.employeeId}
+        actions={(r) => (
+          <div className="flex items-center gap-2">
+            <RowDetail
               employeeName={`${r.employee.firstName} ${r.employee.lastName}`}
-              month={month}
+              status={r.status as 'Draft' | 'Published' | 'Locked'}
               monthLabel={monthLabelTh(month)}
-              adjustments={adjByEmployee.get(r.employeeId) ?? []}
-              createAction={createRowAdjustment}
-              deleteAction={deleteRowAdjustment}
+              month={month}
+              employeeId={r.employeeId}
+              detail={r.status === 'Draft' ? (draftDetailByEmp.get(r.employeeId) ?? null) : null}
+              frozen={r.status === 'Draft' ? null : frozenOf(r)}
+              canPublish={mayPublish}
+              publishAction={publishOnePayrollAction}
             />
-          ) : null
-        }
+            {r.status === 'Draft' && mayRun ? (
+              <RowAdjust
+                employeeId={r.employeeId}
+                employeeName={`${r.employee.firstName} ${r.employee.lastName}`}
+                month={month}
+                monthLabel={monthLabelTh(month)}
+                adjustments={adjByEmployee.get(r.employeeId) ?? []}
+                createAction={createRowAdjustment}
+                deleteAction={deleteRowAdjustment}
+              />
+            ) : null}
+          </div>
+        )}
         empty={
           // The month has rows but the filter excluded them all → tell the
           // admin it's the filter, not a missing payroll run (no calc button).
