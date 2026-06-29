@@ -99,6 +99,7 @@ export function RowDetail({
         onClick={() => setOpen(true)}
         aria-haspopup="dialog"
         aria-expanded={open}
+        className="shrink-0 whitespace-nowrap"
       >
         ดูรายละเอียด
       </Button>
