@@ -155,6 +155,26 @@ export type CalcBreakdown = {
   lateCount: number;
   /** How many `EarlyLeave` rows contributed. */
   earlyLeaveCount: number;
+  sso: {
+    cappedBase: Decimal;
+    rate: Decimal;
+    rawAmount: Decimal;
+    amountCap: Decimal;
+    applied: Decimal;
+  };
+  attendance: {
+    absent: { count: number; perDay: Decimal; money: Decimal };
+    lateTier1: {
+      mode: 'threeStrike' | 'flat';
+      count: number;
+      threeStrikeCount?: number;
+      days?: number;
+      perUnit: Decimal;
+      money: Decimal;
+    };
+    lateSevere: { days: number; perDay: Decimal; money: Decimal };
+    earlyLeave: { count: number; perUnit: Decimal; money: Decimal };
+  };
 };
 
 export type PayrollDraft = {
@@ -277,13 +297,29 @@ export function computeLatePenalty(
  * (the 5% rate × 15K cap → 750 baseline), and the `ssoAmountCap` line
  * exists for when the rate or cap is adjusted in the future.
  */
+export function calcSsoParts(
+  baseSalary: Decimal,
+  config: Pick<ConfigForPayroll, 'ssoRate' | 'ssoSalaryCap' | 'ssoAmountCap'>,
+): {
+  cappedBase: Decimal;
+  rate: Decimal;
+  rawAmount: Decimal;
+  amountCap: Decimal;
+  applied: Decimal;
+} {
+  const cappedBase = Decimal.min(baseSalary, toDec(config.ssoSalaryCap));
+  const rate = toDec(config.ssoRate);
+  const rawAmount = cappedBase.times(rate);
+  const amountCap = toDec(config.ssoAmountCap);
+  const applied = Decimal.min(rawAmount, amountCap).toDecimalPlaces(2);
+  return { cappedBase, rate, rawAmount, amountCap, applied };
+}
+
 export function calcSso(
   baseSalary: Decimal,
   config: Pick<ConfigForPayroll, 'ssoRate' | 'ssoSalaryCap' | 'ssoAmountCap'>,
 ): Decimal {
-  const cappedBase = Decimal.min(baseSalary, toDec(config.ssoSalaryCap));
-  const raw = cappedBase.times(toDec(config.ssoRate));
-  return Decimal.min(raw, toDec(config.ssoAmountCap)).toDecimalPlaces(2);
+  return calcSsoParts(baseSalary, config).applied;
 }
 
 // ─── Public entry point ──────────────────────────────────────────────────
@@ -312,8 +348,17 @@ export function calcPayroll(input: CalcInput): PayrollDraft {
     adjustments.filter((a) => a.kind === 'Deduction').map((a) => ({ value: a.amount })),
   ).toDecimalPlaces(2);
 
-  // SSO deduction (capped by Thai law) — only for enrolled employees.
-  const deductSso = input.employee.hasSso ? calcSso(baseSalary, input.config) : new Decimal(0);
+  // SSO deduction — compute parts once, use `.applied` as the bucket.
+  const ssoParts = input.employee.hasSso
+    ? calcSsoParts(baseSalary, input.config)
+    : {
+        cappedBase: new Decimal(0),
+        rate: toDec(input.config.ssoRate),
+        rawAmount: new Decimal(0),
+        amountCap: toDec(input.config.ssoAmountCap),
+        applied: new Decimal(0),
+      };
+  const deductSso = ssoParts.applied;
 
   // Cash advances → straight sum.
   const deductAdvance = sumDec(input.advances.map((a) => ({ value: a.amount }))).toDecimalPlaces(2);
@@ -378,6 +423,46 @@ export function calcPayroll(input: CalcInput): PayrollDraft {
     .minus(deductOther)
     .toDecimalPlaces(2);
 
+  const earlyLeaveMoney = toDec(cfg.earlyLeaveDeduction).times(earlyLeaveCount);
+  const breakdown: CalcBreakdown = {
+    absentCount,
+    lateCount,
+    earlyLeaveCount,
+    sso: ssoParts,
+    attendance: {
+      absent: {
+        count: absentCount,
+        perDay: dayAmount,
+        money: dayAmount.times(absentCount).toDecimalPlaces(2),
+      },
+      lateTier1: latePolicy.threeStrikeEnabled
+        ? {
+            mode: 'threeStrike',
+            count: latePenalty.tier1Count,
+            threeStrikeCount: latePolicy.threeStrikeCount,
+            days: latePenalty.threeStrikeDays,
+            perUnit: dayAmount,
+            money: tier1LateMoney.toDecimalPlaces(2),
+          }
+        : {
+            mode: 'flat',
+            count: latePenalty.tier1Count,
+            perUnit: toDec(cfg.lateDeduction),
+            money: tier1LateMoney.toDecimalPlaces(2),
+          },
+      lateSevere: {
+        days: latePenalty.severeDays,
+        perDay: dayAmount,
+        money: severeLateMoney.toDecimalPlaces(2),
+      },
+      earlyLeave: {
+        count: earlyLeaveCount,
+        perUnit: toDec(cfg.earlyLeaveDeduction),
+        money: earlyLeaveMoney.toDecimalPlaces(2),
+      },
+    },
+  };
+
   return {
     month: input.month,
     employeeId: input.employee.id,
@@ -390,6 +475,6 @@ export function calcPayroll(input: CalcInput): PayrollDraft {
     deductLeave,
     deductOther,
     netPay,
-    breakdown: { absentCount, lateCount, earlyLeaveCount },
+    breakdown,
   };
 }
