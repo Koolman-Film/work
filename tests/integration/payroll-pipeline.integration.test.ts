@@ -458,6 +458,60 @@ describe('previewPayrollDrafts (stale-draft detection)', () => {
   });
 });
 
+describe('publishPayroll per-employee', () => {
+  beforeEach(reset);
+
+  it('publishes one employee, leaves the other as Draft', async () => {
+    const a = await makeEmployee({ baseSalary: 20000, hasSso: true });
+    const b = await makeEmployee({ baseSalary: 18000, hasSso: true });
+    await runPayrollDraft(MONTH);
+
+    const res = await publishPayroll(MONTH, { employeeId: a.id });
+    expect(res.published.map((p) => p.employeeId)).toEqual([a.id]);
+
+    const rowA = await prisma.payroll.findUnique({
+      where: { employeeId_month: { employeeId: a.id, month: MONTH } },
+    });
+    const rowB = await prisma.payroll.findUnique({
+      where: { employeeId_month: { employeeId: b.id, month: MONTH } },
+    });
+    expect(rowA?.status).toBe('Published');
+    expect(rowB?.status).toBe('Draft');
+  });
+
+  it('only sweeps the targeted employee advances; re-publish is a no-op', async () => {
+    const a = await makeEmployee({ baseSalary: 20000, hasSso: false });
+    const b = await makeEmployee({ baseSalary: 20000, hasSso: false });
+    const advA = await prisma.cashAdvance.create({
+      data: {
+        employeeId: a.id,
+        amount: new Prisma.Decimal(1000),
+        status: 'Approved',
+        isDeducted: false,
+      },
+    });
+    const advB = await prisma.cashAdvance.create({
+      data: {
+        employeeId: b.id,
+        amount: new Prisma.Decimal(1000),
+        status: 'Approved',
+        isDeducted: false,
+      },
+    });
+
+    await publishPayroll(MONTH, { employeeId: a.id });
+    expect((await prisma.cashAdvance.findUnique({ where: { id: advA.id } }))?.isDeducted).toBe(
+      true,
+    );
+    expect((await prisma.cashAdvance.findUnique({ where: { id: advB.id } }))?.isDeducted).toBe(
+      false,
+    );
+
+    const again = await publishPayroll(MONTH, { employeeId: a.id });
+    expect(again.published).toHaveLength(0); // already Published — skipped
+  });
+});
+
 describe('payrollRowDetail', () => {
   beforeEach(reset);
 
