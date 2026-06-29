@@ -26,7 +26,17 @@ export async function GET(req: Request): Promise<Response> {
     return new NextResponse('Bad request', { status: 400 });
   }
 
-  const doc = await buildPreviewPayslipDocument(month, employeeId);
+  let doc: Awaited<ReturnType<typeof buildPreviewPayslipDocument>>;
+  try {
+    doc = await buildPreviewPayslipDocument(month, employeeId);
+  } catch (err) {
+    console.error('[payslip-preview-pdf] document build failed', {
+      employeeId,
+      month,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return new NextResponse('Could not generate preview', { status: 500 });
+  }
   if (!doc) return new NextResponse('No computable draft', { status: 404 });
 
   try {
