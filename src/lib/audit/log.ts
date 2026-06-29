@@ -124,6 +124,7 @@ export type AuditAction =
   | 'payroll.unlock'
   | 'payroll.revise'
   | 'payslip.download'
+  | 'payslip.preview'
   | 'recurringDeduction.create'
   | 'recurringDeduction.edit'
   | 'recurringDeduction.end'
