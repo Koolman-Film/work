@@ -3,6 +3,7 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { prisma } from '@/lib/db/prisma';
 import {
   lockPayroll,
+  payrollRowDetail,
   previewPayrollDrafts,
   publishPayroll,
   runPayrollDraft,
@@ -454,5 +455,46 @@ describe('previewPayrollDrafts (stale-draft detection)', () => {
     // Fresh recompute reflects the new advance → differs from the stored draft (stale).
     expect(Number(f?.deductAdvance)).toBe(2_000);
     expect(Number(f?.deductAdvance)).not.toBe(Number(stored.deductAdvance));
+  });
+});
+
+describe('payrollRowDetail', () => {
+  beforeEach(reset);
+
+  it('returns a serialized VM (no Decimal) whose lines reconcile to net', async () => {
+    const emp = await makeEmployee({ baseSalary: 20000, hasSso: true });
+    await prisma.attendance.create({
+      data: {
+        employeeId: emp.id,
+        date: inMonth,
+        type: 'Absent',
+        source: 'Manual',
+        createdById: uid(),
+      },
+    });
+    await prisma.payrollAdjustment.create({
+      data: {
+        employeeId: emp.id,
+        kind: 'Income',
+        reason: 'ค่าคอม',
+        amount: new Prisma.Decimal(1000),
+        startMonth: MONTH,
+        endMonth: MONTH,
+      },
+    });
+
+    const detail = await payrollRowDetail(MONTH, emp.id);
+    expect(detail).not.toBeNull();
+    if (!detail) return;
+    expect(typeof detail.netPay).toBe('string'); // serialized
+    expect(detail.adjustments).toEqual([{ reason: 'ค่าคอม', kind: 'Income', amount: '1000.00' }]);
+    expect(detail.breakdown.sso.applied).toBe('750.00');
+    expect(detail.breakdown.attendance.absent.money).toBe('500.00');
+    // 20000 + 1000 - 750(sso) - 500(absent) = 19750
+    expect(detail.netPay).toBe('19750.00');
+  });
+
+  it('returns null when the employee has no computable row', async () => {
+    expect(await payrollRowDetail(MONTH, uid())).toBeNull();
   });
 });
