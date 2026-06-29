@@ -10,6 +10,7 @@ import { prisma } from '@/lib/db/prisma';
 import {
   lockPayroll,
   notifyPublishedSlips,
+  type PublishResult,
   publishPayroll,
   runPayrollDraft,
 } from '@/lib/payroll/run';
@@ -214,11 +215,23 @@ export async function publishOnePayrollAction(
     return { ok: false, message: 'ยังเผยแพร่เดือนล่วงหน้าไม่ได้ — เผยแพร่ได้ไม่เกินเดือนปัจจุบัน' };
   }
 
-  const result = await publishPayroll(month, { employeeId });
+  let result: PublishResult;
+  try {
+    result = await publishPayroll(month, { employeeId });
+  } catch (err) {
+    console.error('publishOnePayrollAction: publish failed', err);
+    return { ok: false, message: 'เกิดข้อผิดพลาดในการเผยแพร่ กรุณาลองใหม่' };
+  }
   if (result.published.length === 0) {
     return { ok: false, message: 'ไม่มีสลิปฉบับร่างให้เผยแพร่ (อาจเผยแพร่ไปแล้ว)' };
   }
-  await notifyPublishedSlips(month, result.published);
+
+  // Publish already committed — a LINE failure must never undo it or skip the audit.
+  try {
+    await notifyPublishedSlips(month, result.published);
+  } catch (err) {
+    console.error('publishOnePayrollAction: LINE notify failed (publish already committed)', err);
+  }
 
   auditLog({
     actorId: user.id,
