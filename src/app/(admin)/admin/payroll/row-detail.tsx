@@ -60,6 +60,9 @@ export function RowDetail({
   const [loading, setLoading] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [error, setError] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewKey, setPreviewKey] = useState(0); // bump to retry (re-mounts the iframe)
 
   useEffect(() => {
     if (!open || status !== 'Draft' || hasLoaded) return;
@@ -258,6 +261,63 @@ export function RowDetail({
           </div>
         ) : (
           <p className="mt-4 text-sm text-ink-3">ไม่มีข้อมูลการคำนวณสำหรับงวดนี้</p>
+        )}
+
+        {status === 'Draft' && detail && (
+          <div className="mt-4 border-t border-gray-100 pt-3">
+            {!showPreview ? (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  setShowPreview(true);
+                  setPreviewLoading(true);
+                }}
+              >
+                ดูตัวอย่างสลิป (PDF)
+              </Button>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-medium text-ink-3">ตัวอย่างสลิป (PDF)</p>
+                  {/* Honest retry: a 500/blank from the route still "loads" into the iframe,
+                      so we cannot reliably auto-detect failure — give a manual reload that
+                      re-mounts the iframe by bumping its key. */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPreviewKey((k) => k + 1);
+                      setPreviewLoading(true);
+                    }}
+                    className="rounded-md px-2 py-1 text-xs font-medium text-primary-700 hover:bg-primary-50"
+                  >
+                    โหลดใหม่
+                  </button>
+                </div>
+                <div className="relative">
+                  {previewLoading && (
+                    <div className="absolute inset-0 z-10 grid place-items-center rounded-lg bg-white/80">
+                      <div className="flex flex-col items-center gap-2">
+                        <span
+                          className="size-7 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600"
+                          aria-hidden="true"
+                        />
+                        <p className="text-xs text-ink-3">กำลังสร้างตัวอย่างสลิป…</p>
+                      </div>
+                    </div>
+                  )}
+                  <iframe
+                    key={previewKey}
+                    title="ตัวอย่างสลิปเงินเดือน"
+                    src={`/admin/payroll/preview-pdf?m=${month}&employeeId=${employeeId}`}
+                    className="h-[60vh] w-full rounded-lg border border-gray-200"
+                    onLoad={() => setPreviewLoading(false)}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
         )}
 
         {canPublish && status === 'Draft' && detail && (
