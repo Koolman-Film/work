@@ -471,7 +471,7 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
         rows={visibleRows}
         rowKey={(r) => r.id}
         actions={(r) => (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-end gap-2">
             <RowDetail
               employeeName={`${r.employee.firstName} ${r.employee.lastName}`}
               status={r.status as 'Draft' | 'Published' | 'Locked'}
