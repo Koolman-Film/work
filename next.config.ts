@@ -42,8 +42,25 @@ const config: NextConfig = {
     'puppeteer-core',
   ],
 
+  // Both PDF routes render via @sparticuz/chromium (puppeteer-core). The chromium
+  // binary lives in the package's `bin/` and is loaded at RUNTIME via a computed
+  // path (getBinPath → ../../bin), so Next's static tracer can't see it — it must
+  // be force-included per rendering route, or the function 500s with
+  // "input directory .../@sparticuz/chromium/bin does not exist". The project's
+  // own webfonts (loaded via fontFaceCss) are runtime-read too, so include both.
+  // pnpm stores the real files under .pnpm/<name>@<version>/… — glob both the
+  // symlinked path and the .pnpm path so tracing resolves regardless of layout.
   outputFileTracingIncludes: {
-    '/liff/payslip/pdf': ['./src/lib/payslip/fonts/**'],
+    '/liff/payslip/pdf': [
+      './src/lib/payslip/fonts/**',
+      './node_modules/@sparticuz/chromium/bin/**',
+      './node_modules/.pnpm/@sparticuz+chromium@*/node_modules/@sparticuz/chromium/bin/**',
+    ],
+    '/admin/payroll/preview-pdf': [
+      './src/lib/payslip/fonts/**',
+      './node_modules/@sparticuz/chromium/bin/**',
+      './node_modules/.pnpm/@sparticuz+chromium@*/node_modules/@sparticuz/chromium/bin/**',
+    ],
   },
 
   // Permanent redirects for the W2-IA URL move (pre-existing local URLs only;
