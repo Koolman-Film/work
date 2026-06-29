@@ -3,6 +3,7 @@
 import { Prisma } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+import type { ActionResult } from '@/components/ui/confirm-dialog';
 import { auditLog } from '@/lib/audit/log';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
@@ -24,6 +25,7 @@ import { readForm } from './adjustments/adjustment-schema';
  */
 
 const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function readMonth(formData: FormData): string {
   const month = String(formData.get('month') ?? '');
@@ -194,4 +196,43 @@ export async function lockPayrollAction(formData: FormData) {
   });
 
   back(month, `ล็อกสลิป ${count} คน`);
+}
+
+/**
+ * Per-employee publish — driven by the row-level ConfirmDialog.
+ * Returns ActionResult (no redirect) so the dialog can show inline
+ * success/failure without a full-page navigation.
+ */
+export async function publishOnePayrollAction(
+  employeeId: string,
+  month: string,
+): Promise<ActionResult> {
+  const { user } = await requirePermission('payroll.publish');
+  if (!MONTH_RE.test(month)) return { ok: false, message: 'เดือนไม่ถูกต้อง' };
+  if (!UUID_RE.test(employeeId)) return { ok: false, message: 'พนักงานไม่ถูกต้อง' };
+  if (month > currentMonthBkk()) {
+    return { ok: false, message: 'ยังเผยแพร่เดือนล่วงหน้าไม่ได้ — เผยแพร่ได้ไม่เกินเดือนปัจจุบัน' };
+  }
+
+  const result = await publishPayroll(month, { employeeId });
+  if (result.published.length === 0) {
+    return { ok: false, message: 'ไม่มีสลิปฉบับร่างให้เผยแพร่ (อาจเผยแพร่ไปแล้ว)' };
+  }
+  await notifyPublishedSlips(month, result.published);
+
+  auditLog({
+    actorId: user.id,
+    action: 'payroll.publish',
+    entityType: 'Payroll',
+    entityId: month,
+    metadata: {
+      source: 'admin-ui',
+      via: 'per-employee',
+      employeeId,
+      published: result.published.length,
+    },
+  });
+
+  revalidatePath('/admin/payroll');
+  return { ok: true };
 }
