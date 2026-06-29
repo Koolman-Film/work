@@ -80,7 +80,7 @@ export type NormalizedPayslipInput = {
   /** Sum of over-quota leave minutes (for the leave line detail). */
   leaveOverMinutesTotal: number;
   /** Inputs the assembler needs to compute the SSO% label and the leave per-minute rate. */
-  rateInputs: { ssoRatePct: number; ssoSalaryCap: number; salaryType: 'Monthly' | 'Daily' | 'Hourly'; baseSalary: number; workingDaysPerMonth: number; standardDayMinutes: number };
+  rateInputs: { ssoRate: number; ssoSalaryCap: number; salaryType: 'Monthly' | 'Daily' | 'Hourly'; baseSalary: number; workingDaysPerMonth: number; standardDayMinutes: number };  // ssoRate = raw decimal (e.g. 0.05); assembler does the ×100 rounding
 };
 export function assemblePayslipDocument(input: NormalizedPayslipInput): PayslipDocument;
 ```
@@ -102,7 +102,7 @@ const base: NormalizedPayslipInput = {
   },
   incomeAdjustments: [], deductAdjustments: [],
   advanceCount: 0, attendance: { absent: 0, late: 0 }, leaveOverMinutesTotal: 0,
-  rateInputs: { ssoRatePct: 5, ssoSalaryCap: 15000, salaryType: 'Monthly', baseSalary: 20000, workingDaysPerMonth: 30, standardDayMinutes: 420 },
+  rateInputs: { ssoRate: 0.05, ssoSalaryCap: 15000, salaryType: 'Monthly', baseSalary: 20000, workingDaysPerMonth: 30, standardDayMinutes: 420 },
 };
 
 describe('assemblePayslipDocument', () => {
@@ -188,7 +188,7 @@ export function assemblePayslipDocument(input: NormalizedPayslipInput): PayslipD
   };
 
   const ssoDetail = buckets.deductSso !== 0
-    ? { key: 'sso', vars: { pct: rateInputs.ssoRatePct, cap: rateInputs.ssoSalaryCap.toLocaleString('en-US') } }
+    ? { key: 'sso', vars: { pct: Math.round(rateInputs.ssoRate * 100), cap: rateInputs.ssoSalaryCap.toLocaleString('en-US') } }
     : null;
   push('sso', 'deduct.sso', buckets.deductSso, ssoDetail);
 
@@ -228,7 +228,7 @@ export function assemblePayslipDocument(input: NormalizedPayslipInput): PayslipD
 }
 ```
 
-Then rewrite `getPayslipDocument` to build a `NormalizedPayslipInput` from its existing gathered data and `return assemblePayslipDocument(input)`. Specifically, keep ALL existing queries (the `status: Published/Locked` guard, the attendance `count` queries → `attendance: { absent, late }`, the advances list → `advanceCount: advances.length`, the leaves → `leaveOverMinutesTotal: leaves.reduce((s,l)=>s+(l.overQuotaMinutes ?? 0),0)`), compute `standardDayMinutes(leaveConfig ?? defaults)` and pass it, set `ssoRatePct: Math.round(n(config.ssoRate)*100)`, `ssoSalaryCap: n(config.ssoSalaryCap)`, and feed Income/Deduction adjustments already filtered by `adjustmentAppliesToMonth`. The function's RETURN value must be byte-identical to before.
+Then rewrite `getPayslipDocument` to build a `NormalizedPayslipInput` from its existing gathered data and `return assemblePayslipDocument(input)`. Specifically, keep ALL existing queries (the `status: Published/Locked` guard, the attendance `count` queries → `attendance: { absent, late }`, the advances list → `advanceCount: advances.length`, the leaves → `leaveOverMinutesTotal: leaves.reduce((s,l)=>s+(l.overQuotaMinutes ?? 0),0)`), compute `standardDayMinutes(leaveConfig ?? defaults)` and pass it, set `ssoRate: n(config.ssoRate)` (raw; the assembler does the ×100 rounding), `ssoSalaryCap: n(config.ssoSalaryCap)`, and feed Income/Deduction adjustments already filtered by `adjustmentAppliesToMonth`. The function's RETURN value must be byte-identical to before.
 
 - [ ] **Step 4: Run unit + the characterization integration test, verify all pass**
 
@@ -271,7 +271,7 @@ export type PayrollRowDetailRaw = {
   attendance: { absent: number; late: number };
   leaveOverMinutesTotal: number;
   employee: { salaryType: 'Monthly' | 'Daily' | 'Hourly'; baseSalary: number };
-  config: { ssoRatePct: number; ssoSalaryCap: number; workingDaysPerMonth: number };
+  config: { ssoRate: number; ssoSalaryCap: number; workingDaysPerMonth: number };  // ssoRate = raw decimal (e.g. 0.05)
 };
 export async function payrollRowDetailRaw(month: string, employeeId: string): Promise<PayrollRowDetailRaw | null>;
 ```
@@ -303,7 +303,7 @@ describe('payrollRowDetailRaw', () => {
     expect(raw.attendance.absent).toBe(1);
     expect(raw.incomeAdjustments).toEqual([{ id: expect.any(String), reason: 'ค่าคอม', amount: 1000 }]);
     expect(raw.employee).toEqual({ salaryType: 'Monthly', baseSalary: 20000 });
-    expect(raw.config.ssoRatePct).toBe(5);
+    expect(raw.config.ssoRate).toBe(0.05);
     // 20000 + 1000 - 750(sso) - 500(absent) = 19750
     expect(raw.buckets.netPay).toBe(19750);
   });
@@ -361,7 +361,7 @@ export async function payrollRowDetailRaw(
     attendance: { absent: b.absentCount, late: b.lateCount },
     leaveOverMinutesTotal: entry.sweptLeaves.reduce((s, l) => s + l.over, 0),
     employee: { salaryType: employee.salaryType as 'Monthly' | 'Daily' | 'Hourly', baseSalary: employee.baseSalary.toNumber() },
-    config: { ssoRatePct: Math.round(config.ssoRate.toNumber() * 100), ssoSalaryCap: config.ssoSalaryCap.toNumber(), workingDaysPerMonth: config.workingDaysPerMonth },
+    config: { ssoRate: config.ssoRate.toNumber(), ssoSalaryCap: config.ssoSalaryCap.toNumber(), workingDaysPerMonth: config.workingDaysPerMonth },
   };
 }
 ```
@@ -473,7 +473,7 @@ export async function buildPreviewPayslipDocument(
     attendance: raw.attendance,
     leaveOverMinutesTotal: raw.leaveOverMinutesTotal,
     rateInputs: {
-      ssoRatePct: raw.config.ssoRatePct,
+      ssoRate: raw.config.ssoRate,
       ssoSalaryCap: raw.config.ssoSalaryCap,
       salaryType: raw.employee.salaryType,
       baseSalary: raw.employee.baseSalary,
