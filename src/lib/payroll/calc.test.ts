@@ -454,6 +454,7 @@ describe('CalcBreakdown sub-amounts', () => {
     expect(d.breakdown.sso.cappedBase.toString()).toBe('15000'); // min(20000,15000)
     expect(d.breakdown.sso.rate.toString()).toBe('0.05');
     expect(d.breakdown.sso.rawAmount.toString()).toBe('750');
+    expect(d.breakdown.sso.amountCap.toString()).toBe('750');
     expect(d.breakdown.sso.applied.toString()).toBe(d.deductSso.toString());
   });
 
