@@ -107,7 +107,7 @@ export function RowDetail({
         open={open}
         onClose={() => setOpen(false)}
         title={`สลิปเงินเดือน — ${employeeName}`}
-        className="sm:max-w-lg lg:max-w-4xl"
+        className="sm:max-w-lg lg:max-w-6xl"
       >
         <p className="mt-1 text-xs text-ink-3">งวด {monthLabel}</p>
         {status === 'Draft' ? (
