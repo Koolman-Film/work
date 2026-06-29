@@ -1,12 +1,14 @@
 'use client';
 
+import { useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
+import { DialogFooter } from '@/components/ui/dialog-footer';
 
 /**
  * Server-action form for the payroll run buttons (คำนวณ/เผยแพร่/ล็อก) with
- * a blocking progress modal while the action runs.
+ * a blocking progress modal while the action runs (do NOT lose that modal).
  *
  * Why a modal instead of just a spinner on the button: the run actions are
  * long (publish recalculates every employee inside one transaction and the
@@ -14,7 +16,13 @@ import { Dialog } from '@/components/ui/dialog';
  * other run buttons mid-flight invites double-submits. The overlay
  * communicates "working" AND prevents stray clicks; it unmounts on its own
  * when the action's redirect lands.
+ *
+ * When `confirm` is set, the trigger button opens a confirm Dialog first;
+ * the confirm button inside is a real `type="submit"` so the same pending
+ * modal fires after confirmation. The no-confirm path is unchanged.
  */
+
+type Confirm = { title: string; description: string; confirmLabel: string };
 
 type Props = {
   action: (formData: FormData) => Promise<void>;
@@ -29,15 +37,56 @@ type Props = {
    * numbers are stale, so the action that fixes it is impossible to miss.
    */
   attention?: boolean;
+  /** When set, a confirm dialog gates the submit. */
+  confirm?: Confirm;
 };
 
-function Inner({ label, pendingLabel, variant, attention }: Omit<Props, 'action' | 'month'>) {
+function Inner({
+  label,
+  pendingLabel,
+  variant,
+  attention,
+  confirm,
+}: Omit<Props, 'action' | 'month'>) {
   const { pending } = useFormStatus();
+  const [ask, setAsk] = useState(false);
+
   return (
     <>
-      <Button type="submit" variant={attention ? 'attention' : variant} disabled={pending}>
-        {attention ? `⚠ ${label}` : label}
-      </Button>
+      {confirm ? (
+        <Button
+          type="button"
+          variant={attention ? 'attention' : variant}
+          disabled={pending}
+          onClick={() => setAsk(true)}
+        >
+          {attention ? `⚠ ${label}` : label}
+        </Button>
+      ) : (
+        <Button type="submit" variant={attention ? 'attention' : variant} disabled={pending}>
+          {attention ? `⚠ ${label}` : label}
+        </Button>
+      )}
+
+      {confirm && (
+        <Dialog
+          open={ask}
+          onClose={() => setAsk(false)}
+          title={confirm.title}
+          className="sm:max-w-md"
+        >
+          <p className="mt-2 text-sm text-ink-2">{confirm.description}</p>
+          <DialogFooter>
+            <Button type="button" variant="secondary" size="sm" onClick={() => setAsk(false)}>
+              ยกเลิก
+            </Button>
+            {/* Real submit: closing first lets the pending modal below take over. */}
+            <Button type="submit" size="sm" onClick={() => setAsk(false)}>
+              {confirm.confirmLabel}
+            </Button>
+          </DialogFooter>
+        </Dialog>
+      )}
 
       {/* Shared Dialog primitive, locked non-dismissable while the mutation
           runs — same blocking semantics ConfirmDialog uses mid-action. */}
@@ -55,11 +104,25 @@ function Inner({ label, pendingLabel, variant, attention }: Omit<Props, 'action'
   );
 }
 
-export function RunActionForm({ action, month, label, pendingLabel, variant, attention }: Props) {
+export function RunActionForm({
+  action,
+  month,
+  label,
+  pendingLabel,
+  variant,
+  attention,
+  confirm,
+}: Props) {
   return (
     <form action={action}>
       <input type="hidden" name="month" value={month} />
-      <Inner label={label} pendingLabel={pendingLabel} variant={variant} attention={attention} />
+      <Inner
+        label={label}
+        pendingLabel={pendingLabel}
+        variant={variant}
+        attention={attention}
+        confirm={confirm}
+      />
     </form>
   );
 }

@@ -3,6 +3,7 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { prisma } from '@/lib/db/prisma';
 import {
   lockPayroll,
+  payrollRowDetail,
   previewPayrollDrafts,
   publishPayroll,
   runPayrollDraft,
@@ -454,5 +455,145 @@ describe('previewPayrollDrafts (stale-draft detection)', () => {
     // Fresh recompute reflects the new advance → differs from the stored draft (stale).
     expect(Number(f?.deductAdvance)).toBe(2_000);
     expect(Number(f?.deductAdvance)).not.toBe(Number(stored.deductAdvance));
+  });
+});
+
+describe('publishPayroll per-employee', () => {
+  beforeEach(reset);
+
+  it('publishes one employee, leaves the other as Draft', async () => {
+    const a = await makeEmployee({ baseSalary: 20000, hasSso: true });
+    const b = await makeEmployee({ baseSalary: 18000, hasSso: true });
+    await runPayrollDraft(MONTH);
+
+    const res = await publishPayroll(MONTH, { employeeId: a.id });
+    expect(res.published.map((p) => p.employeeId)).toEqual([a.id]);
+
+    const rowA = await prisma.payroll.findUnique({
+      where: { employeeId_month: { employeeId: a.id, month: MONTH } },
+    });
+    const rowB = await prisma.payroll.findUnique({
+      where: { employeeId_month: { employeeId: b.id, month: MONTH } },
+    });
+    expect(rowA?.status).toBe('Published');
+    expect(rowB?.status).toBe('Draft');
+  });
+
+  it('only sweeps the targeted employee advances; re-publish is a no-op', async () => {
+    const a = await makeEmployee({ baseSalary: 20000, hasSso: false });
+    const b = await makeEmployee({ baseSalary: 20000, hasSso: false });
+    const advA = await prisma.cashAdvance.create({
+      data: {
+        employeeId: a.id,
+        amount: new Prisma.Decimal(1000),
+        status: 'Approved',
+        isDeducted: false,
+      },
+    });
+    const advB = await prisma.cashAdvance.create({
+      data: {
+        employeeId: b.id,
+        amount: new Prisma.Decimal(1000),
+        status: 'Approved',
+        isDeducted: false,
+      },
+    });
+
+    await publishPayroll(MONTH, { employeeId: a.id });
+    expect((await prisma.cashAdvance.findUnique({ where: { id: advA.id } }))?.isDeducted).toBe(
+      true,
+    );
+    expect((await prisma.cashAdvance.findUnique({ where: { id: advB.id } }))?.isDeducted).toBe(
+      false,
+    );
+
+    const again = await publishPayroll(MONTH, { employeeId: a.id });
+    expect(again.published).toHaveLength(0); // already Published — skipped
+  });
+});
+
+describe('payrollRowDetail', () => {
+  beforeEach(reset);
+
+  it('returns a serialized VM (no Decimal) whose lines reconcile to net', async () => {
+    const emp = await makeEmployee({ baseSalary: 20000, hasSso: true });
+    await prisma.attendance.create({
+      data: {
+        employeeId: emp.id,
+        date: inMonth,
+        type: 'Absent',
+        source: 'Manual',
+        createdById: uid(),
+      },
+    });
+    await prisma.payrollAdjustment.create({
+      data: {
+        employeeId: emp.id,
+        kind: 'Income',
+        reason: 'ค่าคอม',
+        amount: new Prisma.Decimal(1000),
+        startMonth: MONTH,
+        endMonth: MONTH,
+      },
+    });
+
+    const detail = await payrollRowDetail(MONTH, emp.id);
+    expect(detail).not.toBeNull();
+    if (!detail) return;
+    expect(typeof detail.netPay).toBe('string'); // serialized
+    expect(detail.adjustments).toEqual([{ reason: 'ค่าคอม', kind: 'Income', amount: '1000.00' }]);
+    expect(detail.breakdown.sso.applied).toBe('750.00');
+    expect(detail.breakdown.attendance.absent.money).toBe('500.00');
+    // 20000 + 1000 - 750(sso) - 500(absent) = 19750
+    expect(detail.netPay).toBe('19750.00');
+  });
+
+  it('returns null when the employee has no computable row', async () => {
+    expect(await payrollRowDetail(MONTH, uid())).toBeNull();
+  });
+
+  it('populates leaveDeductions when an over-quota DeductPay leave is swept', async () => {
+    // Mirrors the fixture from publishPayroll tests: baseSalary 20 000,
+    // leaveType with DeductPay, entitlement 0 granted (every charged minute is
+    // over quota), one 420-min (full-day) leave → rate = 20000/30/420 = ฿1.587…/min,
+    // 420 over-quota min rounds to ฿666.67.
+    const emp = await makeEmployee({ baseSalary: 20_000 });
+    const leaveType = await prisma.leaveType.create({
+      data: { name: `LT-${uid().slice(0, 8)}`, overQuotaPolicy: 'DeductPay', annualQuota: 3 },
+    });
+    await prisma.leaveEntitlement.create({
+      data: {
+        employeeId: emp.id,
+        leaveTypeId: leaveType.id,
+        periodYear: 2026,
+        grantedMinutes: 0,
+        carryoverMinutes: 0,
+        adjustmentMinutes: 0,
+      },
+    });
+    await prisma.leaveRequest.create({
+      data: {
+        employeeId: emp.id,
+        leaveTypeId: leaveType.id,
+        startDate: inMonth,
+        endDate: inMonth,
+        reason: 'over quota',
+        status: 'Approved',
+        chargedMinutes: 420,
+      },
+    });
+
+    const detail = await payrollRowDetail(MONTH, emp.id);
+    expect(detail).not.toBeNull();
+    if (!detail) return;
+
+    expect(detail.leaveDeductions).toHaveLength(1);
+    const [leaveLine] = detail.leaveDeductions;
+    expect(leaveLine).toBeDefined();
+    if (!leaveLine) return;
+    expect(leaveLine.overMinutes).toBe(420);
+    expect(leaveLine.deduct).toMatch(/^\d+\.\d{2}$/);
+    expect(leaveLine.deduct).toBe('666.67');
+    expect(detail.deductLeave).toBe('666.67');
   });
 });

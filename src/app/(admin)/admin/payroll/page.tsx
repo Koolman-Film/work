@@ -16,10 +16,13 @@ import {
   calculatePayrollAction,
   createRowAdjustment,
   deleteRowAdjustment,
+  loadPayrollRowDetailAction,
   lockPayrollAction,
+  publishOnePayrollAction,
   publishPayrollAction,
 } from './actions';
 import { RowAdjust, type RowAdjustment } from './row-adjust';
+import { type FrozenSlipVM, RowDetail } from './row-detail';
 import { RunActionForm } from './run-action-form';
 
 /**
@@ -116,6 +119,19 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
     prisma.employee.count({ where: { status: { not: 'Archived' } } }),
     loadReportFilterOptions(),
   ]);
+
+  // Frozen buckets straight off the persisted row — NO engine call.
+  const frozenOf = (r: (typeof rows)[number]): FrozenSlipVM => ({
+    incomeBase: r.incomeBase.toFixed(2),
+    incomeOther: r.incomeOther.toFixed(2),
+    deductSso: r.deductSso.toFixed(2),
+    deductAttendance: r.deductAttendance.toFixed(2),
+    deductLeave: r.deductLeave.toFixed(2),
+    deductAdvance: r.deductAdvance.toFixed(2),
+    deductDebt: r.deductDebt.toFixed(2),
+    deductOther: r.deductOther.toFixed(2),
+    netPay: r.netPay.toFixed(2),
+  });
 
   // Stale-draft detection: a Draft row is "stale" when recomputing it now
   // (same engine คำนวณใหม่ uses) yields different numbers — i.e. its inputs
@@ -427,6 +443,11 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
             label={`เผยแพร่สลิป + แจ้งเตือน LINE (${statusCounts.Draft} คน)`}
             pendingLabel="กำลังเผยแพร่สลิปและส่งแจ้งเตือน…"
             variant="primary"
+            confirm={{
+              title: 'เผยแพร่สลิปทั้งงวด?',
+              description: `เผยแพร่สลิป ${statusCounts.Draft} คน และส่งแจ้งเตือน LINE ถึงทุกคนพร้อมกัน — ดำเนินการแล้วย้อนกลับไม่ได้`,
+              confirmLabel: 'เผยแพร่ทั้งหมด',
+            }}
           />
         )}
         {mayPublish && statusCounts.Published > 0 && (
@@ -449,19 +470,32 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
         columns={columns}
         rows={visibleRows}
         rowKey={(r) => r.id}
-        actions={(r) =>
-          r.status === 'Draft' && mayRun ? (
-            <RowAdjust
-              employeeId={r.employeeId}
+        actions={(r) => (
+          <div className="flex items-center gap-2">
+            <RowDetail
               employeeName={`${r.employee.firstName} ${r.employee.lastName}`}
-              month={month}
+              status={r.status as 'Draft' | 'Published' | 'Locked'}
               monthLabel={monthLabelTh(month)}
-              adjustments={adjByEmployee.get(r.employeeId) ?? []}
-              createAction={createRowAdjustment}
-              deleteAction={deleteRowAdjustment}
+              month={month}
+              employeeId={r.employeeId}
+              loadDetail={loadPayrollRowDetailAction}
+              frozen={r.status === 'Draft' ? null : frozenOf(r)}
+              canPublish={mayPublish}
+              publishAction={publishOnePayrollAction}
             />
-          ) : null
-        }
+            {r.status === 'Draft' && mayRun ? (
+              <RowAdjust
+                employeeId={r.employeeId}
+                employeeName={`${r.employee.firstName} ${r.employee.lastName}`}
+                month={month}
+                monthLabel={monthLabelTh(month)}
+                adjustments={adjByEmployee.get(r.employeeId) ?? []}
+                createAction={createRowAdjustment}
+                deleteAction={deleteRowAdjustment}
+              />
+            ) : null}
+          </div>
+        )}
         empty={
           // The month has rows but the filter excluded them all → tell the
           // admin it's the filter, not a missing payroll run (no calc button).
