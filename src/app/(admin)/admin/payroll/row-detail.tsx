@@ -59,22 +59,32 @@ export function RowDetail({
   const [detail, setDetail] = useState<RowDetailVM | null>(null);
   const [loading, setLoading] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     if (!open || status !== 'Draft' || hasLoaded) return;
+    let cancelled = false;
     setLoading(true);
+    setError(false);
     loadDetail(employeeId, month)
       .then((result) => {
-        setDetail(result);
-        setHasLoaded(true);
+        if (!cancelled) {
+          setDetail(result);
+          setHasLoaded(true);
+        }
       })
       .catch(() => {
-        setDetail(null);
-        setHasLoaded(true);
+        if (!cancelled) {
+          setError(true);
+          setHasLoaded(true);
+        }
       })
       .finally(() => {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       });
+    return () => {
+      cancelled = true;
+    };
   }, [open, status, hasLoaded, loadDetail, employeeId, month]);
 
   return (
@@ -104,6 +114,21 @@ export function RowDetail({
                 aria-hidden="true"
               />
               <p className="text-sm font-medium text-ink-1">กำลังโหลดรายละเอียด…</p>
+            </div>
+          ) : error ? (
+            <div className="mt-6 flex flex-col items-center gap-3">
+              <p className="text-sm text-red-600">โหลดรายละเอียดไม่สำเร็จ</p>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  setError(false);
+                  setHasLoaded(false);
+                }}
+              >
+                ลองใหม่
+              </Button>
             </div>
           ) : detail ? (
             <div className="mt-4 space-y-4">
