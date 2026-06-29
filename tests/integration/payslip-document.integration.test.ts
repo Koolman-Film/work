@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { prisma } from '@/lib/db/prisma';
 import { getPayslipDocument } from '@/lib/payslip/document';
+import { buildPreviewPayslipDocument } from '@/lib/payslip/preview';
 
 const MONTH = '2026-06';
 
@@ -265,5 +266,29 @@ describe('getPayslipDocument', () => {
     const a = doc!.deduct.lines.find((l) => l.key === 'attendance');
     expect(a?.amount).toBe(1_000); // frozen bucket
     expect(a?.detail).toEqual({ key: 'attendance', vars: { absent: 1, late: 2 } });
+  });
+});
+
+describe('buildPreviewPayslipDocument', () => {
+  it('builds a faithful document from the live draft', async () => {
+    // Reuse the existing makeEmp() helper: baseSalary=12600, hasSso=false, Monthly.
+    // No advances/leave/attendance → net = 12600 (no deductions).
+    const emp = await makeEmp();
+
+    const doc = await buildPreviewPayslipDocument(MONTH, emp.id);
+    expect(doc).not.toBeNull();
+    if (!doc) return;
+    expect(doc.meta.employeeId).toBe(emp.id);
+    expect(doc.income.lines[0]).toEqual({
+      key: 'base',
+      labelKey: 'income.base',
+      amount: 12_600,
+      detail: null,
+    });
+    expect(doc.net).toBe(12_600); // hasSso=false → no SSO deduction
+  });
+
+  it('returns null for an employee with no computable draft', async () => {
+    expect(await buildPreviewPayslipDocument(MONTH, crypto.randomUUID())).toBeNull();
   });
 });
