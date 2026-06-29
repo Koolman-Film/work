@@ -19,7 +19,7 @@ export async function buildPreviewPayslipDocument(
   if (!raw) return null;
 
   const [employee, leaveConfig] = await Promise.all([
-    prisma.employee.findUniqueOrThrow({
+    prisma.employee.findUnique({
       where: { id: employeeId },
       select: {
         firstName: true,
@@ -30,6 +30,7 @@ export async function buildPreviewPayslipDocument(
     }),
     prisma.leaveConfig.findFirst(),
   ]);
+  if (!employee) return null;
 
   const input: NormalizedPayslipInput = {
     meta: {

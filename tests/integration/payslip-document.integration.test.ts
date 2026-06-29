@@ -288,6 +288,34 @@ describe('buildPreviewPayslipDocument', () => {
     expect(doc.net).toBe(12_600); // hasSso=false → no SSO deduction
   });
 
+  it('applies SSO deduction end-to-end for a hasSso=true employee', async () => {
+    // baseSalary=20000, hasSso=true → SSO = min(20000,15000)*0.05 = 750 → net = 19250
+    const user = await prisma.user.create({ data: {} });
+    const branch = await prisma.branch.create({ data: { name: 'Bangkok' } });
+    const emp = await prisma.employee.create({
+      data: {
+        userId: user.id,
+        firstName: 'Napat',
+        lastName: 'Srisuk',
+        nickname: 'นภัส',
+        branchId: branch.id,
+        salaryType: 'Monthly',
+        baseSalary: new Prisma.Decimal(20_000),
+        hasSso: true,
+        status: 'Active',
+        hiredAt: new Date('2026-01-01'),
+      },
+    });
+
+    const doc = await buildPreviewPayslipDocument(MONTH, emp.id);
+    expect(doc).not.toBeNull();
+    if (!doc) return;
+    expect(doc.net).toBe(19_250);
+    const sso = doc.deduct.lines.find((l) => l.key === 'sso');
+    expect(sso).toBeDefined();
+    expect(sso?.detail).toMatchObject({ key: 'sso', vars: { pct: 5 } });
+  });
+
   it('returns null for an employee with no computable draft', async () => {
     expect(await buildPreviewPayslipDocument(MONTH, crypto.randomUUID())).toBeNull();
   });
