@@ -454,6 +454,11 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
             label={`เผยแพร่สลิป + แจ้งเตือน LINE (${statusCounts.Draft} คน)`}
             pendingLabel="กำลังเผยแพร่สลิปและส่งแจ้งเตือน…"
             variant="primary"
+            confirm={{
+              title: 'เผยแพร่สลิปทั้งงวด?',
+              description: `เผยแพร่สลิป ${statusCounts.Draft} คน และส่งแจ้งเตือน LINE ถึงทุกคนพร้อมกัน — ดำเนินการแล้วย้อนกลับไม่ได้`,
+              confirmLabel: 'เผยแพร่ทั้งหมด',
+            }}
           />
         )}
         {mayPublish && statusCounts.Published > 0 && (
