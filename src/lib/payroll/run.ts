@@ -492,6 +492,99 @@ export type PayrollRowDetail = {
 // both Prisma.Decimal and decimal.js Decimal satisfy { toString(): string }.
 const money = (d: { toString(): string }) => new Prisma.Decimal(d.toString()).toFixed(2);
 
+export type PayrollRowDetailRaw = {
+  buckets: {
+    incomeBase: number;
+    incomeOther: number;
+    deductSso: number;
+    deductAdvance: number;
+    deductAttendance: number;
+    deductLeave: number;
+    deductDebt: number;
+    deductOther: number;
+    netPay: number;
+  };
+  incomeAdjustments: { id: string; reason: string; amount: number }[];
+  deductAdjustments: { id: string; reason: string; amount: number }[];
+  advanceCount: number;
+  attendance: { absent: number; late: number };
+  leaveOverMinutesTotal: number;
+  employee: { salaryType: 'Monthly' | 'Daily' | 'Hourly'; baseSalary: number };
+  config: { ssoRate: number; ssoSalaryCap: number; workingDaysPerMonth: number };
+};
+
+export async function payrollRowDetailRaw(
+  month: string,
+  employeeId: string,
+): Promise<PayrollRowDetailRaw | null> {
+  const { drafts } = await gatherAndCalc(prisma, month, employeeId);
+  const entry = drafts[0];
+  if (!entry) return null;
+  const { draft } = entry;
+  const b = draft.breakdown;
+
+  const [config, employee, adjustments] = await Promise.all([
+    prisma.payrollConfig.findFirstOrThrow({
+      select: { ssoRate: true, ssoSalaryCap: true, workingDaysPerMonth: true },
+    }),
+    prisma.employee.findUniqueOrThrow({
+      where: { id: employeeId },
+      select: { salaryType: true, baseSalary: true },
+    }),
+    prisma.payrollAdjustment.findMany({
+      where: {
+        employeeId,
+        startMonth: { lte: month },
+        OR: [{ endMonth: null }, { endMonth: { gte: month } }],
+        deletedAt: null,
+      },
+      orderBy: { createdAt: 'asc' },
+      select: {
+        id: true,
+        kind: true,
+        reason: true,
+        amount: true,
+        startMonth: true,
+        endMonth: true,
+      },
+    }),
+  ]);
+
+  const applicable = adjustments.filter((a) => adjustmentAppliesToMonth(a, month));
+  const mapAdj = (kind: 'Income' | 'Deduction') =>
+    applicable
+      .filter((a) => a.kind === kind)
+      .map((a) => ({ id: a.id, reason: a.reason, amount: a.amount.toNumber() }));
+
+  return {
+    buckets: {
+      incomeBase: draft.incomeBase.toNumber(),
+      incomeOther: draft.incomeOther.toNumber(),
+      deductSso: draft.deductSso.toNumber(),
+      deductAdvance: draft.deductAdvance.toNumber(),
+      deductAttendance: draft.deductAttendance.toNumber(),
+      deductLeave: draft.deductLeave.toNumber(),
+      deductDebt: draft.deductDebt.toNumber(),
+      deductOther: draft.deductOther.toNumber(),
+      netPay: draft.netPay.toNumber(),
+    },
+    incomeAdjustments: mapAdj('Income'),
+    deductAdjustments: mapAdj('Deduction'),
+    advanceCount: entry.sweptAdvanceIds.length,
+    attendance: { absent: b.absentCount, late: b.lateCount },
+    leaveOverMinutesTotal: entry.sweptLeaves.reduce((s, l) => s + l.over, 0),
+    employee: {
+      salaryType: employee.salaryType as 'Monthly' | 'Daily' | 'Hourly',
+      baseSalary: employee.baseSalary.toNumber(),
+    },
+    config: {
+      ssoRate: config.ssoRate.toNumber(),
+      ssoSalaryCap: config.ssoSalaryCap.toNumber(),
+      workingDaysPerMonth: config.workingDaysPerMonth,
+    },
+  };
+}
+
 export async function payrollRowDetail(
   month: string,
   employeeId: string,
