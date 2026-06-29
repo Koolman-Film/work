@@ -588,9 +588,12 @@ describe('payrollRowDetail', () => {
     if (!detail) return;
 
     expect(detail.leaveDeductions).toHaveLength(1);
-    expect(detail.leaveDeductions[0].overMinutes).toBe(420);
-    expect(detail.leaveDeductions[0].deduct).toMatch(/^\d+\.\d{2}$/);
-    expect(detail.leaveDeductions[0].deduct).toBe('666.67');
+    const [leaveLine] = detail.leaveDeductions;
+    expect(leaveLine).toBeDefined();
+    if (!leaveLine) return;
+    expect(leaveLine.overMinutes).toBe(420);
+    expect(leaveLine.deduct).toMatch(/^\d+\.\d{2}$/);
+    expect(leaveLine.deduct).toBe('666.67');
     expect(detail.deductLeave).toBe('666.67');
   });
 });
