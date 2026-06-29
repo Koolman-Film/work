@@ -10,7 +10,9 @@ import { prisma } from '@/lib/db/prisma';
 import {
   lockPayroll,
   notifyPublishedSlips,
+  type PayrollRowDetail,
   type PublishResult,
+  payrollRowDetail,
   publishPayroll,
   runPayrollDraft,
 } from '@/lib/payroll/run';
@@ -180,6 +182,19 @@ export async function deleteRowAdjustment(
   revalidatePath('/admin/payroll');
   revalidatePath('/admin/payroll/adjustments');
   return { ok: true };
+}
+
+/**
+ * Lazy-load a single employee's payslip detail on modal open.
+ * Gated by payroll.read — same as the page itself.
+ */
+export async function loadPayrollRowDetailAction(
+  employeeId: string,
+  month: string,
+): Promise<PayrollRowDetail | null> {
+  await requirePermission('payroll.read');
+  if (!MONTH_RE.test(month) || !UUID_RE.test(employeeId)) return null;
+  return payrollRowDetail(month, employeeId);
 }
 
 export async function lockPayrollAction(formData: FormData) {
