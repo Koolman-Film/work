@@ -218,7 +218,6 @@ ${PAYSLIP_CSS(fontFace)}
 
     <div class="card"><div class="info">
       ${infoRow(t('payslipPdf.employee'), tEn('payslipPdf.employee'), doc.meta.employeeName)}
-      ${infoRow(t('payslipPdf.employeeId'), tEn('payslipPdf.employeeId'), doc.meta.employeeId)}
       ${infoRow(t('profile.readonly.branch'), tEn('profile.readonly.branch'), doc.meta.branch)}
       ${doc.meta.department ? infoRow(t('profile.readonly.department'), tEn('profile.readonly.department'), doc.meta.department) : ''}
       ${infoRow(t('payslipPdf.payType'), tEn('payslipPdf.payType'), t(`profile.salaryType.${doc.meta.payType}`))}
