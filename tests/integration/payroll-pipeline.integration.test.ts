@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db/prisma';
 import {
   lockPayroll,
   payrollRowDetail,
+  payrollRowDetailRaw,
   previewPayrollDrafts,
   publishPayroll,
   runPayrollDraft,
@@ -595,5 +596,51 @@ describe('payrollRowDetail', () => {
     expect(leaveLine.deduct).toMatch(/^\d+\.\d{2}$/);
     expect(leaveLine.deduct).toBe('666.67');
     expect(detail.deductLeave).toBe('666.67');
+  });
+});
+
+describe('payrollRowDetailRaw', () => {
+  beforeEach(reset);
+
+  it('returns numeric buckets + line sources for a draft employee', async () => {
+    const emp = await makeEmployee({ baseSalary: 20000, hasSso: true });
+    await prisma.attendance.create({
+      data: {
+        employeeId: emp.id,
+        date: inMonth,
+        type: 'Absent',
+        durationMinutes: null,
+        source: 'Manual',
+        createdById: uid(),
+      },
+    });
+    await prisma.payrollAdjustment.create({
+      data: {
+        employeeId: emp.id,
+        kind: 'Income',
+        reason: 'ค่าคอม',
+        amount: new Prisma.Decimal(1000),
+        startMonth: MONTH,
+        endMonth: MONTH,
+      },
+    });
+
+    const raw = await payrollRowDetailRaw(MONTH, emp.id);
+    expect(raw).not.toBeNull();
+    if (!raw) return;
+    expect(typeof raw.buckets.netPay).toBe('number');
+    expect(raw.buckets.deductSso).toBe(750);
+    expect(raw.attendance.absent).toBe(1);
+    expect(raw.incomeAdjustments).toEqual([
+      { id: expect.any(String), reason: 'ค่าคอม', amount: 1000 },
+    ]);
+    expect(raw.employee).toEqual({ salaryType: 'Monthly', baseSalary: 20000 });
+    expect(raw.config.ssoRate).toBe(0.05);
+    // 20000 + 1000 - 750(sso) - 500(absent) = 19750
+    expect(raw.buckets.netPay).toBe(19750);
+  });
+
+  it('returns null when no computable row exists', async () => {
+    expect(await payrollRowDetailRaw(MONTH, uid())).toBeNull();
   });
 });
