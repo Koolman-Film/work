@@ -497,4 +497,46 @@ describe('payrollRowDetail', () => {
   it('returns null when the employee has no computable row', async () => {
     expect(await payrollRowDetail(MONTH, uid())).toBeNull();
   });
+
+  it('populates leaveDeductions when an over-quota DeductPay leave is swept', async () => {
+    // Mirrors the fixture from publishPayroll tests: baseSalary 20 000,
+    // leaveType with DeductPay, entitlement 0 granted (every charged minute is
+    // over quota), one 420-min (full-day) leave → rate = 20000/30/420 = ฿1.587…/min,
+    // 420 over-quota min rounds to ฿666.67.
+    const emp = await makeEmployee({ baseSalary: 20_000 });
+    const leaveType = await prisma.leaveType.create({
+      data: { name: `LT-${uid().slice(0, 8)}`, overQuotaPolicy: 'DeductPay', annualQuota: 3 },
+    });
+    await prisma.leaveEntitlement.create({
+      data: {
+        employeeId: emp.id,
+        leaveTypeId: leaveType.id,
+        periodYear: 2026,
+        grantedMinutes: 0,
+        carryoverMinutes: 0,
+        adjustmentMinutes: 0,
+      },
+    });
+    await prisma.leaveRequest.create({
+      data: {
+        employeeId: emp.id,
+        leaveTypeId: leaveType.id,
+        startDate: inMonth,
+        endDate: inMonth,
+        reason: 'over quota',
+        status: 'Approved',
+        chargedMinutes: 420,
+      },
+    });
+
+    const detail = await payrollRowDetail(MONTH, emp.id);
+    expect(detail).not.toBeNull();
+    if (!detail) return;
+
+    expect(detail.leaveDeductions).toHaveLength(1);
+    expect(detail.leaveDeductions[0].overMinutes).toBe(420);
+    expect(detail.leaveDeductions[0].deduct).toMatch(/^\d+\.\d{2}$/);
+    expect(detail.leaveDeductions[0].deduct).toBe('666.67');
+    expect(detail.deductLeave).toBe('666.67');
+  });
 });
