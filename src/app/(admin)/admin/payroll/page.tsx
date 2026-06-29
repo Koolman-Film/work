@@ -9,13 +9,14 @@ import { canDo, requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { formatTHB, formatTHB2, monthLabelTh } from '@/lib/format';
 import { deductionBreakdown, deductionBreakdownLabel } from '@/lib/payroll/deduction-breakdown';
-import { payrollRowDetail, previewPayrollDrafts } from '@/lib/payroll/run';
+import { previewPayrollDrafts } from '@/lib/payroll/run';
 import { asUuid, loadReportFilterOptions } from '../reports/_load-filter-options';
 import { ReportFilters } from '../reports/report-filters';
 import {
   calculatePayrollAction,
   createRowAdjustment,
   deleteRowAdjustment,
+  loadPayrollRowDetailAction,
   lockPayrollAction,
   publishOnePayrollAction,
   publishPayrollAction,
@@ -118,18 +119,6 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
     prisma.employee.count({ where: { status: { not: 'Archived' } } }),
     loadReportFilterOptions(),
   ]);
-
-  // Live detail for Draft rows only — Published/Locked use frozen buckets (decision #5).
-  const draftDetailByEmp = new Map(
-    await Promise.all(
-      visibleRows
-        .filter((r) => r.status === 'Draft')
-        .map(
-          async (r) =>
-            [r.employeeId, await payrollRowDetail(month, r.employeeId).catch(() => null)] as const,
-        ),
-    ),
-  );
 
   // Frozen buckets straight off the persisted row — NO engine call.
   const frozenOf = (r: (typeof rows)[number]): FrozenSlipVM => ({
@@ -489,7 +478,7 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
               monthLabel={monthLabelTh(month)}
               month={month}
               employeeId={r.employeeId}
-              detail={r.status === 'Draft' ? (draftDetailByEmp.get(r.employeeId) ?? null) : null}
+              loadDetail={loadPayrollRowDetailAction}
               frozen={r.status === 'Draft' ? null : frozenOf(r)}
               canPublish={mayPublish}
               publishAction={publishOnePayrollAction}

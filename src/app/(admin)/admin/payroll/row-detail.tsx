@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { type ActionResult, ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Dialog } from '@/components/ui/dialog';
@@ -24,8 +24,8 @@ type Props = {
   monthLabel: string;
   month: string;
   employeeId: string;
-  /** Live, formula-bearing view — Draft rows only. */
-  detail: RowDetailVM | null;
+  /** Server action to fetch detail on demand — Draft rows only. */
+  loadDetail: (employeeId: string, month: string) => Promise<RowDetailVM | null>;
   /** Frozen stored buckets — Published/Locked rows only (no recompute). */
   frozen: FrozenSlipVM | null;
   canPublish: boolean;
@@ -50,12 +50,33 @@ export function RowDetail({
   monthLabel,
   month,
   employeeId,
-  detail,
+  loadDetail,
   frozen,
   canPublish,
   publishAction,
 }: Props) {
   const [open, setOpen] = useState(false);
+  const [detail, setDetail] = useState<RowDetailVM | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [hasLoaded, setHasLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!open || status !== 'Draft' || hasLoaded) return;
+    setLoading(true);
+    loadDetail(employeeId, month)
+      .then((result) => {
+        setDetail(result);
+        setHasLoaded(true);
+      })
+      .catch(() => {
+        setDetail(null);
+        setHasLoaded(true);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, [open, status, hasLoaded, loadDetail, employeeId, month]);
+
   return (
     <>
       <Button
@@ -75,91 +96,105 @@ export function RowDetail({
         className="sm:max-w-lg"
       >
         <p className="mt-1 text-xs text-ink-3">งวด {monthLabel}</p>
-        {status === 'Draft' && detail ? (
-          <div className="mt-4 space-y-4">
-            {/* รายได้ */}
-            <section>
-              <h3 className="text-xs font-semibold text-ink-3">รายได้</h3>
-              <Line label="ฐานเงินเดือน" value={detail.incomeBase} />
-              {detail.adjustments
-                .filter((a) => a.kind === 'Income')
-                .map((a, idx) => (
-                  // biome-ignore lint/suspicious/noArrayIndexKey: adjustments have no stable id; list is immutable within this render
-                  <Line key={`inc-${idx}`} label={a.reason} value={`+${a.amount}`} />
+        {status === 'Draft' ? (
+          loading ? (
+            <div className="mt-6 flex flex-col items-center gap-3">
+              <span
+                className="size-8 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600"
+                aria-hidden="true"
+              />
+              <p className="text-sm font-medium text-ink-1">กำลังโหลดรายละเอียด…</p>
+            </div>
+          ) : detail ? (
+            <div className="mt-4 space-y-4">
+              {/* รายได้ */}
+              <section>
+                <h3 className="text-xs font-semibold text-ink-3">รายได้</h3>
+                <Line label="ฐานเงินเดือน" value={detail.incomeBase} />
+                {detail.adjustments
+                  .filter((a) => a.kind === 'Income')
+                  .map((a, idx) => (
+                    // biome-ignore lint/suspicious/noArrayIndexKey: adjustments have no stable id; list is immutable within this render
+                    <Line key={`inc-${idx}`} label={a.reason} value={`+${a.amount}`} />
+                  ))}
+              </section>
+              {/* รายการหัก — with formulas */}
+              <section className="border-t border-gray-100 pt-3">
+                <h3 className="text-xs font-semibold text-ink-3">รายการหัก</h3>
+                {detail.breakdown.sso.applied !== '0.00' && (
+                  <Line
+                    label="ประกันสังคม"
+                    formula={`${detail.breakdown.sso.cappedBase} × ${detail.breakdown.sso.rate}${detail.breakdown.sso.capped ? ` (สูงสุด ${detail.breakdown.sso.amountCap})` : ''}`}
+                    value={`-${detail.breakdown.sso.applied}`}
+                  />
+                )}
+                {detail.breakdown.attendance.absent.money !== '0.00' && (
+                  <Line
+                    label="ขาดงาน"
+                    formula={`${detail.breakdown.attendance.absent.count} วัน × ${detail.breakdown.attendance.absent.perDay}`}
+                    value={`-${detail.breakdown.attendance.absent.money}`}
+                  />
+                )}
+                {detail.breakdown.attendance.lateTier1.money !== '0.00' && (
+                  <Line
+                    label="มาสาย"
+                    formula={
+                      detail.breakdown.attendance.lateTier1.mode === 'threeStrike'
+                        ? `${detail.breakdown.attendance.lateTier1.count} ครั้ง → ${detail.breakdown.attendance.lateTier1.days} วัน × ${detail.breakdown.attendance.lateTier1.perUnit}`
+                        : `${detail.breakdown.attendance.lateTier1.count} ครั้ง × ${detail.breakdown.attendance.lateTier1.perUnit}`
+                    }
+                    value={`-${detail.breakdown.attendance.lateTier1.money}`}
+                  />
+                )}
+                {detail.breakdown.attendance.lateSevere.money !== '0.00' && (
+                  <Line
+                    label="มาสายรุนแรง"
+                    formula={`${detail.breakdown.attendance.lateSevere.days} วัน × ${detail.breakdown.attendance.lateSevere.perDay}`}
+                    value={`-${detail.breakdown.attendance.lateSevere.money}`}
+                  />
+                )}
+                {detail.breakdown.attendance.earlyLeave.money !== '0.00' && (
+                  <Line
+                    label="ออกก่อนเวลา"
+                    formula={`${detail.breakdown.attendance.earlyLeave.count} ครั้ง × ${detail.breakdown.attendance.earlyLeave.perUnit}`}
+                    value={`-${detail.breakdown.attendance.earlyLeave.money}`}
+                  />
+                )}
+                {detail.advances.map((a, idx) => (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: advances have no stable id; list is immutable within a render
+                  <Line key={`adv-${idx}`} label="หักเบิกล่วงหน้า" value={`-${a.amount}`} />
                 ))}
-            </section>
-            {/* รายการหัก — with formulas */}
-            <section className="border-t border-gray-100 pt-3">
-              <h3 className="text-xs font-semibold text-ink-3">รายการหัก</h3>
-              {detail.breakdown.sso.applied !== '0.00' && (
-                <Line
-                  label="ประกันสังคม"
-                  formula={`${detail.breakdown.sso.cappedBase} × ${detail.breakdown.sso.rate}${detail.breakdown.sso.capped ? ` (สูงสุด ${detail.breakdown.sso.amountCap})` : ''}`}
-                  value={`-${detail.breakdown.sso.applied}`}
-                />
-              )}
-              {detail.breakdown.attendance.absent.money !== '0.00' && (
-                <Line
-                  label="ขาดงาน"
-                  formula={`${detail.breakdown.attendance.absent.count} วัน × ${detail.breakdown.attendance.absent.perDay}`}
-                  value={`-${detail.breakdown.attendance.absent.money}`}
-                />
-              )}
-              {detail.breakdown.attendance.lateTier1.money !== '0.00' && (
-                <Line
-                  label="มาสาย"
-                  formula={
-                    detail.breakdown.attendance.lateTier1.mode === 'threeStrike'
-                      ? `${detail.breakdown.attendance.lateTier1.count} ครั้ง → ${detail.breakdown.attendance.lateTier1.days} วัน × ${detail.breakdown.attendance.lateTier1.perUnit}`
-                      : `${detail.breakdown.attendance.lateTier1.count} ครั้ง × ${detail.breakdown.attendance.lateTier1.perUnit}`
-                  }
-                  value={`-${detail.breakdown.attendance.lateTier1.money}`}
-                />
-              )}
-              {detail.breakdown.attendance.lateSevere.money !== '0.00' && (
-                <Line
-                  label="มาสายรุนแรง"
-                  formula={`${detail.breakdown.attendance.lateSevere.days} วัน × ${detail.breakdown.attendance.lateSevere.perDay}`}
-                  value={`-${detail.breakdown.attendance.lateSevere.money}`}
-                />
-              )}
-              {detail.breakdown.attendance.earlyLeave.money !== '0.00' && (
-                <Line
-                  label="ออกก่อนเวลา"
-                  formula={`${detail.breakdown.attendance.earlyLeave.count} ครั้ง × ${detail.breakdown.attendance.earlyLeave.perUnit}`}
-                  value={`-${detail.breakdown.attendance.earlyLeave.money}`}
-                />
-              )}
-              {detail.advances.map((a, idx) => (
-                // biome-ignore lint/suspicious/noArrayIndexKey: advances have no stable id; list is immutable within a render
-                <Line key={`adv-${idx}`} label="หักเบิกล่วงหน้า" value={`-${a.amount}`} />
-              ))}
-              {detail.debts.map((d, idx) => (
-                // biome-ignore lint/suspicious/noArrayIndexKey: debts have no stable id; list is immutable within a render
-                <Line key={`debt-${idx}`} label="หักหนี้/ผ่อน" value={`-${d.amount}`} />
-              ))}
-              {detail.leaveDeductions.map((l, idx) => (
-                <Line
-                  // biome-ignore lint/suspicious/noArrayIndexKey: leave lines have no stable id; list is immutable within this render
-                  key={`lv-${idx}`}
-                  label="ลาเกินสิทธิ"
-                  formula={`เกิน ${l.overMinutes} นาที`}
-                  value={`-${l.deduct}`}
-                />
-              ))}
-              {detail.adjustments
-                .filter((a) => a.kind === 'Deduction')
-                .map((a, idx) => (
-                  // biome-ignore lint/suspicious/noArrayIndexKey: adjustments have no stable id; list is immutable within this render
-                  <Line key={`ded-${idx}`} label={a.reason} value={`-${a.amount}`} />
+                {detail.debts.map((d, idx) => (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: debts have no stable id; list is immutable within a render
+                  <Line key={`debt-${idx}`} label="หักหนี้/ผ่อน" value={`-${d.amount}`} />
                 ))}
-            </section>
-            {/* สุทธิ */}
-            <section className="flex items-baseline justify-between border-t border-gray-200 pt-3">
-              <span className="text-sm font-semibold text-ink-1">เงินสุทธิ</span>
-              <span className="font-mono text-lg font-bold text-primary-700">{detail.netPay}</span>
-            </section>
-          </div>
+                {detail.leaveDeductions.map((l, idx) => (
+                  <Line
+                    // biome-ignore lint/suspicious/noArrayIndexKey: leave lines have no stable id; list is immutable within this render
+                    key={`lv-${idx}`}
+                    label="ลาเกินสิทธิ"
+                    formula={`เกิน ${l.overMinutes} นาที`}
+                    value={`-${l.deduct}`}
+                  />
+                ))}
+                {detail.adjustments
+                  .filter((a) => a.kind === 'Deduction')
+                  .map((a, idx) => (
+                    // biome-ignore lint/suspicious/noArrayIndexKey: adjustments have no stable id; list is immutable within this render
+                    <Line key={`ded-${idx}`} label={a.reason} value={`-${a.amount}`} />
+                  ))}
+              </section>
+              {/* สุทธิ */}
+              <section className="flex items-baseline justify-between border-t border-gray-200 pt-3">
+                <span className="text-sm font-semibold text-ink-1">เงินสุทธิ</span>
+                <span className="font-mono text-lg font-bold text-primary-700">
+                  {detail.netPay}
+                </span>
+              </section>
+            </div>
+          ) : (
+            <p className="mt-4 text-sm text-ink-3">ไม่มีข้อมูลการคำนวณสำหรับงวดนี้</p>
+          )
         ) : frozen ? (
           /* Published/Locked — frozen stored buckets, no formula, no recompute. */
           <div className="mt-4 space-y-4">
