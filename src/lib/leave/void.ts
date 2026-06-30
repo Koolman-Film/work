@@ -10,7 +10,7 @@ export type VoidResult =
   | { ok: true; voidedAttendanceCount?: number }
   | {
       ok: false;
-      code: 'not-found' | 'forbidden' | 'already-voided' | 'reason-required' | 'error';
+      code: 'not-found' | 'already-voided' | 'reason-required' | 'error';
       message: string;
     };
 
@@ -44,7 +44,6 @@ export async function voidLeaveRequest(id: string, reason: string): Promise<Void
     },
   });
   if (!row) return { ok: false, code: 'not-found', message: 'ไม่พบคำขอลา' };
-  if (row.deletedAt) return { ok: false, code: 'already-voided', message: 'คำขอนี้ถูกลบไปแล้ว' };
 
   const { user } = await requirePermission('leave.void');
   const permitted = await getPermittedBranches(user, 'leave.void');
@@ -53,6 +52,9 @@ export async function voidLeaveRequest(id: string, reason: string): Promise<Void
   ) {
     return { ok: false, code: 'not-found', message: 'ไม่พบคำขอลา' };
   }
+
+  if (row.deletedAt) return { ok: false, code: 'already-voided', message: 'คำขอนี้ถูกลบไปแล้ว' };
+
   const meta = await reqMeta();
   const now = new Date();
 
@@ -109,7 +111,6 @@ export async function restoreLeaveRequest(id: string): Promise<VoidResult> {
     },
   });
   if (!row) return { ok: false, code: 'not-found', message: 'ไม่พบคำขอลา' };
-  if (!row.deletedAt) return { ok: true };
 
   const { user } = await requirePermission('leave.void');
   const permitted = await getPermittedBranches(user, 'leave.void');
@@ -118,6 +119,9 @@ export async function restoreLeaveRequest(id: string): Promise<VoidResult> {
   ) {
     return { ok: false, code: 'not-found', message: 'ไม่พบคำขอลา' };
   }
+
+  if (!row.deletedAt) return { ok: true };
+
   const meta = await reqMeta();
 
   try {
