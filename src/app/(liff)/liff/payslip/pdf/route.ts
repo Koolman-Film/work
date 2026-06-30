@@ -8,7 +8,7 @@ import { getPayslipDocument } from '@/lib/payslip/document';
 import { fontFaceCss } from '@/lib/payslip/fonts';
 import { payslipLogoSvg, payslipPeriodLabel } from '@/lib/payslip/letterhead';
 import { renderPayslipPdf } from '@/lib/payslip/pdf';
-import { buildPayslipHtml } from '@/lib/payslip/render-html';
+import { buildPayslipHtml, COMPANY_EN, COMPANY_NATIVE } from '@/lib/payslip/render-html';
 import { getOrRenderPayslipPdf } from '@/lib/payslip/storage';
 
 export const runtime = 'nodejs';
@@ -44,6 +44,8 @@ export async function GET(req: Request): Promise<Response> {
             money: (n) => formatMoney(n, locale as Locale),
             fontFace: fontFaceCss(locale),
             logoSvg: payslipLogoSvg(),
+            companyEn: COMPANY_EN,
+            companyNative: COMPANY_NATIVE,
             periodLabel: payslipPeriodLabel(locale, month),
             generatedAt: new Date().toISOString(),
           }),

@@ -7,7 +7,7 @@ import { formatMoney } from '@/lib/i18n/format';
 import { fontFaceCss } from '@/lib/payslip/fonts';
 import { payslipLogoSvg, payslipPeriodLabel } from '@/lib/payslip/letterhead';
 import { buildPreviewPayslipDocument } from '@/lib/payslip/preview';
-import { buildPayslipHtml } from '@/lib/payslip/render-html';
+import { buildPayslipHtml, COMPANY_EN, COMPANY_NATIVE } from '@/lib/payslip/render-html';
 
 /**
  * Admin draft-slip preview as HTML (not PDF).
@@ -59,6 +59,8 @@ export async function GET(req: Request): Promise<Response> {
       money: (n) => formatMoney(n, locale as Locale),
       fontFace: fontFaceCss(locale),
       logoSvg: payslipLogoSvg(),
+      companyEn: COMPANY_EN,
+      companyNative: COMPANY_NATIVE,
       periodLabel: payslipPeriodLabel(locale, month),
       generatedAt: new Date().toISOString(),
       screen: true,
