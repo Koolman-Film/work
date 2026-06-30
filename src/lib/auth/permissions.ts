@@ -69,6 +69,7 @@ export const PERMISSIONS = {
   'settings.holiday.manage': 'จัดการวันหยุด',
   'settings.work-schedule.manage': 'จัดการตารางงาน',
   'settings.attendance.manage': 'จัดการการตั้งค่าการมาสาย',
+  'settings.payroll.manage': 'จัดการการตั้งค่าเงินเดือน (ประกันสังคม / OT / หักเงิน)',
 
   // ─── Team (admin/owner accounts) ─────────────────────────────────────
   'team.read': 'ดูรายการผู้ดูแล',
@@ -175,6 +176,7 @@ export const PERMISSION_GROUPS: ReadonlyArray<{
       'settings.holiday.manage',
       'settings.work-schedule.manage',
       'settings.attendance.manage',
+      'settings.payroll.manage',
     ],
   },
   {

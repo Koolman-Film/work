@@ -62,6 +62,11 @@ describe('SYSTEM_ROLES', () => {
     expect(SYSTEM_ROLES.staff.isSuperadmin).toBe(false);
   });
 
+  it('keeps settings.payroll.manage superadmin-only (absent from Admin defaults)', () => {
+    expect(SYSTEM_ROLES.admin.permissions).not.toContain('settings.payroll.manage');
+    expect(SYSTEM_ROLES.staff.permissions).not.toContain('settings.payroll.manage');
+  });
+
   it('give admin broad (but not super) access and staff a minimal set', () => {
     expect(SYSTEM_ROLES.admin.permissions.length).toBeGreaterThan(10);
     expect(SYSTEM_ROLES.admin.permissions as ReadonlyArray<Permission>).toContain('payroll.run');
