@@ -2,11 +2,13 @@ import { NextResponse } from 'next/server';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { auditLog } from '@/lib/audit/log';
 import { requirePermission } from '@/lib/auth/check-permission';
+import { prisma } from '@/lib/db/prisma';
 import type { Locale } from '@/lib/i18n/config';
 import { formatMoney } from '@/lib/i18n/format';
+import { getPayslipDocument } from '@/lib/payslip/document';
 import { fontFaceCss } from '@/lib/payslip/fonts';
 import { payslipPeriodLabel, resolveLetterhead } from '@/lib/payslip/letterhead';
-import { buildPreviewPayslipDocument } from '@/lib/payslip/preview';
+import { buildPreviewPayslipDocument, pickPreviewSource } from '@/lib/payslip/preview';
 import { buildPayslipHtml } from '@/lib/payslip/render-html';
 
 /**
@@ -35,7 +37,16 @@ export async function GET(req: Request): Promise<Response> {
 
   let doc: Awaited<ReturnType<typeof buildPreviewPayslipDocument>>;
   try {
-    doc = await buildPreviewPayslipDocument(month, employeeId);
+    const row = await prisma.payroll.findFirst({
+      where: { employeeId, month },
+      select: { status: true },
+    });
+    // Published/Locked → render the frozen slip (what the employee received);
+    // Draft (or no row yet) → recompute live.
+    doc =
+      row && pickPreviewSource(row.status) === 'frozen'
+        ? await getPayslipDocument(employeeId, month)
+        : await buildPreviewPayslipDocument(month, employeeId);
   } catch (err) {
     console.error('[payslip-preview-html] document build failed', {
       employeeId,
@@ -44,7 +55,7 @@ export async function GET(req: Request): Promise<Response> {
     });
     return new NextResponse('Could not generate preview', { status: 500 });
   }
-  if (!doc) return new NextResponse('No computable draft', { status: 404 });
+  if (!doc) return new NextResponse('No computable slip', { status: 404 });
 
   const letterhead = await resolveLetterhead(doc.meta.letterhead);
 
