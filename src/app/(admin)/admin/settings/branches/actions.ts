@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { auditLog } from '@/lib/audit/log';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
+import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 
 /**
  * Branch CRUD Server Actions.
@@ -183,6 +184,13 @@ export async function updateBranch(id: string, formData: FormData) {
       after: parsed.data,
       metadata: { source: 'admin-ui' },
     });
+
+    // If the logo key changed (re-upload or removal), best-effort delete the
+    // previously stored object so we don't accumulate orphans. Mirrors the
+    // employee photo cleanup.
+    if (before.payslipLogoKey && before.payslipLogoKey !== parsed.data.payslipLogoKey) {
+      await bestEffortRemoveLogo(before.payslipLogoKey);
+    }
   } catch (err: unknown) {
     if (isUniqueViolation(err)) {
       redirect(`/admin/settings/branches/${id}/edit?error=${encodeURIComponent('มีสาขาชื่อนี้อยู่แล้ว')}`);
@@ -268,4 +276,18 @@ function isUniqueViolation(err: unknown): boolean {
     'code' in err &&
     (err as { code: string }).code === 'P2002'
   );
+}
+
+/** Best-effort delete a logo object from the attendance-photos bucket. */
+async function bestEffortRemoveLogo(key: string | null): Promise<void> {
+  if (!key) return;
+  try {
+    const sb = getSupabaseAdminClient();
+    const { error } = await sb.storage.from('attendance-photos').remove([key]);
+    if (error) {
+      console.error('[branch] logo remove failed', { key, message: error.message });
+    }
+  } catch (err) {
+    console.error('[branch] logo remove — storage client unavailable', err);
+  }
 }
