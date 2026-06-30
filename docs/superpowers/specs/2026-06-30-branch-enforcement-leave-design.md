@@ -23,6 +23,7 @@ Reuses `src/lib/auth/branch-scope.ts` as-is. **No new helpers, no schema/migrati
 - **Dashboard & `/admin/calendar` leave widgets** (consumers of `lib/leave/team-calendar.ts` / `balance.ts`): deferred to **B6** (dashboard). The employee-edit `entitlements-section` balance is already scoped by B2a's employee-edit act-on gate, so it needs nothing here.
 - **Worker-facing leave** (`lib/leave/actions.ts`: `submitLeaveRequest` / `cancelLeaveRequest`): self-service, scoped to the worker's own record — out of scope.
 - No change to leave math (working-days, over-quota, balance, charged minutes), perms, or UI beyond what enforcement requires.
+- **LIFF admin surface deferred (added post-final-review, 2026-06-30):** the mobile admin pages `/liff/admin/inbox` and `/liff/admin/leave/[id]` read leave data with no branch filter, gated only by `requireLiffAdmin()` (= `requireRole(['Admin'])` + `canDo('liff.admin')`). Because `requireRole(['Admin'])` gates on **tier** and custom roles compute to `tier === null`, a branch-scoped *custom* role cannot reach this surface at all; the only path is the *system* `admin` role assigned to a single branch (tier `Admin` + scoped permitted-branches). It is therefore NOT branch-enforced here and is a no-op in production today (all prod admins are global). This is its own increment — **B-LIFF** — because it spans attendance disputes (B1) as well as leave; tracked separately, not fixed in B3.
 
 ## Architecture
 
