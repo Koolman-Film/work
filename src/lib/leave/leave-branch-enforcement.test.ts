@@ -289,6 +289,20 @@ describe('voidLeaveRequest — full branch act-on gate', () => {
     expect(lrUpdate).not.toHaveBeenCalled();
   });
 
+  it('out-of-scope actor on an already-voided request → not-found (NOT already-voided), no update', async () => {
+    getUserAssignments.mockResolvedValue(scopedTo(BRANCH_A, 'leave.void'));
+    lrFindUnique.mockResolvedValue({
+      id: 'lr1',
+      deletedAt: new Date('2026-06-01'),
+      status: 'Approved',
+      employee: { branchId: BRANCH_B, assignedBranchIds: [] },
+    });
+
+    const res = await voidLeaveRequest('lr1', 'ยกเลิกทดสอบ');
+    expect(res).toMatchObject({ ok: false, code: 'not-found' });
+    expect(lrUpdate).not.toHaveBeenCalled();
+  });
+
   it('rotating staff: home out-of-scope but an ASSIGNED branch in-scope → authorized', async () => {
     getUserAssignments.mockResolvedValue(scopedTo(BRANCH_A, 'leave.void'));
     lrFindUnique.mockResolvedValue({
@@ -336,6 +350,19 @@ describe('restoreLeaveRequest — full branch act-on gate', () => {
     lrFindUnique.mockResolvedValue({
       id: 'lr1',
       deletedAt: new Date('2026-06-01'),
+      employee: { branchId: BRANCH_B, assignedBranchIds: [] },
+    });
+
+    const res = await restoreLeaveRequest('lr1');
+    expect(res).toMatchObject({ ok: false, code: 'not-found' });
+    expect(lrUpdate).not.toHaveBeenCalled();
+  });
+
+  it('out-of-scope actor on a live (not-deleted) request → not-found (NOT ok:true), no update', async () => {
+    getUserAssignments.mockResolvedValue(scopedTo(BRANCH_A, 'leave.void'));
+    lrFindUnique.mockResolvedValue({
+      id: 'lr1',
+      deletedAt: null,
       employee: { branchId: BRANCH_B, assignedBranchIds: [] },
     });
 
