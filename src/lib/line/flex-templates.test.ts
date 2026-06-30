@@ -195,6 +195,23 @@ describe('buildFlexMessage payroll.published', () => {
     // Thai month label with Buddhist year.
     expect(m.altText).toContain('มิถุนายน 2569');
   });
+
+  // Payslip is a worker link, but a bare /liff/payslip URL opens in LINE's
+  // plain in-app browser (cookie jar separate from the LIFF webview), lands
+  // sessionless, and the proxy bounces it to /login. So it MUST funnel
+  // through liff.line.me → /liff/pair, same as the admin links, carrying the
+  // month so the dispatcher can land on the right slip.
+  it('funnels through liff.line.me ?dest=payslip when NEXT_PUBLIC_LIFF_ID is set', () => {
+    vi.stubEnv('NEXT_PUBLIC_LIFF_ID', 'L123');
+    try {
+      const m = buildFlexMessage(allKinds[6] as (typeof allKinds)[number], 'https://x', 'th');
+      expect(footerActionUri(m)).toBe(
+        `https://liff.line.me/L123?liff.state=${encodeURIComponent('?dest=payslip&m=2026-06')}`,
+      );
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
 });
 
 describe('buildFlexMessage covers every kind without missing keys', () => {
