@@ -6,9 +6,9 @@ import type { Locale } from '@/lib/i18n/config';
 import { formatMoney } from '@/lib/i18n/format';
 import { getPayslipDocument } from '@/lib/payslip/document';
 import { fontFaceCss } from '@/lib/payslip/fonts';
-import { payslipLogoSvg, payslipPeriodLabel } from '@/lib/payslip/letterhead';
+import { payslipPeriodLabel, resolveLetterhead } from '@/lib/payslip/letterhead';
 import { renderPayslipPdf } from '@/lib/payslip/pdf';
-import { buildPayslipHtml, COMPANY_EN, COMPANY_NATIVE } from '@/lib/payslip/render-html';
+import { buildPayslipHtml } from '@/lib/payslip/render-html';
 import { getOrRenderPayslipPdf } from '@/lib/payslip/storage';
 
 export const runtime = 'nodejs';
@@ -24,6 +24,8 @@ export async function GET(req: Request): Promise<Response> {
 
   const doc = await getPayslipDocument(employee.id, month);
   if (!doc) return new NextResponse('Not found', { status: 404 });
+
+  const letterhead = await resolveLetterhead(doc.meta.letterhead);
 
   try {
     const locale = await getLocale();
@@ -43,9 +45,9 @@ export async function GET(req: Request): Promise<Response> {
             tEn: (k) => tEn(k as Parameters<typeof tEn>[0]),
             money: (n) => formatMoney(n, locale as Locale),
             fontFace: fontFaceCss(locale),
-            logoSvg: payslipLogoSvg(),
-            companyEn: COMPANY_EN,
-            companyNative: COMPANY_NATIVE,
+            logoSvg: letterhead.logoHtml,
+            companyEn: letterhead.companyEn,
+            companyNative: letterhead.companyNative,
             periodLabel: payslipPeriodLabel(locale, month),
             generatedAt: new Date().toISOString(),
           }),
