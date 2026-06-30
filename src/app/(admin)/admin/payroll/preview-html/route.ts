@@ -5,9 +5,9 @@ import { requirePermission } from '@/lib/auth/check-permission';
 import type { Locale } from '@/lib/i18n/config';
 import { formatMoney } from '@/lib/i18n/format';
 import { fontFaceCss } from '@/lib/payslip/fonts';
-import { payslipLogoSvg, payslipPeriodLabel } from '@/lib/payslip/letterhead';
+import { payslipPeriodLabel, resolveLetterhead } from '@/lib/payslip/letterhead';
 import { buildPreviewPayslipDocument } from '@/lib/payslip/preview';
-import { buildPayslipHtml, COMPANY_EN, COMPANY_NATIVE } from '@/lib/payslip/render-html';
+import { buildPayslipHtml } from '@/lib/payslip/render-html';
 
 /**
  * Admin draft-slip preview as HTML (not PDF).
@@ -46,6 +46,8 @@ export async function GET(req: Request): Promise<Response> {
   }
   if (!doc) return new NextResponse('No computable draft', { status: 404 });
 
+  const letterhead = await resolveLetterhead(doc.meta.letterhead);
+
   try {
     const locale = await getLocale();
     const [t, tEn] = await Promise.all([
@@ -58,9 +60,9 @@ export async function GET(req: Request): Promise<Response> {
       tEn: (k) => tEn(k as Parameters<typeof tEn>[0]),
       money: (n) => formatMoney(n, locale as Locale),
       fontFace: fontFaceCss(locale),
-      logoSvg: payslipLogoSvg(),
-      companyEn: COMPANY_EN,
-      companyNative: COMPANY_NATIVE,
+      logoSvg: letterhead.logoHtml,
+      companyEn: letterhead.companyEn,
+      companyNative: letterhead.companyNative,
       periodLabel: payslipPeriodLabel(locale, month),
       generatedAt: new Date().toISOString(),
       screen: true,

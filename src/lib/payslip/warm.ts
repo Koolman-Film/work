@@ -3,9 +3,9 @@ import { DEFAULT_LOCALE, isLocale, type Locale } from '@/lib/i18n/config';
 import { formatMoney } from '@/lib/i18n/format';
 import { getPayslipDocument } from './document';
 import { fontFaceCss } from './fonts';
-import { payslipLogoSvg, payslipPeriodLabel } from './letterhead';
+import { payslipPeriodLabel, type ResolvedLetterhead, resolveLetterhead } from './letterhead';
 import { renderPayslipPdf } from './pdf';
-import { buildPayslipHtml, COMPANY_EN, COMPANY_NATIVE } from './render-html';
+import { buildPayslipHtml } from './render-html';
 import { getOrRenderPayslipPdf } from './storage';
 
 type WarmTarget = { employeeId: string; locale: string | null };
@@ -41,11 +41,23 @@ export async function warmPublishedPayslips(args: {
     return tr;
   };
 
+  const letterheadCache = new Map<string, Promise<ResolvedLetterhead>>();
+  const letterheadFor = (lh: import('./types').PayslipDocument['meta']['letterhead']) => {
+    const cacheKey = JSON.stringify(lh);
+    let p = letterheadCache.get(cacheKey);
+    if (!p) {
+      p = resolveLetterhead(lh);
+      letterheadCache.set(cacheKey, p);
+    }
+    return p;
+  };
+
   for (const target of args.targets) {
     const locale: Locale = isLocale(target.locale) ? target.locale : DEFAULT_LOCALE;
     try {
       const doc = await getPayslipDocument(target.employeeId, args.month);
       if (!doc) continue;
+      const letterhead = await letterheadFor(doc.meta.letterhead);
       const t = await translatorFor(locale);
       await getOrRenderPayslipPdf({
         employeeId: target.employeeId,
@@ -58,9 +70,9 @@ export async function warmPublishedPayslips(args: {
               tEn,
               money: (n) => formatMoney(n, locale),
               fontFace: fontFaceCss(locale),
-              logoSvg: payslipLogoSvg(),
-              companyEn: COMPANY_EN,
-              companyNative: COMPANY_NATIVE,
+              logoSvg: letterhead.logoHtml,
+              companyEn: letterhead.companyEn,
+              companyNative: letterhead.companyNative,
               periodLabel: payslipPeriodLabel(locale, args.month),
               generatedAt: new Date().toISOString(),
             }),
