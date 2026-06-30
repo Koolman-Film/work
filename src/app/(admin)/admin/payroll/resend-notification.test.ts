@@ -93,7 +93,8 @@ describe('resendPayslipNotificationAction', () => {
       employeeFirstName: 'Aung',
       netPay: '28,500.00',
     });
-    expect(typeof opts.dedupeSuffix).toBe('string');
-    expect(opts.dedupeSuffix.length).toBeGreaterThan(0);
+    // Fresh per call AND tagged as a resend — distinguishes a resend event id
+    // from any future suffix use, and guarantees it escapes the dedup window.
+    expect(opts.dedupeSuffix).toMatch(/^resend-[0-9a-z]+$/);
   });
 });
