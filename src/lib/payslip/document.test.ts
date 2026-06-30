@@ -6,6 +6,8 @@ const base: NormalizedPayslipInput = {
     employeeName: 'Somchai Jaidee',
     employeeId: 'e1',
     branch: 'HQ',
+    branchEn: null,
+    letterhead: { payslipNameEn: null, payslipNameNative: null, payslipLogoKey: null },
     department: 'Ops',
     payType: 'Monthly',
     month: '2026-06',
@@ -117,5 +119,55 @@ describe('assemblePayslipDocument', () => {
     expect(doc.deduct.lines.some((l) => l.key === 'd1')).toBe(false);
     const other = doc.deduct.lines.find((l) => l.key === 'other');
     expect(other).toEqual({ key: 'other', labelKey: 'deduct.other', amount: 500, detail: null });
+  });
+});
+
+describe('assemblePayslipDocument — letterhead passthrough', () => {
+  const baseInput: NormalizedPayslipInput = {
+    meta: {
+      employeeName: 'Test User',
+      employeeId: 'EMP-1',
+      branch: 'เชียงใหม่',
+      branchEn: 'Chiang Mai',
+      letterhead: {
+        payslipNameEn: 'Acme Co., Ltd.',
+        payslipNameNative: 'บริษัท แอคมี จำกัด',
+        payslipLogoKey: 'admin-1/branch-logos/b1.png',
+      },
+      department: null,
+      payType: 'Monthly',
+      month: '2026-06',
+    },
+    buckets: {
+      incomeBase: 10000,
+      incomeOther: 0,
+      deductSso: 0,
+      deductAdvance: 0,
+      deductAttendance: 0,
+      deductLeave: 0,
+      deductDebt: 0,
+      deductOther: 0,
+      netPay: 10000,
+    },
+    incomeAdjustments: [],
+    deductAdjustments: [],
+    advanceCount: 0,
+    attendance: { absent: 0, late: 0 },
+    leaveOverMinutesTotal: 0,
+    rateInputs: {
+      ssoRate: 0.05,
+      ssoSalaryCap: 15000,
+      salaryType: 'Monthly',
+      baseSalary: 10000,
+      workingDaysPerMonth: 26,
+      standardDayMinutes: 480,
+    },
+  };
+
+  it('passes branchEn and letterhead through to the document meta', () => {
+    const doc = assemblePayslipDocument(baseInput);
+    expect(doc.meta.branchEn).toBe('Chiang Mai');
+    expect(doc.meta.letterhead.payslipNameEn).toBe('Acme Co., Ltd.');
+    expect(doc.meta.letterhead.payslipLogoKey).toBe('admin-1/branch-logos/b1.png');
   });
 });
