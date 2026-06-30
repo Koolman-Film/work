@@ -98,7 +98,7 @@ This converges void/restore on the same primitive as the rest of the program and
 
 ## Testing
 
-New `src/app/(admin)/admin/leave/leave.branch.test.ts` (or split per module under `lib/leave/`), mocking only boundaries (`next/navigation`, `next/cache`, `next/headers`, audit, `@/lib/auth/check-permission`'s `requirePermission` + `getUserAssignments`, prisma, supabase/admin) and driving the **real** `getPermittedBranches` / `canActOnEmployeeBranches`. Mirrors `employees/employee-set.branch.test.ts`.
+New `src/lib/leave/leave-branch-enforcement.test.ts` (colocated with the mutations under test in `admin.ts` + `void.ts`), mocking only boundaries (`next/navigation`, `next/cache`, `next/headers`, audit, `@/lib/auth/check-permission`'s `requirePermission` + `getUserAssignments`, prisma, supabase/admin) and driving the **real** `getPermittedBranches` / `canActOnEmployeeBranches`. Mirrors `employees/employee-set.branch.test.ts`.
 
 Cases:
 - **approve / reject** — scoped actor, in-scope employee → mutates; out-of-scope → `notFound`, **no** status write / no attendance expansion; global actor → any.
@@ -115,7 +115,7 @@ Cases:
 | `src/lib/leave/admin.ts` | `approveLeaveRequest` / `rejectLeaveRequest` act-on gate (+ employee branch select) |
 | `src/lib/leave/admin.ts` | `adminCreateLeaveRequest` server-side act-on validation (+ employee branch select) |
 | `src/lib/leave/void.ts` | `voidLeaveRequest` / `restoreLeaveRequest` → full `canActOnEmployeeBranches` (replace home-only) |
-| `src/app/(admin)/admin/leave/leave.branch.test.ts` (new) | act-on + create-validation + rotating-staff regression tests |
+| `src/lib/leave/leave-branch-enforcement.test.ts` (new) | act-on + create-validation + rotating-staff regression tests |
 
 ## Open risks
 
