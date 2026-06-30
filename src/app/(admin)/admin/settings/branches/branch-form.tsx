@@ -4,8 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardBody, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { FormField } from '@/components/ui/form-field';
 import { Input, Textarea } from '@/components/ui/input';
+import { BranchLogoField } from './branch-logo-field';
 
 type Initial = {
+  id: string;
   name: string;
   address: string | null;
   latitude: number | null;
@@ -14,6 +16,11 @@ type Initial = {
   requireSelfie: boolean;
   requireGps: boolean;
   requireCheckOut: boolean;
+  nameEn: string | null;
+  payslipNameEn: string | null;
+  payslipNameNative: string | null;
+  payslipLogoKey: string | null;
+  payslipLogoUrl: string | null;
 };
 
 type Mode =
@@ -53,6 +60,19 @@ export function BranchForm({ mode, action, initial, error, extraActions }: Props
                 maxLength={80}
                 defaultValue={initial?.name ?? ''}
                 autoFocus
+              />
+            </FormField>
+
+            <FormField
+              label="ชื่อสาขา (อังกฤษ)"
+              htmlFor="nameEn"
+              hint="แสดงให้พนักงานที่เลือกภาษาอื่นนอกจากไทย (ไม่บังคับ)"
+            >
+              <Input
+                id="nameEn"
+                name="nameEn"
+                maxLength={80}
+                defaultValue={initial?.nameEn ?? ''}
               />
             </FormField>
 
@@ -142,6 +162,37 @@ export function BranchForm({ mode, action, initial, error, extraActions }: Props
                 เปิดเพื่อบังคับให้พนักงานเช็คเอาท์เมื่อเลิกงาน — ปิดเพื่อให้เช็คอินอย่างเดียวก็พอ
                 (ระบบจะปิดเวลาออกอัตโนมัติให้ตอน 22:00)
               </p>
+            </div>
+            <div className="space-y-4 border-t border-gray-100 pt-5">
+              <div>
+                <h3 className="text-sm font-semibold text-ink-1">หัวกระดาษสลิปเงินเดือน</h3>
+                <p className="mt-0.5 text-xs text-gray-500">
+                  ชื่อบริษัทและโลโก้ที่แสดงบนสลิปของพนักงานสาขานี้ — เว้นว่างเพื่อใช้ค่าเริ่มต้น (Koolman)
+                </p>
+              </div>
+              <FormField label="ชื่อบริษัท (อังกฤษ)" htmlFor="payslipNameEn">
+                <Input
+                  id="payslipNameEn"
+                  name="payslipNameEn"
+                  maxLength={120}
+                  defaultValue={initial?.payslipNameEn ?? ''}
+                />
+              </FormField>
+              <FormField label="ชื่อบริษัท (ไทย/ภาษาท้องถิ่น)" htmlFor="payslipNameNative">
+                <Input
+                  id="payslipNameNative"
+                  name="payslipNameNative"
+                  maxLength={120}
+                  defaultValue={initial?.payslipNameNative ?? ''}
+                />
+              </FormField>
+              <FormField label="โลโก้" htmlFor="payslipLogoKey" hint="รูปสี่เหลี่ยม/วงกลม PNG หรือ JPG">
+                <BranchLogoField
+                  branchId={initial?.id ?? null}
+                  initialKey={initial?.payslipLogoKey ?? null}
+                  initialUrl={initial?.payslipLogoUrl ?? null}
+                />
+              </FormField>
             </div>
           </CardBody>
           <CardFooter className="flex items-center justify-between">
