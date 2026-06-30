@@ -12,6 +12,12 @@ export type NormalizedPayslipInput = {
     employeeName: string;
     employeeId: string;
     branch: string;
+    branchEn: string | null;
+    letterhead: {
+      payslipNameEn: string | null;
+      payslipNameNative: string | null;
+      payslipLogoKey: string | null;
+    };
     department: string | null;
     payType: 'Monthly' | 'Daily' | 'Hourly';
     month: string;
@@ -171,7 +177,15 @@ export async function getPayslipDocument(
         nickname: true,
         salaryType: true,
         baseSalary: true,
-        branch: { select: { name: true } },
+        branch: {
+          select: {
+            name: true,
+            nameEn: true,
+            payslipNameEn: true,
+            payslipNameNative: true,
+            payslipLogoKey: true,
+          },
+        },
         department: { select: { name: true } },
       },
     }),
@@ -243,6 +257,12 @@ export async function getPayslipDocument(
       employeeName: `${employee.firstName} ${employee.lastName}`,
       employeeId,
       branch: employee.branch.name,
+      branchEn: employee.branch.nameEn,
+      letterhead: {
+        payslipNameEn: employee.branch.payslipNameEn,
+        payslipNameNative: employee.branch.payslipNameNative,
+        payslipLogoKey: employee.branch.payslipLogoKey,
+      },
       department: employee.department?.name ?? null,
       payType: employee.salaryType,
       month,
