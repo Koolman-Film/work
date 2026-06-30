@@ -3,6 +3,7 @@
 import type { LucideIcon } from 'lucide-react';
 import {
   AlarmClock,
+  Banknote,
   Building2,
   Calculator,
   CalendarDays,
@@ -78,6 +79,13 @@ const ITEMS: Item[] = [
     desc: 'เวลาเข้างาน + วันตัดรอบ',
     Icon: AlarmClock,
     permission: 'settings.attendance.manage',
+  },
+  {
+    href: '/admin/settings/payroll',
+    label: 'เงินเดือน',
+    desc: 'ประกันสังคม / OT / หักเงิน',
+    Icon: Banknote,
+    permission: 'settings.payroll.manage',
   },
   {
     href: '/admin/settings/team',
