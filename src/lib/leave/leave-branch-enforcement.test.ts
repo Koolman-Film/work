@@ -185,3 +185,77 @@ describe('approveLeaveRequest — branch act-on gate', () => {
     expect(holidayFindMany).toHaveBeenCalled(); // got past the gate
   });
 });
+
+import { adminCreateLeaveRequest } from './admin';
+
+describe('adminCreateLeaveRequest — branch act-on gate (on-behalf)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    requirePermission.mockResolvedValue({ user: { id: 'actor' } });
+  });
+
+  function baseInput() {
+    return {
+      employeeId: 'e1',
+      leaveTypeId: 'lt1',
+      startDate: '2026-07-01',
+      endDate: '2026-07-01',
+      unit: 'FullDay' as const,
+      reason: 'ลากิจธุระ',
+    };
+  }
+
+  it('scoped actor choosing an out-of-scope employee → employee-not-found, no create', async () => {
+    getUserAssignments.mockResolvedValue(scopedTo(BRANCH_A, 'leave.approve'));
+    empFindUnique.mockResolvedValue({
+      id: 'e1',
+      archivedAt: null,
+      status: 'Active',
+      firstName: 'ก',
+      lastName: 'ข',
+      nickname: null,
+      branchId: BRANCH_B,
+      assignedBranchIds: [],
+    });
+
+    const res = await adminCreateLeaveRequest(baseInput());
+    expect(res).toMatchObject({ ok: false, code: 'employee-not-found' });
+    expect(lrCreate).not.toHaveBeenCalled();
+  });
+
+  it('scoped actor choosing an in-scope employee → passes the gate (reaches date validation)', async () => {
+    getUserAssignments.mockResolvedValue(scopedTo(BRANCH_A, 'leave.approve'));
+    empFindUnique.mockResolvedValue({
+      id: 'e1',
+      archivedAt: null,
+      status: 'Active',
+      firstName: 'ก',
+      lastName: 'ข',
+      nickname: null,
+      branchId: BRANCH_A,
+      assignedBranchIds: [],
+    });
+
+    // Bad dates → proves we got PAST the branch gate (gate returns employee-not-found).
+    const res = await adminCreateLeaveRequest({ ...baseInput(), endDate: '2026-06-30' });
+    expect(res).toMatchObject({ ok: false, code: 'bad-dates' });
+  });
+
+  it('global actor choosing an employee in a branch with no scoped entry → passes the gate (reaches date validation)', async () => {
+    getUserAssignments.mockResolvedValue(globalGrant('leave.approve'));
+    empFindUnique.mockResolvedValue({
+      id: 'e1',
+      archivedAt: null,
+      status: 'Active',
+      firstName: 'ก',
+      lastName: 'ข',
+      nickname: null,
+      branchId: BRANCH_B,
+      assignedBranchIds: [],
+    });
+
+    // Bad dates → proves the global actor passed the branch gate (did not return employee-not-found).
+    const res = await adminCreateLeaveRequest({ ...baseInput(), endDate: '2026-06-30' });
+    expect(res).toMatchObject({ ok: false, code: 'bad-dates' });
+  });
+});
