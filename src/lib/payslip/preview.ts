@@ -24,7 +24,15 @@ export async function buildPreviewPayslipDocument(
       select: {
         firstName: true,
         lastName: true,
-        branch: { select: { name: true } },
+        branch: {
+          select: {
+            name: true,
+            nameEn: true,
+            payslipNameEn: true,
+            payslipNameNative: true,
+            payslipLogoKey: true,
+          },
+        },
         department: { select: { name: true } },
       },
     }),
@@ -37,6 +45,12 @@ export async function buildPreviewPayslipDocument(
       employeeName: `${employee.firstName} ${employee.lastName}`,
       employeeId,
       branch: employee.branch.name,
+      branchEn: employee.branch.nameEn,
+      letterhead: {
+        payslipNameEn: employee.branch.payslipNameEn,
+        payslipNameNative: employee.branch.payslipNameNative,
+        payslipLogoKey: employee.branch.payslipLogoKey,
+      },
       department: employee.department?.name ?? null,
       payType: raw.employee.salaryType,
       month,
