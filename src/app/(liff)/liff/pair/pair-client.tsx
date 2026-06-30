@@ -88,6 +88,9 @@ const PARAM_DEST_MAP: Record<string, (id: string) => string> = {
   'admin-advance-detail': (id) => `/liff/admin/advance/${id}`,
 };
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** `?m=YYYY-MM` for the payslip dest — validated before going in the path
+ *  (same open-redirect caution as the maps above). */
+const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
 /**
  * Compact-JWT shape: exactly three base64url segments separated by dots.
  * Used to validate ?merge= before building a path from it — prevents
@@ -172,6 +175,7 @@ export default function PairClient({
         let mergeToken: string | null = null;
         let destSlug: string | null = null;
         let destId: string | null = null;
+        let destMonth: string | null = null;
         if (typeof window !== 'undefined') {
           const sp = new URLSearchParams(window.location.search);
           if (!resolvedToken) resolvedToken = sp.get('pair');
@@ -179,11 +183,13 @@ export default function PairClient({
           mergeToken = sp.get('merge');
           destSlug = sp.get('dest');
           destId = sp.get('id');
+          destMonth = sp.get('m');
         }
 
         // Map the destination slug — never use raw `?dest=` in a
         // redirect target. Anything not in the maps falls back to
-        // the default (check-in). Parametrized dests require a UUID id.
+        // the default (check-in). Parametrized dests require a UUID id;
+        // the payslip dest takes a validated `?m=YYYY-MM` instead.
         let destPath = DEFAULT_DEST;
         const mapped = destSlug ? DEST_MAP[destSlug] : undefined;
         const mappedParam = destSlug ? PARAM_DEST_MAP[destSlug] : undefined;
@@ -191,6 +197,11 @@ export default function PairClient({
           destPath = mapped;
         } else if (mappedParam && destId && UUID_RE.test(destId)) {
           destPath = mappedParam(destId);
+        } else if (destSlug === 'payslip') {
+          destPath =
+            destMonth && MONTH_RE.test(destMonth)
+              ? `/liff/payslip?m=${destMonth}`
+              : '/liff/payslip';
         }
 
         // ── Branch A0: ADMIN BINDING flow (?pairAdmin=) ──────────────
