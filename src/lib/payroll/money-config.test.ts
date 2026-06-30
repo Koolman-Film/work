@@ -37,6 +37,21 @@ describe('payrollMoneySchema', () => {
     const r = payrollMoneySchema.safeParse({ ...VALID, workingDaysPerMonth: '30.5' });
     expect(r.success).toBe(false);
   });
+
+  it('rejects an OT multiplier below 1.00', () => {
+    const r = payrollMoneySchema.safeParse({ ...VALID, otMultiplier: '0.99' });
+    expect(r.success).toBe(false);
+  });
+
+  it('rejects a zero SSO salary cap', () => {
+    const r = payrollMoneySchema.safeParse({ ...VALID, ssoSalaryCap: '0' });
+    expect(r.success).toBe(false);
+  });
+
+  it('rejects a zero SSO amount cap', () => {
+    const r = payrollMoneySchema.safeParse({ ...VALID, ssoAmountCap: '0' });
+    expect(r.success).toBe(false);
+  });
 });
 
 describe('toPayrollConfigData', () => {
