@@ -285,7 +285,7 @@ ${PAYSLIP_CSS(fontFace)}${screenCss}
       <div class="nh-val"><span class="cur">${CUR}</span>${money(doc.net).replace(/^฿/, '')}</div>
     </div>
     <div class="endmark">
-      <div class="disc">${isEn ? tEn('payslipPdf.disclaimer') : `${t('payslipPdf.disclaimer')} · ${tEn('payslipPdf.disclaimer')}`}</div>
+      <div class="disc">${t('payslipPdf.disclaimer')}</div>
       <div class="stamp"><div class="s1">${isEn ? tEn('payslipPdf.issued') : t('payslipPdf.issued')}</div><div class="s2">${stampDate}</div></div>
     </div>
   </main>
