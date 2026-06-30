@@ -172,7 +172,14 @@ describe('buildPayslipHtml — real en.json keys', () => {
 describe('buildPayslipHtml — per-branch letterhead + branch localization', () => {
   it('renders the companyEn / companyNative opts in the header', () => {
     const html = buildPayslipHtml(
-      { ...doc, meta: { ...doc.meta, branchEn: null, letterhead: { payslipNameEn: null, payslipNameNative: null, payslipLogoKey: null } } },
+      {
+        ...doc,
+        meta: {
+          ...doc.meta,
+          branchEn: null,
+          letterhead: { payslipNameEn: null, payslipNameNative: null, payslipLogoKey: null },
+        },
+      },
       { ...opts, locale: 'th', companyEn: 'Acme Co., Ltd.', companyNative: 'บริษัท แอคมี จำกัด' },
     );
     expect(html).toContain('Acme Co., Ltd.');
@@ -180,10 +187,21 @@ describe('buildPayslipHtml — per-branch letterhead + branch localization', () 
   });
 
   it('shows the English branch name in the สาขา field for a non-Thai locale', () => {
-    const meta = { ...doc.meta, branch: 'เชียงใหม่', branchEn: 'Chiang Mai', letterhead: { payslipNameEn: null, payslipNameNative: null, payslipLogoKey: null } };
-    const en = buildPayslipHtml({ ...doc, meta }, { ...opts, locale: 'en', companyEn: 'X', companyNative: 'Y' });
+    const meta = {
+      ...doc.meta,
+      branch: 'เชียงใหม่',
+      branchEn: 'Chiang Mai',
+      letterhead: { payslipNameEn: null, payslipNameNative: null, payslipLogoKey: null },
+    };
+    const en = buildPayslipHtml(
+      { ...doc, meta },
+      { ...opts, locale: 'en', companyEn: 'X', companyNative: 'Y' },
+    );
     expect(en).toContain('Chiang Mai');
-    const th = buildPayslipHtml({ ...doc, meta }, { ...opts, locale: 'th', companyEn: 'X', companyNative: 'Y' });
+    const th = buildPayslipHtml(
+      { ...doc, meta },
+      { ...opts, locale: 'th', companyEn: 'X', companyNative: 'Y' },
+    );
     expect(th).toContain('เชียงใหม่');
   });
 });

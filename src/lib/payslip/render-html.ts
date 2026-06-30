@@ -141,7 +141,18 @@ const PAYSLIP_CSS = (fontFace: string) => `${fontFace}
   .nh-val .cur{font-size:.6em;font-weight:400;color:#c2c8e0;margin-right:4px;vertical-align:.08em;}`;
 
 export function buildPayslipHtml(doc: PayslipDocument, opts: BuildPayslipHtmlOpts): string {
-  const { locale, t, tEn, money, fontFace, logoSvg, companyEn, companyNative, periodLabel, generatedAt } = opts;
+  const {
+    locale,
+    t,
+    tEn,
+    money,
+    fontFace,
+    logoSvg,
+    companyEn,
+    companyNative,
+    periodLabel,
+    generatedAt,
+  } = opts;
   const isEn = locale === 'en';
 
   // Non-Thai employees see the English branch name in the สาขา field.
