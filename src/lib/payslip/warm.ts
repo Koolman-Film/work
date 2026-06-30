@@ -5,7 +5,7 @@ import { getPayslipDocument } from './document';
 import { fontFaceCss } from './fonts';
 import { payslipLogoSvg, payslipPeriodLabel } from './letterhead';
 import { renderPayslipPdf } from './pdf';
-import { buildPayslipHtml } from './render-html';
+import { buildPayslipHtml, COMPANY_EN, COMPANY_NATIVE } from './render-html';
 import { getOrRenderPayslipPdf } from './storage';
 
 type WarmTarget = { employeeId: string; locale: string | null };
@@ -59,6 +59,8 @@ export async function warmPublishedPayslips(args: {
               money: (n) => formatMoney(n, locale),
               fontFace: fontFaceCss(locale),
               logoSvg: payslipLogoSvg(),
+              companyEn: COMPANY_EN,
+              companyNative: COMPANY_NATIVE,
               periodLabel: payslipPeriodLabel(locale, args.month),
               generatedAt: new Date().toISOString(),
             }),

@@ -7,8 +7,8 @@ import { FONT_STACK } from './fonts';
 import type { PayslipDocument, PayslipLine } from './types';
 
 // Brand constants — identical in all locales, no i18n needed.
-const COMPANY_EN = 'Koolman Co., Ltd.';
-const COMPANY_NATIVE = 'บริษัท คูลแมน จำกัด';
+export const COMPANY_EN = 'Koolman Co., Ltd.';
+export const COMPANY_NATIVE = 'บริษัท คูลแมน จำกัด';
 
 // Single currency for this app.
 const CUR = '฿';
@@ -32,6 +32,10 @@ export interface BuildPayslipHtmlOpts {
   fontFace: string;
   /** inline SVG or <img> data-uri */
   logoSvg: string;
+  /** Company name shown in the header (English line). Default: COMPANY_EN. */
+  companyEn: string;
+  /** Company name shown in the header (native line). Default: COMPANY_NATIVE. */
+  companyNative: string;
   /** already-localized month label */
   periodLabel: string;
   generatedAt: string;
@@ -137,8 +141,11 @@ const PAYSLIP_CSS = (fontFace: string) => `${fontFace}
   .nh-val .cur{font-size:.6em;font-weight:400;color:#c2c8e0;margin-right:4px;vertical-align:.08em;}`;
 
 export function buildPayslipHtml(doc: PayslipDocument, opts: BuildPayslipHtmlOpts): string {
-  const { locale, t, tEn, money, fontFace, logoSvg, periodLabel, generatedAt } = opts;
+  const { locale, t, tEn, money, fontFace, logoSvg, companyEn, companyNative, periodLabel, generatedAt } = opts;
   const isEn = locale === 'en';
+
+  // Non-Thai employees see the English branch name in the สาขา field.
+  const branchLabel = locale === 'th' ? doc.meta.branch : doc.meta.branchEn || doc.meta.branch;
 
   // Dual-language label: native .t1 + English .t2 (omit .t2 when locale is en)
   const label = (native: string, en: string): string =>
@@ -206,8 +213,8 @@ ${PAYSLIP_CSS(fontFace)}${screenCss}
       <div class="brand">
         ${logoSvg}
         <div>
-          <div class="co-name">${COMPANY_EN}</div>
-          <div class="co-sub">${isEn ? '' : COMPANY_NATIVE}</div>
+          <div class="co-name">${companyEn}</div>
+          <div class="co-sub">${isEn ? '' : companyNative}</div>
         </div>
       </div>
       <div class="doc">
@@ -234,7 +241,7 @@ ${PAYSLIP_CSS(fontFace)}${screenCss}
 
     <div class="card"><div class="info">
       ${infoRow(t('payslipPdf.employee'), tEn('payslipPdf.employee'), doc.meta.employeeName)}
-      ${infoRow(t('profile.readonly.branch'), tEn('profile.readonly.branch'), doc.meta.branch)}
+      ${infoRow(t('profile.readonly.branch'), tEn('profile.readonly.branch'), branchLabel)}
       ${doc.meta.department ? infoRow(t('profile.readonly.department'), tEn('profile.readonly.department'), doc.meta.department) : ''}
       ${infoRow(t('payslipPdf.payType'), tEn('payslipPdf.payType'), t(`profile.salaryType.${doc.meta.payType}`))}
       ${infoRow(t('payslipPdf.payPeriod'), tEn('payslipPdf.payPeriod'), periodLabel)}
