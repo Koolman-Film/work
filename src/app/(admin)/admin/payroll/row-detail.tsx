@@ -60,8 +60,7 @@ export function RowDetail({
   const [loading, setLoading] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [error, setError] = useState(false);
-  const [showPreview, setShowPreview] = useState(false);
-  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewLoading, setPreviewLoading] = useState(true);
   const [previewKey, setPreviewKey] = useState(0); // bump to retry (re-mounts the iframe)
 
   useEffect(() => {
@@ -227,63 +226,49 @@ export function RowDetail({
                 </section>
               </div>
 
-              {/* RIGHT: lazy PDF preview — beside the breakdown on wide screens,
-                  stacked below it on narrow ones. */}
+              {/* RIGHT: slip preview (HTML, near-instant) — auto-shown on open,
+                  beside the breakdown on wide screens, stacked below on narrow. */}
               <div className="mt-4 border-t border-gray-100 pt-4 lg:mt-0 lg:flex-[3] lg:min-w-0 lg:border-t-0 lg:border-l lg:border-gray-100 lg:pl-6 lg:pt-0">
-                {!showPreview ? (
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => {
-                      setShowPreview(true);
-                      setPreviewLoading(true);
-                    }}
-                  >
-                    ดูตัวอย่างสลิป (PDF)
-                  </Button>
-                ) : (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <p className="text-xs font-medium text-ink-3">ตัวอย่างสลิป (PDF)</p>
-                      {/* Honest retry: a 500/blank still "loads" into the iframe, so we
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-medium text-ink-3">ตัวอย่างสลิป (PDF)</p>
+                    {/* Honest retry: a 500/blank still "loads" into the iframe, so we
                           can't auto-detect failure — a manual reload re-mounts it. */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPreviewKey((k) => k + 1);
-                          setPreviewLoading(true);
-                        }}
-                        className="rounded-md px-2 py-1 text-xs font-medium text-primary-700 hover:bg-primary-50"
-                      >
-                        โหลดใหม่
-                      </button>
-                    </div>
-                    <div className="relative">
-                      {previewLoading && (
-                        <div className="absolute inset-0 z-10 grid place-items-center rounded-lg bg-white/80">
-                          <div className="flex flex-col items-center gap-2">
-                            <span
-                              className="size-7 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600"
-                              aria-hidden="true"
-                            />
-                            <p className="text-xs text-ink-3">กำลังสร้างตัวอย่างสลิป…</p>
-                          </div>
-                        </div>
-                      )}
-                      <iframe
-                        key={previewKey}
-                        title="ตัวอย่างสลิปเงินเดือน"
-                        // HTML preview (not a PDF): no Chromium, so it's near-instant,
-                        // and its fixed-width viewport scales the A4 sheet to fit the
-                        // frame — no clipping on iPad/narrow screens.
-                        src={`/admin/payroll/preview-html?m=${month}&employeeId=${employeeId}`}
-                        className="h-[50dvh] w-full rounded-lg border border-gray-200 lg:h-[70vh]"
-                        onLoad={() => setPreviewLoading(false)}
-                      />
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPreviewKey((k) => k + 1);
+                        setPreviewLoading(true);
+                      }}
+                      className="rounded-md px-2 py-1 text-xs font-medium text-primary-700 hover:bg-primary-50"
+                    >
+                      โหลดใหม่
+                    </button>
                   </div>
-                )}
+                  <div className="relative">
+                    {previewLoading && (
+                      <div className="absolute inset-0 z-10 grid place-items-center rounded-lg bg-white/80">
+                        <div className="flex flex-col items-center gap-2">
+                          <span
+                            className="size-7 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600"
+                            aria-hidden="true"
+                          />
+                          <p className="text-xs text-ink-3">กำลังสร้างตัวอย่างสลิป…</p>
+                        </div>
+                      </div>
+                    )}
+                    <iframe
+                      key={previewKey}
+                      title="ตัวอย่างสลิปเงินเดือน"
+                      // HTML preview (not a PDF): no Chromium, so it's near-instant,
+                      // and its fixed-width viewport scales the A4 sheet to fit the
+                      // frame — no clipping on iPad/narrow screens.
+                      src={`/admin/payroll/preview-html?m=${month}&employeeId=${employeeId}`}
+                      className="h-[50dvh] w-full rounded-lg border border-gray-200 lg:h-[70vh]"
+                      onLoad={() => setPreviewLoading(false)}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           ) : (
