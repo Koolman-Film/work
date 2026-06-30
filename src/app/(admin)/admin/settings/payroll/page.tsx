@@ -34,7 +34,10 @@ export default async function PayrollConfigPage({
         </div>
       )}
       {sp.ok && (
-        <div className="mb-4 rounded-lg bg-success-soft px-4 py-3 text-sm text-success-deep">
+        <div
+          role="status"
+          className="mb-4 rounded-lg bg-success-soft px-4 py-3 text-sm text-success-deep"
+        >
           บันทึกแล้ว
         </div>
       )}

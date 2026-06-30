@@ -25,9 +25,9 @@ export function SsoCard({
   const [salaryCap, setSalaryCap] = useState(defaultSalaryCap);
   const [amountCap, setAmountCap] = useState(defaultAmountCap);
 
-  const r = Number(ratePercent);
-  const s = Number(salaryCap);
-  const a = Number(amountCap);
+  const r = ratePercent.trim() !== '' ? Number(ratePercent) : NaN;
+  const s = salaryCap.trim() !== '' ? Number(salaryCap) : NaN;
+  const a = amountCap.trim() !== '' ? Number(amountCap) : NaN;
   const product = Number.isFinite(r) && Number.isFinite(s) ? (r / 100) * s : NaN;
   const mismatch =
     Number.isFinite(product) && Number.isFinite(a) && Math.round(product) !== Math.round(a);
