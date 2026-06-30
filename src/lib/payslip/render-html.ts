@@ -35,6 +35,14 @@ export interface BuildPayslipHtmlOpts {
   /** already-localized month label */
   periodLabel: string;
   generatedAt: string;
+  /**
+   * Render for an on-screen preview instead of print. Adds a fixed-width
+   * viewport (so the A4-width layout scales to fit any frame, e.g. an iPad
+   * iframe) and reinstates the print page margins inside the body (Chromium
+   * applies those itself for the real PDF, so they're omitted by default).
+   * No effect on the PDF path.
+   */
+  screen?: boolean;
 }
 
 // Critical CSS rule — copy verbatim from task brief.
@@ -179,9 +187,17 @@ export function buildPayslipHtml(doc: PayslipDocument, opts: BuildPayslipHtmlOpt
   // Stamp date: YYYY·MM·DD only (generatedAt is a full ISO string from the route).
   const stampDate = generatedAt.slice(0, 10).replace(/-/g, '·');
 
-  return `<!doctype html><html lang="${locale}"><head><meta charset="utf-8">
+  // On-screen preview: lay the A4-width sheet out at a fixed 794px and let the
+  // browser scale it to the frame (viewport), plus restore the print margins
+  // (Chromium adds those itself for the PDF). Both are no-ops for the PDF path.
+  const screenHead = opts.screen
+    ? '\n<meta name="viewport" content="width=794, initial-scale=1">'
+    : '';
+  const screenCss = opts.screen ? '\n  body{padding:13mm 13mm 15mm;}' : '';
+
+  return `<!doctype html><html lang="${locale}"><head><meta charset="utf-8">${screenHead}
 <style>
-${PAYSLIP_CSS(fontFace)}
+${PAYSLIP_CSS(fontFace)}${screenCss}
 </style></head>
 <body>
 <table class="sheet">
@@ -252,7 +268,7 @@ ${PAYSLIP_CSS(fontFace)}
     </div>
     <div class="endmark">
       <div class="disc">${isEn ? tEn('payslipPdf.disclaimer') : `${t('payslipPdf.disclaimer')} · ${tEn('payslipPdf.disclaimer')}`}</div>
-      <div class="stamp"><div class="s1">${tEn('payslipPdf.issued')}</div><div class="s2">${stampDate}</div></div>
+      <div class="stamp"><div class="s1">${isEn ? tEn('payslipPdf.issued') : t('payslipPdf.issued')}</div><div class="s2">${stampDate}</div></div>
     </div>
   </main>
   </td></tr></tbody>
