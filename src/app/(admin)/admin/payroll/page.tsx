@@ -20,6 +20,7 @@ import {
   lockPayrollAction,
   publishOnePayrollAction,
   publishPayrollAction,
+  resendPayslipNotificationAction,
 } from './actions';
 import { RowAdjust, type RowAdjustment } from './row-adjust';
 import { type FrozenSlipVM, RowDetail } from './row-detail';
@@ -101,6 +102,7 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
           nickname: true,
           branchId: true,
           departmentId: true,
+          user: { select: { lineUserId: true } },
         },
       },
     },
@@ -485,6 +487,8 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
               frozen={r.status === 'Draft' ? null : frozenOf(r)}
               canPublish={mayPublish}
               publishAction={publishOnePayrollAction}
+              lineLinked={r.employee.user?.lineUserId != null}
+              resendAction={resendPayslipNotificationAction}
             />
             {r.status === 'Draft' && mayRun ? (
               <RowAdjust
