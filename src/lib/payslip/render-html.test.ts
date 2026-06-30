@@ -90,6 +90,17 @@ describe('buildPayslipHtml', () => {
     const html = buildPayslipHtml(noDept, { ...opts, locale: 'th' });
     expect(html).not.toContain('profile.readonly.department');
   });
+  it('print path (default) adds NO screen viewport or body padding', () => {
+    const html = buildPayslipHtml(doc, { ...opts, locale: 'th' });
+    expect(html).not.toContain('name="viewport"');
+    const css = html.slice(html.indexOf('<style>'), html.indexOf('</style>'));
+    expect(css).not.toMatch(/body\{padding:13mm/);
+  });
+  it('screen mode adds a fixed-width viewport + print margins so it scales to fit', () => {
+    const html = buildPayslipHtml(doc, { ...opts, locale: 'th', screen: true });
+    expect(html).toContain('<meta name="viewport" content="width=794, initial-scale=1">');
+    expect(html).toMatch(/body\{padding:13mm 13mm 15mm;\}/);
+  });
 });
 
 // --- real-resolver test: catches missing/renamed i18n keys ---
