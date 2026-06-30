@@ -405,8 +405,10 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
         </div>
       )}
 
-      {/* Summary strip — company totals for the month */}
-      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      {/* Summary strip — company totals for the month. 5-up only at xl: at lg
+          the sidebar claims ~290px, so five text-3xl baht figures would overflow
+          — stay 3-up until there's real width. */}
+      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
         <StatCard label="ฐานเงินเดือนรวม" value={formatTHB(totals.incomeBase)} />
         <StatCard
           label="เงินเพิ่มรวม"
@@ -470,6 +472,7 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
         columns={columns}
         rows={visibleRows}
         rowKey={(r) => r.id}
+        minWidth="md:min-w-[64rem]"
         actions={(r) => (
           <div className="flex items-center justify-start gap-2">
             <RowDetail
