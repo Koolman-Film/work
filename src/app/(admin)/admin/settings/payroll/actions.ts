@@ -35,9 +35,10 @@ export async function updatePayrollConfig(formData: FormData) {
     );
   }
 
+  const data = toPayrollConfigData(parsed.data);
   await prisma.payrollConfig.update({
     where: { id: before.id },
-    data: toPayrollConfigData(parsed.data),
+    data,
   });
 
   auditLog({
@@ -56,7 +57,17 @@ export async function updatePayrollConfig(formData: FormData) {
       lateDeduction: before.lateDeduction.toString(),
       earlyLeaveDeduction: before.earlyLeaveDeduction.toString(),
     },
-    after: parsed.data,
+    after: {
+      ssoRate: String(data.ssoRate),
+      ssoSalaryCap: String(data.ssoSalaryCap),
+      ssoAmountCap: String(data.ssoAmountCap),
+      otMultiplier: String(data.otMultiplier),
+      workingDaysPerMonth: data.workingDaysPerMonth,
+      otThresholdMinutes: data.otThresholdMinutes,
+      absentDeductionPerDay: String(data.absentDeductionPerDay),
+      lateDeduction: String(data.lateDeduction),
+      earlyLeaveDeduction: String(data.earlyLeaveDeduction),
+    },
     metadata: { source: 'admin-ui', section: 'payroll-money' },
   });
 
