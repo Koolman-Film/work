@@ -55,7 +55,8 @@ vi.mock('@/lib/db/prisma', () => ({
   },
 }));
 
-import { approveLeaveRequest, rejectLeaveRequest } from './admin';
+import { adminCreateLeaveRequest, approveLeaveRequest, rejectLeaveRequest } from './admin';
+import { restoreLeaveRequest, voidLeaveRequest } from './void';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 const BRANCH_A = '00000000-0000-0000-0000-00000000000a';
@@ -186,8 +187,6 @@ describe('approveLeaveRequest — branch act-on gate', () => {
   });
 });
 
-import { adminCreateLeaveRequest } from './admin';
-
 describe('adminCreateLeaveRequest — branch act-on gate (on-behalf)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -257,5 +256,91 @@ describe('adminCreateLeaveRequest — branch act-on gate (on-behalf)', () => {
     // Bad dates → proves the global actor passed the branch gate (did not return employee-not-found).
     const res = await adminCreateLeaveRequest({ ...baseInput(), endDate: '2026-06-30' });
     expect(res).toMatchObject({ ok: false, code: 'bad-dates' });
+  });
+});
+
+describe('voidLeaveRequest — full branch act-on gate', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    requirePermission.mockResolvedValue({ user: { id: 'actor' } });
+    transactionFn.mockImplementation(async (fn: (tx: unknown) => unknown) =>
+      fn({
+        attendance: {
+          findMany: vi.fn().mockResolvedValue([]),
+          updateMany: vi.fn().mockResolvedValue({}),
+        },
+        leaveRequest: { update: (...a: unknown[]) => lrUpdate(...a) },
+      }),
+    );
+    lrUpdate.mockResolvedValue({});
+  });
+
+  it('scoped actor on an out-of-scope request → not-found, no update', async () => {
+    getUserAssignments.mockResolvedValue(scopedTo(BRANCH_A, 'leave.void'));
+    lrFindUnique.mockResolvedValue({
+      id: 'lr1',
+      deletedAt: null,
+      status: 'Approved',
+      employee: { branchId: BRANCH_B, assignedBranchIds: [] },
+    });
+
+    const res = await voidLeaveRequest('lr1', 'ยกเลิกทดสอบ');
+    expect(res).toMatchObject({ ok: false, code: 'not-found' });
+    expect(lrUpdate).not.toHaveBeenCalled();
+  });
+
+  it('rotating staff: home out-of-scope but an ASSIGNED branch in-scope → authorized', async () => {
+    getUserAssignments.mockResolvedValue(scopedTo(BRANCH_A, 'leave.void'));
+    lrFindUnique.mockResolvedValue({
+      id: 'lr1',
+      deletedAt: null,
+      status: 'Approved',
+      employee: { branchId: BRANCH_B, assignedBranchIds: [BRANCH_A] }, // home=B (out), assigned includes A (in)
+    });
+
+    const res = await voidLeaveRequest('lr1', 'ยกเลิกทดสอบ');
+    expect(res).toMatchObject({ ok: true });
+    expect(lrUpdate).toHaveBeenCalled();
+  });
+
+  it('global actor on an out-of-branch request → gate does NOT fire, updates succeed', async () => {
+    getUserAssignments.mockResolvedValue(globalGrant('leave.void'));
+    lrFindUnique.mockResolvedValue({
+      id: 'lr1',
+      deletedAt: null,
+      status: 'Approved',
+      employee: { branchId: BRANCH_B, assignedBranchIds: [] },
+    });
+
+    const res = await voidLeaveRequest('lr1', 'ยกเลิกทดสอบ');
+    expect(res).toMatchObject({ ok: true });
+    expect(lrUpdate).toHaveBeenCalled();
+  });
+});
+
+describe('restoreLeaveRequest — full branch act-on gate', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    requirePermission.mockResolvedValue({ user: { id: 'actor' } });
+    transactionFn.mockImplementation(async (fn: (tx: unknown) => unknown) =>
+      fn({
+        attendance: { updateMany: vi.fn().mockResolvedValue({}) },
+        leaveRequest: { update: (...a: unknown[]) => lrUpdate(...a) },
+      }),
+    );
+    lrUpdate.mockResolvedValue({});
+  });
+
+  it('scoped actor on an out-of-scope request → not-found, no update', async () => {
+    getUserAssignments.mockResolvedValue(scopedTo(BRANCH_A, 'leave.void'));
+    lrFindUnique.mockResolvedValue({
+      id: 'lr1',
+      deletedAt: new Date('2026-06-01'),
+      employee: { branchId: BRANCH_B, assignedBranchIds: [] },
+    });
+
+    const res = await restoreLeaveRequest('lr1');
+    expect(res).toMatchObject({ ok: false, code: 'not-found' });
+    expect(lrUpdate).not.toHaveBeenCalled();
   });
 });
