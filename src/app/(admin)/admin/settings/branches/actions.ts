@@ -74,6 +74,30 @@ const BranchSchema = z
       .string()
       .optional()
       .transform((s) => s === 'on'),
+    nameEn: z
+      .string()
+      .trim()
+      .max(80)
+      .optional()
+      .transform((s) => (s ? s : null)),
+    payslipNameEn: z
+      .string()
+      .trim()
+      .max(120)
+      .optional()
+      .transform((s) => (s ? s : null)),
+    payslipNameNative: z
+      .string()
+      .trim()
+      .max(120)
+      .optional()
+      .transform((s) => (s ? s : null)),
+    payslipLogoKey: z
+      .string()
+      .trim()
+      .max(300)
+      .optional()
+      .transform((s) => (s ? s : null)),
   })
   .refine((d) => (d.latitude == null) === (d.longitude == null), {
     message: 'ต้องระบุพิกัดทั้ง lat และ lng หรือทั้งคู่ว่าง',
@@ -97,6 +121,10 @@ function readForm(formData: FormData) {
     requireSelfie: get('requireSelfie'),
     requireGps: get('requireGps'),
     requireCheckOut: get('requireCheckOut'),
+    nameEn: get('nameEn'),
+    payslipNameEn: get('payslipNameEn'),
+    payslipNameNative: get('payslipNameNative'),
+    payslipLogoKey: get('payslipLogoKey'),
   });
 }
 
