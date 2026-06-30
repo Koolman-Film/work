@@ -84,7 +84,9 @@ describe('resendPayslipNotificationAction', () => {
     const r = await resendPayslipNotificationAction(VALID_EMP, '2026-06');
     expect(r).toEqual({ ok: true });
     expect(sendNotification).toHaveBeenCalledTimes(1);
-    const [recipient, payload, opts] = sendNotification.mock.calls[0];
+    // calls[0] is guaranteed by the toHaveBeenCalledTimes(1) assertion above;
+    // assert non-null for noUncheckedIndexedAccess.
+    const [recipient, payload, opts] = sendNotification.mock.calls[0]!;
     expect(recipient).toBe('u1');
     expect(payload).toMatchObject({
       kind: 'payroll.published',
