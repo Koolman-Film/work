@@ -30,6 +30,8 @@ type Props = {
   frozen: FrozenSlipVM | null;
   canPublish: boolean;
   publishAction: (employeeId: string, month: string) => Promise<ActionResult>;
+  lineLinked: boolean;
+  resendAction: (employeeId: string, month: string) => Promise<ActionResult>;
 };
 
 function Line({ label, formula, value }: { label: string; formula?: string; value: string }) {
@@ -44,6 +46,105 @@ function Line({ label, formula, value }: { label: string; formula?: string; valu
   );
 }
 
+function SlipPreviewPane({ month, employeeId }: { month: string; employeeId: string }) {
+  const [previewLoading, setPreviewLoading] = useState(true);
+  const [previewKey, setPreviewKey] = useState(0); // bump to retry (re-mounts the iframe)
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-medium text-ink-3">ตัวอย่างสลิป (PDF)</p>
+        {/* Honest retry: a 500/blank still "loads" into the iframe, so we
+            can't auto-detect failure — a manual reload re-mounts it. */}
+        <button
+          type="button"
+          onClick={() => {
+            setPreviewKey((k) => k + 1);
+            setPreviewLoading(true);
+          }}
+          className="rounded-md px-2 py-1 text-xs font-medium text-primary-700 hover:bg-primary-50"
+        >
+          โหลดใหม่
+        </button>
+      </div>
+      <div className="relative">
+        {previewLoading && (
+          <div className="absolute inset-0 z-10 grid place-items-center rounded-lg bg-white/80">
+            <div className="flex flex-col items-center gap-2">
+              <span
+                className="size-7 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600"
+                aria-hidden="true"
+              />
+              <p className="text-xs text-ink-3">กำลังสร้างตัวอย่างสลิป…</p>
+            </div>
+          </div>
+        )}
+        <iframe
+          key={previewKey}
+          title="ตัวอย่างสลิปเงินเดือน"
+          src={`/admin/payroll/preview-html?m=${month}&employeeId=${employeeId}`}
+          className="h-[50dvh] w-full rounded-lg border border-gray-200 lg:h-[70vh]"
+          onLoad={() => setPreviewLoading(false)}
+        />
+      </div>
+    </div>
+  );
+}
+
+function SentStatusFooter({
+  lineLinked,
+  canPublish,
+  employeeId,
+  month,
+  resendAction,
+}: {
+  lineLinked: boolean;
+  canPublish: boolean;
+  employeeId: string;
+  month: string;
+  resendAction: (employeeId: string, month: string) => Promise<ActionResult>;
+}) {
+  const [justSent, setJustSent] = useState(false);
+
+  if (!lineLinked) {
+    return (
+      <div className="mt-5 border-t border-gray-100 pt-4 text-xs text-amber-700">
+        ยังไม่ได้เชื่อมบัญชี LINE — ส่งสลิปไม่ได้
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-5 flex items-center justify-between gap-3 border-t border-gray-100 pt-4">
+      <div className="min-w-0 text-xs">
+        <p className="font-medium text-green-700">✓ ส่งสลิปทาง LINE แล้ว</p>
+        <p className="mt-0.5 text-ink-4">ระบบส่งแบบอัตโนมัติ อาจใช้เวลาสักครู่จึงจะถึงพนักงาน</p>
+        {justSent && (
+          <p className="mt-0.5 font-medium text-primary-700">ส่งอีกครั้งแล้ว · อาจใช้เวลาสักครู่</p>
+        )}
+      </div>
+      {canPublish && (
+        <ConfirmDialog
+          trigger={(openConfirm) => (
+            <Button type="button" variant="secondary" size="sm" onClick={openConfirm}>
+              ส่งอีกครั้ง
+            </Button>
+          )}
+          title="ส่งสลิปทาง LINE อีกครั้ง?"
+          description="พนักงานจะได้รับข้อความสลิปซ้ำอีกครั้ง — ใช้เมื่อการส่งครั้งก่อนอาจไม่สำเร็จ"
+          confirmLabel="ส่งอีกครั้ง"
+          tone="primary"
+          refreshOnSuccess={false}
+          action={async () => {
+            const result = await resendAction(employeeId, month);
+            if (result.ok) setJustSent(true);
+            return result;
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
 export function RowDetail({
   employeeName,
   status,
@@ -54,14 +155,14 @@ export function RowDetail({
   frozen,
   canPublish,
   publishAction,
+  lineLinked,
+  resendAction,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [detail, setDetail] = useState<RowDetailVM | null>(null);
   const [loading, setLoading] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [error, setError] = useState(false);
-  const [previewLoading, setPreviewLoading] = useState(true);
-  const [previewKey, setPreviewKey] = useState(0); // bump to retry (re-mounts the iframe)
 
   useEffect(() => {
     if (!open || status !== 'Draft' || hasLoaded) return;
@@ -229,87 +330,65 @@ export function RowDetail({
               {/* RIGHT: slip preview (HTML, near-instant) — auto-shown on open,
                   beside the breakdown on wide screens, stacked below on narrow. */}
               <div className="mt-4 border-t border-gray-100 pt-4 lg:mt-0 lg:flex-[3] lg:min-w-0 lg:border-t-0 lg:border-l lg:border-gray-100 lg:pl-6 lg:pt-0">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-medium text-ink-3">ตัวอย่างสลิป (PDF)</p>
-                    {/* Honest retry: a 500/blank still "loads" into the iframe, so we
-                          can't auto-detect failure — a manual reload re-mounts it. */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPreviewKey((k) => k + 1);
-                        setPreviewLoading(true);
-                      }}
-                      className="rounded-md px-2 py-1 text-xs font-medium text-primary-700 hover:bg-primary-50"
-                    >
-                      โหลดใหม่
-                    </button>
-                  </div>
-                  <div className="relative">
-                    {previewLoading && (
-                      <div className="absolute inset-0 z-10 grid place-items-center rounded-lg bg-white/80">
-                        <div className="flex flex-col items-center gap-2">
-                          <span
-                            className="size-7 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600"
-                            aria-hidden="true"
-                          />
-                          <p className="text-xs text-ink-3">กำลังสร้างตัวอย่างสลิป…</p>
-                        </div>
-                      </div>
-                    )}
-                    <iframe
-                      key={previewKey}
-                      title="ตัวอย่างสลิปเงินเดือน"
-                      // HTML preview (not a PDF): no Chromium, so it's near-instant,
-                      // and its fixed-width viewport scales the A4 sheet to fit the
-                      // frame — no clipping on iPad/narrow screens.
-                      src={`/admin/payroll/preview-html?m=${month}&employeeId=${employeeId}`}
-                      className="h-[50dvh] w-full rounded-lg border border-gray-200 lg:h-[70vh]"
-                      onLoad={() => setPreviewLoading(false)}
-                    />
-                  </div>
-                </div>
+                <SlipPreviewPane month={month} employeeId={employeeId} />
               </div>
             </div>
           ) : (
             <p className="mt-4 text-sm text-ink-3">ไม่มีข้อมูลการคำนวณสำหรับงวดนี้</p>
           )
         ) : frozen ? (
-          /* Published/Locked — frozen stored buckets, no formula, no recompute. */
-          <div className="mt-4 space-y-4">
-            <section>
-              <h3 className="text-xs font-semibold text-ink-3">รายได้</h3>
-              <Line label="ฐานเงินเดือน" value={frozen.incomeBase} />
-              {frozen.incomeOther !== '0.00' && (
-                <Line label="เงินเพิ่ม" value={`+${frozen.incomeOther}`} />
-              )}
-            </section>
-            <section className="border-t border-gray-100 pt-3">
-              <h3 className="text-xs font-semibold text-ink-3">รายการหัก</h3>
-              {frozen.deductSso !== '0.00' && (
-                <Line label="ประกันสังคม" value={`-${frozen.deductSso}`} />
-              )}
-              {frozen.deductAttendance !== '0.00' && (
-                <Line label="หักขาด/ลา/สาย" value={`-${frozen.deductAttendance}`} />
-              )}
-              {frozen.deductLeave !== '0.00' && (
-                <Line label="ลาเกินสิทธิ" value={`-${frozen.deductLeave}`} />
-              )}
-              {frozen.deductAdvance !== '0.00' && (
-                <Line label="หักเบิกล่วงหน้า" value={`-${frozen.deductAdvance}`} />
-              )}
-              {frozen.deductDebt !== '0.00' && (
-                <Line label="หักหนี้/ผ่อน" value={`-${frozen.deductDebt}`} />
-              )}
-              {frozen.deductOther !== '0.00' && (
-                <Line label="หักอื่น ๆ" value={`-${frozen.deductOther}`} />
-              )}
-            </section>
-            <section className="flex items-baseline justify-between border-t border-gray-200 pt-3">
-              <span className="text-sm font-semibold text-ink-1">เงินสุทธิ</span>
-              <span className="font-mono text-lg font-bold text-primary-700">{frozen.netPay}</span>
-            </section>
-          </div>
+          /* Published/Locked — frozen stored buckets (left) + the real slip
+             preview (right), mirroring the Draft layout. */
+          <>
+            <div className="mt-4 lg:flex lg:gap-6">
+              <div className="space-y-4 lg:flex-[2] lg:min-w-0">
+                <section>
+                  <h3 className="text-xs font-semibold text-ink-3">รายได้</h3>
+                  <Line label="ฐานเงินเดือน" value={frozen.incomeBase} />
+                  {frozen.incomeOther !== '0.00' && (
+                    <Line label="เงินเพิ่ม" value={`+${frozen.incomeOther}`} />
+                  )}
+                </section>
+                <section className="border-t border-gray-100 pt-3">
+                  <h3 className="text-xs font-semibold text-ink-3">รายการหัก</h3>
+                  {frozen.deductSso !== '0.00' && (
+                    <Line label="ประกันสังคม" value={`-${frozen.deductSso}`} />
+                  )}
+                  {frozen.deductAttendance !== '0.00' && (
+                    <Line label="หักขาด/ลา/สาย" value={`-${frozen.deductAttendance}`} />
+                  )}
+                  {frozen.deductLeave !== '0.00' && (
+                    <Line label="ลาเกินสิทธิ" value={`-${frozen.deductLeave}`} />
+                  )}
+                  {frozen.deductAdvance !== '0.00' && (
+                    <Line label="หักเบิกล่วงหน้า" value={`-${frozen.deductAdvance}`} />
+                  )}
+                  {frozen.deductDebt !== '0.00' && (
+                    <Line label="หักหนี้/ผ่อน" value={`-${frozen.deductDebt}`} />
+                  )}
+                  {frozen.deductOther !== '0.00' && (
+                    <Line label="หักอื่น ๆ" value={`-${frozen.deductOther}`} />
+                  )}
+                </section>
+                <section className="flex items-baseline justify-between border-t border-gray-200 pt-3">
+                  <span className="text-sm font-semibold text-ink-1">เงินสุทธิ</span>
+                  <span className="font-mono text-lg font-bold text-primary-700">
+                    {frozen.netPay}
+                  </span>
+                </section>
+              </div>
+              <div className="mt-4 border-t border-gray-100 pt-4 lg:mt-0 lg:flex-[3] lg:min-w-0 lg:border-t-0 lg:border-l lg:border-gray-100 lg:pl-6 lg:pt-0">
+                <SlipPreviewPane month={month} employeeId={employeeId} />
+              </div>
+            </div>
+            <SentStatusFooter
+              lineLinked={lineLinked}
+              canPublish={canPublish}
+              employeeId={employeeId}
+              month={month}
+              resendAction={resendAction}
+            />
+          </>
         ) : (
           <p className="mt-4 text-sm text-ink-3">ไม่มีข้อมูลการคำนวณสำหรับงวดนี้</p>
         )}
