@@ -107,7 +107,11 @@ export function RowDetail({
         open={open}
         onClose={() => setOpen(false)}
         title={`สลิปเงินเดือน — ${employeeName}`}
-        className="sm:max-w-lg lg:max-w-6xl"
+        // Bound the height so a tall preview never overflows the viewport
+        // unreachably (the panel has no internal scroll otherwise). md width
+        // closes the tablet gap: iPad portrait (<lg) was stuck at max-w-lg,
+        // narrower than the A4 preview, so the PDF got clipped.
+        className="max-h-[90dvh] overflow-y-auto sm:max-w-lg md:max-w-3xl lg:max-w-6xl"
       >
         <p className="mt-1 text-xs text-ink-3">งวด {monthLabel}</p>
         {status === 'Draft' ? (
@@ -136,7 +140,7 @@ export function RowDetail({
             </div>
           ) : detail ? (
             <div className="mt-4 lg:flex lg:gap-6">
-              <div className="space-y-4 lg:flex-1 lg:min-w-0">
+              <div className="space-y-4 lg:flex-[2] lg:min-w-0">
                 {/* รายได้ */}
                 <section>
                   <h3 className="text-xs font-semibold text-ink-3">รายได้</h3>
@@ -225,7 +229,7 @@ export function RowDetail({
 
               {/* RIGHT: lazy PDF preview — beside the breakdown on wide screens,
                   stacked below it on narrow ones. */}
-              <div className="mt-4 border-t border-gray-100 pt-4 lg:mt-0 lg:flex-1 lg:min-w-0 lg:border-t-0 lg:border-l lg:border-gray-100 lg:pl-6 lg:pt-0">
+              <div className="mt-4 border-t border-gray-100 pt-4 lg:mt-0 lg:flex-[3] lg:min-w-0 lg:border-t-0 lg:border-l lg:border-gray-100 lg:pl-6 lg:pt-0">
                 {!showPreview ? (
                   <Button
                     type="button"
@@ -270,8 +274,11 @@ export function RowDetail({
                       <iframe
                         key={previewKey}
                         title="ตัวอย่างสลิปเงินเดือน"
-                        src={`/admin/payroll/preview-pdf?m=${month}&employeeId=${employeeId}`}
-                        className="h-[60vh] w-full rounded-lg border border-gray-200 lg:h-[70vh]"
+                        // HTML preview (not a PDF): no Chromium, so it's near-instant,
+                        // and its fixed-width viewport scales the A4 sheet to fit the
+                        // frame — no clipping on iPad/narrow screens.
+                        src={`/admin/payroll/preview-html?m=${month}&employeeId=${employeeId}`}
+                        className="h-[50dvh] w-full rounded-lg border border-gray-200 lg:h-[70vh]"
                         onLoad={() => setPreviewLoading(false)}
                       />
                     </div>

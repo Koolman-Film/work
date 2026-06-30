@@ -3,6 +3,7 @@
 import { Prisma } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+import { after } from 'next/server';
 import type { ActionResult } from '@/components/ui/confirm-dialog';
 import { auditLog } from '@/lib/audit/log';
 import { requirePermission } from '@/lib/auth/check-permission';
@@ -16,7 +17,29 @@ import {
   publishPayroll,
   runPayrollDraft,
 } from '@/lib/payroll/run';
+import { warmPublishedPayslips } from '@/lib/payslip/warm';
 import { readForm } from './adjustments/adjustment-schema';
+
+/**
+ * Schedule background pre-rendering of freshly-published slips so each
+ * employee's first LIFF open is instant. Runs after the response via `after()`,
+ * so it never delays the publish action. Best-effort — failures are swallowed
+ * inside warmPublishedPayslips and the slip just renders lazily on first open.
+ */
+async function scheduleSlipWarming(month: string, slips: { employeeId: string }[]): Promise<void> {
+  if (slips.length === 0) return;
+  // The employee's preferred locale lives on the linked User (see schema).
+  const employees = await prisma.employee.findMany({
+    where: { id: { in: slips.map((s) => s.employeeId) } },
+    select: { id: true, user: { select: { locale: true } } },
+  });
+  const localeById = new Map(employees.map((e) => [e.id, e.user.locale]));
+  const targets = slips.map((s) => ({
+    employeeId: s.employeeId,
+    locale: localeById.get(s.employeeId) ?? null,
+  }));
+  after(() => warmPublishedPayslips({ month, targets }));
+}
 
 /**
  * Monthly payroll run actions — thin permission/audit wrappers around
@@ -88,6 +111,7 @@ export async function publishPayrollAction(formData: FormData) {
 
   const result = await publishPayroll(month);
   await notifyPublishedSlips(month, result.published);
+  await scheduleSlipWarming(month, result.published);
 
   auditLog({
     actorId: user.id,
@@ -247,6 +271,7 @@ export async function publishOnePayrollAction(
   } catch (err) {
     console.error('publishOnePayrollAction: LINE notify failed (publish already committed)', err);
   }
+  await scheduleSlipWarming(month, result.published);
 
   auditLog({
     actorId: user.id,

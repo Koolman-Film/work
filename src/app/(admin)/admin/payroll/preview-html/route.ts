@@ -6,12 +6,19 @@ import type { Locale } from '@/lib/i18n/config';
 import { formatMoney } from '@/lib/i18n/format';
 import { fontFaceCss } from '@/lib/payslip/fonts';
 import { payslipLogoSvg, payslipPeriodLabel } from '@/lib/payslip/letterhead';
-import { renderPayslipPdf } from '@/lib/payslip/pdf';
 import { buildPreviewPayslipDocument } from '@/lib/payslip/preview';
 import { buildPayslipHtml } from '@/lib/payslip/render-html';
 
+/**
+ * Admin draft-slip preview as HTML (not PDF).
+ *
+ * The modal preview only needs to LOOK like the slip — it doesn't need a real
+ * PDF. Rendering the same markup as HTML skips Chromium entirely, so the
+ * preview is near-instant, and the `screen` viewport makes the A4 sheet scale
+ * to fit any frame (the iPad clipping problem). The actual download / published
+ * slip still goes through the PDF path.
+ */
 export const runtime = 'nodejs';
-export const maxDuration = 60;
 
 const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -30,7 +37,7 @@ export async function GET(req: Request): Promise<Response> {
   try {
     doc = await buildPreviewPayslipDocument(month, employeeId);
   } catch (err) {
-    console.error('[payslip-preview-pdf] document build failed', {
+    console.error('[payslip-preview-html] document build failed', {
       employeeId,
       month,
       error: err instanceof Error ? err.message : String(err),
@@ -45,37 +52,35 @@ export async function GET(req: Request): Promise<Response> {
       getTranslations({ locale }),
       getTranslations({ locale: 'en' }),
     ]);
-    const buf = await renderPayslipPdf(
-      buildPayslipHtml(doc, {
-        locale,
-        t: (k, v) => t(k as Parameters<typeof t>[0], v as Parameters<typeof t>[1]),
-        tEn: (k) => tEn(k as Parameters<typeof tEn>[0]),
-        money: (n) => formatMoney(n, locale as Locale),
-        fontFace: fontFaceCss(locale),
-        logoSvg: payslipLogoSvg(),
-        periodLabel: payslipPeriodLabel(locale, month),
-        generatedAt: new Date().toISOString(),
-      }),
-    );
+    const html = buildPayslipHtml(doc, {
+      locale,
+      t: (k, v) => t(k as Parameters<typeof t>[0], v as Parameters<typeof t>[1]),
+      tEn: (k) => tEn(k as Parameters<typeof tEn>[0]),
+      money: (n) => formatMoney(n, locale as Locale),
+      fontFace: fontFaceCss(locale),
+      logoSvg: payslipLogoSvg(),
+      periodLabel: payslipPeriodLabel(locale, month),
+      generatedAt: new Date().toISOString(),
+      screen: true,
+    });
 
     auditLog({
       actorId: user.id,
       action: 'payslip.preview',
       entityType: 'Payroll',
       entityId: `${employeeId}:${month}`,
-      metadata: { source: 'admin-ui', month, employeeId },
+      metadata: { source: 'admin-ui', month, employeeId, format: 'html' },
     });
 
-    return new NextResponse(new Uint8Array(buf), {
+    return new NextResponse(html, {
       status: 200,
       headers: {
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': 'inline',
+        'Content-Type': 'text/html; charset=utf-8',
         'Cache-Control': 'no-store',
       },
     });
   } catch (err) {
-    console.error('[payslip-preview-pdf] render failed', {
+    console.error('[payslip-preview-html] render failed', {
       employeeId,
       month,
       error: err instanceof Error ? err.message : String(err),
