@@ -29,6 +29,7 @@
 
 import { headers } from 'next/headers';
 import { auditLog, auditLogTx } from '@/lib/audit/log';
+import { canActOnEmployeeBranches, getPermittedBranches } from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { sendNotification } from '@/lib/inngest/events';
@@ -100,6 +101,7 @@ type Input = {
 
 export async function approveLeaveRequest(input: Input): Promise<ApproveResult> {
   const { user } = await requirePermission('leave.approve');
+  const permitted = await getPermittedBranches(user, 'leave.approve');
 
   const note = input.note.trim();
   if (note.length < MIN_NOTE_LENGTH) {
@@ -152,7 +154,14 @@ export async function approveLeaveRequest(input: Input): Promise<ApproveResult> 
           startTime: true,
           endTime: true,
           employee: {
-            select: { firstName: true, userId: true, salaryType: true, baseSalary: true },
+            select: {
+              firstName: true,
+              userId: true,
+              salaryType: true,
+              baseSalary: true,
+              branchId: true,
+              assignedBranchIds: true,
+            },
           },
           leaveType: {
             select: { name: true, nameByLocale: true, annualQuota: true, overQuotaPolicy: true },
@@ -169,6 +178,15 @@ export async function approveLeaveRequest(input: Input): Promise<ApproveResult> 
           code: 'not-pending' as const,
           message: 'คำขอนี้ถูกตัดสินใจไปแล้ว',
         };
+      }
+
+      if (
+        !canActOnEmployeeBranches(permitted, [
+          req.employee.branchId,
+          ...req.employee.assignedBranchIds,
+        ])
+      ) {
+        return { ok: false as const, code: 'not-found' as const, message: 'ไม่พบคำขอลา' };
       }
 
       // Pull holidays. We extend the lower bound by 1 day so a Sunday
@@ -403,6 +421,7 @@ export async function approveLeaveRequest(input: Input): Promise<ApproveResult> 
 
 export async function rejectLeaveRequest(input: Input): Promise<RejectResult> {
   const { user } = await requirePermission('leave.approve');
+  const permitted = await getPermittedBranches(user, 'leave.approve');
 
   const note = input.note.trim();
   if (note.length < MIN_NOTE_LENGTH) {
@@ -438,7 +457,14 @@ export async function rejectLeaveRequest(input: Input): Promise<RejectResult> {
           status: true,
           startDate: true,
           endDate: true,
-          employee: { select: { firstName: true, userId: true } },
+          employee: {
+            select: {
+              firstName: true,
+              userId: true,
+              branchId: true,
+              assignedBranchIds: true,
+            },
+          },
           leaveType: { select: { name: true, nameByLocale: true } },
         },
       });
@@ -449,6 +475,15 @@ export async function rejectLeaveRequest(input: Input): Promise<RejectResult> {
           code: 'not-pending' as const,
           message: 'คำขอนี้ถูกตัดสินใจไปแล้ว',
         };
+      }
+
+      if (
+        !canActOnEmployeeBranches(permitted, [
+          req.employee.branchId,
+          ...req.employee.assignedBranchIds,
+        ])
+      ) {
+        return { ok: false as const, code: 'not-found' as const, message: 'ไม่พบคำขอลา' };
       }
 
       await tx.leaveRequest.update({
