@@ -139,8 +139,15 @@ describe('assemblePayslipDocument — letterhead passthrough', () => {
       month: '2026-06',
     },
     buckets: {
-      incomeBase: 10000, incomeOther: 0, deductSso: 0, deductAdvance: 0,
-      deductAttendance: 0, deductLeave: 0, deductDebt: 0, deductOther: 0, netPay: 10000,
+      incomeBase: 10000,
+      incomeOther: 0,
+      deductSso: 0,
+      deductAdvance: 0,
+      deductAttendance: 0,
+      deductLeave: 0,
+      deductDebt: 0,
+      deductOther: 0,
+      netPay: 10000,
     },
     incomeAdjustments: [],
     deductAdjustments: [],
@@ -148,8 +155,12 @@ describe('assemblePayslipDocument — letterhead passthrough', () => {
     attendance: { absent: 0, late: 0 },
     leaveOverMinutesTotal: 0,
     rateInputs: {
-      ssoRate: 0.05, ssoSalaryCap: 15000, salaryType: 'Monthly',
-      baseSalary: 10000, workingDaysPerMonth: 26, standardDayMinutes: 480,
+      ssoRate: 0.05,
+      ssoSalaryCap: 15000,
+      salaryType: 'Monthly',
+      baseSalary: 10000,
+      workingDaysPerMonth: 26,
+      standardDayMinutes: 480,
     },
   };
 

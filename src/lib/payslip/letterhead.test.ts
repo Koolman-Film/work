@@ -34,7 +34,11 @@ describe('payslipPeriodLabel', () => {
 
 describe('resolveLetterhead', () => {
   it('uses Koolman defaults + the SVG logo when all fields are null', async () => {
-    const r = await resolveLetterhead({ payslipNameEn: null, payslipNameNative: null, payslipLogoKey: null });
+    const r = await resolveLetterhead({
+      payslipNameEn: null,
+      payslipNameNative: null,
+      payslipLogoKey: null,
+    });
     expect(r.companyEn).toBe('Koolman Co., Ltd.');
     expect(r.companyNative).toBe('บริษัท คูลแมน จำกัด');
     expect(r.logoHtml).toContain('<svg');
@@ -55,7 +59,11 @@ describe('resolveLetterhead', () => {
 
   it('falls back to the SVG logo when the download fails', async () => {
     download.mockResolvedValueOnce({ data: null, error: { message: 'nope' } });
-    const r = await resolveLetterhead({ payslipNameEn: null, payslipNameNative: null, payslipLogoKey: 'missing.png' });
+    const r = await resolveLetterhead({
+      payslipNameEn: null,
+      payslipNameNative: null,
+      payslipLogoKey: 'missing.png',
+    });
     expect(r.logoHtml).toContain('<svg');
   });
 });
