@@ -8,6 +8,7 @@ import type { ActionResult } from '@/components/ui/confirm-dialog';
 import { auditLog } from '@/lib/audit/log';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
+import { sendNotification } from '@/lib/inngest/events';
 import {
   lockPayroll,
   notifyPublishedSlips,
@@ -219,6 +220,70 @@ export async function loadPayrollRowDetailAction(
   await requirePermission('payroll.read');
   if (!MONTH_RE.test(month) || !UUID_RE.test(employeeId)) return null;
   return payrollRowDetail(month, employeeId);
+}
+
+/**
+ * Resend the LINE rich message for an already-published slip — the safety net
+ * when the original push failed. Re-queues with a fresh dedupeSuffix so the
+ * 24h Inngest dedup window doesn't silently swallow it. Confirms only that the
+ * push was QUEUED (delivery is async with retries), so the UI says "may take a
+ * moment", not "delivered".
+ */
+export async function resendPayslipNotificationAction(
+  employeeId: string,
+  month: string,
+): Promise<ActionResult> {
+  const { user } = await requirePermission('payroll.publish');
+  if (!MONTH_RE.test(month)) return { ok: false, message: 'เดือนไม่ถูกต้อง' };
+  if (!UUID_RE.test(employeeId)) return { ok: false, message: 'พนักงานไม่ถูกต้อง' };
+
+  const payroll = await prisma.payroll.findFirst({
+    where: { employeeId, month, status: { in: ['Published', 'Locked'] } },
+    select: {
+      id: true,
+      netPay: true,
+      employee: {
+        select: { firstName: true, userId: true, user: { select: { lineUserId: true } } },
+      },
+    },
+  });
+  if (!payroll) return { ok: false, message: 'ยังไม่ได้เผยแพร่สลิปงวดนี้' };
+  if (!payroll.employee.user?.lineUserId) {
+    return { ok: false, message: 'พนักงานยังไม่ได้เชื่อมบัญชี LINE — ส่งสลิปไม่ได้' };
+  }
+
+  try {
+    await sendNotification(
+      payroll.employee.userId,
+      {
+        kind: 'payroll.published',
+        payrollId: payroll.id,
+        month,
+        employeeFirstName: payroll.employee.firstName,
+        // Same formatting publishPayroll uses for the original push.
+        netPay: payroll.netPay.toNumber().toLocaleString('en-US', {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }),
+      },
+      // Fresh per call → bypasses the 24h dedup window. Server-action runtime,
+      // so Date.now()/randomness are fine here (this is not a workflow script).
+      { dedupeSuffix: `resend-${Date.now().toString(36)}` },
+    );
+  } catch (err) {
+    console.error('resendPayslipNotificationAction: LINE notify failed', err);
+    return { ok: false, message: 'ส่งสลิปไม่สำเร็จ กรุณาลองใหม่' };
+  }
+
+  auditLog({
+    actorId: user.id,
+    action: 'payroll.publish',
+    entityType: 'Payroll',
+    entityId: month,
+    metadata: { source: 'admin-ui', via: 'resend', employeeId, payrollId: payroll.id },
+  });
+
+  return { ok: true };
 }
 
 export async function lockPayrollAction(formData: FormData) {
