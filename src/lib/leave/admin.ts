@@ -595,6 +595,7 @@ export async function adminCreateLeaveRequest(
   input: AdminCreateLeaveInput,
 ): Promise<AdminCreateLeaveResult> {
   const { user } = await requirePermission('leave.approve');
+  const permitted = await getPermittedBranches(user, 'leave.approve');
 
   const reason = input.reason.trim();
   if (reason.length < ADMIN_MIN_REASON_LENGTH) {
@@ -610,6 +611,8 @@ export async function adminCreateLeaveRequest(
       firstName: true,
       lastName: true,
       nickname: true,
+      branchId: true,
+      assignedBranchIds: true,
     },
   });
   if (!employee) {
@@ -617,6 +620,10 @@ export async function adminCreateLeaveRequest(
   }
   if (employee.archivedAt || employee.status === 'Archived') {
     return { ok: false, code: 'employee-archived', message: 'พนักงานคนนี้พ้นสภาพแล้ว' };
+  }
+  if (!canActOnEmployeeBranches(permitted, [employee.branchId, ...employee.assignedBranchIds])) {
+    // Out of the actor's branch scope — hide existence behind the not-found code.
+    return { ok: false, code: 'employee-not-found', message: 'ไม่พบพนักงาน' };
   }
 
   const start = parseInputDate(input.startDate);
