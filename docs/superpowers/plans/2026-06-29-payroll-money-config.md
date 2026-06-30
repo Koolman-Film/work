@@ -20,6 +20,14 @@
 
 ---
 
+## Codebase delta since planning (re-verified against `origin/main` 2026-06-29)
+
+Main advanced (payslip-preview + user-identity work). Re-checked every plan dependency:
+
+- **Unchanged (plan still exact):** `PayrollConfig` model fields; `permissions.ts`; `permissions.test.ts`; `perm-coverage.test.ts` (KNOWN_PENDING still only payroll.read/run/publish); `roles.ts`; the `leave-config` + `attendance` action/page patterns; UI kit used here (`card`, `form-field`, `input`, `button`, `page-header`); `requirePermission` (still exported, `{ user }` destructure valid); `auditLog` with the `'payrollConfig.update'` action; no pre-existing `settings/payroll` page or `settings.payroll.manage` permission.
+- **Changed — affects Task 3 only:** the settings **nav + layout are already permission-aware on main.** `settings-nav.tsx` items now carry a **required** `permission: Permission`, and `SettingsNav({ allowedPermissions }: { allowedPermissions: Permission[] })` filters via `new Set(allowedPermissions).has(i.permission)`. `layout.tsx` already calls `requireAdminArea()` and passes `allowedPermissions`. → Task 3 collapses to adding one item; the layout change is dropped. Because a Superadmin's permission set includes every catalog perm, adding `settings.payroll.manage` to the catalog (Task 1) makes the new tab appear for Superadmin automatically.
+- **Changed — no impact:** `schema.prisma` (new fields on `Branch`, not `PayrollConfig`); `calc.ts` (SSO breakdown additions — the plan does not touch calc); `require-role.ts`/`check-permission.ts` internals (public helpers used here remain compatible); `audit/log.ts` added `'payslip.preview'`.
+
 ## File Structure
 
 - Create `src/lib/payroll/money-config.ts` — Zod schema + `toPayrollConfigData()` converter (pure, testable).
@@ -29,8 +37,8 @@
 - Create `src/app/(admin)/admin/settings/payroll/actions.ts` — `'use server'` `updatePayrollConfig`.
 - Create `src/app/(admin)/admin/settings/payroll/page.tsx` — the settings page (server component).
 - Create `src/app/(admin)/admin/settings/payroll/sso-card.tsx` — `'use client'` SSO card with live computed max + mismatch warning.
-- Modify `src/app/(admin)/admin/settings/settings-nav.tsx` — add the payroll nav item + `requires`/`allowed` permission filtering.
-- Modify `src/app/(admin)/admin/settings/layout.tsx` — resolve user, compute permission set, pass to nav.
+- Modify `src/app/(admin)/admin/settings/settings-nav.tsx` — add ONE payroll nav item. (The nav is **already permission-aware on main** — each item carries a required `permission` and the component filters by `allowedPermissions`; no signature change needed.)
+- ~~Modify `src/app/(admin)/admin/settings/layout.tsx`~~ — **no longer needed.** Main already made the settings layout permission-aware via `requireAdminArea()` → `<SettingsNav allowedPermissions={[...permissions]} />`.
 
 ---
 
@@ -552,30 +560,33 @@ git commit -m "feat(payroll): settings page with SSO live-calc + OT/deduction ca
 
 ---
 
-## Task 3: Permission-aware settings nav
+## Task 3: Add the payroll tab to the (already permission-aware) settings nav
 
-Adds the payroll tab and hides it from users lacking `settings.payroll.manage` (i.e. everyone but superadmin by default), so no one sees a tab that 404s.
+Main already made the settings nav permission-aware: each `ITEMS` entry carries a required `permission: Permission`, the layout passes the caller's permission set via `<SettingsNav allowedPermissions={[...permissions]} />` (from `requireAdminArea()`), and the component renders only items whose `permission` is in that set. So this task is just **adding one item** — no component-signature change, no layout change. The tab shows for Superadmin automatically (their permission set includes every catalog perm) and for any custom role granted `settings.payroll.manage`; it's hidden from everyone else.
 
 **Files:**
-- Modify: `src/app/(admin)/admin/settings/settings-nav.tsx`
-- Modify: `src/app/(admin)/admin/settings/layout.tsx`
+- Modify: `src/app/(admin)/admin/settings/settings-nav.tsx` (add one item + one icon import)
 
 **Interfaces:**
-- Consumes: `getPermissionsFor` (`@/lib/auth/check-permission`), `requireRole` (`@/lib/auth/require-role`), `type Permission` (`@/lib/auth/permissions`).
-- Produces: `SettingsNav({ allowed }: { allowed: string[] })`.
+- Consumes: the existing `Item` type `{ href; label; desc; Icon; permission: Permission }` and the existing `SettingsNav({ allowedPermissions }: { allowedPermissions: Permission[] })` — both already present on main; do not redefine them.
+- Produces: a new visible tab gated by `'settings.payroll.manage'`.
 
-- [ ] **Step 1: Make the nav permission-aware**
+> Pre-check (the nav shape changed under us — confirm before editing): the file should already import `type { Permission }`, declare `type Item = { ...; permission: Permission }`, and filter with `new Set(allowedPermissions).has(i.permission)`. Verify with:
+> `grep -n "allowedPermissions\|permission: Permission\|permission:" "src/app/(admin)/admin/settings/settings-nav.tsx"`
+> If instead you find an optional `requires?` / `allowed: string[]` shape, the branch predates main's nav refactor — stop and reconcile before continuing.
 
-In `src/app/(admin)/admin/settings/settings-nav.tsx`:
+- [ ] **Step 1: Add the `Banknote` icon import**
 
-1. Add the import: `import type { Permission } from '@/lib/auth/permissions';` and add `Banknote` to the `lucide-react` import list.
-2. Extend the `Item` type with an optional gate:
+In `src/app/(admin)/admin/settings/settings-nav.tsx`, add `Banknote` to the existing `lucide-react` import list (alphabetical, before `Building2`):
 
 ```ts
-type Item = { href: string; label: string; desc: string; Icon: LucideIcon; requires?: Permission };
+  Banknote,
+  Building2,
 ```
 
-3. Add the payroll item to `ITEMS` immediately after the `attendance` item:
+- [ ] **Step 2: Add the payroll item**
+
+Insert into `ITEMS` immediately after the `attendance` item (`href: '/admin/settings/attendance'`), matching the existing object shape (note the **required** `permission` field — not `requires`):
 
 ```ts
   {
@@ -583,53 +594,14 @@ type Item = { href: string; label: string; desc: string; Icon: LucideIcon; requi
     label: 'เงินเดือน',
     desc: 'ประกันสังคม / OT / หักเงิน',
     Icon: Banknote,
-    requires: 'settings.payroll.manage',
+    permission: 'settings.payroll.manage',
   },
-```
-
-4. Change the component signature and filter the items:
-
-```ts
-export function SettingsNav({ allowed }: { allowed: string[] }) {
-  const pathname = usePathname();
-  const items = ITEMS.filter((i) => !i.requires || allowed.includes(i.requires));
-```
-
-Then map over `items` instead of `ITEMS` in the JSX.
-
-- [ ] **Step 2: Feed permissions from the layout**
-
-Replace `src/app/(admin)/admin/settings/layout.tsx` with:
-
-```tsx
-import { getPermissionsFor } from '@/lib/auth/check-permission';
-import { requireRole } from '@/lib/auth/require-role';
-import { SettingsNav } from './settings-nav';
-
-/**
- * Settings layout — sticky sub-nav beside the entity pages. Resolves the
- * caller's permission set so the nav can hide tabs they can't open (e.g. the
- * superadmin-only payroll config).
- */
-export default async function SettingsLayout({ children }: { children: React.ReactNode }) {
-  const { user } = await requireRole(['Admin', 'Superadmin']);
-  const allowed = [...(await getPermissionsFor(user))];
-
-  return (
-    <div className="lg:grid lg:grid-cols-[232px_1fr]">
-      <aside className="border-b border-gray-100 px-4 py-4 sm:px-6 lg:sticky lg:top-4 lg:self-start lg:border-b-0 lg:px-4 lg:py-6">
-        <SettingsNav allowed={allowed} />
-      </aside>
-      <div className="min-w-0">{children}</div>
-    </div>
-  );
-}
 ```
 
 - [ ] **Step 3: Typecheck**
 
 Run: `pnpm tsc --noEmit`
-Expected: no errors.
+Expected: no errors. (The item satisfies the existing `Item` type; `'settings.payroll.manage'` is a valid `Permission` after Task 1.)
 
 - [ ] **Step 4: Manual verification**
 
@@ -639,8 +611,8 @@ Expected: no errors.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add "src/app/(admin)/admin/settings/settings-nav.tsx" "src/app/(admin)/admin/settings/layout.tsx"
-git commit -m "feat(settings): permission-aware nav; show payroll tab to superadmin only"
+git add "src/app/(admin)/admin/settings/settings-nav.tsx"
+git commit -m "feat(settings): add superadmin-only payroll tab to settings nav"
 ```
 
 ---
@@ -650,7 +622,7 @@ git commit -m "feat(settings): permission-aware nav; show payroll tab to superad
 **Spec coverage:**
 - §A permission & roles → Task 1 (steps 5–6).
 - §B route & files → Task 1 (action), Task 2 (page).
-- §B1 permission-aware nav → Task 3.
+- §B1 permission-aware nav → already shipped on main (layout + `SettingsNav` filtering); Task 3 only adds the payroll item.
 - §C fields & validation → Task 1 (`money-config.ts`) + Task 2 (inputs).
 - §D SSO safeguard → Task 2 (`sso-card.tsx`).
 - §E audit & cache → Task 1 (step 7).
@@ -659,4 +631,4 @@ git commit -m "feat(settings): permission-aware nav; show payroll tab to superad
 
 **Placeholder scan:** none — every step has concrete code/commands. Two conditional fallbacks are explicit and checkable (`warning-*` tokens; `times` vs `mul`).
 
-**Type consistency:** `payrollMoneySchema` / `PayrollMoneyInput` / `toPayrollConfigData` names match across `money-config.ts`, its test, and `actions.ts`. `updatePayrollConfig` matches between `actions.ts` and `page.tsx`. `SettingsNav({ allowed })` matches between `settings-nav.tsx` and `layout.tsx`. Permission key `'settings.payroll.manage'` is identical across catalog, action, page, nav.
+**Type consistency:** `payrollMoneySchema` / `PayrollMoneyInput` / `toPayrollConfigData` names match across `money-config.ts`, its test, and `actions.ts`. `updatePayrollConfig` matches between `actions.ts` and `page.tsx`. The nav item uses main's existing `Item` shape (required `permission: Permission`) and the existing `SettingsNav({ allowedPermissions })` — neither is redefined. Permission key `'settings.payroll.manage'` is identical across catalog, action, page, and nav item.
