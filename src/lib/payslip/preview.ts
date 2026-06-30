@@ -4,6 +4,18 @@ import { payrollRowDetailRaw } from '@/lib/payroll/run';
 import { assemblePayslipDocument, type NormalizedPayslipInput } from './document';
 import type { PayslipDocument } from './types';
 
+/**
+ * Which document a preview should render for a payroll row. Drafts recompute
+ * live (numbers can still change); Published/Locked render the FROZEN slip —
+ * the same bytes the employee got — so the admin preview never silently drifts
+ * from reality after a post-publish adjustment edit.
+ */
+export function pickPreviewSource(
+  status: 'Draft' | 'Published' | 'Locked',
+): 'recompute' | 'frozen' {
+  return status === 'Draft' ? 'recompute' : 'frozen';
+}
+
 const LEAVE_DEFAULTS = {
   morningStart: '09:00',
   morningEnd: '12:00',
