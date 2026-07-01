@@ -184,6 +184,102 @@ describe('markAdvancePaid — branch act-on gate (financial)', () => {
   });
 });
 
+import { restoreCashAdvance, voidCashAdvance } from './void';
+
+describe('voidCashAdvance — full branch act-on gate + ordering', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    requirePermission.mockResolvedValue({ user: { id: 'actor' }, authUserId: 'auth-1' });
+    transactionFn.mockImplementation(async (fn: (tx: unknown) => unknown) =>
+      fn({
+        cashAdvance: {
+          findUnique: vi.fn(async () => ({ id: 'ca1' })),
+          update: (...a: any[]) => (txUpdate as (...args: any[]) => unknown)(...a),
+        },
+      }),
+    );
+  });
+
+  function voidRow(home: string, assigned: string[] = [], over: Record<string, unknown> = {}) {
+    return {
+      id: 'ca1',
+      deletedAt: null,
+      isDeducted: false,
+      status: 'Pending',
+      employee: { branchId: home, assignedBranchIds: assigned },
+      ...over,
+    };
+  }
+
+  it('scoped actor on out-of-scope advance → not-found, no update', async () => {
+    getUserAssignments.mockResolvedValue(scopedTo(BRANCH_A, 'advance.void'));
+    caFindUnique.mockResolvedValue(voidRow(BRANCH_B));
+    const res = await voidCashAdvance('ca1', 'เหตุผลทดสอบ');
+    expect(res).toMatchObject({ ok: false, code: 'not-found' });
+    expect(txUpdate).not.toHaveBeenCalled();
+  });
+
+  it('rotating staff: home out-of-scope but an ASSIGNED branch in-scope → authorized', async () => {
+    getUserAssignments.mockResolvedValue(scopedTo(BRANCH_A, 'advance.void'));
+    caFindUnique.mockResolvedValue(voidRow(BRANCH_B, [BRANCH_A]));
+    const res = await voidCashAdvance('ca1', 'เหตุผลทดสอบ');
+    expect(res).toMatchObject({ ok: true });
+    expect(txUpdate).toHaveBeenCalled();
+  });
+
+  it('existence-hide: out-of-scope on an ALREADY-DEDUCTED advance → not-found (gate before void-guard)', async () => {
+    getUserAssignments.mockResolvedValue(scopedTo(BRANCH_A, 'advance.void'));
+    caFindUnique.mockResolvedValue(voidRow(BRANCH_B, [], { isDeducted: true }));
+    const res = await voidCashAdvance('ca1', 'เหตุผลทดสอบ');
+    expect(res).toMatchObject({ ok: false, code: 'not-found' }); // NOT 'already-deducted'
+    expect(txUpdate).not.toHaveBeenCalled();
+  });
+
+  it('global actor on out-of-branch advance → authorized', async () => {
+    getUserAssignments.mockResolvedValue(globalGrant('advance.void'));
+    caFindUnique.mockResolvedValue(voidRow(BRANCH_B));
+    const res = await voidCashAdvance('ca1', 'เหตุผลทดสอบ');
+    expect(res).toMatchObject({ ok: true });
+    expect(txUpdate).toHaveBeenCalled();
+  });
+});
+
+describe('restoreCashAdvance — full branch act-on gate + ordering', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    requirePermission.mockResolvedValue({ user: { id: 'actor' }, authUserId: 'auth-1' });
+    transactionFn.mockImplementation(async (fn: (tx: unknown) => unknown) =>
+      fn({
+        cashAdvance: { update: (...a: any[]) => (txUpdate as (...args: any[]) => unknown)(...a) },
+      }),
+    );
+  });
+
+  it('existence-hide: out-of-scope on a LIVE (not-deleted) advance → not-found, no update', async () => {
+    getUserAssignments.mockResolvedValue(scopedTo(BRANCH_A, 'advance.void'));
+    caFindUnique.mockResolvedValue({
+      id: 'ca1',
+      deletedAt: null,
+      employee: { branchId: BRANCH_B, assignedBranchIds: [] },
+    });
+    const res = await restoreCashAdvance('ca1');
+    expect(res).toMatchObject({ ok: false, code: 'not-found' }); // NOT { ok: true } no-op
+    expect(txUpdate).not.toHaveBeenCalled();
+  });
+
+  it('scoped actor on in-scope voided advance → restores', async () => {
+    getUserAssignments.mockResolvedValue(scopedTo(BRANCH_A, 'advance.void'));
+    caFindUnique.mockResolvedValue({
+      id: 'ca1',
+      deletedAt: new Date('2026-06-01'),
+      employee: { branchId: BRANCH_A, assignedBranchIds: [] },
+    });
+    const res = await restoreCashAdvance('ca1');
+    expect(res).toMatchObject({ ok: true });
+    expect(txUpdate).toHaveBeenCalled();
+  });
+});
+
 describe('adminCreateCashAdvance — branch act-on gate (on-behalf)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
