@@ -29,7 +29,10 @@ export default async function AdminCalendarPage() {
 
   const [branches, initialData] = await Promise.all([
     prisma.branch.findMany({
-      where: { archivedAt: null },
+      where:
+        calPermitted === 'all'
+          ? { archivedAt: null }
+          : { archivedAt: null, id: { in: calPermitted } },
       orderBy: { name: 'asc' },
       select: { id: true, name: true },
     }),
