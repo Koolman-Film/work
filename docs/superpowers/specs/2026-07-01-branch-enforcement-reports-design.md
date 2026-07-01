@@ -28,7 +28,7 @@ Reuses `src/lib/auth/branch-scope.ts` (`getPermittedBranches`, `employeeBranchSc
 
 ### Unit 1 — Report queries (`src/lib/reports/queries.ts`)
 
-Add a `permitted: PermittedBranches` parameter to the three exported report functions (`advanceReport`, `attendanceReport`, `leaveReport`) and intersect it into the employee-set `where`:
+`employeeWhere` is the **single injection point** — five exported functions resolve their base employee set through it: the three reports (`advanceReport`, `attendanceReport`, `leaveReport`) **and the two per-employee breakdowns** (`advanceDetail`, `leaveDetail`, which the advance/leave pages also call). Add a `permitted: PermittedBranches` parameter to all five and intersect it into the employee-set `where`:
 
 ```ts
 // employeeWhere gains the permission scope, AND-combined with the user filter:
@@ -44,7 +44,7 @@ function employeeWhere(f: EmployeeFilter, permitted: PermittedBranches): Prisma.
 }
 ```
 
-Each report function threads `permitted` into its `prisma.employee.findMany({ where: employeeWhere(filter, permitted) })`. (Preserve the exact current `userFilter` construction — the snippet above is illustrative of the merge, not a rewrite of the filter fields.)
+All five functions thread `permitted` into their `prisma.employee.findMany({ where: employeeWhere(filter, permitted) })`. (Preserve the exact current `userFilter` construction — the snippet above is illustrative of the merge, not a rewrite of the filter fields.) The advance page calls `advanceReport` + `advanceDetail`; the leave page calls `leaveReport` + `leaveDetail`; the attendance page calls `attendanceReport` — those three pages are the ONLY callers (verified by grep; `/liff/summary` does not call these).
 
 Result: the employee set is `user filter ∩ permitted branches`. A forged `?branchId=<out-of-scope>` yields an empty set (the branch isn't in `permitted`), so no data leaks — the AND is the load-bearing guard, independent of the UI.
 
@@ -70,7 +70,9 @@ Each page captures the user, resolves `permitted` once, and passes it to Unit 1 
 const { user } = await requirePermission('report.read');
 const permitted = await getPermittedBranches(user, 'report.read');
 // loadReportFilterOptions(permitted)
-// attendanceReport(period, { q, branchId, departmentId }, permitted)   // etc.
+// attendance page: attendanceReport(period, filter, permitted)
+// advance page:    advanceReport(period, filter, permitted) + advanceDetail(period, filter, permitted)
+// leave page:      leaveReport(period, filter, year, permitted) + leaveDetail(period, filter, permitted)
 ```
 
 (The section `layout.tsx` already gates `report.read`; the per-page `requirePermission('report.read')` both re-affirms the gate and yields `user` — consistent with the leave/advance inbox pages.)
@@ -88,7 +90,7 @@ New `src/lib/reports/queries.branch.test.ts`, mocking `prisma.employee.findMany`
 
 | File | Change |
 |------|--------|
-| `src/lib/reports/queries.ts` | `permitted` param on the 3 report fns; `employeeWhere` AND's `employeeBranchScope(permitted)` |
+| `src/lib/reports/queries.ts` | `permitted` param on all 5 employee-set fns (advanceReport, attendanceReport, leaveReport, advanceDetail, leaveDetail); `employeeWhere(filter, permitted)` AND's `employeeBranchScope(permitted)` |
 | `src/app/(admin)/admin/reports/_load-filter-options.ts` | `loadReportFilterOptions(permitted)` scopes the branch list |
 | `src/app/(admin)/admin/reports/attendance/page.tsx` | capture user; pass `permitted` to report fn + loader |
 | `src/app/(admin)/admin/reports/advance/page.tsx` | same |
