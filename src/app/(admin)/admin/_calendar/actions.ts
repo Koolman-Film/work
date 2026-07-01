@@ -10,6 +10,7 @@
  * rendered.
  */
 
+import { getPermittedBranches } from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { getLeaveConfig } from '@/lib/leave/leave-config';
@@ -26,17 +27,19 @@ export async function loadAdminCalendar(input: {
   ym: string;
   branchId: string | null;
 }): Promise<TeamCalendarData> {
-  await requirePermission('dashboard.read');
+  const { user } = await requirePermission('dashboard.read');
 
   // Defensive parse: a malformed `ym` falls back to the current month rather
   // than throwing (mirrors the LIFF calendar page).
   const parsed = parseMonth(input.ym) ?? parseMonth(currentMonthYM());
   if (!parsed) throw new Error('Could not parse current month — date system broken?');
 
+  const permitted = await getPermittedBranches(user, 'dashboard.read');
   return getOrgCalendarData({
     monthStart: parsed.start,
     monthEnd: parsed.end,
     branchId: input.branchId,
+    permitted,
   });
 }
 

@@ -25,6 +25,7 @@ import { isScheduledWorkday } from '@/lib/attendance/schedule';
 import { requireAdminArea } from '@/lib/auth/admin-area';
 import { firstAccessibleAdminPath } from '@/lib/auth/admin-landing';
 import { ADMIN_LINE_LINK_ENABLED } from '@/lib/auth/admin-line-feature';
+import { getPermittedBranches } from '@/lib/auth/branch-scope';
 import { canDo } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { getOrgCalendarData } from '@/lib/leave/team-calendar';
@@ -98,6 +99,7 @@ export default async function AdminHomePage() {
   const initialYm = currentMonthYM();
   const calMonth = parseMonth(initialYm);
   if (!calMonth) throw new Error('Could not parse current month — date system broken?');
+  const calPermitted = await getPermittedBranches(user, 'dashboard.read');
 
   // Fetch current user's employee relation + dismiss flag to decide whether
   // to show the "link your employee account" card. Done in the same Promise.all
@@ -184,7 +186,11 @@ export default async function AdminHomePage() {
         },
       },
     }),
-    getOrgCalendarData({ monthStart: calMonth.start, monthEnd: calMonth.end }),
+    getOrgCalendarData({
+      monthStart: calMonth.start,
+      monthEnd: calMonth.end,
+      permitted: calPermitted,
+    }),
   ]);
 
   // Show the "link your employee account" card only to pure admins (no Employee
