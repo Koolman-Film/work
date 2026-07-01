@@ -1,5 +1,7 @@
 import { Banknote } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
+import { getPermittedBranches } from '@/lib/auth/branch-scope';
+import { requirePermission } from '@/lib/auth/check-permission';
 import { formatTHB2, formatThaiDate } from '@/lib/format';
 import { resolveReportPeriod } from '@/lib/reports/period';
 import { advanceDetail, advanceReport } from '@/lib/reports/queries';
@@ -21,15 +23,17 @@ export default async function AdvanceReportPage({
   }>;
 }) {
   const params = await searchParams;
+  const { user } = await requirePermission('report.read');
+  const permitted = await getPermittedBranches(user, 'report.read');
   const todayYmd = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
   const period = resolveReportPeriod(params, todayYmd, await loadPayrollCutoffDay());
   const branchId = asUuid(params.branchId);
   const departmentId = asUuid(params.departmentId);
   const filter = { q: params.q, branchId, departmentId };
   const [rows, detail, options] = await Promise.all([
-    advanceReport(period, filter),
-    advanceDetail(period, filter),
-    loadReportFilterOptions(),
+    advanceReport(period, filter, permitted),
+    advanceDetail(period, filter, permitted),
+    loadReportFilterOptions(permitted),
   ]);
 
   const totals = rows.reduce(
