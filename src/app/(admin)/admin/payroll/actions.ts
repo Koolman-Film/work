@@ -6,7 +6,7 @@ import { redirect } from 'next/navigation';
 import { after } from 'next/server';
 import type { ActionResult } from '@/components/ui/confirm-dialog';
 import { auditLog } from '@/lib/audit/log';
-import { requirePermission } from '@/lib/auth/check-permission';
+import { requireGlobalPermission } from '@/lib/auth/require-global-permission';
 import { prisma } from '@/lib/db/prisma';
 import { sendNotification } from '@/lib/inngest/events';
 import {
@@ -66,7 +66,7 @@ function back(month: string, msg: string): never {
 }
 
 export async function calculatePayrollAction(formData: FormData) {
-  const { user } = await requirePermission('payroll.run');
+  const { user } = await requireGlobalPermission('payroll.run');
   const month = readMonth(formData);
 
   const result = await runPayrollDraft(month);
@@ -101,7 +101,7 @@ function currentMonthBkk(): string {
 }
 
 export async function publishPayrollAction(formData: FormData) {
-  const { user } = await requirePermission('payroll.publish');
+  const { user } = await requireGlobalPermission('payroll.publish');
   const month = readMonth(formData);
 
   // Publishing fires LINE pushes and stamps sweep rows — block future
@@ -137,7 +137,7 @@ export async function publishPayrollAction(formData: FormData) {
  * (runPayrollDraft never overwrites them).
  */
 export async function createRowAdjustment(formData: FormData) {
-  const { user } = await requirePermission('payroll.run');
+  const { user } = await requireGlobalPermission('payroll.run');
   const month = readMonth(formData);
 
   const parsed = readForm(formData);
@@ -180,7 +180,7 @@ export async function deleteRowAdjustment(
   id: string,
   month: string,
 ): Promise<{ ok: true } | { ok: false; message: string }> {
-  const { user } = await requirePermission('payroll.run');
+  const { user } = await requireGlobalPermission('payroll.run');
   if (!MONTH_RE.test(month)) return { ok: false, message: 'เดือนไม่ถูกต้อง' };
 
   const before = await prisma.payrollAdjustment.findUnique({ where: { id } });
@@ -217,7 +217,7 @@ export async function loadPayrollRowDetailAction(
   employeeId: string,
   month: string,
 ): Promise<PayrollRowDetail | null> {
-  await requirePermission('payroll.read');
+  await requireGlobalPermission('payroll.read');
   if (!MONTH_RE.test(month) || !UUID_RE.test(employeeId)) return null;
   return payrollRowDetail(month, employeeId);
 }
@@ -233,7 +233,7 @@ export async function resendPayslipNotificationAction(
   employeeId: string,
   month: string,
 ): Promise<ActionResult> {
-  const { user } = await requirePermission('payroll.publish');
+  const { user } = await requireGlobalPermission('payroll.publish');
   if (!MONTH_RE.test(month)) return { ok: false, message: 'เดือนไม่ถูกต้อง' };
   if (!UUID_RE.test(employeeId)) return { ok: false, message: 'พนักงานไม่ถูกต้อง' };
 
@@ -287,7 +287,7 @@ export async function resendPayslipNotificationAction(
 }
 
 export async function lockPayrollAction(formData: FormData) {
-  const { user } = await requirePermission('payroll.publish');
+  const { user } = await requireGlobalPermission('payroll.publish');
   const month = readMonth(formData);
 
   const count = await lockPayroll(month);
@@ -312,7 +312,7 @@ export async function publishOnePayrollAction(
   employeeId: string,
   month: string,
 ): Promise<ActionResult> {
-  const { user } = await requirePermission('payroll.publish');
+  const { user } = await requireGlobalPermission('payroll.publish');
   if (!MONTH_RE.test(month)) return { ok: false, message: 'เดือนไม่ถูกต้อง' };
   if (!UUID_RE.test(employeeId)) return { ok: false, message: 'พนักงานไม่ถูกต้อง' };
   if (month > currentMonthBkk()) {

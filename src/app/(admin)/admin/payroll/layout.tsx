@@ -1,4 +1,4 @@
-import { requirePermission } from '@/lib/auth/check-permission';
+import { requireGlobalPermission } from '@/lib/auth/require-global-permission';
 
 /**
  * Permission gate for all /admin/payroll/* pages — same pattern as the
@@ -6,6 +6,6 @@ import { requirePermission } from '@/lib/auth/check-permission';
  * `payroll.publish`) are enforced inside the Server Actions themselves.
  */
 export default async function PayrollLayout({ children }: { children: React.ReactNode }) {
-  await requirePermission('payroll.read');
+  await requireGlobalPermission('payroll.read');
   return <>{children}</>;
 }
