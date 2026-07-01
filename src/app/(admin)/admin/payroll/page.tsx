@@ -119,7 +119,9 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
 
   const [activeEmployees, options] = await Promise.all([
     prisma.employee.count({ where: { status: { not: 'Archived' } } }),
-    loadReportFilterOptions(),
+    // Payroll's branch filter is out of scope for B5 (no `permitted` here) —
+    // pass 'all' to preserve current unfiltered behavior.
+    loadReportFilterOptions('all'),
   ]);
 
   // Frozen buckets straight off the persisted row — NO engine call.
