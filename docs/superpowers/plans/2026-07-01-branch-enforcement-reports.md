@@ -52,6 +52,11 @@ Create `src/lib/reports/queries.branch.test.ts`:
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+// queries.ts does `import 'server-only'`, which throws under the default
+// vitest config (no react-server condition / alias). Mock it to a no-op so
+// this stays a plain unit test. (The integration config aliases it instead.)
+vi.mock('server-only', () => ({}));
+
 const employeeFindMany = vi.fn(async () => [] as unknown[]);
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
@@ -244,6 +249,9 @@ Create `src/lib/reports/filter-options.branch.test.ts`:
 ```ts
 /** Branch-scope of the report filter dropdown (Spec B5). */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+// Defensive: neutralize any transitive `import 'server-only'` under the default config.
+vi.mock('server-only', () => ({}));
 
 const branchFindMany = vi.fn(async () => [] as unknown[]);
 const departmentFindMany = vi.fn(async () => [] as unknown[]);
