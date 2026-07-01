@@ -15,6 +15,7 @@ import {
   LEAVE_STATUS_INFO,
   leaveOverQuotaVM,
 } from '@/app/(admin)/admin/leave/leave-row-vm';
+import { getPermittedBranches, viaEmployeeBranchScope } from '@/lib/auth/branch-scope';
 import { requireLiffAdmin } from '@/lib/auth/require-liff-admin';
 import { prisma } from '@/lib/db/prisma';
 import { getLeaveConfig } from '@/lib/leave/leave-config';
@@ -33,10 +34,14 @@ const STATUS_CLS: Record<string, string> = {
 
 export default async function LiffAdminLeaveDetailPage({ params }: { params: Params }) {
   const { id } = await params;
-  await requireLiffAdmin();
+  const { user } = await requireLiffAdmin();
+  const permitted = await getPermittedBranches(user, 'leave.read');
 
   const [row, holidays, leaveCfg] = await Promise.all([
-    prisma.leaveRequest.findUnique({ where: { id }, select: LEAVE_SELECT }),
+    prisma.leaveRequest.findFirst({
+      where: { id, ...viaEmployeeBranchScope(permitted) },
+      select: LEAVE_SELECT,
+    }),
     prisma.holiday.findMany({ where: { archivedAt: null }, select: { date: true } }),
     getLeaveConfig(),
   ]);

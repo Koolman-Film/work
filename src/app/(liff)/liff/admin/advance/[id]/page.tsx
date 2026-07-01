@@ -14,6 +14,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { advanceBalanceFor } from '@/lib/advance/available';
 import { isOverCap } from '@/lib/advance/balance';
+import { getPermittedBranches, viaEmployeeBranchScope } from '@/lib/auth/branch-scope';
 import { requireLiffAdmin } from '@/lib/auth/require-liff-admin';
 import { prisma } from '@/lib/db/prisma';
 import { resolveStoredImageUrl } from '@/lib/storage/signed-urls';
@@ -45,10 +46,11 @@ function baht(n: number): string {
 
 export default async function LiffAdminAdvanceDetailPage({ params }: { params: Params }) {
   const { id } = await params;
-  await requireLiffAdmin();
+  const { user } = await requireLiffAdmin();
+  const permitted = await getPermittedBranches(user, 'advance.read');
 
-  const row = await prisma.cashAdvance.findUnique({
-    where: { id },
+  const row = await prisma.cashAdvance.findFirst({
+    where: { id, ...viaEmployeeBranchScope(permitted) },
     select: {
       id: true,
       employeeId: true,
