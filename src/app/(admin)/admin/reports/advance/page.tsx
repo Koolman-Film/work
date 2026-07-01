@@ -33,7 +33,7 @@ export default async function AdvanceReportPage({
   const [rows, detail, options] = await Promise.all([
     advanceReport(period, filter, permitted),
     advanceDetail(period, filter, permitted),
-    loadReportFilterOptions(),
+    loadReportFilterOptions(permitted),
   ]);
 
   const totals = rows.reduce(
