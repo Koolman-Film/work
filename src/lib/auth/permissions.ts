@@ -216,3 +216,12 @@ export const PERMISSION_GROUPS: ReadonlyArray<{
     permissions: ['audit.read', 'dashboard.read'],
   },
 ];
+
+/** Permissions that may only ever be held/exercised GLOBALLY (never
+ *  branch-scoped). Payroll is an org-wide operation — see B-payroll-guard. */
+export const PAYROLL_PERMISSIONS = [
+  'payroll.read',
+  'payroll.run',
+  'payroll.publish',
+  'settings.payroll.manage',
+] as const;
