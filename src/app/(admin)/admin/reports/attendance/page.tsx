@@ -29,7 +29,7 @@ export default async function AttendanceReportPage({
   const departmentId = asUuid(params.departmentId);
   const [rows, options] = await Promise.all([
     attendanceReport(period, { q: params.q, branchId, departmentId }, permitted),
-    loadReportFilterOptions(),
+    loadReportFilterOptions(permitted),
   ]);
 
   const totals = rows.reduce(

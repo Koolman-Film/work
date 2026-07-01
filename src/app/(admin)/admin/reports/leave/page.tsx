@@ -37,7 +37,7 @@ export default async function LeaveReportPage({
     leaveReport(period, filter, year, permitted),
     leaveDetail(period, filter, permitted),
     getLeaveConfig(),
-    loadReportFilterOptions(),
+    loadReportFilterOptions(permitted),
   ]);
 
   return (
