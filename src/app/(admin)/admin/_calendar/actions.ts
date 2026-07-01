@@ -10,7 +10,7 @@
  * rendered.
  */
 
-import { getPermittedBranches } from '@/lib/auth/branch-scope';
+import { getPermittedBranches, viaEmployeeBranchScope } from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { getLeaveConfig } from '@/lib/leave/leave-config';
@@ -48,10 +48,14 @@ export async function loadAdminCalendar(input: {
  * click-to-review. Same permission as the leave approve action.
  */
 export async function getLeaveReviewRow(leaveRequestId: string): Promise<LeaveRowVM | null> {
-  await requirePermission('leave.approve');
+  const { user } = await requirePermission('leave.approve');
 
+  const permitted = await getPermittedBranches(user, 'leave.approve');
   const [row, holidays, cfg] = await Promise.all([
-    prisma.leaveRequest.findUnique({ where: { id: leaveRequestId }, select: LEAVE_SELECT }),
+    prisma.leaveRequest.findFirst({
+      where: { id: leaveRequestId, ...viaEmployeeBranchScope(permitted) },
+      select: LEAVE_SELECT,
+    }),
     prisma.holiday.findMany({ where: { archivedAt: null }, select: { date: true } }),
     getLeaveConfig(),
   ]);
@@ -77,10 +81,11 @@ export async function getLeaveReviewRow(leaveRequestId: string): Promise<LeaveRo
  * click-to-review. Same permission as the advance approve action.
  */
 export async function getAdvanceReviewRow(cashAdvanceId: string): Promise<AdvanceRowVM | null> {
-  await requirePermission('advance.approve');
+  const { user } = await requirePermission('advance.approve');
 
-  const row = await prisma.cashAdvance.findUnique({
-    where: { id: cashAdvanceId },
+  const permitted = await getPermittedBranches(user, 'advance.approve');
+  const row = await prisma.cashAdvance.findFirst({
+    where: { id: cashAdvanceId, ...viaEmployeeBranchScope(permitted) },
     select: ADVANCE_SELECT,
   });
   if (!row) return null;
