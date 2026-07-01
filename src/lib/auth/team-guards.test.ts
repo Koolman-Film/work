@@ -11,6 +11,7 @@ import {
   canActOnRole,
   canManageSystemRole,
   checkUserScope,
+  payrollRoleBranchScopeError,
   type ScopeAssignment,
   systemRoleGrantError,
 } from './team-guards';
@@ -212,5 +213,31 @@ describe('checkUserScope (branch jurisdiction guard)', () => {
         true,
       );
     });
+  });
+});
+
+describe('payrollRoleBranchScopeError', () => {
+  const payrollRole = { permissions: ['leave.read', 'payroll.read'] };
+  const plainRole = { permissions: ['leave.read', 'advance.read'] };
+
+  it('global assignment (branchId=null) → null for any role', () => {
+    expect(payrollRoleBranchScopeError(payrollRole, null)).toBeNull();
+    expect(payrollRoleBranchScopeError(plainRole, null)).toBeNull();
+  });
+
+  it('branch-scoped assignment of a payroll-bearing role → error', () => {
+    expect(payrollRoleBranchScopeError(payrollRole, 'b1')).toBe(
+      'บทบาทที่มีสิทธิ์เงินเดือนต้องกำหนดแบบทั้งองค์กร (ไม่ระบุสาขา)',
+    );
+  });
+
+  it('branch-scoped assignment of a non-payroll role → null', () => {
+    expect(payrollRoleBranchScopeError(plainRole, 'b1')).toBeNull();
+  });
+
+  it('each payroll permission triggers the guard', () => {
+    for (const p of ['payroll.read', 'payroll.run', 'payroll.publish', 'settings.payroll.manage']) {
+      expect(payrollRoleBranchScopeError({ permissions: [p] }, 'b1')).not.toBeNull();
+    }
   });
 });
