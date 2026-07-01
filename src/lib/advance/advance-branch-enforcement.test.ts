@@ -50,14 +50,19 @@ vi.mock('@/lib/db/prisma', () => ({
     cashAdvance: {
       findUnique: (...a: unknown[]) => caFindUnique(...a),
       findFirst: (...a: unknown[]) => caFindFirst(...a),
-      create: () => caCreate(),
+      create: (...a: Parameters<typeof caCreate>) => caCreate(...a),
     },
     employee: { findUnique: (...a: unknown[]) => empFindUnique(...a) },
   },
   prismaRaw: { cashAdvance: { findUnique: (...a: unknown[]) => caFindUnique(...a) } },
 }));
 
-import { approveCashAdvance, markAdvancePaid, rejectCashAdvance } from './admin';
+import {
+  adminCreateCashAdvance,
+  approveCashAdvance,
+  markAdvancePaid,
+  rejectCashAdvance,
+} from './admin';
 
 // helpers
 const BRANCH_A = '00000000-0000-0000-0000-00000000000a';
@@ -176,5 +181,49 @@ describe('markAdvancePaid — branch act-on gate (financial)', () => {
     const res = await markAdvancePaid(paidInput);
     expect(res).toMatchObject({ ok: true });
     expect(txUpdate).toHaveBeenCalled();
+  });
+});
+
+describe('adminCreateCashAdvance — branch act-on gate (on-behalf)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    requirePermission.mockResolvedValue({ user: { id: 'actor' }, authUserId: 'auth-1' });
+  });
+
+  function emp(home: string, assigned: string[] = []) {
+    return {
+      id: 'e1',
+      archivedAt: null,
+      status: 'Active',
+      firstName: 'ก',
+      lastName: 'ข',
+      nickname: null,
+      branchId: home,
+      assignedBranchIds: assigned,
+    };
+  }
+
+  it('scoped actor choosing an out-of-scope employee → employee-not-found, no create', async () => {
+    getUserAssignments.mockResolvedValue(scopedTo(BRANCH_A, 'advance.approve'));
+    empFindUnique.mockResolvedValue(emp(BRANCH_B));
+    const res = await adminCreateCashAdvance({ employeeId: 'e1', amount: 1000 });
+    expect(res).toMatchObject({ ok: false, code: 'employee-not-found' });
+    expect(caCreate).not.toHaveBeenCalled();
+    expect(txCreate).not.toHaveBeenCalled();
+  });
+
+  it('scoped actor choosing an in-scope employee → passes the gate (reaches amount validation)', async () => {
+    getUserAssignments.mockResolvedValue(scopedTo(BRANCH_A, 'advance.approve'));
+    empFindUnique.mockResolvedValue(emp(BRANCH_A));
+    // Bad amount → proves we got PAST the branch gate (gate returns employee-not-found).
+    const res = await adminCreateCashAdvance({ employeeId: 'e1', amount: -5 });
+    expect(res).toMatchObject({ ok: false, code: 'bad-amount' });
+  });
+
+  it('global actor choosing an out-of-branch employee → passes the gate (reaches amount validation)', async () => {
+    getUserAssignments.mockResolvedValue(globalGrant('advance.approve'));
+    empFindUnique.mockResolvedValue(emp(BRANCH_B));
+    const res = await adminCreateCashAdvance({ employeeId: 'e1', amount: -5 });
+    expect(res).toMatchObject({ ok: false, code: 'bad-amount' });
   });
 });

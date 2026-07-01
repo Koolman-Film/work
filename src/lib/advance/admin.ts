@@ -470,6 +470,7 @@ export async function adminCreateCashAdvance(
   input: AdminCreateAdvanceInput,
 ): Promise<AdminCreateAdvanceResult> {
   const { user } = await requirePermission('advance.approve');
+  const permitted = await getPermittedBranches(user, 'advance.approve');
 
   const employee = await prisma.employee.findUnique({
     where: { id: input.employeeId },
@@ -480,6 +481,8 @@ export async function adminCreateCashAdvance(
       firstName: true,
       lastName: true,
       nickname: true,
+      branchId: true,
+      assignedBranchIds: true,
     },
   });
   if (!employee) {
@@ -487,6 +490,9 @@ export async function adminCreateCashAdvance(
   }
   if (employee.archivedAt || employee.status === 'Archived') {
     return { ok: false, code: 'employee-archived', message: 'พนักงานคนนี้พ้นสภาพแล้ว' };
+  }
+  if (!canActOnEmployeeBranches(permitted, [employee.branchId, ...employee.assignedBranchIds])) {
+    return { ok: false, code: 'employee-not-found', message: 'ไม่พบพนักงาน' };
   }
 
   // Amount: positive, at most 2 decimal places (mirrors the worker submit).
