@@ -3,6 +3,7 @@
 import { Prisma } from '@prisma/client';
 import { headers } from 'next/headers';
 import { auditLogTx } from '@/lib/audit/log';
+import { canActOnEmployeeBranches, getPermittedBranches } from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma, prismaRaw } from '@/lib/db/prisma';
 import { assertAdvanceVoidable } from './void-guards';
@@ -45,15 +46,21 @@ export async function voidCashAdvance(id: string, reason: string): Promise<VoidR
       deletedAt: true,
       isDeducted: true,
       status: true,
-      employee: { select: { branchId: true } },
+      employee: { select: { branchId: true, assignedBranchIds: true } },
     },
   });
   if (!row) return { ok: false, code: 'not-found', message: 'ไม่พบคำขอเบิก' };
 
+  const { user } = await requirePermission('advance.void');
+  const permitted = await getPermittedBranches(user, 'advance.void');
+  if (
+    !canActOnEmployeeBranches(permitted, [row.employee.branchId, ...row.employee.assignedBranchIds])
+  ) {
+    return { ok: false, code: 'not-found', message: 'ไม่พบคำขอเบิก' };
+  }
+
   const guard = assertAdvanceVoidable({ isDeducted: row.isDeducted, deletedAt: row.deletedAt });
   if (!guard.ok) return { ok: false, code: guard.code, message: guard.message };
-
-  const { user } = await requirePermission('advance.void', { branchId: row.employee.branchId });
   const meta = await reqMeta();
 
   try {
@@ -89,12 +96,23 @@ export async function voidCashAdvance(id: string, reason: string): Promise<VoidR
 export async function restoreCashAdvance(id: string): Promise<VoidResult> {
   const row = await prismaRaw.cashAdvance.findUnique({
     where: { id },
-    select: { id: true, deletedAt: true, employee: { select: { branchId: true } } },
+    select: {
+      id: true,
+      deletedAt: true,
+      employee: { select: { branchId: true, assignedBranchIds: true } },
+    },
   });
   if (!row) return { ok: false, code: 'not-found', message: 'ไม่พบคำขอเบิก' };
-  if (!row.deletedAt) return { ok: true };
 
-  const { user } = await requirePermission('advance.void', { branchId: row.employee.branchId });
+  const { user } = await requirePermission('advance.void');
+  const permitted = await getPermittedBranches(user, 'advance.void');
+  if (
+    !canActOnEmployeeBranches(permitted, [row.employee.branchId, ...row.employee.assignedBranchIds])
+  ) {
+    return { ok: false, code: 'not-found', message: 'ไม่พบคำขอเบิก' };
+  }
+
+  if (!row.deletedAt) return { ok: true };
   const meta = await reqMeta();
   try {
     await prisma.$transaction(async (tx) => {

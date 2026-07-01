@@ -15,6 +15,13 @@ vi.mock('@/lib/auth/check-permission', () => ({
     user: { id: 'admin-user-1' },
     authUserId: 'auth-uid-1',
   })),
+  getUserAssignments: vi.fn(async () => [
+    {
+      branchId: null,
+      role: { permissions: ['advance.approve'], isSuperadmin: false, archivedAt: null },
+    },
+  ]),
+  canDo: vi.fn(),
 }));
 
 vi.mock('@/lib/audit/log', () => ({
@@ -73,7 +80,12 @@ function approvedRow(overrides: Record<string, unknown> = {}) {
     amount: new Prisma.Decimal('1500'),
     paidAt: null,
     receiptUrl: null,
-    employee: { firstName: 'สมชาย', userId: 'worker-1' },
+    employee: {
+      firstName: 'สมชาย',
+      userId: 'worker-1',
+      branchId: 'branch-1',
+      assignedBranchIds: [],
+    },
     ...overrides,
   };
 }
