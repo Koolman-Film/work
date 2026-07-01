@@ -36,7 +36,8 @@ import { describe, expect, it } from 'vitest';
 const ADMIN_DIR = __dirname;
 
 /** Gate-function signatures we scan for. */
-const GATE_RE = /requirePermission\(|requireRole\(|requireAdminArea\(|requireEmployee\(/;
+const GATE_RE =
+  /requirePermission\(|requireGlobalPermission\(|requireRole\(|requireAdminArea\(|requireEmployee\(/;
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 

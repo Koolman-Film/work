@@ -1,5 +1,5 @@
 import { PageHeader } from '@/components/ui/page-header';
-import { requirePermission } from '@/lib/auth/check-permission';
+import { requireGlobalPermission } from '@/lib/auth/require-global-permission';
 import { RecomputePanel } from './recompute-panel';
 
 /**
@@ -8,7 +8,7 @@ import { RecomputePanel } from './recompute-panel';
  * (it changes deduction amounts). Run "Preview" first and review the diff.
  */
 export default async function RecomputeLeavePage() {
-  await requirePermission('payroll.publish');
+  await requireGlobalPermission('payroll.publish');
 
   return (
     <div className="px-4 py-6 sm:px-6 lg:px-8">

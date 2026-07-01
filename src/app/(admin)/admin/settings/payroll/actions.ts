@@ -3,12 +3,12 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { auditLog } from '@/lib/audit/log';
-import { requirePermission } from '@/lib/auth/check-permission';
+import { requireGlobalPermission } from '@/lib/auth/require-global-permission';
 import { prisma } from '@/lib/db/prisma';
 import { payrollMoneySchema, toPayrollConfigData } from '@/lib/payroll/money-config';
 
 export async function updatePayrollConfig(formData: FormData) {
-  const { user } = await requirePermission('settings.payroll.manage');
+  const { user } = await requireGlobalPermission('settings.payroll.manage');
 
   const parsed = payrollMoneySchema.safeParse({
     ssoRatePercent: formData.get('ssoRatePercent'),
