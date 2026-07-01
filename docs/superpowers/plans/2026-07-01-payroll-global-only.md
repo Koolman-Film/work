@@ -81,7 +81,7 @@ import { requireGlobalPermission } from './require-global-permission';
 
 const globalGrant = [{ branchId: null, role: { permissions: ['payroll.read'], isSuperadmin: false, archivedAt: null } }];
 const scopedGrant = [{ branchId: 'b1', role: { permissions: ['payroll.read'], isSuperadmin: false, archivedAt: null } }];
-const superadmin = [{ branchId: 'b1', role: { permissions: [], isSuperadmin: true, archivedAt: null } }];
+const superadmin = [{ branchId: null, role: { permissions: [], isSuperadmin: true, archivedAt: null } }];
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -100,10 +100,17 @@ describe('requireGlobalPermission', () => {
     await expect(requireGlobalPermission('payroll.read')).rejects.toThrow('NEXT_NOT_FOUND');
   });
 
-  it('Superadmin (isSuperadmin, even branch-scoped assignment) → returns (getPermittedBranches resolves to all)', async () => {
+  it('global Superadmin (branchId=null, isSuperadmin) → returns (getPermittedBranches → all)', async () => {
     getUserAssignments.mockResolvedValue(superadmin);
     const r = await requireGlobalPermission('payroll.read');
     expect(r).toMatchObject({ user: { id: 'u1' } });
+  });
+
+  it('branch-scoped Superadmin assignment (branchId set) → notFound (not global)', async () => {
+    getUserAssignments.mockResolvedValue([
+      { branchId: 'b1', role: { permissions: [], isSuperadmin: true, archivedAt: null } },
+    ]);
+    await expect(requireGlobalPermission('payroll.read')).rejects.toThrow('NEXT_NOT_FOUND');
   });
 });
 ```
