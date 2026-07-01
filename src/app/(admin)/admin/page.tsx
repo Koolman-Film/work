@@ -25,8 +25,12 @@ import { isScheduledWorkday } from '@/lib/attendance/schedule';
 import { requireAdminArea } from '@/lib/auth/admin-area';
 import { firstAccessibleAdminPath } from '@/lib/auth/admin-landing';
 import { ADMIN_LINE_LINK_ENABLED } from '@/lib/auth/admin-line-feature';
-import { getPermittedBranches } from '@/lib/auth/branch-scope';
-import { canDo } from '@/lib/auth/check-permission';
+import {
+  employeeBranchScope,
+  permittedBranchesFromAssignments,
+  viaEmployeeBranchScope,
+} from '@/lib/auth/branch-scope';
+import { canDo, getUserAssignments } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { getOrgCalendarData } from '@/lib/leave/team-calendar';
 import { currentMonthYM, parseMonth } from '@/lib/leave/team-calendar-shape';
@@ -99,7 +103,17 @@ export default async function AdminHomePage() {
   const initialYm = currentMonthYM();
   const calMonth = parseMonth(initialYm);
   if (!calMonth) throw new Error('Could not parse current month — date system broken?');
-  const calPermitted = await getPermittedBranches(user, 'dashboard.read');
+  const assignments = await getUserAssignments(user.id);
+  const leaveScope = viaEmployeeBranchScope(
+    permittedBranchesFromAssignments(assignments, 'leave.read'),
+  );
+  const advScope = viaEmployeeBranchScope(
+    permittedBranchesFromAssignments(assignments, 'advance.read'),
+  );
+  const attPermitted = permittedBranchesFromAssignments(assignments, 'attendance.read');
+  const attScope = viaEmployeeBranchScope(attPermitted);
+  const rosterScope = employeeBranchScope(attPermitted);
+  const calPermitted = permittedBranchesFromAssignments(assignments, 'dashboard.read');
 
   // Fetch current user's employee relation + dismiss flag to decide whether
   // to show the "link your employee account" card. Done in the same Promise.all
@@ -121,15 +135,20 @@ export default async function AdminHomePage() {
       where: { id: user.id },
       select: { employee: { select: { id: true } }, mergePromptDismissedAt: true },
     }),
-    prisma.leaveRequest.count({ where: { status: 'Pending' } }),
-    prisma.cashAdvance.count({ where: { status: 'Pending' } }),
+    prisma.leaveRequest.count({ where: { status: 'Pending', ...leaveScope } }),
+    prisma.cashAdvance.count({ where: { status: 'Pending', ...advScope } }),
     prisma.attendance.findMany({
-      where: { type: 'CheckIn', date: today },
+      where: { type: 'CheckIn', date: today, ...attScope },
       distinct: ['employeeId'],
       select: { employeeId: true },
     }),
     prisma.employee.findMany({
-      where: { archivedAt: null, status: { not: 'Archived' }, canCheckIn: true },
+      where: {
+        archivedAt: null,
+        status: { not: 'Archived' },
+        canCheckIn: true,
+        ...rosterScope,
+      },
       select: {
         id: true,
         workSchedule: { select: { days: { select: { dayOfWeek: true } } } },
@@ -138,7 +157,7 @@ export default async function AdminHomePage() {
     // Distinct by employee: a date can hold two OnLeave rows (two halves), so
     // count people on leave, not rows.
     prisma.attendance.findMany({
-      where: { type: 'OnLeave', date: today, deletedAt: null },
+      where: { type: 'OnLeave', date: today, deletedAt: null, ...attScope },
       distinct: ['employeeId'],
       select: { employeeId: true },
     }),
@@ -147,7 +166,7 @@ export default async function AdminHomePage() {
       select: { name: true },
     }),
     prisma.leaveRequest.findMany({
-      where: { status: 'Pending' },
+      where: { status: 'Pending', ...leaveScope },
       orderBy: { createdAt: 'desc' },
       take: 5,
       select: {
@@ -160,7 +179,7 @@ export default async function AdminHomePage() {
       },
     }),
     prisma.cashAdvance.findMany({
-      where: { status: 'Pending' },
+      where: { status: 'Pending', ...advScope },
       orderBy: { requestedAt: 'desc' },
       take: 5,
       select: {
@@ -171,7 +190,7 @@ export default async function AdminHomePage() {
       },
     }),
     prisma.attendance.findMany({
-      where: { type: 'OnLeave', date: today, deletedAt: null },
+      where: { type: 'OnLeave', date: today, deletedAt: null, ...attScope },
       distinct: ['employeeId'],
       orderBy: { employee: { firstName: 'asc' } },
       select: {
