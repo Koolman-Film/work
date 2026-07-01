@@ -22,6 +22,7 @@
 
 import type { Role } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
+import { PAYROLL_PERMISSIONS } from './permissions';
 
 /**
  * Tier guard — does the actor's tier allow acting on the target's tier
@@ -130,6 +131,25 @@ export function systemRoleGrantError(
     return 'ต้องมีสิทธิ์ระดับผู้ดูแลเพื่อมอบบทบาทระบบ';
   }
   return null;
+}
+
+/**
+ * A payroll-bearing role may only be assigned GLOBALLY. Returns a Thai error
+ * string when a branch-scoped assignment (branchId != null) targets a role
+ * whose permissions include any PAYROLL_PERMISSIONS; null when allowed.
+ * Payroll is an org-wide surface (see B-payroll-guard) — a branch-scoped
+ * payroll grant is both inert (requireGlobalPermission blocks it) and
+ * forbidden here so the confusing state never exists.
+ */
+export function payrollRoleBranchScopeError(
+  role: { permissions: ReadonlyArray<string> },
+  branchId: string | null,
+): string | null {
+  if (branchId === null) return null;
+  const hasPayroll = role.permissions.some((p) =>
+    (PAYROLL_PERMISSIONS as ReadonlyArray<string>).includes(p),
+  );
+  return hasPayroll ? 'บทบาทที่มีสิทธิ์เงินเดือนต้องกำหนดแบบทั้งองค์กร (ไม่ระบุสาขา)' : null;
 }
 
 /**
