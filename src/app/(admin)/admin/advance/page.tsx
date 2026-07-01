@@ -17,6 +17,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Pagination } from '@/components/ui/pagination';
 import { StatusBadge, type StatusKey } from '@/components/ui/status-badge';
 import { restoreCashAdvance } from '@/lib/advance/void';
+import { getPermittedBranches, viaEmployeeBranchScope } from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma, prismaRaw } from '@/lib/db/prisma';
 import { buildPageMeta, pageArgs, parsePageParam } from '@/lib/pagination';
@@ -45,11 +46,14 @@ export default async function AdminAdvanceInboxPage({
 }: {
   searchParams: SearchParams;
 }) {
-  await requirePermission('advance.read');
+  const { user } = await requirePermission('advance.read');
   const { status, trash, q: qRaw, page: pageRaw } = await searchParams;
   const isTrash = trash === '1';
   const q = qRaw?.trim() ?? '';
   const requestedPage = parsePageParam(pageRaw);
+
+  const permitted = await getPermittedBranches(user, 'advance.read');
+  const scope = viaEmployeeBranchScope(permitted); // {} for 'all' (global/Superadmin)
 
   // Status filter → base where; an employee-name search (q) narrows on top.
   const where: Prisma.CashAdvanceWhereInput = (() => {
@@ -68,7 +72,13 @@ export default async function AdminAdvanceInboxPage({
     };
   }
 
-  const trashWhere = { deletedAt: { not: null } } as const;
+  // Branch scope: a scoped admin only sees advances for employees in their branches.
+  if (scope.employee) {
+    where.employee = where.employee ? { AND: [where.employee, scope.employee] } : scope.employee;
+  }
+
+  const trashWhere: Prisma.CashAdvanceWhereInput = { deletedAt: { not: null } };
+  if (scope.employee) trashWhere.employee = scope.employee;
   const { skip, take } = pageArgs(requestedPage);
 
   // Page of rows + matching total go through the same client: trash uses
