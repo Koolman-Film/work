@@ -78,7 +78,10 @@ export async function startAdminMerge(input: {
 export async function listMergeableEmployees(): Promise<{ userId: string; name: string }[]> {
   await requireRole(['Admin']);
   const employees = await prisma.employee.findMany({
-    where: { status: 'Active' },
+    // Any current employee (Active OR Probation) can also be an admin — only
+    // archived/departed staff are excluded. Filtering to 'Active' alone wrongly
+    // hid probationary employees from the merge picker.
+    where: { status: { not: 'Archived' }, archivedAt: null },
     orderBy: [{ firstName: 'asc' }],
     select: { userId: true, firstName: true, lastName: true, nickname: true },
   });
