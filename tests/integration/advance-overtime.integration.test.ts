@@ -216,7 +216,7 @@ describe('getOtCandidates', () => {
       },
     });
 
-    const candidates = await getOtCandidates({ ym: MONTH, employeeId: emp.id });
+    const candidates = await getOtCandidates({ ym: MONTH, employeeId: emp.id }, 'all');
     expect(candidates).toHaveLength(1);
     expect(candidates[0]?.attendanceId).toBe(a.id);
     expect(candidates[0]?.scheduledEnd).toBe('18:00');
@@ -228,6 +228,6 @@ describe('getOtCandidates', () => {
   it('ignores employees with no schedule (no scheduled end to measure against)', async () => {
     const emp = await makeEmployee({ baseSalary: 20_000 }); // no schedule
     await checkIn(emp.id, 15, bkk(15, 20, 0)); // very late, but no schedule
-    expect(await getOtCandidates({ ym: MONTH, employeeId: emp.id })).toHaveLength(0);
+    expect(await getOtCandidates({ ym: MONTH, employeeId: emp.id }, 'all')).toHaveLength(0);
   });
 });
