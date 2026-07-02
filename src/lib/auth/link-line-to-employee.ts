@@ -201,8 +201,8 @@ export async function linkLineToEmployee(input: { pairingToken: string }): Promi
     });
 
     if (result.kind === 'ok') {
-      // Best-effort: employee-only → OA default (unlink); employee who is
-      // also an admin → combined. Never throws.
+      // Best-effort: employee-only → employee menu; employee who is also an
+      // admin → combined. All-dynamic (no OA default). Never throws.
       await syncRichMenuForUser(result.userId);
       return { ok: true, employee: result.employee };
     }
