@@ -314,16 +314,24 @@ export default function PairClient({
     };
   }, [pairingToken, adminPairingToken, t]);
 
+  const isProgress =
+    state.phase === 'booting' || state.phase === 'signing-in' || state.phase === 'linking';
+
   return (
     <div className="grid min-h-dvh place-items-center px-4 py-12">
       <div className="w-full max-w-sm rounded-xl border border-gray-200 bg-white p-8 shadow-sm">
         <p className="text-center text-sm text-gray-500">Koolman Work</p>
-        <h1 className="mt-1 text-center text-xl font-semibold text-gray-900">{t('title')}</h1>
+        {/* The "Link your LINE account" heading only belongs to the actual
+            first-time binding — a returning user tapping a rich-menu button
+            just navigates through here, so during the loading/redirect phases
+            we show a neutral loader (each result block below has its own
+            heading). */}
+        {!isProgress && (
+          <h1 className="mt-1 text-center text-xl font-semibold text-gray-900">{t('title')}</h1>
+        )}
 
-        <div className="mt-6">
-          {state.phase === 'booting' ||
-          state.phase === 'signing-in' ||
-          state.phase === 'linking' ? (
+        <div className={isProgress ? 'mt-4' : 'mt-6'}>
+          {isProgress ? (
             <ProgressBlock label={state.message} />
           ) : state.phase === 'success' ? (
             <SuccessBlock employeeName={state.employeeName} />
