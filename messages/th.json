@@ -578,6 +578,7 @@
     "pickerLabel": "เลือกพนักงานที่เป็นตัวคุณ",
     "pickerCta": "สร้าง QR",
     "pickerEmpty": "ไม่พบพนักงานที่ใช้งานอยู่",
-    "pickerPlaceholder": "— เลือกพนักงาน —"
+    "pickerPlaceholder": "— เลือกพนักงาน —",
+    "pickerSearch": "ค้นหาชื่อหรือชื่อเล่น…"
   }
 }

@@ -543,6 +543,7 @@
     "pickerLabel": "选择代表您的员工账号",
     "pickerCta": "生成二维码",
     "pickerEmpty": "未找到在职员工",
-    "pickerPlaceholder": "— 请选择员工 —"
+    "pickerPlaceholder": "— 请选择员工 —",
+    "pickerSearch": "搜索姓名或昵称…"
   }
 }

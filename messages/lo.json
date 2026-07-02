@@ -543,6 +543,7 @@
     "pickerLabel": "ເລືອກພະນັກງານທີ່ເປັນຕົວທ່ານ",
     "pickerCta": "ສ້າງ QR",
     "pickerEmpty": "ບໍ່ພົບພະນັກງານທີ່ໃຊ້ງານຢູ່",
-    "pickerPlaceholder": "— ເລືອກພະນັກງານ —"
+    "pickerPlaceholder": "— ເລືອກພະນັກງານ —",
+    "pickerSearch": "ຄົ້ນຫາຊື່ ຫຼື ຊື່ຫຼິ້ນ…"
   }
 }

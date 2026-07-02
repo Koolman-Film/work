@@ -35,7 +35,7 @@ import { prisma } from '@/lib/db/prisma';
 import { getOrgCalendarData } from '@/lib/leave/team-calendar';
 import { currentMonthYM, parseMonth } from '@/lib/leave/team-calendar-shape';
 import { DashboardCalendarSummary } from './_calendar/dashboard-calendar-summary';
-import { MergePromptCard } from './_components/merge-prompt-card';
+import { MergeNudge } from './_components/merge-nudge';
 
 /**
  * Re-render the dashboard at most every 30 seconds.
@@ -324,7 +324,7 @@ export default async function AdminHomePage() {
         }
       />
 
-      {showMergeCard && <MergePromptCard />}
+      {showMergeCard && <MergeNudge />}
 
       {/* Attendance hero + pending-count stats */}
       <div className="grid gap-4 lg:grid-cols-3">

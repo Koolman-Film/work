@@ -15,6 +15,7 @@ import { requireRole } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
 import { appBaseUrl } from '@/lib/line/flex-templates';
 import { mintMergeToken } from '@/lib/pairing/token';
+import { resolveStoredImageUrl } from '@/lib/storage/signed-urls';
 
 export async function startAdminMerge(input: {
   employeeUserId: string;
@@ -71,11 +72,23 @@ export async function startAdminMerge(input: {
   return { ok: true, url, qrDataUrl, expiresAt };
 }
 
+export type MergeableEmployee = {
+  userId: string;
+  firstName: string;
+  lastName: string;
+  nickname: string | null;
+  /** Signed avatar URL (short-lived) or null when the employee has no photo. */
+  photoUrl: string | null;
+};
+
 /**
- * Active employees an admin can target when linking their own account. Returns
- * the employee's USER id (the merge operates on User rows) + a display name.
+ * Current employees an admin can target when linking their own account. Returns
+ * the employee's USER id (the merge operates on User rows), full name + nickname
+ * for the searchable picker, and a resolved avatar URL. Only employees with a
+ * photoKey incur a signed-URL round-trip; headcount is tens, so resolving them
+ * in parallel on picker-open is fine.
  */
-export async function listMergeableEmployees(): Promise<{ userId: string; name: string }[]> {
+export async function listMergeableEmployees(): Promise<MergeableEmployee[]> {
   await requireRole(['Admin']);
   const employees = await prisma.employee.findMany({
     // Any current employee (Active OR Probation) can also be an admin — only
@@ -83,12 +96,17 @@ export async function listMergeableEmployees(): Promise<{ userId: string; name: 
     // hid probationary employees from the merge picker.
     where: { status: { not: 'Archived' }, archivedAt: null },
     orderBy: [{ firstName: 'asc' }],
-    select: { userId: true, firstName: true, lastName: true, nickname: true },
+    select: { userId: true, firstName: true, lastName: true, nickname: true, photoKey: true },
   });
-  return employees.map((e) => ({
-    userId: e.userId,
-    name: e.nickname?.trim() || `${e.firstName} ${e.lastName}`.trim(),
-  }));
+  return Promise.all(
+    employees.map(async (e) => ({
+      userId: e.userId,
+      firstName: e.firstName,
+      lastName: e.lastName,
+      nickname: e.nickname,
+      photoUrl: await resolveStoredImageUrl(e.photoKey),
+    })),
+  );
 }
 
 export async function dismissMergePrompt(): Promise<void> {
