@@ -520,12 +520,6 @@
     "dashboard": "概览",
     "reports": "报表"
   },
-  "adminAccess": {
-    "title": "管理员权限",
-    "description": "允许此员工使用同一个 LINE 账号访问管理员工具（审批申请等）",
-    "grant": "授予管理员权限",
-    "alreadyAdmin": "该员工已是管理员 — 请在「团队」页面管理角色"
-  },
   "mergeWizard": {
     "working": "正在关联账号…",
     "successTitle": "账号已关联",

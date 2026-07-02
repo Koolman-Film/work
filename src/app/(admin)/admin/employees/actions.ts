@@ -7,7 +7,6 @@ import { redirect } from 'next/navigation';
 import { auditLog } from '@/lib/audit/log';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
-import { assignAdminRole } from '@/lib/employee/assign-admin-role';
 import { maskBankAccountNumber } from '@/lib/employee/bank';
 import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 import { readForm } from './employee-schema';
@@ -594,41 +593,4 @@ function isFkViolation(err: unknown): boolean {
     'code' in err &&
     (err as { code: string }).code === 'P2003'
   );
-}
-
-// ─── Admin access ──────────────────────────────────────────────────────────
-
-async function readRequestContext() {
-  const headerList = await headers();
-  const ip =
-    headerList.get('x-forwarded-for')?.split(',')[0]?.trim() ??
-    headerList.get('x-real-ip') ??
-    undefined;
-  const userAgent = headerList.get('user-agent') ?? undefined;
-  return { ip, userAgent };
-}
-
-/**
- * Admin UI action: grant admin access to an employee. Granting a GLOBAL role
- * requires the actor be Superadmin (mirrors team/actions.ts addRoleAssignment).
- */
-export async function grantAdminAccess(employeeId: string): Promise<void> {
-  const { user: actor, tier } = await requirePermission('role.assign');
-  if (tier !== 'Superadmin') {
-    redirect(
-      `/admin/employees/${employeeId}/edit?error=${encodeURIComponent('ต้องเป็น Superadmin เพื่อมอบสิทธิ์แอดมิน')}`,
-    );
-  }
-  await assignAdminRole(employeeId);
-  const ctx = await readRequestContext();
-  auditLog({
-    actorId: actor.id,
-    action: 'roleAssignment.create',
-    entityType: 'UserRoleAssignment',
-    entityId: employeeId,
-    after: { employeeId, roleKey: 'admin', branchId: null, via: 'employee-edit' },
-    metadata: { ...ctx, source: 'admin-ui' },
-  });
-  revalidatePath(`/admin/employees/${employeeId}/edit`);
-  redirect(`/admin/employees/${employeeId}/edit?ok=1`);
 }
