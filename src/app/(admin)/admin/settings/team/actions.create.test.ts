@@ -70,7 +70,14 @@ describe('createTeamMember', () => {
     requirePermission.mockResolvedValue({ user: { id: 'actor' }, tier: 'Superadmin' });
     canDo.mockResolvedValue(true);
     roleFindMany.mockResolvedValue([
-      { id: 'r-check', key: 'checker01', isSuperadmin: false, isSystem: false, archivedAt: null },
+      {
+        id: 'r-check',
+        key: 'checker01',
+        isSuperadmin: false,
+        isSystem: false,
+        archivedAt: null,
+        permissions: [],
+      },
     ]);
     branchFindUnique.mockResolvedValue({ id: 'b1', archivedAt: null });
 
@@ -86,7 +93,14 @@ describe('createTeamMember', () => {
   it('Admin granting the superadmin role is rejected before any auth user is created', async () => {
     requirePermission.mockResolvedValue({ user: { id: 'actor' }, tier: 'Admin' });
     roleFindMany.mockResolvedValue([
-      { id: 'r-sa', key: 'superadmin', isSuperadmin: true, isSystem: true, archivedAt: null },
+      {
+        id: 'r-sa',
+        key: 'superadmin',
+        isSuperadmin: true,
+        isSystem: true,
+        archivedAt: null,
+        permissions: [],
+      },
     ]);
 
     await expect(createTeamMember(fd('a@x.io', 'password1', [['r-sa', 'global']]))).rejects.toThrow(
@@ -99,7 +113,14 @@ describe('createTeamMember', () => {
     requirePermission.mockResolvedValue({ user: { id: 'actor' }, tier: 'Admin' });
     canDo.mockResolvedValue(false); // actor has no role.assign at branch b1
     roleFindMany.mockResolvedValue([
-      { id: 'r-check', key: 'checker01', isSuperadmin: false, isSystem: false, archivedAt: null },
+      {
+        id: 'r-check',
+        key: 'checker01',
+        isSuperadmin: false,
+        isSystem: false,
+        archivedAt: null,
+        permissions: [],
+      },
     ]);
     branchFindUnique.mockResolvedValue({ id: 'b1', archivedAt: null });
 
@@ -107,5 +128,51 @@ describe('createTeamMember', () => {
       /REDIRECT:.*error=/,
     );
     expect(createUser).not.toHaveBeenCalled();
+  });
+
+  it('rejects a branch-scoped grant of a payroll-bearing role, even for a Superadmin actor', async () => {
+    requirePermission.mockResolvedValue({ user: { id: 'actor' }, tier: 'Superadmin' });
+    canDo.mockResolvedValue(true);
+    roleFindMany.mockResolvedValue([
+      {
+        id: 'r-payroll',
+        key: 'payroll-clerk',
+        isSuperadmin: false,
+        isSystem: false,
+        archivedAt: null,
+        permissions: ['payroll.read'],
+      },
+    ]);
+    branchFindUnique.mockResolvedValue({ id: 'b1', archivedAt: null });
+
+    await expect(
+      createTeamMember(fd('a@x.io', 'password1', [['r-payroll', 'b1']])),
+    ).rejects.toThrow(/REDIRECT:.*error=/);
+    expect(createUser).not.toHaveBeenCalled();
+    expect(assignmentCreateMany).not.toHaveBeenCalled();
+  });
+
+  it('Superadmin assigns the built-in admin SYSTEM role @ branch (branch admin) → NOT rejected by the payroll guard', async () => {
+    requirePermission.mockResolvedValue({ user: { id: 'actor' }, tier: 'Superadmin' });
+    canDo.mockResolvedValue(true);
+    roleFindMany.mockResolvedValue([
+      {
+        id: 'r-admin',
+        key: 'admin',
+        isSuperadmin: false,
+        isSystem: true,
+        archivedAt: null,
+        permissions: ['payroll.read', 'payroll.run', 'payroll.publish'],
+      },
+    ]);
+    branchFindUnique.mockResolvedValue({ id: 'b1', archivedAt: null });
+
+    await expect(createTeamMember(fd('a@x.io', 'password1', [['r-admin', 'b1']]))).rejects.toThrow(
+      'REDIRECT:/admin/settings/team/u-new/edit',
+    );
+    expect(createUser).toHaveBeenCalledOnce();
+    expect(assignmentCreateMany).toHaveBeenCalledWith({
+      data: [{ userId: 'u-new', roleId: 'r-admin', branchId: 'b1' }],
+    });
   });
 });

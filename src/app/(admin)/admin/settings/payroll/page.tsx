@@ -3,7 +3,7 @@ import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
 import { FormField } from '@/components/ui/form-field';
 import { Input } from '@/components/ui/input';
 import { PageHeader } from '@/components/ui/page-header';
-import { requirePermission } from '@/lib/auth/check-permission';
+import { requireGlobalPermission } from '@/lib/auth/require-global-permission';
 import { prisma } from '@/lib/db/prisma';
 import { updatePayrollConfig } from './actions';
 import { SsoCard } from './sso-card';
@@ -13,7 +13,7 @@ export default async function PayrollConfigPage({
 }: {
   searchParams: Promise<{ error?: string; ok?: string }>;
 }) {
-  await requirePermission('settings.payroll.manage');
+  await requireGlobalPermission('settings.payroll.manage');
   const cfg = await prisma.payrollConfig.findFirst();
   const sp = await searchParams;
 
