@@ -47,7 +47,7 @@ export default async function PayrollConfigPage({
           ยังไม่มีการตั้งค่าระบบ (PayrollConfig) — รัน seed ก่อน
         </div>
       ) : (
-        <form action={updatePayrollConfig} className="max-w-2xl space-y-6">
+        <form action={updatePayrollConfig} className="space-y-6">
           <SsoCard
             defaultRatePercent={cfg.ssoRate.times(100).toString()}
             defaultSalaryCap={cfg.ssoSalaryCap.toString()}

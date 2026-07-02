@@ -26,7 +26,7 @@ export default async function NewTeamMemberPage({ searchParams }: { searchParams
   return (
     <div className="px-4 py-6 sm:px-6 lg:px-8">
       <PageHeader breadcrumb="ตั้งค่า · ทีมผู้ดูแล" title="เพิ่มผู้ดูแล" />
-      <div className="max-w-2xl">
+      <div>
         <TeamCreateForm
           action={createTeamMember}
           error={error ? decodeURIComponent(error) : null}

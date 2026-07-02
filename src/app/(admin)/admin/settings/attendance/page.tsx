@@ -67,7 +67,7 @@ export default async function AttendanceSettingsPage({
         </div>
       )}
 
-      <form action={updateAttendanceConfig} className="max-w-2xl space-y-6">
+      <form action={updateAttendanceConfig} className="space-y-6">
         <Card>
           <CardHeader>
             <CardTitle>นโยบายการมาสาย</CardTitle>

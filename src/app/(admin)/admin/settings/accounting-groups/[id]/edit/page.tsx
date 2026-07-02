@@ -27,7 +27,7 @@ export default async function EditAccountingGroupPage({
   return (
     <div className="px-4 py-6 sm:px-6 lg:px-8">
       <PageHeader breadcrumb="ตั้งค่า · กลุ่มบัญชี" title="แก้ไขกลุ่มบัญชี" />
-      <div className="max-w-2xl">
+      <div>
         <AccountingGroupForm
           mode="edit"
           action={updateAccountingGroup.bind(null, id)}

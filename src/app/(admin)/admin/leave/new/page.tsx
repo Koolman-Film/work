@@ -58,7 +58,7 @@ export default async function AdminCreateLeavePage() {
         subtitle="บันทึกการลาแทนพนักงานสำหรับวันที่ผ่านมาแล้ว — รายการจะเข้าคิวรออนุมัติ จากนั้นกดอนุมัติเพื่อสร้างรายการลงเวลา (OnLeave)"
       />
 
-      <div className="max-w-2xl">
+      <div>
         <Card>
           <CardHeader>
             <CardTitle>รายละเอียด</CardTitle>

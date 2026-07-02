@@ -94,7 +94,7 @@ export default async function EditTeamMemberPage({
         title={target.email ?? 'แก้ไขผู้ดูแล'}
         subtitle="แก้ไขบทบาท / รหัสผ่าน / ระงับบัญชี"
       />
-      <div className="max-w-2xl space-y-6">
+      <div className="space-y-6">
         {error && (
           <div
             role="alert"

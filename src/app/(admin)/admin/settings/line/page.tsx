@@ -30,7 +30,7 @@ export default async function LineSettingsPage() {
         title="เชื่อมต่อ LINE"
         subtitle="เชื่อมบัญชีผู้ดูแลกับ LINE เพื่อใช้เมนูแอดมินในแชท OA และรับการแจ้งเตือน"
       />
-      <div className="max-w-xl">
+      <div>
         {ADMIN_LINE_LINK_ENABLED ? (
           <LineConnectPanel paired={user.lineUserId != null} canMerge={me?.employee == null} />
         ) : (

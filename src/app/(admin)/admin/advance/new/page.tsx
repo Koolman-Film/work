@@ -39,7 +39,7 @@ export default async function AdminCreateAdvancePage() {
         subtitle="บันทึกคำขอเบิกเงินแทนพนักงานที่ใช้แอปไม่ได้ (เช่น โทรศัพท์เสีย) — รายการจะเข้าคิวรออนุมัติ จากนั้นกดอนุมัติพร้อมแนบสลิป"
       />
 
-      <div className="max-w-2xl">
+      <div>
         <Card>
           <CardHeader>
             <CardTitle>รายละเอียด</CardTitle>

@@ -48,7 +48,7 @@ export default async function EditBranchPage({
   return (
     <div className="px-4 py-6 sm:px-6 lg:px-8">
       <PageHeader breadcrumb="ตั้งค่า · สาขา" title="แก้ไขสาขา" />
-      <div className="max-w-2xl">
+      <div>
         <BranchForm
           mode="edit"
           action={updateBound}
