@@ -78,6 +78,8 @@ const DEST_MAP: Record<string, string> = {
   'admin-inbox': '/liff/admin/inbox',
   'admin-advance': '/liff/admin/advance',
   'admin-advance-slip': '/liff/admin/advance',
+  'admin-dashboard': '/liff/admin/dashboard',
+  'admin-reports': '/liff/admin/reports',
 };
 
 /** Parametrized admin dests — `?dest=<slug>&id=<uuid>`. The id is
