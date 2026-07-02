@@ -10,6 +10,8 @@
  */
 
 import Link from 'next/link';
+import { permittedBranchesFromAssignments, viaEmployeeBranchScope } from '@/lib/auth/branch-scope';
+import { getUserAssignments } from '@/lib/auth/check-permission';
 import { requireLiffAdmin } from '@/lib/auth/require-liff-admin';
 import { prisma } from '@/lib/db/prisma';
 
@@ -42,13 +44,23 @@ const EMPLOYEE_NAME_SELECT = {
 } as const;
 
 export default async function LiffAdminInboxPage() {
-  await requireLiffAdmin();
+  const { user } = await requireLiffAdmin();
+  const assignments = await getUserAssignments(user.id);
+  const leaveScope = viaEmployeeBranchScope(
+    permittedBranchesFromAssignments(assignments, 'leave.read'),
+  );
+  const advScope = viaEmployeeBranchScope(
+    permittedBranchesFromAssignments(assignments, 'advance.read'),
+  );
+  const attScope = viaEmployeeBranchScope(
+    permittedBranchesFromAssignments(assignments, 'attendance.read'),
+  );
 
   // `deletedAt: null` is explicit defence-in-depth on top of the
   // soft-delete client extension (matches the LIFF advance list page).
   const [leaves, advances, disputes] = await Promise.all([
     prisma.leaveRequest.findMany({
-      where: { status: 'Pending', deletedAt: null },
+      where: { status: 'Pending', deletedAt: null, ...leaveScope },
       orderBy: { createdAt: 'desc' },
       take: 50,
       select: {
@@ -61,7 +73,7 @@ export default async function LiffAdminInboxPage() {
       },
     }),
     prisma.cashAdvance.findMany({
-      where: { status: 'Pending', deletedAt: null },
+      where: { status: 'Pending', deletedAt: null, ...advScope },
       orderBy: { requestedAt: 'desc' },
       take: 50,
       select: {
@@ -72,7 +84,7 @@ export default async function LiffAdminInboxPage() {
       },
     }),
     prisma.attendance.findMany({
-      where: { type: 'CheckIn', checkInStatus: { in: ['Disputed'] }, deletedAt: null },
+      where: { type: 'CheckIn', checkInStatus: { in: ['Disputed'] }, deletedAt: null, ...attScope },
       orderBy: { clockInAt: 'desc' },
       take: 50,
       select: {

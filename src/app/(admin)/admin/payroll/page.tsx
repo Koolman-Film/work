@@ -5,8 +5,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { type Column, ResponsiveTable } from '@/components/ui/responsive-table';
 import { StatCard } from '@/components/ui/stat-card';
 import { StatusBadge, type StatusKey } from '@/components/ui/status-badge';
-import { canDo } from '@/lib/auth/check-permission';
-import { requireRole } from '@/lib/auth/require-role';
+import { canDo, requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { formatTHB, formatTHB2, monthLabelTh } from '@/lib/format';
 import { deductionBreakdown, deductionBreakdownLabel } from '@/lib/payroll/deduction-breakdown';
@@ -17,10 +16,14 @@ import {
   calculatePayrollAction,
   createRowAdjustment,
   deleteRowAdjustment,
+  loadPayrollRowDetailAction,
   lockPayrollAction,
+  publishOnePayrollAction,
   publishPayrollAction,
+  resendPayslipNotificationAction,
 } from './actions';
 import { RowAdjust, type RowAdjustment } from './row-adjust';
+import { type FrozenSlipVM, RowDetail } from './row-detail';
 import { RunActionForm } from './run-action-form';
 
 /**
@@ -77,7 +80,7 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
     (branchId ? `&branchId=${branchId}` : '') +
     (departmentId ? `&departmentId=${departmentId}` : '');
 
-  const { user } = await requireRole(['Admin', 'Superadmin']);
+  const { user } = await requirePermission('payroll.read');
   const [mayRun, mayPublish] = await Promise.all([
     canDo(user, 'payroll.run'),
     canDo(user, 'payroll.publish'),
@@ -99,6 +102,7 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
           nickname: true,
           branchId: true,
           departmentId: true,
+          user: { select: { lineUserId: true } },
         },
       },
     },
@@ -115,8 +119,23 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
 
   const [activeEmployees, options] = await Promise.all([
     prisma.employee.count({ where: { status: { not: 'Archived' } } }),
-    loadReportFilterOptions(),
+    // Payroll's branch filter is out of scope for B5 (no `permitted` here) —
+    // pass 'all' to preserve current unfiltered behavior.
+    loadReportFilterOptions('all'),
   ]);
+
+  // Frozen buckets straight off the persisted row — NO engine call.
+  const frozenOf = (r: (typeof rows)[number]): FrozenSlipVM => ({
+    incomeBase: r.incomeBase.toFixed(2),
+    incomeOther: r.incomeOther.toFixed(2),
+    deductSso: r.deductSso.toFixed(2),
+    deductAttendance: r.deductAttendance.toFixed(2),
+    deductLeave: r.deductLeave.toFixed(2),
+    deductAdvance: r.deductAdvance.toFixed(2),
+    deductDebt: r.deductDebt.toFixed(2),
+    deductOther: r.deductOther.toFixed(2),
+    netPay: r.netPay.toFixed(2),
+  });
 
   // Stale-draft detection: a Draft row is "stale" when recomputing it now
   // (same engine คำนวณใหม่ uses) yields different numbers — i.e. its inputs
@@ -390,8 +409,10 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
         </div>
       )}
 
-      {/* Summary strip — company totals for the month */}
-      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      {/* Summary strip — company totals for the month. 5-up only at xl: at lg
+          the sidebar claims ~290px, so five text-3xl baht figures would overflow
+          — stay 3-up until there's real width. */}
+      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
         <StatCard label="ฐานเงินเดือนรวม" value={formatTHB(totals.incomeBase)} />
         <StatCard
           label="เงินเพิ่มรวม"
@@ -428,6 +449,11 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
             label={`เผยแพร่สลิป + แจ้งเตือน LINE (${statusCounts.Draft} คน)`}
             pendingLabel="กำลังเผยแพร่สลิปและส่งแจ้งเตือน…"
             variant="primary"
+            confirm={{
+              title: 'เผยแพร่สลิปทั้งงวด?',
+              description: `เผยแพร่สลิป ${statusCounts.Draft} คน และส่งแจ้งเตือน LINE ถึงทุกคนพร้อมกัน — ดำเนินการแล้วย้อนกลับไม่ได้`,
+              confirmLabel: 'เผยแพร่ทั้งหมด',
+            }}
           />
         )}
         {mayPublish && statusCounts.Published > 0 && (
@@ -450,19 +476,35 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
         columns={columns}
         rows={visibleRows}
         rowKey={(r) => r.id}
-        actions={(r) =>
-          r.status === 'Draft' && mayRun ? (
-            <RowAdjust
-              employeeId={r.employeeId}
+        minWidth="md:min-w-[64rem]"
+        actions={(r) => (
+          <div className="flex items-center justify-start gap-2">
+            <RowDetail
               employeeName={`${r.employee.firstName} ${r.employee.lastName}`}
-              month={month}
+              status={r.status as 'Draft' | 'Published' | 'Locked'}
               monthLabel={monthLabelTh(month)}
-              adjustments={adjByEmployee.get(r.employeeId) ?? []}
-              createAction={createRowAdjustment}
-              deleteAction={deleteRowAdjustment}
+              month={month}
+              employeeId={r.employeeId}
+              loadDetail={loadPayrollRowDetailAction}
+              frozen={r.status === 'Draft' ? null : frozenOf(r)}
+              canPublish={mayPublish}
+              publishAction={publishOnePayrollAction}
+              lineLinked={r.employee.user?.lineUserId != null}
+              resendAction={resendPayslipNotificationAction}
             />
-          ) : null
-        }
+            {r.status === 'Draft' && mayRun ? (
+              <RowAdjust
+                employeeId={r.employeeId}
+                employeeName={`${r.employee.firstName} ${r.employee.lastName}`}
+                month={month}
+                monthLabel={monthLabelTh(month)}
+                adjustments={adjByEmployee.get(r.employeeId) ?? []}
+                createAction={createRowAdjustment}
+                deleteAction={deleteRowAdjustment}
+              />
+            ) : null}
+          </div>
+        )}
         empty={
           // The month has rows but the filter excluded them all → tell the
           // admin it's the filter, not a missing payroll run (no calc button).

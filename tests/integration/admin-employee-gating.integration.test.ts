@@ -1,7 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { computeTier } from '@/lib/auth/user-tier';
 import { prisma } from '@/lib/db/prisma';
-import { assignAdminRole } from '@/lib/employee/assign-admin-role';
 
 async function resetDb() {
   await prisma.userRoleAssignment.deleteMany({});
@@ -45,7 +44,7 @@ describe('admin-employee gating invariants', () => {
     await prisma.userRoleAssignment.create({
       data: { userId: user.id, roleId: staff.id, branchId: null },
     });
-    const emp = await prisma.employee.create({
+    await prisma.employee.create({
       data: {
         userId: user.id,
         firstName: 'A',
@@ -58,7 +57,12 @@ describe('admin-employee gating invariants', () => {
       },
     });
 
-    await assignAdminRole(emp.id);
+    // Grant admin the way the merge flow does: a global 'admin' assignment
+    // on the employee's User (the employee-edit grant button was removed).
+    const admin = await prisma.roleDefinition.findUniqueOrThrow({ where: { key: 'admin' } });
+    await prisma.userRoleAssignment.create({
+      data: { userId: user.id, roleId: admin.id, branchId: null },
+    });
 
     const reloaded = await prisma.user.findUniqueOrThrow({
       where: { id: user.id },

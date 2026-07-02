@@ -2,6 +2,7 @@
 
 import { headers } from 'next/headers';
 import { auditLogTx, type Prisma } from '@/lib/audit/log';
+import { canActOnEmployeeBranches, getPermittedBranches } from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma, prismaRaw } from '@/lib/db/prisma';
 
@@ -9,7 +10,7 @@ export type VoidResult =
   | { ok: true; voidedAttendanceCount?: number }
   | {
       ok: false;
-      code: 'not-found' | 'forbidden' | 'already-voided' | 'reason-required' | 'error';
+      code: 'not-found' | 'already-voided' | 'reason-required' | 'error';
       message: string;
     };
 
@@ -35,12 +36,25 @@ export async function voidLeaveRequest(id: string, reason: string): Promise<Void
 
   const row = await prismaRaw.leaveRequest.findUnique({
     where: { id },
-    select: { id: true, deletedAt: true, status: true, employee: { select: { branchId: true } } },
+    select: {
+      id: true,
+      deletedAt: true,
+      status: true,
+      employee: { select: { branchId: true, assignedBranchIds: true } },
+    },
   });
   if (!row) return { ok: false, code: 'not-found', message: 'ไม่พบคำขอลา' };
+
+  const { user } = await requirePermission('leave.void');
+  const permitted = await getPermittedBranches(user, 'leave.void');
+  if (
+    !canActOnEmployeeBranches(permitted, [row.employee.branchId, ...row.employee.assignedBranchIds])
+  ) {
+    return { ok: false, code: 'not-found', message: 'ไม่พบคำขอลา' };
+  }
+
   if (row.deletedAt) return { ok: false, code: 'already-voided', message: 'คำขอนี้ถูกลบไปแล้ว' };
 
-  const { user } = await requirePermission('leave.void', { branchId: row.employee.branchId });
   const meta = await reqMeta();
   const now = new Date();
 
@@ -90,12 +104,24 @@ export async function voidLeaveRequest(id: string, reason: string): Promise<Void
 export async function restoreLeaveRequest(id: string): Promise<VoidResult> {
   const row = await prismaRaw.leaveRequest.findUnique({
     where: { id },
-    select: { id: true, deletedAt: true, employee: { select: { branchId: true } } },
+    select: {
+      id: true,
+      deletedAt: true,
+      employee: { select: { branchId: true, assignedBranchIds: true } },
+    },
   });
   if (!row) return { ok: false, code: 'not-found', message: 'ไม่พบคำขอลา' };
+
+  const { user } = await requirePermission('leave.void');
+  const permitted = await getPermittedBranches(user, 'leave.void');
+  if (
+    !canActOnEmployeeBranches(permitted, [row.employee.branchId, ...row.employee.assignedBranchIds])
+  ) {
+    return { ok: false, code: 'not-found', message: 'ไม่พบคำขอลา' };
+  }
+
   if (!row.deletedAt) return { ok: true };
 
-  const { user } = await requirePermission('leave.void', { branchId: row.employee.branchId });
   const meta = await reqMeta();
 
   try {

@@ -23,6 +23,7 @@ import 'server-only';
  */
 
 import type { Prisma } from '@prisma/client';
+import { employeeBranchScope, type PermittedBranches } from '@/lib/auth/branch-scope';
 import { prisma } from '@/lib/db/prisma';
 import type { Locale } from '@/lib/i18n/config';
 import { localizedLeaveTypeName } from './localized-name';
@@ -183,16 +184,21 @@ export async function getOrgCalendarData(args: {
   monthStart: Date;
   monthEnd: Date;
   branchId?: string | null;
+  permitted: PermittedBranches;
 }): Promise<TeamCalendarData> {
-  const { monthStart, monthEnd, branchId } = args;
+  const { monthStart, monthEnd, branchId, permitted } = args;
 
-  const where: Prisma.EmployeeWhereInput = {
+  const baseWhere: Prisma.EmployeeWhereInput = {
     archivedAt: null,
     status: { not: 'Archived' },
   };
   if (branchId) {
-    where.OR = [{ branchId }, { assignedBranchIds: { hasSome: [branchId] } }];
+    baseWhere.OR = [{ branchId }, { assignedBranchIds: { hasSome: [branchId] } }];
   }
+  const scope = employeeBranchScope(permitted); // {} for 'all'
+  const where: Prisma.EmployeeWhereInput = Object.keys(scope).length
+    ? { AND: [baseWhere, scope] }
+    : baseWhere;
 
   const employees = await prisma.employee.findMany({
     where,

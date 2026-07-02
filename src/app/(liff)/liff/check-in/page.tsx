@@ -16,6 +16,7 @@ import { toZonedTime } from 'date-fns-tz';
 import { getLocale } from 'next-intl/server';
 import { getCheckInState } from '@/lib/attendance/check-in';
 import { requireEmployee } from '@/lib/auth/require-role';
+import { localizedBranchName } from '@/lib/branch/localized-name';
 import { prisma } from '@/lib/db/prisma';
 import type { Locale } from '@/lib/i18n/config';
 import { formatDate } from '@/lib/i18n/format';
@@ -31,7 +32,7 @@ export default async function LiffCheckInPage() {
         id: { in: Array.from(new Set([employee.branchId, ...employee.assignedBranchIds])) },
         archivedAt: null,
       },
-      select: { id: true, name: true, requireSelfie: true, requireCheckOut: true },
+      select: { id: true, name: true, nameEn: true, requireSelfie: true, requireCheckOut: true },
       orderBy: { name: 'asc' },
     }),
     getLocale(),
@@ -61,7 +62,7 @@ export default async function LiffCheckInPage() {
     <CheckInClient
       employeeFirstName={employee.firstName}
       employeeLastName={employee.lastName}
-      branches={branchInfo.map((b) => ({ id: b.id, name: b.name }))}
+      branches={branchInfo.map((b) => ({ id: b.id, name: localizedBranchName(b, locale) }))}
       selfieRequired={selfieRequired}
       checkOutRequired={checkOutRequired}
       initialState={state}

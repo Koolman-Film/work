@@ -1,5 +1,7 @@
 import { Calendar } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
+import { getPermittedBranches } from '@/lib/auth/branch-scope';
+import { requirePermission } from '@/lib/auth/check-permission';
 import { formatTHB2, formatThaiDate } from '@/lib/format';
 import { getLeaveConfig } from '@/lib/leave/leave-config';
 import { formatDaysHours } from '@/lib/leave/units';
@@ -23,6 +25,8 @@ export default async function LeaveReportPage({
   }>;
 }) {
   const params = await searchParams;
+  const { user } = await requirePermission('report.read');
+  const permitted = await getPermittedBranches(user, 'report.read');
   const todayYmd = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
   const period = resolveReportPeriod(params, todayYmd, await loadPayrollCutoffDay());
   const year = Number((period.month ?? period.from).slice(0, 4));
@@ -30,10 +34,10 @@ export default async function LeaveReportPage({
   const departmentId = asUuid(params.departmentId);
   const filter = { q: params.q, branchId, departmentId };
   const [{ types, rows }, detail, cfg, options] = await Promise.all([
-    leaveReport(period, filter, year),
-    leaveDetail(period, filter),
+    leaveReport(period, filter, year, permitted),
+    leaveDetail(period, filter, permitted),
     getLeaveConfig(),
-    loadReportFilterOptions(),
+    loadReportFilterOptions(permitted),
   ]);
 
   return (

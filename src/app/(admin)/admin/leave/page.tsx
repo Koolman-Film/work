@@ -20,6 +20,8 @@ import { ListSearch } from '@/components/ui/list-search';
 import { PageHeader } from '@/components/ui/page-header';
 import { Pagination } from '@/components/ui/pagination';
 import { StatusBadge, type StatusKey } from '@/components/ui/status-badge';
+import { getPermittedBranches, viaEmployeeBranchScope } from '@/lib/auth/branch-scope';
+import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma, prismaRaw } from '@/lib/db/prisma';
 import { getLeaveConfig } from '@/lib/leave/leave-config';
 import { leaveDurationLabel } from '@/lib/leave/units';
@@ -51,10 +53,14 @@ export default async function AdminLeaveInboxPage({
 }: {
   searchParams: SearchParams;
 }) {
+  const { user } = await requirePermission('leave.read');
   const { status, trash, q: qRaw, page: pageRaw } = await searchParams;
   const isTrash = trash === '1';
   const q = qRaw?.trim() ?? '';
   const requestedPage = parsePageParam(pageRaw);
+
+  const permitted = await getPermittedBranches(user, 'leave.read');
+  const scope = viaEmployeeBranchScope(permitted); // {} for 'all' (global/Superadmin)
 
   // Status filter → base where; an employee-name search (q) narrows on top.
   const where: Prisma.LeaveRequestWhereInput = (() => {
@@ -73,7 +79,14 @@ export default async function AdminLeaveInboxPage({
     };
   }
 
-  const trashWhere = { deletedAt: { not: null } } as const;
+  // Branch scope: a scoped admin only sees leave for employees in their branches.
+  // Merge with any name-search `where.employee` via AND so both apply.
+  if (scope.employee) {
+    where.employee = where.employee ? { AND: [where.employee, scope.employee] } : scope.employee;
+  }
+
+  const trashWhere: Prisma.LeaveRequestWhereInput = { deletedAt: { not: null } };
+  if (scope.employee) trashWhere.employee = scope.employee;
   const { skip, take } = pageArgs(requestedPage);
 
   // The page of rows + the matching total (for the pager) go through the same

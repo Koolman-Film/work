@@ -14,6 +14,7 @@
  */
 
 import { inngest } from './client';
+import { notificationEventId } from './notification-id';
 
 export type NotificationKind =
   | 'leave.approved'
@@ -129,40 +130,6 @@ export type NotificationSendEvent = {
 };
 
 /**
- * Idempotency key for an event — Inngest dedupes events with the same
- * `id` within a ~24h window. We construct deterministically from the
- * underlying entity + kind so re-firing the same notification (e.g.
- * the admin clicks approve twice through a network retry) doesn't
- * spam the employee with duplicate pushes.
- */
-function notificationIdempotencyKey(payload: NotificationPayload): string {
-  switch (payload.kind) {
-    case 'leave.approved':
-    case 'leave.rejected':
-      return `notif:${payload.kind}:${payload.leaveRequestId}`;
-    case 'advance.approved':
-    case 'advance.rejected':
-    // advance.paid re-fires when an admin re-uploads the transfer slip —
-    // within Inngest's ~24h dedupe window the second push is dropped.
-    // Intentional: the employee already got "paid" for that advance.
-    // (key includes the recipientUserId suffix — still deterministic for
-    // single-recipient worker kinds)
-    case 'advance.paid':
-    case 'admin.advance-submitted':
-      return `notif:${payload.kind}:${payload.cashAdvanceId}`;
-    case 'admin.leave-submitted':
-      return `notif:${payload.kind}:${payload.leaveRequestId}`;
-    case 'admin.dispute-submitted':
-      return `notif:${payload.kind}:${payload.attendanceId}`;
-    case 'attendance.dispute-approved':
-    case 'attendance.dispute-rejected':
-      return `notif:${payload.kind}:${payload.attendanceId}`;
-    case 'payroll.published':
-      return `notif:${payload.kind}:${payload.payrollId}`;
-  }
-}
-
-/**
  * Fire-and-await: queues the event with Inngest. Returns once Inngest
  * has acknowledged ingestion (typically <100ms). Caller doesn't wait
  * for the actual push to complete — that happens asynchronously in
@@ -176,13 +143,14 @@ function notificationIdempotencyKey(payload: NotificationPayload): string {
 export async function sendNotification(
   recipientUserId: string,
   payload: NotificationPayload,
+  opts?: { dedupeSuffix?: string },
 ): Promise<void> {
   await inngest.send({
     // Recipient suffix is required for admin fan-out: the same entity is
     // pushed to N admins, and without it Inngest would dedupe them down to
-    // one event. Harmless for worker kinds (single recipient → same
-    // semantics as before).
-    id: `${notificationIdempotencyKey(payload)}:${recipientUserId}`,
+    // one event. A dedupeSuffix (resend only) appends a fresh token so a
+    // deliberate re-send escapes the 24h dedup window.
+    id: notificationEventId(payload, recipientUserId, opts?.dedupeSuffix),
     name: 'notification.send',
     data: { ...payload, recipientUserId },
   });

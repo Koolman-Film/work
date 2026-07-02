@@ -10,6 +10,8 @@ const doc: PayslipDocument = {
     employeeName: 'Somchai Jaidee',
     employeeId: 'EMP-1',
     branch: 'Chiang Mai',
+    branchEn: null,
+    letterhead: { payslipNameEn: null, payslipNameNative: null, payslipLogoKey: null },
     department: 'Install',
     payType: 'Monthly',
     month: '2026-06',
@@ -43,6 +45,8 @@ const opts = {
   logoSvg: '<svg/>',
   periodLabel: 'มิถุนายน 2569',
   generatedAt: '2026-07-01',
+  companyEn: 'Koolman Co., Ltd.',
+  companyNative: 'บริษัท คูลแมน จำกัด',
 };
 
 describe('buildPayslipHtml', () => {
@@ -90,6 +94,17 @@ describe('buildPayslipHtml', () => {
     const html = buildPayslipHtml(noDept, { ...opts, locale: 'th' });
     expect(html).not.toContain('profile.readonly.department');
   });
+  it('print path (default) adds NO screen viewport or body padding', () => {
+    const html = buildPayslipHtml(doc, { ...opts, locale: 'th' });
+    expect(html).not.toContain('name="viewport"');
+    const css = html.slice(html.indexOf('<style>'), html.indexOf('</style>'));
+    expect(css).not.toMatch(/body\{padding:13mm/);
+  });
+  it('screen mode adds a fixed-width viewport + print margins so it scales to fit', () => {
+    const html = buildPayslipHtml(doc, { ...opts, locale: 'th', screen: true });
+    expect(html).toContain('<meta name="viewport" content="width=794, initial-scale=1">');
+    expect(html).toMatch(/body\{padding:13mm 13mm 15mm;\}/);
+  });
 });
 
 // --- real-resolver test: catches missing/renamed i18n keys ---
@@ -108,6 +123,8 @@ describe('buildPayslipHtml — real en.json keys', () => {
         employeeName: 'Test User',
         employeeId: 'EMP-99',
         branch: 'Bangkok',
+        branchEn: null,
+        letterhead: { payslipNameEn: null, payslipNameNative: null, payslipLogoKey: null },
         department: 'Engineering',
         payType: 'Monthly',
         month: '2026-06',
@@ -138,6 +155,8 @@ describe('buildPayslipHtml — real en.json keys', () => {
       logoSvg: '<svg/>',
       periodLabel: 'June 2026',
       generatedAt: '2026-07-01',
+      companyEn: 'Koolman Co., Ltd.',
+      companyNative: 'บริษัท คูลแมน จำกัด',
     });
 
     // Real resolved labels must appear in the output
@@ -147,5 +166,42 @@ describe('buildPayslipHtml — real en.json keys', () => {
     expect(html).toContain('Net pay'); // payslip.net
     expect(html).toContain('5% · cap ฿15,000'); // payslipPdf.detail.sso with vars
     expect(html).toContain('Koolman Co., Ltd.'); // brand constant
+  });
+});
+
+describe('buildPayslipHtml — per-branch letterhead + branch localization', () => {
+  it('renders the companyEn / companyNative opts in the header', () => {
+    const html = buildPayslipHtml(
+      {
+        ...doc,
+        meta: {
+          ...doc.meta,
+          branchEn: null,
+          letterhead: { payslipNameEn: null, payslipNameNative: null, payslipLogoKey: null },
+        },
+      },
+      { ...opts, locale: 'th', companyEn: 'Acme Co., Ltd.', companyNative: 'บริษัท แอคมี จำกัด' },
+    );
+    expect(html).toContain('Acme Co., Ltd.');
+    expect(html).toContain('บริษัท แอคมี จำกัด');
+  });
+
+  it('shows the English branch name in the สาขา field for a non-Thai locale', () => {
+    const meta = {
+      ...doc.meta,
+      branch: 'เชียงใหม่',
+      branchEn: 'Chiang Mai',
+      letterhead: { payslipNameEn: null, payslipNameNative: null, payslipLogoKey: null },
+    };
+    const en = buildPayslipHtml(
+      { ...doc, meta },
+      { ...opts, locale: 'en', companyEn: 'X', companyNative: 'Y' },
+    );
+    expect(en).toContain('Chiang Mai');
+    const th = buildPayslipHtml(
+      { ...doc, meta },
+      { ...opts, locale: 'th', companyEn: 'X', companyNative: 'Y' },
+    );
+    expect(th).toContain('เชียงใหม่');
   });
 });

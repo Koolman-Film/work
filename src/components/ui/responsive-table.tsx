@@ -22,6 +22,7 @@ export function ResponsiveTable<T>({
   actions,
   empty,
   onRowClick,
+  minWidth,
 }: {
   columns: Column<T>[];
   rows: T[];
@@ -34,6 +35,12 @@ export function ResponsiveTable<T>({
    * only usable when the table is rendered from a client component.
    */
   onRowClick?: (row: T) => void;
+  /**
+   * Min width for the desktop table (Tailwind class, e.g. `md:min-w-[60rem]`).
+   * Wide tables that would otherwise crush their columns set this so the
+   * desktop wrapper scrolls horizontally instead. Omit for tables that fit.
+   */
+  minWidth?: string;
 }) {
   if (rows.length === 0 && empty) return <>{empty}</>;
 
@@ -54,9 +61,12 @@ export function ResponsiveTable<T>({
 
   return (
     <>
-      {/* Desktop: real table (white surface, matching Card/.surface elsewhere) */}
-      <div className="hidden overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm md:block">
-        <table className="w-full text-sm">
+      {/* Desktop: real table (white surface, matching Card/.surface elsewhere).
+          overflow-x-auto so wide tables scroll horizontally rather than crush
+          their columns; only kicks in when a `minWidth` pushes the table past
+          its container. */}
+      <div className="hidden overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm md:block">
+        <table className={cn('w-full text-sm', minWidth)}>
           <thead className="bg-gray-50/60 text-left font-display text-xs font-semibold text-ink-3">
             <tr>
               {columns.map((c) => (

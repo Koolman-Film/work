@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { auditLog } from '@/lib/audit/log';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
+import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 
 /**
  * Branch CRUD Server Actions.
@@ -74,6 +75,30 @@ const BranchSchema = z
       .string()
       .optional()
       .transform((s) => s === 'on'),
+    nameEn: z
+      .string()
+      .trim()
+      .max(80)
+      .optional()
+      .transform((s) => (s ? s : null)),
+    payslipNameEn: z
+      .string()
+      .trim()
+      .max(120)
+      .optional()
+      .transform((s) => (s ? s : null)),
+    payslipNameNative: z
+      .string()
+      .trim()
+      .max(120)
+      .optional()
+      .transform((s) => (s ? s : null)),
+    payslipLogoKey: z
+      .string()
+      .trim()
+      .max(300)
+      .optional()
+      .transform((s) => (s ? s : null)),
   })
   .refine((d) => (d.latitude == null) === (d.longitude == null), {
     message: 'ต้องระบุพิกัดทั้ง lat และ lng หรือทั้งคู่ว่าง',
@@ -97,6 +122,10 @@ function readForm(formData: FormData) {
     requireSelfie: get('requireSelfie'),
     requireGps: get('requireGps'),
     requireCheckOut: get('requireCheckOut'),
+    nameEn: get('nameEn'),
+    payslipNameEn: get('payslipNameEn'),
+    payslipNameNative: get('payslipNameNative'),
+    payslipLogoKey: get('payslipLogoKey'),
   });
 }
 
@@ -155,6 +184,13 @@ export async function updateBranch(id: string, formData: FormData) {
       after: parsed.data,
       metadata: { source: 'admin-ui' },
     });
+
+    // If the logo key changed (re-upload or removal), best-effort delete the
+    // previously stored object so we don't accumulate orphans. Mirrors the
+    // employee photo cleanup.
+    if (before.payslipLogoKey && before.payslipLogoKey !== parsed.data.payslipLogoKey) {
+      await bestEffortRemoveLogo(before.payslipLogoKey);
+    }
   } catch (err: unknown) {
     if (isUniqueViolation(err)) {
       redirect(`/admin/settings/branches/${id}/edit?error=${encodeURIComponent('มีสาขาชื่อนี้อยู่แล้ว')}`);
@@ -240,4 +276,18 @@ function isUniqueViolation(err: unknown): boolean {
     'code' in err &&
     (err as { code: string }).code === 'P2002'
   );
+}
+
+/** Best-effort delete a logo object from the attendance-photos bucket. */
+async function bestEffortRemoveLogo(key: string | null): Promise<void> {
+  if (!key) return;
+  try {
+    const sb = getSupabaseAdminClient();
+    const { error } = await sb.storage.from('attendance-photos').remove([key]);
+    if (error) {
+      console.error('[branch] logo remove failed', { key, message: error.message });
+    }
+  } catch (err) {
+    console.error('[branch] logo remove — storage client unavailable', err);
+  }
 }

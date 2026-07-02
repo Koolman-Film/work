@@ -3,16 +3,44 @@
 import { Prisma } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+import { after } from 'next/server';
+import type { ActionResult } from '@/components/ui/confirm-dialog';
 import { auditLog } from '@/lib/audit/log';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
+import { sendNotification } from '@/lib/inngest/events';
 import {
   lockPayroll,
   notifyPublishedSlips,
+  type PayrollRowDetail,
+  type PublishResult,
+  payrollRowDetail,
   publishPayroll,
   runPayrollDraft,
 } from '@/lib/payroll/run';
+import { warmPublishedPayslips } from '@/lib/payslip/warm';
 import { readForm } from './adjustments/adjustment-schema';
+
+/**
+ * Schedule background pre-rendering of freshly-published slips so each
+ * employee's first LIFF open is instant. Runs after the response via `after()`,
+ * so it never delays the publish action. Best-effort — failures are swallowed
+ * inside warmPublishedPayslips and the slip just renders lazily on first open.
+ */
+async function scheduleSlipWarming(month: string, slips: { employeeId: string }[]): Promise<void> {
+  if (slips.length === 0) return;
+  // The employee's preferred locale lives on the linked User (see schema).
+  const employees = await prisma.employee.findMany({
+    where: { id: { in: slips.map((s) => s.employeeId) } },
+    select: { id: true, user: { select: { locale: true } } },
+  });
+  const localeById = new Map(employees.map((e) => [e.id, e.user.locale]));
+  const targets = slips.map((s) => ({
+    employeeId: s.employeeId,
+    locale: localeById.get(s.employeeId) ?? null,
+  }));
+  after(() => warmPublishedPayslips({ month, targets }));
+}
 
 /**
  * Monthly payroll run actions — thin permission/audit wrappers around
@@ -24,6 +52,7 @@ import { readForm } from './adjustments/adjustment-schema';
  */
 
 const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function readMonth(formData: FormData): string {
   const month = String(formData.get('month') ?? '');
@@ -83,6 +112,7 @@ export async function publishPayrollAction(formData: FormData) {
 
   const result = await publishPayroll(month);
   await notifyPublishedSlips(month, result.published);
+  await scheduleSlipWarming(month, result.published);
 
   auditLog({
     actorId: user.id,
@@ -179,6 +209,83 @@ export async function deleteRowAdjustment(
   return { ok: true };
 }
 
+/**
+ * Lazy-load a single employee's payslip detail on modal open.
+ * Gated by payroll.read — same as the page itself.
+ */
+export async function loadPayrollRowDetailAction(
+  employeeId: string,
+  month: string,
+): Promise<PayrollRowDetail | null> {
+  await requirePermission('payroll.read');
+  if (!MONTH_RE.test(month) || !UUID_RE.test(employeeId)) return null;
+  return payrollRowDetail(month, employeeId);
+}
+
+/**
+ * Resend the LINE rich message for an already-published slip — the safety net
+ * when the original push failed. Re-queues with a fresh dedupeSuffix so the
+ * 24h Inngest dedup window doesn't silently swallow it. Confirms only that the
+ * push was QUEUED (delivery is async with retries), so the UI says "may take a
+ * moment", not "delivered".
+ */
+export async function resendPayslipNotificationAction(
+  employeeId: string,
+  month: string,
+): Promise<ActionResult> {
+  const { user } = await requirePermission('payroll.publish');
+  if (!MONTH_RE.test(month)) return { ok: false, message: 'เดือนไม่ถูกต้อง' };
+  if (!UUID_RE.test(employeeId)) return { ok: false, message: 'พนักงานไม่ถูกต้อง' };
+
+  const payroll = await prisma.payroll.findFirst({
+    where: { employeeId, month, status: { in: ['Published', 'Locked'] } },
+    select: {
+      id: true,
+      netPay: true,
+      employee: {
+        select: { firstName: true, userId: true, user: { select: { lineUserId: true } } },
+      },
+    },
+  });
+  if (!payroll) return { ok: false, message: 'ยังไม่ได้เผยแพร่สลิปงวดนี้' };
+  if (!payroll.employee.user?.lineUserId) {
+    return { ok: false, message: 'พนักงานยังไม่ได้เชื่อมบัญชี LINE — ส่งสลิปไม่ได้' };
+  }
+
+  try {
+    await sendNotification(
+      payroll.employee.userId,
+      {
+        kind: 'payroll.published',
+        payrollId: payroll.id,
+        month,
+        employeeFirstName: payroll.employee.firstName,
+        // Same formatting publishPayroll uses for the original push.
+        netPay: payroll.netPay.toNumber().toLocaleString('en-US', {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }),
+      },
+      // Fresh per call → bypasses the 24h dedup window. Server-action runtime,
+      // so Date.now()/randomness are fine here (this is not a workflow script).
+      { dedupeSuffix: `resend-${Date.now().toString(36)}` },
+    );
+  } catch (err) {
+    console.error('resendPayslipNotificationAction: LINE notify failed', err);
+    return { ok: false, message: 'ส่งสลิปไม่สำเร็จ กรุณาลองใหม่' };
+  }
+
+  auditLog({
+    actorId: user.id,
+    action: 'payroll.publish',
+    entityType: 'Payroll',
+    entityId: month,
+    metadata: { source: 'admin-ui', via: 'resend', employeeId, payrollId: payroll.id },
+  });
+
+  return { ok: true };
+}
+
 export async function lockPayrollAction(formData: FormData) {
   const { user } = await requirePermission('payroll.publish');
   const month = readMonth(formData);
@@ -194,4 +301,56 @@ export async function lockPayrollAction(formData: FormData) {
   });
 
   back(month, `ล็อกสลิป ${count} คน`);
+}
+
+/**
+ * Per-employee publish — driven by the row-level ConfirmDialog.
+ * Returns ActionResult (no redirect) so the dialog can show inline
+ * success/failure without a full-page navigation.
+ */
+export async function publishOnePayrollAction(
+  employeeId: string,
+  month: string,
+): Promise<ActionResult> {
+  const { user } = await requirePermission('payroll.publish');
+  if (!MONTH_RE.test(month)) return { ok: false, message: 'เดือนไม่ถูกต้อง' };
+  if (!UUID_RE.test(employeeId)) return { ok: false, message: 'พนักงานไม่ถูกต้อง' };
+  if (month > currentMonthBkk()) {
+    return { ok: false, message: 'ยังเผยแพร่เดือนล่วงหน้าไม่ได้ — เผยแพร่ได้ไม่เกินเดือนปัจจุบัน' };
+  }
+
+  let result: PublishResult;
+  try {
+    result = await publishPayroll(month, { employeeId });
+  } catch (err) {
+    console.error('publishOnePayrollAction: publish failed', err);
+    return { ok: false, message: 'เกิดข้อผิดพลาดในการเผยแพร่ กรุณาลองใหม่' };
+  }
+  if (result.published.length === 0) {
+    return { ok: false, message: 'ไม่มีสลิปฉบับร่างให้เผยแพร่ (อาจเผยแพร่ไปแล้ว)' };
+  }
+
+  // Publish already committed — a LINE failure must never undo it or skip the audit.
+  try {
+    await notifyPublishedSlips(month, result.published);
+  } catch (err) {
+    console.error('publishOnePayrollAction: LINE notify failed (publish already committed)', err);
+  }
+  await scheduleSlipWarming(month, result.published);
+
+  auditLog({
+    actorId: user.id,
+    action: 'payroll.publish',
+    entityType: 'Payroll',
+    entityId: month,
+    metadata: {
+      source: 'admin-ui',
+      via: 'per-employee',
+      employeeId,
+      published: result.published.length,
+    },
+  });
+
+  revalidatePath('/admin/payroll');
+  return { ok: true };
 }

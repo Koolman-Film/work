@@ -1,6 +1,8 @@
 import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { PageHeader } from '@/components/ui/page-header';
+import { canActOnEmployeeBranches, getPermittedBranches } from '@/lib/auth/branch-scope';
+import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { isLocale } from '@/lib/i18n/config';
 import { resolveStoredImageUrl } from '@/lib/storage/signed-urls';
@@ -8,7 +10,6 @@ import { loadEmployeeFormOptions } from '../../_load-options';
 import { archiveEmployee, deleteEmployee, updateEmployee } from '../../actions';
 import { EmployeeForm } from '../../employee-form';
 import { PairingCard } from '../../pairing-card';
-import { AdminAccessSection } from './admin-access-section';
 import { DangerActions } from './danger-actions';
 import { EntitlementsSection } from './entitlements-section';
 import { LocaleDefaultCard } from './locale-default-card';
@@ -23,6 +24,7 @@ export default async function EditEmployeePage({
   params: Params;
   searchParams: SearchParams;
 }) {
+  const { user } = await requirePermission('employee.read');
   const { id } = await params;
   const { error, ok, year: yearParam } = await searchParams;
   const currentYear = Number(
@@ -30,7 +32,7 @@ export default async function EditEmployeePage({
   );
   const year = yearParam && /^\d{4}$/.test(yearParam) ? Number(yearParam) : currentYear;
 
-  const [emp, options, adminAssignment] = await Promise.all([
+  const [emp, options] = await Promise.all([
     prisma.employee.findUnique({
       where: { id },
       select: {
@@ -64,15 +66,21 @@ export default async function EditEmployeePage({
       },
     }),
     loadEmployeeFormOptions(),
-    prisma.userRoleAssignment.findFirst({
-      where: {
-        user: { employee: { id } },
-        role: { OR: [{ key: 'admin' }, { isSuperadmin: true }], archivedAt: null },
-      },
-      select: { id: true },
-    }),
   ]);
   if (!emp) notFound();
+
+  // Branch-scope enforcement: deny access if actor cannot act on this employee's branches.
+  if (
+    !canActOnEmployeeBranches(await getPermittedBranches(user, 'employee.read'), [
+      emp.branchId,
+      ...emp.assignedBranchIds,
+    ])
+  ) {
+    notFound();
+  }
+
+  // Scoped admins (non-global) cannot reassign branches — show read-only branch UI.
+  const branchReadOnly = (await getPermittedBranches(user, 'employee.update')) !== 'all';
 
   const photoUrl = await resolveStoredImageUrl(emp.photoKey);
 
@@ -106,6 +114,7 @@ export default async function EditEmployeePage({
         options={options}
         error={error ? decodeURIComponent(error) : null}
         employeeId={id}
+        branchReadOnly={branchReadOnly}
         initial={{
           firstName: emp.firstName,
           lastName: emp.lastName,
@@ -146,7 +155,6 @@ export default async function EditEmployeePage({
         belowForm={
           <div className="mt-6 space-y-6">
             <EntitlementsSection employeeId={id} year={year} />
-            <AdminAccessSection employeeId={id} isAlreadyAdmin={adminAssignment !== null} />
             <LocaleDefaultCard
               employeeId={emp.id}
               currentLocale={isLocale(emp.user.locale) ? emp.user.locale : null}

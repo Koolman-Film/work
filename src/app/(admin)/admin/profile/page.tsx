@@ -1,12 +1,14 @@
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageHeader } from '@/components/ui/page-header';
-import { requireRole } from '@/lib/auth/require-role';
+import { requireAdminArea } from '@/lib/auth/admin-area';
+import { ADMIN_LINE_LINK_ENABLED } from '@/lib/auth/admin-line-feature';
 import { prisma } from '@/lib/db/prisma';
 import { MergePromptCard } from '../_components/merge-prompt-card';
 import { ChangePasswordForm } from './change-password-form';
 
 /**
- * Self-service profile page for Admin / Superadmin.
+ * Self-service profile page for any admin-area user (Admin, Superadmin, or
+ * custom-role back-office user).
  *
  * V1 scope is intentionally minimal:
  *   - Show who you're logged in as (email + role badge — both readonly
@@ -17,13 +19,12 @@ import { ChangePasswordForm } from './change-password-form';
  *
  * Employees are NOT routed here. They authenticate via LINE OIDC (no
  * Supabase password), and they already have /liff/profile for contact
- * info. The role gate `['Admin', 'Superadmin']` enforces this.
+ * info. requireAdminArea() enforces back-office access.
  */
 export default async function AdminProfilePage() {
-  // tier is computed from assignments by requireRole (Phase 4); we
-  // use it directly here rather than re-reading user.role (legacy
-  // column that's about to go away in Phase 4.6).
-  const { user, tier } = await requireRole(['Admin', 'Superadmin']);
+  // tier is computed from assignments by requireAdminArea; null means
+  // the user holds a custom role (no system tier).
+  const { user, tier } = await requireAdminArea();
 
   // Pure admins (no Employee row) can link an employee account here. This is
   // the PERMANENT entry point — the dashboard nudge is dismissible one-way, so
@@ -45,15 +46,13 @@ export default async function AdminProfilePage() {
         </CardHeader>
         <CardBody className="space-y-3">
           <Row label="อีเมล" value={user.email ?? '—'} />
-          <Row
-            label="บทบาท"
-            value={<RoleBadge role={tier === 'Superadmin' ? 'Superadmin' : 'Admin'} />}
-          />
+          <Row label="บทบาท" value={<RoleBadge tier={tier} />} />
         </CardBody>
       </Card>
 
       {/* ─── Link employee account (pure admins only) ─────────────────── */}
-      {isPureAdmin && <MergePromptCard dismissible={false} />}
+      {/* Hidden while the admin LINE experience is disabled (ADMIN_LINE_LINK_ENABLED). */}
+      {ADMIN_LINE_LINK_ENABLED && isPureAdmin && <MergePromptCard dismissible={false} />}
 
       {/* ─── Change password ──────────────────────────────────────────── */}
       <ChangePasswordForm />
@@ -74,17 +73,22 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-function RoleBadge({ role }: { role: 'Admin' | 'Superadmin' }) {
-  if (role === 'Superadmin') {
+function RoleBadge({ tier }: { tier: 'Admin' | 'Superadmin' | 'Staff' | null }) {
+  if (tier === 'Superadmin')
     return (
       <span className="rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-800">
         Superadmin
       </span>
     );
-  }
+  if (tier === 'Admin')
+    return (
+      <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
+        Admin
+      </span>
+    );
   return (
-    <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
-      Admin
+    <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
+      บทบาทกำหนดเอง
     </span>
   );
 }

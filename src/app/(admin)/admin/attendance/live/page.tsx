@@ -8,6 +8,7 @@
 
 import { PageHeader } from '@/components/ui/page-header';
 import { getTodayAttendance } from '@/lib/attendance/live';
+import { getPermittedBranches, viaEmployeeBranchScope } from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { AttendanceTabs } from '../attendance-tabs';
@@ -19,15 +20,22 @@ export default async function LiveBoardPage({
 }: {
   searchParams: Promise<{ filter?: string }>;
 }) {
-  await requirePermission('attendance.live-board');
-  const [{ filter }, [initial, disputedCount]] = await Promise.all([
+  const { user } = await requirePermission('attendance.live-board');
+  // The disputed-tab badge must match the disputed list (gated by
+  // attendance.read), so scope the count to the same permitted branches —
+  // a live-board-only admin (no attendance.read) correctly gets 0.
+  const permitted = await getPermittedBranches(user, 'attendance.read');
+  const [{ filter }, initial, disputedCount] = await Promise.all([
     searchParams,
-    Promise.all([
-      getTodayAttendance(),
-      prisma.attendance.count({
-        where: { type: 'CheckIn', checkInStatus: 'Disputed', deletedAt: null },
-      }),
-    ]),
+    getTodayAttendance(),
+    prisma.attendance.count({
+      where: {
+        type: 'CheckIn',
+        checkInStatus: 'Disputed',
+        deletedAt: null,
+        ...viaEmployeeBranchScope(permitted),
+      },
+    }),
   ]);
 
   return (

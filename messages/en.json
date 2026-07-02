@@ -555,12 +555,6 @@
     "dashboard": "Dashboard",
     "reports": "Reports"
   },
-  "adminAccess": {
-    "title": "Admin access",
-    "description": "Let this employee use admin tools (approvals, etc.) with the same LINE account",
-    "grant": "Grant admin access",
-    "alreadyAdmin": "Already an admin — manage roles on the Team page"
-  },
   "mergeWizard": {
     "working": "Linking your accounts…",
     "successTitle": "Accounts linked",
@@ -572,6 +566,18 @@
     "cardBody": "If you're also an employee here, link accounts to use one LINE for both menus.",
     "cardCta": "Link account",
     "dismiss": "Not now",
-    "scanHint": "Open this with your employee LINE account."
+    "scanHint": "Open this with your employee LINE account.",
+    "confirmTitle": "Confirm account link",
+    "confirmAdmin": "Admin",
+    "confirmEmployee": "Employee",
+    "confirmBody": "Grants admin access to this employee account. The admin's email login stays active.",
+    "confirmCta": "Confirm link",
+    "cancel": "Cancel",
+    "cancelledTitle": "Cancelled",
+    "cancelledBody": "Nothing was changed.",
+    "pickerLabel": "Select the employee that is you",
+    "pickerCta": "Generate QR",
+    "pickerEmpty": "No active employees found",
+    "pickerPlaceholder": "— Select an employee —"
   }
 }

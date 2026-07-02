@@ -58,28 +58,35 @@ function fmtDateRange(startYmd: string, endYmd: string, locale: Locale): string 
 }
 
 /**
- * Deep link into an ADMIN LIFF page via the liff.line.me funnel
- * (`?liff.state=?dest=...` → /liff/pair dispatcher → admin page).
+ * Deep link into a LIFF page via the liff.line.me funnel
+ * (`?liff.state=<state>` → /liff/pair dispatcher → destination page).
  *
- * Admin pages cannot be linked directly: LINE's plain in-app browser
- * (where a bare app URL opens) has a separate cookie jar from the LIFF
- * browser where the admin's session lives, so a direct link lands
- * sessionless and the login handshake can't complete outside LIFF
- * context. Worker links keep using direct URLs — unchanged,
- * long-standing prod behavior.
+ * Required whenever the link is tapped from a LINE message: a bare app URL
+ * opens in LINE's plain in-app browser, whose cookie jar is separate from
+ * the LIFF webview where the user's session lives, so it lands sessionless
+ * and the proxy bounces it to /login. Funneling through liff.line.me →
+ * /liff/pair establishes the session first, then PairClient dispatches by
+ * the `?dest=` slug in `state`.
+ *
+ * `state` is the (raw, un-encoded) `liff.state` query the dispatcher will
+ * read after liff.init(), e.g. `?dest=payslip&m=2026-06`.
  *
  * Falls back to the plain app URL when NEXT_PUBLIC_LIFF_ID is unset (dev).
  */
+function liffDeepLink(appBaseUrl: string, fallbackPath: string, state: string): string {
+  const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
+  if (!liffId) return `${appBaseUrl}${fallbackPath}`;
+  return `https://liff.line.me/${liffId}?liff.state=${encodeURIComponent(state)}`;
+}
+
+/** Admin deep link: `?dest=<slug>` (+ optional `&id=<uuid>`) through the funnel. */
 function adminLiffDeepLink(
   appBaseUrl: string,
   fallbackPath: string,
   dest: string,
   id?: string,
 ): string {
-  const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
-  if (!liffId) return `${appBaseUrl}${fallbackPath}`;
-  const state = id ? `?dest=${dest}&id=${id}` : `?dest=${dest}`;
-  return `https://liff.line.me/${liffId}?liff.state=${encodeURIComponent(state)}`;
+  return liffDeepLink(appBaseUrl, fallbackPath, id ? `?dest=${dest}&id=${id}` : `?dest=${dest}`);
 }
 
 /** Build a Flex Message bubble for the given notification payload. */
@@ -236,7 +243,11 @@ export function buildFlexMessage(
         subtitle: t('payrollPublished.subtitle', { month: monthLabel }),
         details: [],
         actionLabel: t('action.viewPayslip'),
-        actionUri: `${appBaseUrl}/liff/payslip?m=${payload.month}`,
+        actionUri: liffDeepLink(
+          appBaseUrl,
+          `/liff/payslip?m=${payload.month}`,
+          `?dest=payslip&m=${payload.month}`,
+        ),
       });
       break;
     }

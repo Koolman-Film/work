@@ -58,7 +58,7 @@ type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
  * employees, compute drafts, and report which sweep rows fed each one.
  * Pure read — callers decide what to persist (draft upsert vs publish).
  */
-async function gatherAndCalc(db: Tx | typeof prisma, month: string) {
+async function gatherAndCalc(db: Tx | typeof prisma, month: string, employeeId?: string) {
   const config = await db.payrollConfig.findFirst();
   if (!config) throw new Error('PayrollConfig missing — run the seed first.');
 
@@ -67,7 +67,7 @@ async function gatherAndCalc(db: Tx | typeof prisma, month: string) {
   const { start, end } = payrollMonthWindow(month, config.cutoffDay);
 
   const employees = await db.employee.findMany({
-    where: { status: { not: 'Archived' } },
+    where: { status: { not: 'Archived' }, ...(employeeId ? { id: employeeId } : {}) },
     select: {
       id: true,
       userId: true,
@@ -341,9 +341,12 @@ export type PublishResult = {
  * Caller is responsible for firing notifications from the returned slips
  * (see `notifyPublishedSlips`) and writing the audit log.
  */
-export async function publishPayroll(month: string): Promise<PublishResult> {
+export async function publishPayroll(
+  month: string,
+  opts?: { employeeId?: string },
+): Promise<PublishResult> {
   const result = await prisma.$transaction(async (tx) => {
-    const { drafts, skipped } = await gatherAndCalc(tx, month);
+    const { drafts, skipped } = await gatherAndCalc(tx, month, opts?.employeeId);
 
     const existing = await tx.payroll.findMany({
       where: { month },
@@ -443,4 +446,239 @@ export async function lockPayroll(month: string): Promise<number> {
     data: { status: 'Locked' },
   });
   return res.count;
+}
+
+export type SerializedBreakdown = {
+  sso: {
+    cappedBase: string;
+    rate: string;
+    rawAmount: string;
+    amountCap: string;
+    applied: string;
+    capped: boolean;
+  };
+  attendance: {
+    absent: { count: number; perDay: string; money: string };
+    lateTier1: {
+      mode: 'threeStrike' | 'flat';
+      count: number;
+      threeStrikeCount?: number;
+      days?: number;
+      perUnit: string;
+      money: string;
+    };
+    lateSevere: { days: number; perDay: string; money: string };
+    earlyLeave: { count: number; perUnit: string; money: string };
+  };
+};
+
+export type PayrollRowDetail = {
+  employeeId: string;
+  month: string;
+  incomeBase: string;
+  incomeOther: string;
+  adjustments: { reason: string; kind: 'Income' | 'Deduction'; amount: string }[];
+  deductSso: string;
+  advances: { amount: string }[];
+  debts: { amount: string }[];
+  leaveDeductions: { deduct: string; overMinutes: number }[];
+  deductAttendance: string;
+  deductLeave: string;
+  netPay: string;
+  breakdown: SerializedBreakdown;
+};
+
+// Structural param avoids importing decimal.js's Decimal type into run.ts —
+// both Prisma.Decimal and decimal.js Decimal satisfy { toString(): string }.
+const money = (d: { toString(): string }) => new Prisma.Decimal(d.toString()).toFixed(2);
+
+export type PayrollRowDetailRaw = {
+  buckets: {
+    incomeBase: number;
+    incomeOther: number;
+    deductSso: number;
+    deductAdvance: number;
+    deductAttendance: number;
+    deductLeave: number;
+    deductDebt: number;
+    deductOther: number;
+    netPay: number;
+  };
+  incomeAdjustments: { id: string; reason: string; amount: number }[];
+  deductAdjustments: { id: string; reason: string; amount: number }[];
+  advanceCount: number;
+  attendance: { absent: number; late: number };
+  leaveOverMinutesTotal: number;
+  employee: { salaryType: 'Monthly' | 'Daily' | 'Hourly'; baseSalary: number };
+  config: { ssoRate: number; ssoSalaryCap: number; workingDaysPerMonth: number };
+};
+
+export async function payrollRowDetailRaw(
+  month: string,
+  employeeId: string,
+): Promise<PayrollRowDetailRaw | null> {
+  const { drafts } = await gatherAndCalc(prisma, month, employeeId);
+  const entry = drafts[0];
+  if (!entry) return null;
+  const { draft } = entry;
+  const b = draft.breakdown;
+
+  const [config, employee, adjustments] = await Promise.all([
+    prisma.payrollConfig.findFirstOrThrow({
+      select: { ssoRate: true, ssoSalaryCap: true, workingDaysPerMonth: true },
+    }),
+    prisma.employee.findUniqueOrThrow({
+      where: { id: employeeId },
+      select: { salaryType: true, baseSalary: true },
+    }),
+    prisma.payrollAdjustment.findMany({
+      where: {
+        employeeId,
+        startMonth: { lte: month },
+        OR: [{ endMonth: null }, { endMonth: { gte: month } }],
+        deletedAt: null,
+      },
+      orderBy: { createdAt: 'asc' },
+      select: {
+        id: true,
+        kind: true,
+        reason: true,
+        amount: true,
+        startMonth: true,
+        endMonth: true,
+      },
+    }),
+  ]);
+
+  const applicable = adjustments.filter((a) => adjustmentAppliesToMonth(a, month));
+  const mapAdj = (kind: 'Income' | 'Deduction') =>
+    applicable
+      .filter((a) => a.kind === kind)
+      .map((a) => ({ id: a.id, reason: a.reason, amount: a.amount.toNumber() }));
+
+  return {
+    buckets: {
+      incomeBase: draft.incomeBase.toNumber(),
+      incomeOther: draft.incomeOther.toNumber(),
+      deductSso: draft.deductSso.toNumber(),
+      deductAdvance: draft.deductAdvance.toNumber(),
+      deductAttendance: draft.deductAttendance.toNumber(),
+      deductLeave: draft.deductLeave.toNumber(),
+      deductDebt: draft.deductDebt.toNumber(),
+      deductOther: draft.deductOther.toNumber(),
+      netPay: draft.netPay.toNumber(),
+    },
+    incomeAdjustments: mapAdj('Income'),
+    deductAdjustments: mapAdj('Deduction'),
+    advanceCount: entry.sweptAdvanceIds.length,
+    attendance: { absent: b.absentCount, late: b.lateCount },
+    leaveOverMinutesTotal: entry.sweptLeaves.reduce((s, l) => s + l.over, 0),
+    employee: {
+      salaryType: employee.salaryType as 'Monthly' | 'Daily' | 'Hourly',
+      baseSalary: employee.baseSalary.toNumber(),
+    },
+    config: {
+      ssoRate: config.ssoRate.toNumber(),
+      ssoSalaryCap: config.ssoSalaryCap.toNumber(),
+      workingDaysPerMonth: config.workingDaysPerMonth,
+    },
+  };
+}
+
+export async function payrollRowDetail(
+  month: string,
+  employeeId: string,
+): Promise<PayrollRowDetail | null> {
+  const { drafts } = await gatherAndCalc(prisma, month, employeeId);
+  const entry = drafts[0];
+  if (!entry) return null;
+  const { draft } = entry;
+  const b = draft.breakdown;
+
+  // Source-row line lists (the calc engine only sees amounts; reasons/ids live here).
+  const adjustments = (
+    await prisma.payrollAdjustment.findMany({
+      where: {
+        employeeId,
+        startMonth: { lte: month },
+        OR: [{ endMonth: null }, { endMonth: { gte: month } }],
+        deletedAt: null,
+      },
+      orderBy: { createdAt: 'asc' },
+      select: { kind: true, reason: true, amount: true, startMonth: true, endMonth: true },
+    })
+  )
+    // Mirrors gatherAndCalc's in-memory gate: SQL is a coarse month-window
+    // pre-filter; adjustmentAppliesToMonth is the authoritative rule.
+    .filter((a) => adjustmentAppliesToMonth(a, month))
+    .map((a) => ({
+      reason: a.reason,
+      kind: a.kind as 'Income' | 'Deduction',
+      amount: money(a.amount),
+    }));
+
+  return {
+    employeeId,
+    month,
+    incomeBase: money(draft.incomeBase),
+    incomeOther: money(draft.incomeOther),
+    adjustments,
+    deductSso: money(draft.deductSso),
+    advances: (entry.sweptAdvanceIds.length
+      ? await prisma.cashAdvance.findMany({
+          where: { id: { in: entry.sweptAdvanceIds } },
+          select: { amount: true },
+        })
+      : []
+    ).map((a) => ({ amount: money(a.amount) })),
+    debts: (entry.appliedRecurring.length
+      ? await prisma.recurringDeduction.findMany({
+          where: { id: { in: entry.appliedRecurring.map((r) => r.id) } },
+          select: { monthlyAmount: true },
+        })
+      : []
+    ).map((r) => ({ amount: money(r.monthlyAmount) })),
+    leaveDeductions: entry.sweptLeaves.map((l) => ({
+      deduct: money(l.deduct),
+      overMinutes: l.over,
+    })),
+    deductAttendance: money(draft.deductAttendance),
+    deductLeave: money(draft.deductLeave),
+    netPay: money(draft.netPay),
+    breakdown: {
+      sso: {
+        cappedBase: money(b.sso.cappedBase),
+        rate: b.sso.rate.toString(),
+        rawAmount: money(b.sso.rawAmount),
+        amountCap: money(b.sso.amountCap),
+        applied: money(b.sso.applied),
+        capped: b.sso.rawAmount.greaterThan(b.sso.amountCap),
+      },
+      attendance: {
+        absent: {
+          count: b.attendance.absent.count,
+          perDay: money(b.attendance.absent.perDay),
+          money: money(b.attendance.absent.money),
+        },
+        lateTier1: {
+          mode: b.attendance.lateTier1.mode,
+          count: b.attendance.lateTier1.count,
+          threeStrikeCount: b.attendance.lateTier1.threeStrikeCount,
+          days: b.attendance.lateTier1.days,
+          perUnit: money(b.attendance.lateTier1.perUnit),
+          money: money(b.attendance.lateTier1.money),
+        },
+        lateSevere: {
+          days: b.attendance.lateSevere.days,
+          perDay: money(b.attendance.lateSevere.perDay),
+          money: money(b.attendance.lateSevere.money),
+        },
+        earlyLeave: {
+          count: b.attendance.earlyLeave.count,
+          perUnit: money(b.attendance.earlyLeave.perUnit),
+          money: money(b.attendance.earlyLeave.money),
+        },
+      },
+    },
+  };
 }

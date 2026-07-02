@@ -7,8 +7,8 @@ import { FONT_STACK } from './fonts';
 import type { PayslipDocument, PayslipLine } from './types';
 
 // Brand constants — identical in all locales, no i18n needed.
-const COMPANY_EN = 'Koolman Co., Ltd.';
-const COMPANY_NATIVE = 'บริษัท คูลแมน จำกัด';
+export const COMPANY_EN = 'Koolman Co., Ltd.';
+export const COMPANY_NATIVE = 'บริษัท คูลแมน จำกัด';
 
 // Single currency for this app.
 const CUR = '฿';
@@ -32,9 +32,21 @@ export interface BuildPayslipHtmlOpts {
   fontFace: string;
   /** inline SVG or <img> data-uri */
   logoSvg: string;
+  /** Company name shown in the header (English line). Default: COMPANY_EN. */
+  companyEn: string;
+  /** Company name shown in the header (native line). Default: COMPANY_NATIVE. */
+  companyNative: string;
   /** already-localized month label */
   periodLabel: string;
   generatedAt: string;
+  /**
+   * Render for an on-screen preview instead of print. Adds a fixed-width
+   * viewport (so the A4-width layout scales to fit any frame, e.g. an iPad
+   * iframe) and reinstates the print page margins inside the body (Chromium
+   * applies those itself for the real PDF, so they're omitted by default).
+   * No effect on the PDF path.
+   */
+  screen?: boolean;
 }
 
 // Critical CSS rule — copy verbatim from task brief.
@@ -129,8 +141,22 @@ const PAYSLIP_CSS = (fontFace: string) => `${fontFace}
   .nh-val .cur{font-size:.6em;font-weight:400;color:#c2c8e0;margin-right:4px;vertical-align:.08em;}`;
 
 export function buildPayslipHtml(doc: PayslipDocument, opts: BuildPayslipHtmlOpts): string {
-  const { locale, t, tEn, money, fontFace, logoSvg, periodLabel, generatedAt } = opts;
+  const {
+    locale,
+    t,
+    tEn,
+    money,
+    fontFace,
+    logoSvg,
+    companyEn,
+    companyNative,
+    periodLabel,
+    generatedAt,
+  } = opts;
   const isEn = locale === 'en';
+
+  // Non-Thai employees see the English branch name in the สาขา field.
+  const branchLabel = locale === 'th' ? doc.meta.branch : doc.meta.branchEn || doc.meta.branch;
 
   // Dual-language label: native .t1 + English .t2 (omit .t2 when locale is en)
   const label = (native: string, en: string): string =>
@@ -179,9 +205,17 @@ export function buildPayslipHtml(doc: PayslipDocument, opts: BuildPayslipHtmlOpt
   // Stamp date: YYYY·MM·DD only (generatedAt is a full ISO string from the route).
   const stampDate = generatedAt.slice(0, 10).replace(/-/g, '·');
 
-  return `<!doctype html><html lang="${locale}"><head><meta charset="utf-8">
+  // On-screen preview: lay the A4-width sheet out at a fixed 794px and let the
+  // browser scale it to the frame (viewport), plus restore the print margins
+  // (Chromium adds those itself for the PDF). Both are no-ops for the PDF path.
+  const screenHead = opts.screen
+    ? '\n<meta name="viewport" content="width=794, initial-scale=1">'
+    : '';
+  const screenCss = opts.screen ? '\n  body{padding:13mm 13mm 15mm;}' : '';
+
+  return `<!doctype html><html lang="${locale}"><head><meta charset="utf-8">${screenHead}
 <style>
-${PAYSLIP_CSS(fontFace)}
+${PAYSLIP_CSS(fontFace)}${screenCss}
 </style></head>
 <body>
 <table class="sheet">
@@ -190,8 +224,8 @@ ${PAYSLIP_CSS(fontFace)}
       <div class="brand">
         ${logoSvg}
         <div>
-          <div class="co-name">${COMPANY_EN}</div>
-          <div class="co-sub">${isEn ? '' : COMPANY_NATIVE}</div>
+          <div class="co-name">${companyEn}</div>
+          <div class="co-sub">${isEn ? '' : companyNative}</div>
         </div>
       </div>
       <div class="doc">
@@ -218,8 +252,7 @@ ${PAYSLIP_CSS(fontFace)}
 
     <div class="card"><div class="info">
       ${infoRow(t('payslipPdf.employee'), tEn('payslipPdf.employee'), doc.meta.employeeName)}
-      ${infoRow(t('payslipPdf.employeeId'), tEn('payslipPdf.employeeId'), doc.meta.employeeId)}
-      ${infoRow(t('profile.readonly.branch'), tEn('profile.readonly.branch'), doc.meta.branch)}
+      ${infoRow(t('profile.readonly.branch'), tEn('profile.readonly.branch'), branchLabel)}
       ${doc.meta.department ? infoRow(t('profile.readonly.department'), tEn('profile.readonly.department'), doc.meta.department) : ''}
       ${infoRow(t('payslipPdf.payType'), tEn('payslipPdf.payType'), t(`profile.salaryType.${doc.meta.payType}`))}
       ${infoRow(t('payslipPdf.payPeriod'), tEn('payslipPdf.payPeriod'), periodLabel)}
@@ -252,8 +285,8 @@ ${PAYSLIP_CSS(fontFace)}
       <div class="nh-val"><span class="cur">${CUR}</span>${money(doc.net).replace(/^฿/, '')}</div>
     </div>
     <div class="endmark">
-      <div class="disc">${isEn ? tEn('payslipPdf.disclaimer') : `${t('payslipPdf.disclaimer')} · ${tEn('payslipPdf.disclaimer')}`}</div>
-      <div class="stamp"><div class="s1">${tEn('payslipPdf.issued')}</div><div class="s2">${stampDate}</div></div>
+      <div class="disc">${t('payslipPdf.disclaimer')}</div>
+      <div class="stamp"><div class="s1">${isEn ? tEn('payslipPdf.issued') : t('payslipPdf.issued')}</div><div class="s2">${stampDate}</div></div>
     </div>
   </main>
   </td></tr></tbody>

@@ -29,6 +29,11 @@ import type { AttType } from '@prisma/client';
 import Link from 'next/link';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageHeader } from '@/components/ui/page-header';
+import {
+  employeeBranchScope,
+  getPermittedBranches,
+  viaEmployeeBranchScope,
+} from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma, prismaRaw } from '@/lib/db/prisma';
 import { signAttendancePhotoUrls } from '@/lib/storage/signed-urls';
@@ -74,7 +79,7 @@ export default async function AttendanceRecordsPage({
 }: {
   searchParams: SearchParams;
 }) {
-  await requirePermission('attendance.read');
+  const { user } = await requirePermission('attendance.read');
 
   const sp = await searchParams;
   const ym = sp.ym && /^\d{4}-\d{2}$/.test(sp.ym) ? sp.ym : currentMonthYM();
@@ -86,6 +91,8 @@ export default async function AttendanceRecordsPage({
   const typeFilter: AttType | null =
     sp.type && sp.type !== 'all' && sp.type in TYPE_LABELS ? (sp.type as AttType) : null;
   const isTrash = sp.trash === '1';
+  const permitted = await getPermittedBranches(user, 'attendance.read');
+  const branchScope = viaEmployeeBranchScope(permitted);
 
   // Shared where: same month + filters for both live and trash views. The
   // trash view adds `deletedAt: { not: null }` and reads via prismaRaw (which
@@ -94,6 +101,7 @@ export default async function AttendanceRecordsPage({
     date: { gte: month.start, lte: month.end },
     ...(employeeFilter ? { employeeId: employeeFilter } : {}),
     ...(typeFilter ? { type: typeFilter } : {}),
+    ...branchScope,
   };
 
   // Pull rows + employee list + disputed count in parallel.
@@ -112,7 +120,7 @@ export default async function AttendanceRecordsPage({
           select: RECORD_SELECT,
         }),
     prisma.employee.findMany({
-      where: { archivedAt: null },
+      where: { archivedAt: null, ...employeeBranchScope(permitted) },
       orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }],
       select: {
         id: true,
@@ -122,7 +130,7 @@ export default async function AttendanceRecordsPage({
       },
     }),
     prisma.attendance.count({
-      where: { type: 'CheckIn', checkInStatus: 'Disputed', deletedAt: null },
+      where: { type: 'CheckIn', checkInStatus: 'Disputed', deletedAt: null, ...branchScope },
     }),
   ]);
 

@@ -79,7 +79,13 @@ export function RowAdjust({
 
   return (
     <>
-      <Button type="button" variant="secondary" size="sm" onClick={() => setOpen(true)}>
+      <Button
+        type="button"
+        variant="secondary"
+        size="sm"
+        onClick={() => setOpen(true)}
+        className="shrink-0 whitespace-nowrap"
+      >
         + เพิ่ม/ลด
         {adjustments.length > 0 && (
           <span className="ml-1.5 rounded-full bg-primary-600 px-1.5 py-0.5 font-display text-[10px] font-bold leading-none text-white">

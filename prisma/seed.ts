@@ -126,8 +126,8 @@ const SEED = {
   // /admin/settings/payroll-config (Phase 3).
   payrollConfig: {
     ssoRate: '0.05',
-    ssoSalaryCap: '15000',
-    ssoAmountCap: '750',
+    ssoSalaryCap: '17500',
+    ssoAmountCap: '875',
     otMultiplier: '1.5',
     cutoffDay: 25,
     absentDeductionPerDay: '500',

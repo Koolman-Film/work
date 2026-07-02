@@ -114,18 +114,30 @@ export async function liffBootstrap(): Promise<LiffBootstrapResult> {
       (i) => i.provider === 'custom:line',
     );
     if (lineIdentity) {
-      // Case 2: a real LIFF session. Fast-path return.
-      return {
-        supabase,
-        session: existing.session,
-        lineUserId: lineIdentity.id ?? existing.session.user.id,
-      };
+      // Case 2: a custom:line session from a prior LIFF nav. BUT getSession()
+      // is only a local cookie read — it cannot tell us the auth user still
+      // exists. After an admin unlinks an employee (which DELETES the Supabase
+      // auth user), the browser keeps a stale custom:line cookie; reusing it
+      // here would fast-path a dead session that then fails server-side with
+      // 'no-session' on re-link — and reopening never recovers because the
+      // stale cookie persists. Confirm with getUser() (a server round-trip);
+      // only fast-path when the user is genuinely still live.
+      const { data: live, error: liveErr } = await supabase.auth.getUser();
+      if (!liveErr && live.user) {
+        return {
+          supabase,
+          session: existing.session,
+          lineUserId: lineIdentity.id ?? existing.session.user.id,
+        };
+      }
+      // else: stale/deleted-user session → fall through to a fresh sign-in.
     }
-    // Case 3: leaked admin/owner session. Clear it locally so the LINE
-    // OIDC sign-in below has a clean slate. `scope: 'local'` only flushes
-    // this device's tokens — doesn't kill the user's sessions on other
-    // devices. (On shared-cookie webviews, this WILL also clear the
-    // admin's session in the system browser. See docstring + docs.)
+    // Case 3 (leaked admin/owner session — no custom:line identity) OR a stale
+    // custom:line session whose auth user was deleted. Clear it locally so the
+    // LINE OIDC sign-in below starts clean. `scope: 'local'` only flushes this
+    // device's tokens — doesn't kill the user's sessions on other devices.
+    // (On shared-cookie webviews, this WILL also clear the admin's session in
+    // the system browser. See docstring + docs.)
     await supabase.auth.signOut({ scope: 'local' });
   }
 

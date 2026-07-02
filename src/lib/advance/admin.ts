@@ -21,6 +21,7 @@ import { headers } from 'next/headers';
 import { advanceBalanceFor } from '@/lib/advance/available';
 import { isOverCap } from '@/lib/advance/balance';
 import { auditLog, auditLogTx } from '@/lib/audit/log';
+import { canActOnEmployeeBranches, getPermittedBranches } from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { sendNotification } from '@/lib/inngest/events';
@@ -71,6 +72,7 @@ type RejectInput = {
 
 export async function approveCashAdvance(input: ApproveInput): Promise<ApproveAdvanceResult> {
   const { user, authUserId } = await requirePermission('advance.approve');
+  const permitted = await getPermittedBranches(user, 'advance.approve');
 
   // Validate receiptUrl shape: if it looks like a Storage key (no http
   // scheme), it MUST start with the admin's own authUserId (because we
@@ -111,8 +113,23 @@ export async function approveCashAdvance(input: ApproveInput): Promise<ApproveAd
   // not-pending stay the tx's responsibility; we only guard a live Pending row.
   const capRow = await prisma.cashAdvance.findUnique({
     where: { id: input.cashAdvanceId },
-    select: { id: true, status: true, amount: true, employeeId: true },
+    select: {
+      id: true,
+      status: true,
+      amount: true,
+      employeeId: true,
+      employee: { select: { branchId: true, assignedBranchIds: true } },
+    },
   });
+  if (
+    capRow &&
+    !canActOnEmployeeBranches(permitted, [
+      capRow.employee.branchId,
+      ...capRow.employee.assignedBranchIds,
+    ])
+  ) {
+    return { ok: false, code: 'not-found', message: 'ไม่พบคำขอเบิก' };
+  }
   if (capRow && capRow.status === 'Pending') {
     // Exclude this advance from its own reserved sum — it is the Pending
     // row being decided.
@@ -213,6 +230,7 @@ export async function approveCashAdvance(input: ApproveInput): Promise<ApproveAd
 
 export async function rejectCashAdvance(input: RejectInput): Promise<RejectAdvanceResult> {
   const { user } = await requirePermission('advance.approve');
+  const permitted = await getPermittedBranches(user, 'advance.approve');
 
   const headerList = await headers();
   const ip =
@@ -233,7 +251,9 @@ export async function rejectCashAdvance(input: RejectInput): Promise<RejectAdvan
           id: true,
           status: true,
           amount: true,
-          employee: { select: { firstName: true, userId: true } },
+          employee: {
+            select: { firstName: true, userId: true, branchId: true, assignedBranchIds: true },
+          },
         },
       });
       if (!row) {
@@ -245,6 +265,14 @@ export async function rejectCashAdvance(input: RejectInput): Promise<RejectAdvan
           code: 'not-pending' as const,
           message: 'คำขอนี้ถูกตัดสินใจไปแล้ว',
         };
+      }
+      if (
+        !canActOnEmployeeBranches(permitted, [
+          row.employee.branchId,
+          ...row.employee.assignedBranchIds,
+        ])
+      ) {
+        return { ok: false as const, code: 'not-found' as const, message: 'ไม่พบคำขอเบิก' };
       }
 
       await tx.cashAdvance.update({
@@ -304,6 +332,7 @@ export async function markAdvancePaid(input: {
   receiptKey: string;
 }): Promise<MarkPaidResult> {
   const { user, authUserId } = await requirePermission('advance.approve');
+  const permitted = await getPermittedBranches(user, 'advance.approve');
 
   const key = input.receiptKey.trim();
   if (!/^https?:\/\//i.test(key) && !key.startsWith(`${authUserId}/advance-receipts/`)) {
@@ -334,7 +363,9 @@ export async function markAdvancePaid(input: {
           paidAt: true,
           receiptUrl: true,
           isDeducted: true,
-          employee: { select: { firstName: true, userId: true } },
+          employee: {
+            select: { firstName: true, userId: true, branchId: true, assignedBranchIds: true },
+          },
         },
       });
       if (!row) {
@@ -346,6 +377,14 @@ export async function markAdvancePaid(input: {
           code: 'not-approved' as const,
           message: 'แนบสลิปได้เฉพาะคำขอที่อนุมัติแล้ว',
         };
+      }
+      if (
+        !canActOnEmployeeBranches(permitted, [
+          row.employee.branchId,
+          ...row.employee.assignedBranchIds,
+        ])
+      ) {
+        return { ok: false as const, code: 'not-found' as const, message: 'ไม่พบคำขอเบิก' };
       }
 
       const firstAttach = row.paidAt === null;
@@ -431,6 +470,7 @@ export async function adminCreateCashAdvance(
   input: AdminCreateAdvanceInput,
 ): Promise<AdminCreateAdvanceResult> {
   const { user } = await requirePermission('advance.approve');
+  const permitted = await getPermittedBranches(user, 'advance.approve');
 
   const employee = await prisma.employee.findUnique({
     where: { id: input.employeeId },
@@ -441,6 +481,8 @@ export async function adminCreateCashAdvance(
       firstName: true,
       lastName: true,
       nickname: true,
+      branchId: true,
+      assignedBranchIds: true,
     },
   });
   if (!employee) {
@@ -448,6 +490,9 @@ export async function adminCreateCashAdvance(
   }
   if (employee.archivedAt || employee.status === 'Archived') {
     return { ok: false, code: 'employee-archived', message: 'พนักงานคนนี้พ้นสภาพแล้ว' };
+  }
+  if (!canActOnEmployeeBranches(permitted, [employee.branchId, ...employee.assignedBranchIds])) {
+    return { ok: false, code: 'employee-not-found', message: 'ไม่พบพนักงาน' };
   }
 
   // Amount: positive, at most 2 decimal places (mirrors the worker submit).

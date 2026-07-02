@@ -1,7 +1,9 @@
 'use server';
 
 import { headers } from 'next/headers';
+import { notFound } from 'next/navigation';
 import { auditLogTx, type Prisma } from '@/lib/audit/log';
+import { canActOnEmployeeBranches, getPermittedBranches } from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma, prismaRaw } from '@/lib/db/prisma';
 
@@ -34,12 +36,21 @@ export async function voidAttendance(id: string, reason: string): Promise<VoidRe
   // prismaRaw: we must SEE the row even if (defensively) already voided.
   const row = await prismaRaw.attendance.findUnique({
     where: { id },
-    select: { id: true, deletedAt: true, employee: { select: { branchId: true } } },
+    select: {
+      id: true,
+      deletedAt: true,
+      employee: { select: { branchId: true, assignedBranchIds: true } },
+    },
   });
   if (!row) return { ok: false, code: 'not-found', message: 'ไม่พบรายการลงเวลา' };
   if (row.deletedAt) return { ok: false, code: 'already-voided', message: 'รายการนี้ถูกลบไปแล้ว' };
 
-  const { user } = await requirePermission('attendance.void', { branchId: row.employee.branchId });
+  const { user } = await requirePermission('attendance.void');
+  const permitted = await getPermittedBranches(user, 'attendance.void');
+  if (
+    !canActOnEmployeeBranches(permitted, [row.employee.branchId, ...row.employee.assignedBranchIds])
+  )
+    notFound();
   const meta = await reqMeta();
 
   try {
@@ -80,13 +91,18 @@ export async function restoreAttendance(id: string): Promise<VoidResult> {
       employeeId: true,
       date: true,
       type: true,
-      employee: { select: { branchId: true } },
+      employee: { select: { branchId: true, assignedBranchIds: true } },
     },
   });
   if (!row) return { ok: false, code: 'not-found', message: 'ไม่พบรายการลงเวลา' };
   if (!row.deletedAt) return { ok: true }; // already live — idempotent
 
-  const { user } = await requirePermission('attendance.void', { branchId: row.employee.branchId });
+  const { user } = await requirePermission('attendance.void');
+  const permitted = await getPermittedBranches(user, 'attendance.void');
+  if (
+    !canActOnEmployeeBranches(permitted, [row.employee.branchId, ...row.employee.assignedBranchIds])
+  )
+    notFound();
 
   // The slot may have been re-filled while this row was voided.
   const live = await prismaRaw.attendance.findFirst({

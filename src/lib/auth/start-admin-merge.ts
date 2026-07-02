@@ -10,15 +10,21 @@
  */
 
 import QRCode from 'qrcode';
+import { ADMIN_LINE_LINK_ENABLED } from '@/lib/auth/admin-line-feature';
 import { requireRole } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
 import { appBaseUrl } from '@/lib/line/flex-templates';
 import { mintMergeToken } from '@/lib/pairing/token';
 
-export async function startAdminMerge(): Promise<
+export async function startAdminMerge(input: {
+  employeeUserId: string;
+}): Promise<
   { ok: true; url: string; qrDataUrl: string; expiresAt: Date } | { ok: false; message: string }
 > {
   const { user } = await requireRole(['Admin']);
+  if (!ADMIN_LINE_LINK_ENABLED) {
+    return { ok: false, message: 'ฟีเจอร์เชื่อมบัญชีถูกปิดใช้งานชั่วคราว' };
+  }
 
   // requireRole returns a stripped User; re-fetch the employee relation to
   // guarantee we are dealing with a pure admin (no Employee row).
@@ -30,7 +36,17 @@ export async function startAdminMerge(): Promise<
     return { ok: false, message: 'บัญชีนี้เป็นพนักงานอยู่แล้ว ไม่จำเป็นต้องเชื่อมบัญชี' };
   }
 
-  const { token, expiresAt } = await mintMergeToken(user.id);
+  // The admin explicitly picks WHICH employee they are. Validate it exists and
+  // actually has an Employee record before minting the targeted token.
+  const target = await prisma.user.findUnique({
+    where: { id: input.employeeUserId },
+    select: { employee: { select: { id: true } } },
+  });
+  if (!target?.employee) {
+    return { ok: false, message: 'ไม่พบบัญชีพนักงานที่เลือก' };
+  }
+
+  const { token, expiresAt } = await mintMergeToken(user.id, input.employeeUserId);
 
   await prisma.user.update({
     where: { id: user.id },
@@ -53,6 +69,23 @@ export async function startAdminMerge(): Promise<
   });
 
   return { ok: true, url, qrDataUrl, expiresAt };
+}
+
+/**
+ * Active employees an admin can target when linking their own account. Returns
+ * the employee's USER id (the merge operates on User rows) + a display name.
+ */
+export async function listMergeableEmployees(): Promise<{ userId: string; name: string }[]> {
+  await requireRole(['Admin']);
+  const employees = await prisma.employee.findMany({
+    where: { status: 'Active' },
+    orderBy: [{ firstName: 'asc' }],
+    select: { userId: true, firstName: true, lastName: true, nickname: true },
+  });
+  return employees.map((e) => ({
+    userId: e.userId,
+    name: e.nickname?.trim() || `${e.firstName} ${e.lastName}`.trim(),
+  }));
 }
 
 export async function dismissMergePrompt(): Promise<void> {

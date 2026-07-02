@@ -8,6 +8,7 @@
  */
 
 import { PageHeader } from '@/components/ui/page-header';
+import { getPermittedBranches } from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { getOrgCalendarData } from '@/lib/leave/team-calendar';
@@ -19,19 +20,27 @@ import { AdminCalendarCard } from '../_calendar/admin-calendar-card';
 export const revalidate = 30;
 
 export default async function AdminCalendarPage() {
-  await requirePermission('dashboard.read');
+  const { user } = await requirePermission('dashboard.read');
 
   const initialYm = currentMonthYM();
   const calMonth = parseMonth(initialYm);
   if (!calMonth) throw new Error('Could not parse current month — date system broken?');
+  const calPermitted = await getPermittedBranches(user, 'dashboard.read');
 
   const [branches, initialData] = await Promise.all([
     prisma.branch.findMany({
-      where: { archivedAt: null },
+      where:
+        calPermitted === 'all'
+          ? { archivedAt: null }
+          : { archivedAt: null, id: { in: calPermitted } },
       orderBy: { name: 'asc' },
       select: { id: true, name: true },
     }),
-    getOrgCalendarData({ monthStart: calMonth.start, monthEnd: calMonth.end }),
+    getOrgCalendarData({
+      monthStart: calMonth.start,
+      monthEnd: calMonth.end,
+      permitted: calPermitted,
+    }),
   ]);
 
   return (

@@ -1,0 +1,76 @@
+// src/lib/auth/branch-scope.ts
+import type { Prisma, User } from '@prisma/client';
+import { type AssignmentForCheck, getUserAssignments } from './check-permission';
+import type { Permission } from './permissions';
+
+/** 'all' = holds the permission via a global (branchId=null) assignment.
+ *  Otherwise the de-duped scoped branchIds granting it; [] = nowhere. */
+export type PermittedBranches = 'all' | string[];
+
+/** Pure: which branches may these assignments exercise `permission` in? */
+export function permittedBranchesFromAssignments(
+  assignments: ReadonlyArray<AssignmentForCheck>,
+  permission: Permission,
+): PermittedBranches {
+  const branchIds = new Set<string>();
+  for (const a of assignments) {
+    if (a.role.archivedAt) continue;
+    const grants = a.role.isSuperadmin || a.role.permissions.includes(permission);
+    if (!grants) continue;
+    if (a.branchId === null) return 'all'; // global grant trumps everything
+    branchIds.add(a.branchId);
+  }
+  return [...branchIds];
+}
+
+/** IO wrapper — one assignment load, then the pure resolution. */
+export async function getPermittedBranches(
+  user: Pick<User, 'id'>,
+  permission: Permission,
+): Promise<PermittedBranches> {
+  const assignments = await getUserAssignments(user.id);
+  return permittedBranchesFromAssignments(assignments, permission);
+}
+
+/** Employee where-fragment for the permitted branches. {} = no filter (global).
+ *  Matches home branch OR assignedBranchIds (multi-branch staff). [] = nothing. */
+export function employeeBranchScope(permitted: PermittedBranches): Prisma.EmployeeWhereInput {
+  if (permitted === 'all') return {};
+  if (permitted.length === 0) return { id: { in: [] } };
+  return {
+    OR: [{ branchId: { in: permitted } }, { assignedBranchIds: { hasSome: permitted } }],
+  };
+}
+
+/** Can an actor with these permitted branches act on an employee who belongs
+ *  to `employeeBranchIds` (home ∪ assignedBranchIds)? 'all' ⇒ yes; otherwise
+ *  true iff any of the employee's branches is permitted. */
+export function canActOnEmployeeBranches(
+  permitted: PermittedBranches,
+  employeeBranchIds: ReadonlyArray<string>,
+): boolean {
+  if (permitted === 'all') return true;
+  return employeeBranchIds.some((b) => permitted.includes(b));
+}
+
+/**
+ * SUBSET check — may an actor with `permitted` branches SET an employee's
+ * branch membership to exactly `branchIds`? 'all' ⇒ yes; otherwise every
+ * chosen branch must be permitted. (Contrast canActOnEmployeeBranches, which
+ * is overlap/act-on. SETTING requires the stricter subset.)
+ */
+export function canSetEmployeeBranches(
+  permitted: PermittedBranches,
+  branchIds: ReadonlyArray<string>,
+): boolean {
+  if (permitted === 'all') return true;
+  return branchIds.every((b) => permitted.includes(b));
+}
+
+/** For via-Employee models (Attendance/Leave/Advance/...). {} when 'all'. */
+export function viaEmployeeBranchScope(permitted: PermittedBranches): {
+  employee?: Prisma.EmployeeWhereInput;
+} {
+  if (permitted === 'all') return {};
+  return { employee: employeeBranchScope(permitted) };
+}

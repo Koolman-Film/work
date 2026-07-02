@@ -11,13 +11,64 @@
  * of the scope-intersection rule has an explicit test.
  */
 
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { prisma } from '@/lib/db/prisma';
+import { createClient } from '@/lib/supabase/server';
 import {
   type AssignmentForCheck,
   checkAssignments,
   permissionsFromAssignments,
 } from './check-permission';
 import { ALL_PERMISSIONS } from './permissions';
+
+vi.mock('@/lib/supabase/server');
+vi.mock('@/lib/db/prisma', () => ({ prisma: { user: { findUnique: vi.fn() } } }));
+vi.mock('next/navigation', () => ({
+  notFound: () => {
+    throw new Error('NEXT_NOT_FOUND');
+  },
+}));
+
+import { requirePermission } from './check-permission';
+
+function mockUserWith(perms: string[]) {
+  (createClient as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+    auth: { getUser: vi.fn().mockResolvedValue({ data: { user: { id: 'a1', identities: [] } } }) },
+  });
+  (prisma.user.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue({
+    id: 'u1',
+    email: 'c@x.io',
+    authUserId: 'a1',
+    archivedAt: null,
+    employee: null,
+    roleAssignments: [
+      {
+        branchId: null,
+        role: {
+          key: 'checker01',
+          name: 'Checker01',
+          isSuperadmin: false,
+          archivedAt: null,
+          permissions: perms,
+        },
+      },
+    ],
+  });
+}
+
+describe('requirePermission for a custom-only user', () => {
+  beforeEach(() => vi.clearAllMocks());
+  it('passes when the custom role grants the permission (tier null)', async () => {
+    mockUserWith(['attendance.read']);
+    const res = await requirePermission('attendance.read');
+    expect(res.user.id).toBe('u1');
+    expect(res.tier).toBeNull();
+  });
+  it('notFound() when the permission is absent', async () => {
+    mockUserWith(['attendance.read']);
+    await expect(requirePermission('payroll.read')).rejects.toThrow('NEXT_NOT_FOUND');
+  });
+});
 
 // Fixture branchIds — chosen to be obviously distinct in test output.
 const BRANCH_A = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';

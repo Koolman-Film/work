@@ -3,17 +3,21 @@
  * Both clusters filter the same Employee set, so they share one loader.
  */
 
+import type { Prisma } from '@prisma/client';
+import type { PermittedBranches } from '@/lib/auth/branch-scope';
 import { prisma } from '@/lib/db/prisma';
 
 export type FilterOption = { id: string; name: string };
 
-export async function loadReportFilterOptions(): Promise<{
+export async function loadReportFilterOptions(permitted: PermittedBranches): Promise<{
   branches: FilterOption[];
   departments: FilterOption[];
 }> {
+  const branchWhere: Prisma.BranchWhereInput =
+    permitted === 'all' ? { archivedAt: null } : { archivedAt: null, id: { in: permitted } };
   const [branches, departments] = await Promise.all([
     prisma.branch.findMany({
-      where: { archivedAt: null },
+      where: branchWhere,
       orderBy: { name: 'asc' },
       select: { id: true, name: true },
     }),

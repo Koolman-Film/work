@@ -41,6 +41,11 @@ export default defineConfig({
     env: {
       DATABASE_URL: TEST_DB,
       DIRECT_URL: TEST_DB,
+      // Required by mintMergeToken / verifyMergeToken in pairing/token.ts.
+      // Value mirrors .env.local; override via CI env if needed.
+      PAIRING_JWT_SECRET:
+        process.env.PAIRING_JWT_SECRET ??
+        'dz9XJ1u4kPnLBh5GZE3vTQyR0fOjN8VqMc6mIs7Wt2yAUDpHbgEC4wKxlie+S=YN',
     },
   },
 });

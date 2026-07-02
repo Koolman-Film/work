@@ -11,6 +11,7 @@
  */
 
 import Link from 'next/link';
+import { getPermittedBranches, viaEmployeeBranchScope } from '@/lib/auth/branch-scope';
 import { requireLiffAdmin } from '@/lib/auth/require-liff-admin';
 import { prisma } from '@/lib/db/prisma';
 
@@ -25,10 +26,16 @@ function formatBkk(d: Date): string {
 }
 
 export default async function LiffAdminAwaitingSlipPage() {
-  await requireLiffAdmin();
+  const { user } = await requireLiffAdmin();
+  const permitted = await getPermittedBranches(user, 'advance.read');
 
   const rows = await prisma.cashAdvance.findMany({
-    where: { status: 'Approved', paidAt: null, deletedAt: null },
+    where: {
+      status: 'Approved',
+      paidAt: null,
+      deletedAt: null,
+      ...viaEmployeeBranchScope(permitted),
+    },
     orderBy: { approvedAt: 'desc' },
     take: 100,
     select: {
