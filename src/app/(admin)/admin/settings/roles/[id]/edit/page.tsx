@@ -32,7 +32,7 @@ export default async function EditRolePage({
   return (
     <div className="px-4 py-6 sm:px-6 lg:px-8">
       <PageHeader breadcrumb="ตั้งค่า · บทบาทและสิทธิ์" title="แก้ไขบทบาท" />
-      <div className="max-w-3xl">
+      <div>
         <RoleForm
           mode="edit"
           action={updateBound}

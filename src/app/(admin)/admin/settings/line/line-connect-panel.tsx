@@ -78,7 +78,7 @@ export function LineConnectPanel({ paired, canMerge }: { paired: boolean; canMer
       </div>
 
       {choice === 'admin' && <LinePairingCard paired={false} />}
-      {choice === 'employee' && <MergePromptCard dismissible={false} />}
+      {choice === 'employee' && <MergePromptCard />}
     </div>
   );
 }

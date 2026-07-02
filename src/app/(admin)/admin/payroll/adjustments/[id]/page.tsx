@@ -41,7 +41,7 @@ export default async function EditAdjustmentPage({
   return (
     <div className="px-4 py-6 sm:px-6 lg:px-8">
       <PageHeader breadcrumb="เงินเดือน · เงินเพิ่ม/เงินลด" title="แก้ไขรายการ" />
-      <div className="max-w-2xl">
+      <div>
         <AdjustmentForm
           mode="edit"
           action={update}
