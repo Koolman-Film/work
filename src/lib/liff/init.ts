@@ -90,6 +90,20 @@ export async function liffBootstrap(): Promise<LiffBootstrapResult> {
     } satisfies LiffBootstrapError;
   }
 
+  // After liff.init() rewrites the URL from ?liff.state=, classify the entry:
+  // a pure navigation (rich-menu ?dest= with no binding token) vs a binding
+  // flow (?pair / ?pairAdmin / ?merge). For navigation we can trust a local
+  // custom:line session and skip the getUser() round-trip below — a stale one
+  // just makes the destination re-auth. The stale-check stays for binding,
+  // where a dead session must be detected so re-linking can recover.
+  const nav = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+  const isNavigation =
+    nav != null &&
+    nav.get('dest') != null &&
+    !nav.get('pair') &&
+    !nav.get('pairAdmin') &&
+    !nav.get('merge');
+
   const supabase = createClient();
 
   // Existing-session handling. THREE cases:
@@ -114,14 +128,25 @@ export async function liffBootstrap(): Promise<LiffBootstrapResult> {
       (i) => i.provider === 'custom:line',
     );
     if (lineIdentity) {
-      // Case 2: a custom:line session from a prior LIFF nav. BUT getSession()
-      // is only a local cookie read — it cannot tell us the auth user still
-      // exists. After an admin unlinks an employee (which DELETES the Supabase
-      // auth user), the browser keeps a stale custom:line cookie; reusing it
-      // here would fast-path a dead session that then fails server-side with
-      // 'no-session' on re-link — and reopening never recovers because the
-      // stale cookie persists. Confirm with getUser() (a server round-trip);
-      // only fast-path when the user is genuinely still live.
+      // Fast path for rich-menu NAVIGATION: trust the local custom:line session
+      // and skip the getUser() round-trip. This is the per-tap speed win — the
+      // destination page's own gate/requireRole will re-auth if the session is
+      // actually stale, so there's no correctness risk here.
+      if (isNavigation) {
+        return {
+          supabase,
+          session: existing.session,
+          lineUserId: lineIdentity.id ?? existing.session.user.id,
+        };
+      }
+      // Case 2 (binding flows): a custom:line session from a prior LIFF nav.
+      // BUT getSession() is only a local cookie read — it cannot tell us the
+      // auth user still exists. After an admin unlinks an employee (which
+      // DELETES the Supabase auth user), the browser keeps a stale custom:line
+      // cookie; reusing it here would fast-path a dead session that then fails
+      // server-side with 'no-session' on re-link — and reopening never recovers
+      // because the stale cookie persists. Confirm with getUser() (a server
+      // round-trip); only fast-path when the user is genuinely still live.
       const { data: live, error: liveErr } = await supabase.auth.getUser();
       if (!liveErr && live.user) {
         return {
