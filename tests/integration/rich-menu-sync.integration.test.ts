@@ -15,6 +15,7 @@ import { syncRichMenuForUser } from '@/lib/line/rich-menu';
 
 process.env.ADMIN_RICH_MENU_ID = 'rm-admin';
 process.env.COMBINED_RICH_MENU_ID = 'rm-combined';
+process.env.EMPLOYEE_RICH_MENU_ID = 'rm-employee';
 
 // Branch id shared across tests — created once in reset()
 let branchId: string;
@@ -81,7 +82,7 @@ describe('syncRichMenuForUser', () => {
     expect(link).toHaveBeenCalledWith('U-admin', 'rm-admin');
   });
 
-  it('employee only → unlinks (OA default shows)', async () => {
+  it('employee only → links the employee menu (all-dynamic)', async () => {
     const user = await prisma.user.create({ data: { lineUserId: 'U-emp' } });
     await prisma.employee.create({
       data: {
@@ -97,7 +98,39 @@ describe('syncRichMenuForUser', () => {
     });
 
     await syncRichMenuForUser(user.id);
-    expect(unlink).toHaveBeenCalledWith('U-emp');
+    expect(link).toHaveBeenCalledWith('U-emp', 'rm-employee');
+  });
+
+  it('archived User → unlinks even with an admin role', async () => {
+    const role = await adminRole();
+    const user = await prisma.user.create({
+      data: { lineUserId: 'U-arch', archivedAt: new Date() },
+    });
+    await prisma.userRoleAssignment.create({ data: { userId: user.id, roleId: role.id } });
+
+    await syncRichMenuForUser(user.id);
+    expect(unlink).toHaveBeenCalledWith('U-arch');
+    expect(link).not.toHaveBeenCalled();
+  });
+
+  it('archived Employee (staff only) → unlinks', async () => {
+    const user = await prisma.user.create({ data: { lineUserId: 'U-emp-arch' } });
+    await prisma.employee.create({
+      data: {
+        userId: user.id,
+        firstName: 'A',
+        lastName: 'B',
+        branchId,
+        salaryType: 'Monthly',
+        baseSalary: new Prisma.Decimal(1),
+        status: 'Archived',
+        archivedAt: new Date(),
+        hiredAt: new Date('2026-01-01'),
+      },
+    });
+
+    await syncRichMenuForUser(user.id);
+    expect(unlink).toHaveBeenCalledWith('U-emp-arch');
     expect(link).not.toHaveBeenCalled();
   });
 

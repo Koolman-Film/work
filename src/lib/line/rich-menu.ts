@@ -60,13 +60,14 @@ export function computeMenuTarget(caps: { hasEmployee: boolean; hasAdmin: boolea
  */
 export function resolveCapabilities(user: {
   archivedAt: Date | null;
-  employee: { id: string } | null;
+  employee: { archivedAt: Date | null } | null;
   roleAssignments: ReadonlyArray<TierAssignment>;
 }): { hasEmployee: boolean; hasAdmin: boolean } {
   if (user.archivedAt !== null) return { hasEmployee: false, hasAdmin: false };
   const tier = computeTier(user.roleAssignments);
   return {
-    hasEmployee: user.employee !== null,
+    // An archived Employee can't check in, so it confers no menu capability.
+    hasEmployee: user.employee !== null && user.employee.archivedAt === null,
     hasAdmin: tier === 'Admin' || tier === 'Superadmin',
   };
 }
@@ -81,7 +82,7 @@ export async function syncRichMenuForUser(userId: string): Promise<void> {
   let user: {
     lineUserId: string | null;
     archivedAt: Date | null;
-    employee: { id: string } | null;
+    employee: { archivedAt: Date | null } | null;
     roleAssignments: ReadonlyArray<TierAssignment>;
   } | null;
   try {
@@ -90,7 +91,7 @@ export async function syncRichMenuForUser(userId: string): Promise<void> {
       select: {
         lineUserId: true,
         archivedAt: true,
-        employee: { select: { id: true } },
+        employee: { select: { archivedAt: true } },
         roleAssignments: {
           select: { role: { select: { key: true, isSuperadmin: true, archivedAt: true } } },
         },
