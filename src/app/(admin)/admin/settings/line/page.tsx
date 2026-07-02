@@ -23,6 +23,24 @@ export default async function LineSettingsPage() {
     select: { employee: { select: { id: true } } },
   });
 
+  // The merge is non-destructive: afterward this email account still has no
+  // LINE / no Employee (both live on the employee row), so it would show the
+  // chooser again. Detect a prior merge from the audit trail and show status.
+  const mergeAudit = await prisma.auditLog.findFirst({
+    where: { action: 'user.account-merge', actorId: user.id },
+    orderBy: { createdAt: 'desc' },
+    select: { entityId: true },
+  });
+  let mergedInto: string | null = null;
+  if (mergeAudit?.entityId) {
+    const linked = await prisma.user.findUnique({
+      where: { id: mergeAudit.entityId },
+      select: { employee: { select: { firstName: true, lastName: true, nickname: true } } },
+    });
+    const e = linked?.employee;
+    if (e) mergedInto = e.nickname?.trim() || `${e.firstName} ${e.lastName}`.trim();
+  }
+
   return (
     <div className="px-4 py-6 sm:px-6 lg:px-8">
       <PageHeader
@@ -32,7 +50,11 @@ export default async function LineSettingsPage() {
       />
       <div>
         {ADMIN_LINE_LINK_ENABLED ? (
-          <LineConnectPanel paired={user.lineUserId != null} canMerge={me?.employee == null} />
+          <LineConnectPanel
+            paired={user.lineUserId != null}
+            canMerge={me?.employee == null}
+            mergedInto={mergedInto}
+          />
         ) : (
           <div className="rounded-xl border border-gray-200 bg-gray-50 px-5 py-4 text-sm text-ink-3">
             ฟีเจอร์เชื่อมต่อ LINE สำหรับผู้ดูแลถูกปิดใช้งานชั่วคราว
