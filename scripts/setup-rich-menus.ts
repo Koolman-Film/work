@@ -46,14 +46,22 @@ const COL = Math.floor(W / 3);
 const ROW = Math.floor(H / 2);
 const uri = (u: string) => ({ type: 'uri' as const, uri: u });
 
-type Spec = { name: string; chatBarText: string; areas: messagingApi.RichMenuArea[] };
+type Spec = {
+  name: string;
+  chatBarText: string;
+  size: { width: number; height: number };
+  areas: messagingApi.RichMenuArea[];
+};
 
-// Area geometry mirrors the final artwork in assets/rich-menu/final/*.png.
+// LINE supports two rich-menu sizes: large (2500x1686) and compact (2500x843).
+// Area geometry + size mirror the final artwork in assets/rich-menu/final/*.png:
+// employee + combined are large (2 rows); admin is a compact single row.
 const SPECS: Record<'employee' | 'admin' | 'combined', Spec> = {
-  // Employee: full-width check-in banner on top, 3 columns below.
+  // Employee (large): full-width check-in banner on top, 3 columns below.
   employee: {
     name: 'koolman-employee-v1',
     chatBarText: 'เมนูพนักงาน',
+    size: { width: W, height: H },
     areas: [
       { bounds: { x: 0, y: 0, width: W, height: ROW }, action: uri(funnel('?dest=check-in')) },
       { bounds: { x: 0, y: ROW, width: COL, height: H - ROW }, action: uri(funnel('?dest=leave')) },
@@ -61,27 +69,33 @@ const SPECS: Record<'employee' | 'admin' | 'combined', Spec> = {
       { bounds: { x: COL * 2, y: ROW, width: W - COL * 2, height: H - ROW }, action: uri(funnel('?dest=calendar')) },
     ],
   },
-  // Admin: 3 equal columns — inbox, advance-slip, admin web.
+  // Admin (compact 2500x843): 3 columns matching the art —
+  // อนุมัติ (approvals) · ภาพรวม (dashboard) · รายงาน (reports).
   admin: {
     name: 'koolman-admin-v2',
     chatBarText: 'เมนูแอดมิน',
+    size: { width: W, height: ROW },
     areas: [
-      { bounds: { x: 0, y: 0, width: COL, height: H }, action: uri(funnel('?dest=admin-inbox')) },
-      { bounds: { x: COL, y: 0, width: COL, height: H }, action: uri(funnel('?dest=admin-advance-slip')) },
-      { bounds: { x: COL * 2, y: 0, width: W - COL * 2, height: H }, action: uri(`${base}/admin`) },
+      { bounds: { x: 0, y: 0, width: COL, height: ROW }, action: uri(funnel('?dest=admin-inbox')) },
+      { bounds: { x: COL, y: 0, width: COL, height: ROW }, action: uri(funnel('?dest=admin-dashboard')) },
+      { bounds: { x: COL * 2, y: 0, width: W - COL * 2, height: ROW }, action: uri(funnel('?dest=admin-reports')) },
     ],
   },
-  // Combined: employee row on top, admin row below.
+  // Combined (large): matching the art —
+  //   top row (employee):  เข้างาน · ขอลา · ขอเบิก
+  //   bottom row (admin):  อนุมัติ · ภาพรวม · รายงาน
   combined: {
     name: 'koolman-combined-v1',
-    chatBarText: 'เมนูแอดมิน+พนักงาน',
+    // LINE caps chatBarText at 14 chars — keep it short.
+    chatBarText: 'เมนูรวม',
+    size: { width: W, height: H },
     areas: [
       { bounds: { x: 0, y: 0, width: COL, height: ROW }, action: uri(funnel('?dest=check-in')) },
       { bounds: { x: COL, y: 0, width: COL, height: ROW }, action: uri(funnel('?dest=leave')) },
-      { bounds: { x: COL * 2, y: 0, width: W - COL * 2, height: ROW }, action: uri(`${base}/liff/home`) },
+      { bounds: { x: COL * 2, y: 0, width: W - COL * 2, height: ROW }, action: uri(funnel('?dest=advance')) },
       { bounds: { x: 0, y: ROW, width: COL, height: H - ROW }, action: uri(funnel('?dest=admin-inbox')) },
-      { bounds: { x: COL, y: ROW, width: COL, height: H - ROW }, action: uri(funnel('?dest=admin-advance-slip')) },
-      { bounds: { x: COL * 2, y: ROW, width: W - COL * 2, height: H - ROW }, action: uri(`${base}/admin`) },
+      { bounds: { x: COL, y: ROW, width: COL, height: H - ROW }, action: uri(funnel('?dest=admin-dashboard')) },
+      { bounds: { x: COL * 2, y: ROW, width: W - COL * 2, height: H - ROW }, action: uri(funnel('?dest=admin-reports')) },
     ],
   },
 };
@@ -95,7 +109,7 @@ async function main() {
 
   const spec = SPECS[menuType];
   const { richMenuId } = await client.createRichMenu({
-    size: { width: W, height: H },
+    size: spec.size,
     // NEVER selected: the all-dynamic model has no OA default menu.
     selected: false,
     name: spec.name,

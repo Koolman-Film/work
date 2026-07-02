@@ -12,8 +12,10 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 const TABS = [
+  { href: '/liff/admin/dashboard', label: 'สรุป' },
   { href: '/liff/admin/inbox', label: 'งานรออนุมัติ' },
   { href: '/liff/admin/advance', label: 'รอแนบสลิป' },
+  { href: '/liff/admin/reports', label: 'รายงาน' },
 ] as const;
 
 export function AdminTabs() {
