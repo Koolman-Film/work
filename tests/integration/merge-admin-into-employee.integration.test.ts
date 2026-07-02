@@ -141,6 +141,45 @@ describe('mergeAdminIntoEmployee', () => {
     });
     expect(res).toEqual({ ok: false, code: 'employee-no-record' });
   });
+
+  it('refuses to grant admin onto an archived employee (no mutation)', async () => {
+    const { ua, ue, emp } = await seedPair();
+    // Employee archived between token mint and scan.
+    await prisma.employee.update({
+      where: { id: emp.id },
+      data: { archivedAt: new Date(), status: 'Archived' },
+    });
+    const res = await mergeAdminIntoEmployee({
+      adminUserId: ua.id,
+      employeeUserId: ue.id,
+      lineUserId: 'line-emp',
+    });
+    expect(res).toEqual({ ok: false, code: 'employee-archived' });
+    // No role copied onto the archived employee — still only its staff role.
+    const ueRoles = await prisma.userRoleAssignment.findMany({ where: { userId: ue.id } });
+    expect(ueRoles.length).toBe(1);
+  });
+
+  it('does not copy an assignment to an archived role definition', async () => {
+    const { ua, ue } = await seedPair();
+    // Retire the admin role, then give the admin a second (archived) role too.
+    await prisma.roleDefinition.update({
+      where: { key: 'admin' },
+      data: { archivedAt: new Date() },
+    });
+    const res = await mergeAdminIntoEmployee({
+      adminUserId: ua.id,
+      employeeUserId: ue.id,
+      lineUserId: 'line-emp',
+    });
+    expect(res.ok).toBe(true);
+    // The archived admin role must NOT propagate — employee keeps only staff.
+    const ueRoles = await prisma.userRoleAssignment.findMany({
+      where: { userId: ue.id },
+      include: { role: true },
+    });
+    expect(ueRoles.map((r) => r.role.key).sort()).toEqual(['staff']);
+  });
 });
 
 async function seedSelfPaired(opts: { adminLine: string | null; empLine: string | null }) {
