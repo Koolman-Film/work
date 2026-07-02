@@ -1,0 +1,7 @@
+<svg viewBox="0 0 833 843" xmlns="http://www.w3.org/2000/svg" style="font-family:'Noto Sans Thai','Noto Sans','Noto Sans Lao','Noto Sans Myanmar','Noto Sans Khmer','Noto Sans SC',sans-serif">
+  <rect width="833" height="843" fill="#E8F1FC"/>
+  <circle cx="416" cy="250" r="110" fill="#2D6CDF"/><path d="M362 252 l38 40 l72 -88" fill="none" stroke="#fff" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="416" y="560" font-size="150" font-weight="800" fill="#1E3A5F" text-anchor="middle">เข้างาน</text>
+  <text x="416" y="660" font-size="40" fill="#4B6B93" text-anchor="middle">Check-in · ចុះម៉ោង</text>
+  <text x="416" y="716" font-size="40" fill="#4B6B93" text-anchor="middle">ລົງເວລາ · 打卡 · အချိန်မှတ်</text>
+</svg>

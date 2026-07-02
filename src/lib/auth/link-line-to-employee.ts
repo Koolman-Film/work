@@ -34,6 +34,7 @@ import { headers } from 'next/headers';
 import { getTranslations } from 'next-intl/server';
 import { auditLogTx } from '@/lib/audit/log';
 import { prisma } from '@/lib/db/prisma';
+import { syncRichMenuForUser } from '@/lib/line/rich-menu';
 import { verifyPairingToken } from '@/lib/pairing/token';
 import { createClient } from '@/lib/supabase/server';
 
@@ -194,11 +195,15 @@ export async function linkLineToEmployee(input: { pairingToken: string }): Promi
 
       return {
         kind: 'ok' as const,
+        userId: updatedUser.id,
         employee: { id: emp.id, firstName: emp.firstName, lastName: emp.lastName },
       };
     });
 
     if (result.kind === 'ok') {
+      // Best-effort: employee-only → employee menu; employee who is also an
+      // admin → combined. All-dynamic (no OA default). Never throws.
+      await syncRichMenuForUser(result.userId);
       return { ok: true, employee: result.employee };
     }
 

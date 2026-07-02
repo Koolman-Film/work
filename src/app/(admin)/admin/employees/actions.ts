@@ -13,6 +13,7 @@ import {
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { maskBankAccountNumber } from '@/lib/employee/bank';
+import { syncRichMenuForUser, unlinkAdminRichMenu } from '@/lib/line/rich-menu';
 import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 import { readForm } from './employee-schema';
 
@@ -303,6 +304,10 @@ export async function archiveEmployee(id: string) {
     metadata: { source: 'admin-ui' },
   });
 
+  // Archived employee → no check-in capability → re-sync menu (drops to the
+  // admin menu if they're also an admin, otherwise unlinks). Best-effort.
+  await syncRichMenuForUser(before.userId);
+
   revalidatePath('/admin/employees');
   redirect('/admin/employees');
 }
@@ -522,6 +527,11 @@ export async function unlinkLineFromEmployee(id: string): Promise<void> {
     authUserId: emp.user.authUserId,
     lineUserId: emp.user.lineUserId,
   };
+
+  // 0. Unlink the LINE rich menu FIRST, while we still have the lineUserId —
+  //    after the binding is cleared below, syncRichMenuForUser is a no-op.
+  //    Best-effort (never throws).
+  if (before.lineUserId) await unlinkAdminRichMenu(before.lineUserId);
 
   // 1+3. Prisma side: clear binding + nullify invite token in one tx.
   await prisma.$transaction(async (tx) => {
