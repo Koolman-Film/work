@@ -1,3 +1,4 @@
+import { type PermittedBranches, viaEmployeeBranchScope } from '@/lib/auth/branch-scope';
 import { prisma } from '@/lib/db/prisma';
 import { overtimeMinutes } from './rate';
 
@@ -36,10 +37,13 @@ function bangkokDow(date: Date): number {
  * employee's scheduled end (for that weekday) by ≥ otThresholdMinutes, minus
  * any date that already has an OvertimeEntry (Approved or Rejected).
  */
-export async function getOtCandidates(args: {
-  ym: string; // "YYYY-MM"
-  employeeId?: string;
-}): Promise<OtCandidate[]> {
+export async function getOtCandidates(
+  args: {
+    ym: string; // "YYYY-MM"
+    employeeId?: string;
+  },
+  permitted: PermittedBranches,
+): Promise<OtCandidate[]> {
   const [yStr, mStr] = args.ym.split('-');
   const y = Number(yStr);
   const m = Number(mStr); // 1-12
@@ -56,6 +60,7 @@ export async function getOtCandidates(args: {
       clockOutAt: { not: null },
       date: { gte: start, lt: end },
       ...(args.employeeId ? { employeeId: args.employeeId } : {}),
+      ...viaEmployeeBranchScope(permitted),
     },
     select: {
       id: true,
@@ -82,6 +87,7 @@ export async function getOtCandidates(args: {
       date: { gte: start, lt: end },
       deletedAt: null,
       ...(args.employeeId ? { employeeId: args.employeeId } : {}),
+      ...viaEmployeeBranchScope(permitted),
     },
     select: { employeeId: true, date: true },
   });
