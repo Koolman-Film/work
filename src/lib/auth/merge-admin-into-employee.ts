@@ -6,7 +6,13 @@ type Result =
   | { ok: true }
   | {
       ok: false;
-      code: 'same-user' | 'admin-not-pure' | 'employee-no-record' | 'not-found' | 'line-conflict';
+      code:
+        | 'same-user'
+        | 'admin-not-pure'
+        | 'employee-no-record'
+        | 'employee-archived'
+        | 'not-found'
+        | 'line-conflict';
     };
 
 /**
@@ -43,13 +49,19 @@ export async function mergeAdminIntoEmployee(input: {
     }),
     prisma.user.findUnique({
       where: { id: employeeUserId },
-      include: { employee: { select: { id: true } } },
+      include: { employee: { select: { id: true, archivedAt: true } } },
     }),
     prisma.user.findUnique({ where: { lineUserId }, select: { id: true } }),
   ]);
   if (!admin || !employeeUser) return { ok: false, code: 'not-found' };
   if (admin.employee !== null) return { ok: false, code: 'admin-not-pure' };
   if (employeeUser.employee === null) return { ok: false, code: 'employee-no-record' };
+  // Don't grant admin onto an archived/departed employee. The picker filters to
+  // Active at mint time, but the token lives 1h — the employee could be archived
+  // in the gap (either the User row or the Employee row).
+  if (employeeUser.archivedAt !== null || employeeUser.employee.archivedAt !== null) {
+    return { ok: false, code: 'employee-archived' };
+  }
 
   // The scanning LINE must be unbound, or belong to the admin or the employee of
   // this pair. Bound to anyone else → a different human; refuse, mutate nothing.
@@ -58,9 +70,11 @@ export async function mergeAdminIntoEmployee(input: {
   }
 
   // Only copy admin/superadmin roles — custom or staff roles on the admin
-  // user are intentionally not carried over to the employee account.
+  // user are intentionally not carried over to the employee account. Skip
+  // assignments to an archived role definition (matches computeTier, which
+  // ignores archived roles) so a retired role never propagates as live.
   const adminRoles = admin.roleAssignments.filter(
-    (a) => a.role.key === 'admin' || a.role.isSuperadmin,
+    (a) => (a.role.key === 'admin' || a.role.isSuperadmin) && a.role.archivedAt === null,
   );
 
   await prisma.$transaction(async (tx) => {

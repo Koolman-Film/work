@@ -72,15 +72,21 @@ async function resolveMergeParties(
     return { ok: false, code: 'expired', message: 'ลิงก์หมดอายุ กรุณาสร้างใหม่' };
   }
 
-  // The chosen employee must exist and actually be an employee.
+  // The chosen employee must exist, be an employee, and not be archived —
+  // reject before consuming the token so an archived-employee scan doesn't
+  // burn it (the picker filters Active, but the token lives 1h).
   const employee = await prisma.user.findUnique({
     where: { id: employeeUserId },
     select: {
-      employee: { select: { firstName: true, lastName: true, nickname: true } },
+      archivedAt: true,
+      employee: { select: { firstName: true, lastName: true, nickname: true, archivedAt: true } },
     },
   });
   if (!employee?.employee) {
     return { ok: false, code: 'not-employee', message: 'บัญชีพนักงานที่เลือกไม่ถูกต้อง' };
+  }
+  if (employee.archivedAt !== null || employee.employee.archivedAt !== null) {
+    return { ok: false, code: 'employee-archived', message: 'บัญชีพนักงานนี้ถูกระงับแล้ว' };
   }
 
   // Consent: the scanning LINE must belong to one side of the stated pair, or be
