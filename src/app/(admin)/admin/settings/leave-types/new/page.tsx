@@ -10,7 +10,7 @@ export default async function NewLeaveTypePage({ searchParams }: { searchParams:
   return (
     <div className="px-4 py-6 sm:px-6 lg:px-8">
       <PageHeader breadcrumb="ตั้งค่า · ประเภทการลา" title="เพิ่มประเภทการลา" />
-      <div className="max-w-2xl">
+      <div>
         <LeaveTypeForm
           mode="create"
           action={createLeaveType}

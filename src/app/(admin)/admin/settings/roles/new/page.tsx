@@ -12,7 +12,7 @@ export default async function NewRolePage({ searchParams }: { searchParams: Sear
   return (
     <div className="px-4 py-6 sm:px-6 lg:px-8">
       <PageHeader breadcrumb="ตั้งค่า · บทบาทและสิทธิ์" title="เพิ่มบทบาท" />
-      <div className="max-w-3xl">
+      <div>
         <RoleForm
           mode="create"
           action={createRole}

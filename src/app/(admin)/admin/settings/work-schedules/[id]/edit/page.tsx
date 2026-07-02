@@ -41,7 +41,7 @@ export default async function EditWorkSchedulePage({
   return (
     <div className="px-4 py-6 sm:px-6 lg:px-8">
       <PageHeader breadcrumb="ตั้งค่า · ตารางงาน" title="แก้ไขตารางงาน" />
-      <div className="max-w-2xl">
+      <div>
         <WorkScheduleForm
           mode="edit"
           action={updateBound}

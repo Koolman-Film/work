@@ -18,7 +18,7 @@ export default async function RecomputeLeavePage() {
         subtitle="ปรับ “ใช้ไป / เกินสิทธิ / หักเงิน” ของใบลาที่อนุมัติแล้ว ให้ตรงกับสิทธิวันลาปัจจุบัน"
       />
 
-      <div className="mb-5 max-w-3xl space-y-2 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-900">
+      <div className="mb-5 space-y-2 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-900">
         <p>
           <strong>กด “ดูตัวอย่าง” ก่อนเสมอ</strong> แล้วตรวจรายการให้ครบ — โดยเฉพาะรายการที่
           <strong> หักเงินเพิ่มขึ้น (สีแดง)</strong>

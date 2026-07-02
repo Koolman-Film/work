@@ -46,7 +46,7 @@ export default async function ManualAttendancePage() {
       />
       <AttendanceTabs current="manual" />
 
-      <div className="max-w-2xl">
+      <div>
         <Card>
           <CardHeader>
             <CardTitle>รายละเอียด</CardTitle>
