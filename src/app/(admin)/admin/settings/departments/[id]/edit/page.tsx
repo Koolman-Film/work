@@ -27,7 +27,7 @@ export default async function EditDepartmentPage({
   return (
     <div className="px-4 py-6 sm:px-6 lg:px-8">
       <PageHeader breadcrumb="ตั้งค่า · แผนก" title="แก้ไขแผนก" />
-      <div className="max-w-2xl">
+      <div>
         <DepartmentForm
           mode="edit"
           action={updateDepartment.bind(null, id)}

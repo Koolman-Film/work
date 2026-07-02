@@ -9,7 +9,7 @@ export default async function NewDepartmentPage({ searchParams }: { searchParams
   return (
     <div className="px-4 py-6 sm:px-6 lg:px-8">
       <PageHeader breadcrumb="ตั้งค่า · แผนก" title="เพิ่มแผนก" />
-      <div className="max-w-2xl">
+      <div>
         <DepartmentForm
           mode="create"
           action={createDepartment}

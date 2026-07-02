@@ -10,7 +10,7 @@ export default async function NewBranchPage({ searchParams }: { searchParams: Se
   return (
     <div className="px-4 py-6 sm:px-6 lg:px-8">
       <PageHeader breadcrumb="ตั้งค่า · สาขา" title="เพิ่มสาขา" />
-      <div className="max-w-2xl">
+      <div>
         <BranchForm
           mode="create"
           action={createBranch}

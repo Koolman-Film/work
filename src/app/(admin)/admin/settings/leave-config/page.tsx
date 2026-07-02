@@ -40,7 +40,7 @@ export default async function LeaveConfigPage({
         </div>
       )}
 
-      <form action={updateLeaveConfig} className="max-w-2xl">
+      <form action={updateLeaveConfig}>
         <Card>
           <CardHeader>
             <CardTitle>ช่วงครึ่งวัน</CardTitle>
