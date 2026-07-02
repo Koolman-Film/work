@@ -134,18 +134,22 @@ export function systemRoleGrantError(
 }
 
 /**
- * A payroll-bearing role may only be assigned GLOBALLY. Returns a Thai error
- * string when a branch-scoped assignment (branchId != null) targets a role
- * whose permissions include any PAYROLL_PERMISSIONS; null when allowed.
+ * A payroll-bearing CUSTOM role may only be assigned GLOBALLY. Returns a Thai
+ * error string when a branch-scoped assignment (branchId != null) targets a
+ * role whose permissions include any PAYROLL_PERMISSIONS; null when allowed.
  * Payroll is an org-wide surface (see B-payroll-guard) — a branch-scoped
  * payroll grant is both inert (requireGlobalPermission blocks it) and
  * forbidden here so the confusing state never exists.
  */
 export function payrollRoleBranchScopeError(
-  role: { permissions: ReadonlyArray<string> },
+  role: { permissions: ReadonlyArray<string>; isSystem: boolean },
   branchId: string | null,
 ): string | null {
-  if (branchId === null) return null;
+  // Global assignment, or a platform-managed SYSTEM role (admin/superadmin/staff):
+  // exempt. System roles' branch-scoping is a supported config (branch admin);
+  // Layer 1 (requireGlobalPermission) still denies them payroll access. Layer 2
+  // targets CUSTOM roles that bundle payroll perms into a branch grant.
+  if (branchId === null || role.isSystem) return null;
   const hasPayroll = role.permissions.some((p) =>
     (PAYROLL_PERMISSIONS as ReadonlyArray<string>).includes(p),
   );

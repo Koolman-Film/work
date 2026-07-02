@@ -14,7 +14,7 @@ Nothing today prevents creating such a grant, and nothing at the gate requires t
 Payroll is accessible **only** via a **global** grant, enforced at two layers:
 
 - **Layer 1 (gate, load-bearing):** every payroll entry point requires a global payroll grant; a branch-scoped grant → `notFound()`. Closes the leak regardless of how any grant was created.
-- **Layer 2 (assignment guard, defense-in-depth):** creating a **branch-scoped** role assignment is rejected when the role carries any payroll permission. Prevents the misconfiguration from existing.
+- **Layer 2 (assignment guard, defense-in-depth):** creating a **branch-scoped** assignment of a **CUSTOM** role is rejected when the role carries any payroll permission. Built-in **system** roles (`admin`/`superadmin`/`staff`) are exempt — branch-scoped `admin` is a supported config, and Layer 1 still protects payroll. Prevents the custom-role misconfiguration from existing.
 
 **Invariant: zero change for global admins/Superadmins** — they hold global payroll grants (`getPermittedBranches → 'all'`) and assign roles globally, so both layers are inert for them. Reuses `src/lib/auth/branch-scope.ts`. **No new permission, no schema/migration.**
 
@@ -55,17 +55,24 @@ Replace every payroll gate — the ~9 files carrying `requirePermission('payroll
 
 ### Layer 2 — assignment guard
 
-A pure guard mirroring the existing `systemRoleGrantError` in `src/lib/auth/team-guards.ts`:
+A pure guard mirroring the existing `systemRoleGrantError` in `src/lib/auth/team-guards.ts`.
+It guards only **CUSTOM roles** (`isSystem: false`). The built-in **system roles**
+(`admin`/`superadmin`/`staff`) are **exempt**: assigning `admin` scoped to a branch
+is the supported "branch admin" configuration, and Layer 1
+(`requireGlobalPermission`) still denies that branch-scoped assignment payroll
+access regardless. Layer 2 exists to catch a *custom* role author bundling
+payroll perms into a branch grant — not to block the platform-managed roles.
 
 ```ts
-/** A payroll-bearing role may only be assigned GLOBALLY. Returns an error
- *  message when a branch-scoped assignment (branchId != null) targets a role
- *  whose permissions include any PAYROLL_PERMISSIONS; null when allowed. */
+/** A payroll-bearing CUSTOM role may only be assigned GLOBALLY. Returns an
+ *  error message when a branch-scoped assignment (branchId != null) targets
+ *  a CUSTOM role whose permissions include any PAYROLL_PERMISSIONS; null when
+ *  allowed (global assignment, or a system role — exempt, see above). */
 export function payrollRoleBranchScopeError(
-  role: { permissions: ReadonlyArray<string> },
+  role: { permissions: ReadonlyArray<string>; isSystem: boolean },
   branchId: string | null,
 ): string | null {
-  if (branchId === null) return null; // global assignment — always fine
+  if (branchId === null || role.isSystem) return null; // global, or exempt system role
   const hasPayroll = role.permissions.some((p) => (PAYROLL_PERMISSIONS as readonly string[]).includes(p));
   return hasPayroll
     ? 'บทบาทที่มีสิทธิ์เงินเดือนต้องกำหนดแบบทั้งองค์กร (ไม่ระบุสาขา)'
@@ -101,5 +108,5 @@ Wire it into the two user-facing assignment-creation paths in `src/app/(admin)/a
 
 - **Exhaustive gate coverage:** Layer 1's value depends on converting EVERY payroll entry point. The plan greps all `requirePermission('payroll.*'|'settings.payroll.manage')` sites (currently 9 files) and the optional guardrail test locks it so a new payroll gate can't regress. A missed gate = the leak stays open there.
 - **`requireGlobalPermission` double assignment load:** it calls `requirePermission` (loads assignments) then `getPermittedBranches` (loads again). Acceptable (payroll pages are low-traffic); a future optimization could resolve both from one load, but not needed here.
-- **Layer 2 mixed roles:** a custom role bundling payroll + non-payroll perms can now only be assigned globally (branch-scoped assignment rejected with a clear Thai error). This is the intended constraint; document it.
+- **Layer 2 mixed roles:** a **custom** role bundling payroll + non-payroll perms can now only be assigned globally (branch-scoped assignment rejected with a clear Thai error). This is the intended constraint; document it. The built-in **system** roles (`admin`/`superadmin`/`staff`) are exempt from Layer 2 — branch-scoped `admin` is the supported branch-admin configuration, and Layer 1 still blocks that assignment's payroll access.
 - **Blast radius:** all prod admins are global with global payroll grants → both layers are inert in production (Layer 1 passes, Layer 2 never triggers). Pure-code, reversible, no migration.

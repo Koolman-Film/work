@@ -151,4 +151,28 @@ describe('createTeamMember', () => {
     expect(createUser).not.toHaveBeenCalled();
     expect(assignmentCreateMany).not.toHaveBeenCalled();
   });
+
+  it('Superadmin assigns the built-in admin SYSTEM role @ branch (branch admin) → NOT rejected by the payroll guard', async () => {
+    requirePermission.mockResolvedValue({ user: { id: 'actor' }, tier: 'Superadmin' });
+    canDo.mockResolvedValue(true);
+    roleFindMany.mockResolvedValue([
+      {
+        id: 'r-admin',
+        key: 'admin',
+        isSuperadmin: false,
+        isSystem: true,
+        archivedAt: null,
+        permissions: ['payroll.read', 'payroll.run', 'payroll.publish'],
+      },
+    ]);
+    branchFindUnique.mockResolvedValue({ id: 'b1', archivedAt: null });
+
+    await expect(createTeamMember(fd('a@x.io', 'password1', [['r-admin', 'b1']]))).rejects.toThrow(
+      'REDIRECT:/admin/settings/team/u-new/edit',
+    );
+    expect(createUser).toHaveBeenCalledOnce();
+    expect(assignmentCreateMany).toHaveBeenCalledWith({
+      data: [{ userId: 'u-new', roleId: 'r-admin', branchId: 'b1' }],
+    });
+  });
 });
