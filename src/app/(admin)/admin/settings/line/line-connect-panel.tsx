@@ -48,11 +48,46 @@ function ChoiceButton({
   );
 }
 
-export function LineConnectPanel({ paired, canMerge }: { paired: boolean; canMerge: boolean }) {
+export function LineConnectPanel({
+  paired,
+  canMerge,
+  mergedInto,
+}: {
+  paired: boolean;
+  canMerge: boolean;
+  /** Employee display name if this admin already completed a merge, else null. */
+  mergedInto: string | null;
+}) {
   const [choice, setChoice] = useState<'admin' | 'employee' | null>(null);
 
   // Already bound → nothing to choose; show the pairing/unpair card directly.
   if (paired) return <LinePairingCard paired />;
+
+  // Already merged into an employee account (non-destructive, so this email
+  // account still looks "unlinked"). Show the status, not the chooser again.
+  if (mergedInto) {
+    return (
+      <div className="rounded-2xl border border-success-soft bg-success-soft/40 p-5">
+        <div className="flex items-start gap-3">
+          <span
+            aria-hidden="true"
+            className="grid size-8 shrink-0 place-items-center rounded-full bg-success-deep text-sm font-bold text-white"
+          >
+            ✓
+          </span>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-success-deep">
+              เชื่อมกับบัญชีพนักงาน “{mergedInto}” แล้ว
+            </p>
+            <p className="mt-1 text-sm text-ink-2">
+              เข้าใช้งานผ่าน LINE ของ “{mergedInto}” เพื่อใช้ทั้งเมนูพนักงานและแอดมิน — อีเมลนี้ยัง
+              เข้าสู่ระบบเว็บแอดมินได้ตามปกติ
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // No employee half to merge with → self-pairing is the only path.
   if (!canMerge) return <LinePairingCard paired={false} />;
