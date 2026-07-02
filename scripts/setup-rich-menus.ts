@@ -10,9 +10,11 @@
  *
  * Env: LINE_MESSAGING_CHANNEL_ACCESS_TOKEN + NEXT_PUBLIC_APP_URL + NEXT_PUBLIC_LIFF_ID.
  *
- * ALL-DYNAMIC MODEL: every menu is created with `selected: false` — there is NO
- * OA default menu. Menus are linked per-user by capability (scripts/sync-rich-menus.ts
- * and the app's syncRichMenuForUser). Do NOT set a default menu in the console.
+ * ALL-DYNAMIC MODEL: there is NO OA default menu — menus are linked per-user by
+ * capability (scripts/sync-rich-menus.ts and the app's syncRichMenuForUser). Do
+ * NOT set a default menu in the console. (Each menu is created `selected: true`
+ * so it opens expanded in the user's chat — that's a display preference, not the
+ * OA-default concept.)
  *
  * ROTATION: menus are immutable, so an art/area change means a NEW menu object.
  * To rotate: create the new menu here → update the *_RICH_MENU_ID env → run
@@ -110,8 +112,11 @@ async function main() {
   const spec = SPECS[menuType];
   const { richMenuId } = await client.createRichMenu({
     size: spec.size,
-    // NEVER selected: the all-dynamic model has no OA default menu.
-    selected: false,
+    // selected: true → the menu opens EXPANDED when the user enters the 1:1 OA
+    // chat (vs. collapsed to just the chat-bar tab). Unrelated to the "OA
+    // default menu" concept — this is a per-menu display preference, and it
+    // applies to per-user-linked menus too.
+    selected: true,
     name: spec.name,
     chatBarText: spec.chatBarText,
     areas: spec.areas,
