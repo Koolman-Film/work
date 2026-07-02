@@ -3,7 +3,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { requireAdminArea } from '@/lib/auth/admin-area';
 import { ADMIN_LINE_LINK_ENABLED } from '@/lib/auth/admin-line-feature';
 import { prisma } from '@/lib/db/prisma';
-import { MergePromptCard } from '../_components/merge-prompt-card';
+import { MergeNudge } from '../_components/merge-nudge';
 import { ChangePasswordForm } from './change-password-form';
 
 /**
@@ -51,8 +51,9 @@ export default async function AdminProfilePage() {
       </Card>
 
       {/* ─── Link employee account (pure admins only) ─────────────────── */}
-      {/* Hidden while the admin LINE experience is disabled (ADMIN_LINE_LINK_ENABLED). */}
-      {ADMIN_LINE_LINK_ENABLED && isPureAdmin && <MergePromptCard dismissible={false} />}
+      {/* The merge wizard itself lives on /admin/settings/line — this is just
+          the permanent entry point. Hidden while ADMIN_LINE_LINK_ENABLED is off. */}
+      {ADMIN_LINE_LINK_ENABLED && isPureAdmin && <MergeNudge dismissible={false} />}
 
       {/* ─── Change password ──────────────────────────────────────────── */}
       <ChangePasswordForm />
