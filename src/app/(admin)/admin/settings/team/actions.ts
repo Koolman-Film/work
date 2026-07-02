@@ -69,6 +69,7 @@ import {
 } from '@/lib/auth/team-guards';
 import { computeTier } from '@/lib/auth/user-tier';
 import { prisma } from '@/lib/db/prisma';
+import { syncRichMenuForUser } from '@/lib/line/rich-menu';
 import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 
 // ─── Validation ────────────────────────────────────────────────────────────
@@ -454,6 +455,9 @@ export async function archiveTeamMember(id: string): Promise<void> {
     metadata: { ...ctx, source: 'admin-ui', targetEmail: target.email },
   });
 
+  // Archived → no capabilities → unlink their rich menu (best-effort).
+  await syncRichMenuForUser(id);
+
   revalidatePath('/admin/settings/team');
   redirect('/admin/settings/team');
 }
@@ -711,6 +715,9 @@ export async function addRoleAssignment(userId: string, formData: FormData): Pro
     metadata: { ...ctx, source: 'admin-ui', targetEmail: target.email },
   });
 
+  // Capability may have changed (e.g. gained admin tier) → re-sync menu.
+  await syncRichMenuForUser(userId);
+
   revalidatePath(`/admin/settings/team/${userId}/edit`);
   redirect(`/admin/settings/team/${userId}/edit?notice=${encodeURIComponent('เพิ่มบทบาทเรียบร้อย')}`);
 }
@@ -813,6 +820,10 @@ export async function removeRoleAssignment(assignmentId: string): Promise<void> 
     },
     metadata: { ...ctx, source: 'admin-ui', targetEmail: assignment.user.email },
   });
+
+  // Capability may have changed (e.g. lost admin tier → back to employee menu,
+  // or to a blank menu). Re-sync so the LINE menu follows the new tier.
+  await syncRichMenuForUser(assignment.userId);
 
   revalidatePath(`/admin/settings/team/${assignment.userId}/edit`);
   redirect(
