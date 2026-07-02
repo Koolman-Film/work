@@ -43,7 +43,7 @@ const SRC_ROOT = join(__dirname, '../..');
  * uses 'employee.update' as an example).
  */
 function findRequirePermissionCalls(): Set<string> {
-  const RE = /requirePermission\(\s*['"]([a-z][a-z0-9.-]*)['"]/g;
+  const RE = /require(?:Global)?Permission\(\s*['"]([a-z][a-z0-9.-]*)['"]/g;
   const found = new Set<string>();
 
   function walk(dir: string): void {
@@ -118,14 +118,7 @@ describe('Permission coverage', () => {
     // ahead of feature work, will be wired later." If a perm leaves
     // this list (no longer pending), this test won't trip; if a NEW
     // orphan appears, the test fires.
-    const KNOWN_PENDING: ReadonlyArray<Permission> = [
-      // Payroll permissions — calc engine shipped in Phase 2 W6 but
-      // the admin UI + gates haven't been built yet. They will use
-      // these keys.
-      'payroll.read',
-      'payroll.run',
-      'payroll.publish',
-    ];
+    const KNOWN_PENDING: ReadonlyArray<Permission> = [];
 
     const allGranted = new Set<string>();
     for (const role of Object.values(SYSTEM_ROLES)) {

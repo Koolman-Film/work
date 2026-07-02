@@ -65,6 +65,7 @@ import {
   canActOnRole,
   canActOnUserScope,
   canManageSystemRole,
+  payrollRoleBranchScopeError,
   systemRoleGrantError,
 } from '@/lib/auth/team-guards';
 import { computeTier } from '@/lib/auth/user-tier';
@@ -161,7 +162,14 @@ export async function createTeamMember(formData: FormData): Promise<void> {
   // Load + validate every referenced role.
   const roles = await prisma.roleDefinition.findMany({
     where: { id: { in: rows.map((r) => r.roleId) } },
-    select: { id: true, key: true, isSuperadmin: true, isSystem: true, archivedAt: true },
+    select: {
+      id: true,
+      key: true,
+      isSuperadmin: true,
+      isSystem: true,
+      archivedAt: true,
+      permissions: true,
+    },
   });
   const roleById = new Map(roles.map((r) => [r.id, r]));
 
@@ -179,6 +187,12 @@ export async function createTeamMember(formData: FormData): Promise<void> {
     if (staticErr) {
       redirect(
         `/admin/settings/team/new?error=${encodeURIComponent(staticErr)}&email=${encodeURIComponent(email)}`,
+      );
+    }
+    const payrollErr = payrollRoleBranchScopeError(role, row.branchId);
+    if (payrollErr) {
+      redirect(
+        `/admin/settings/team/new?error=${encodeURIComponent(payrollErr)}&email=${encodeURIComponent(email)}`,
       );
     }
     // Branch/global authority (mirrors addRoleAssignment).
@@ -648,6 +662,11 @@ export async function addRoleAssignment(userId: string, formData: FormData): Pro
   const staticErr = systemRoleGrantError(actorTier, role);
   if (staticErr) {
     redirect(`/admin/settings/team/${userId}/edit?error=${encodeURIComponent(staticErr)}`);
+  }
+
+  const payrollErr = payrollRoleBranchScopeError(role, branchId);
+  if (payrollErr) {
+    redirect(`/admin/settings/team/${userId}/edit?error=${encodeURIComponent(payrollErr)}`);
   }
 
   // Phase 3.7 branch-scope check on the GRANT:

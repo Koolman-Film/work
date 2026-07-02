@@ -10,8 +10,17 @@ vi.mock('next/server', () => ({ after: (fn: () => void) => fn() }));
 vi.mock('@/lib/audit/log', () => ({ auditLog: vi.fn() }));
 
 const requirePermission = vi.fn();
+const canDo = vi.fn();
 vi.mock('@/lib/auth/check-permission', () => ({
   requirePermission: (...a: unknown[]) => requirePermission(...a),
+  canDo: (...a: unknown[]) => canDo(...a),
+  // requireGlobalPermission (used by payroll actions) calls
+  // getPermittedBranches → getUserAssignments internally. A global
+  // (branchId=null) Superadmin assignment resolves to 'all' for any
+  // permission, so requireGlobalPermission passes.
+  getUserAssignments: vi.fn(async () => [
+    { branchId: null, role: { permissions: [], isSuperadmin: true, archivedAt: null } },
+  ]),
 }));
 
 const sendNotification = vi.fn();

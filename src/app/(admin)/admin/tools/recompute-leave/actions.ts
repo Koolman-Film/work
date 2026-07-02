@@ -1,7 +1,7 @@
 'use server';
 
 import { auditLog } from '@/lib/audit/log';
-import { requirePermission } from '@/lib/auth/check-permission';
+import { requireGlobalPermission } from '@/lib/auth/require-global-permission';
 import { type RecomputeResult, recomputeLeaveCharges } from '@/lib/leave/recompute';
 
 /**
@@ -10,7 +10,7 @@ import { type RecomputeResult, recomputeLeaveCharges } from '@/lib/leave/recompu
  * changes frozen deduction amounts. apply=false is a read-only dry run.
  */
 export async function runLeaveRecompute(apply: boolean): Promise<RecomputeResult> {
-  const { user } = await requirePermission('payroll.publish');
+  const { user } = await requireGlobalPermission('payroll.publish');
   const result = await recomputeLeaveCharges({ apply });
   if (apply && result.applied > 0) {
     auditLog({

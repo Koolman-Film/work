@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { auditLog } from '@/lib/audit/log';
-import { requirePermission } from '@/lib/auth/check-permission';
+import { requireGlobalPermission } from '@/lib/auth/require-global-permission';
 import { prisma } from '@/lib/db/prisma';
 import type { Locale } from '@/lib/i18n/config';
 import { formatMoney } from '@/lib/i18n/format';
@@ -26,7 +26,7 @@ const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function GET(req: Request): Promise<Response> {
-  const { user } = await requirePermission('payroll.read');
+  const { user } = await requireGlobalPermission('payroll.read');
 
   const url = new URL(req.url);
   const month = url.searchParams.get('m') ?? '';
