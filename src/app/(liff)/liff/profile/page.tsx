@@ -7,7 +7,9 @@
  * to the employee (Thai labor convention — they signed the contract).
  */
 
+import { getLocale } from 'next-intl/server';
 import { requireEmployee } from '@/lib/auth/require-role';
+import { localizedBranchName } from '@/lib/branch/localized-name';
 import { prisma } from '@/lib/db/prisma';
 import { resolveStoredImageUrl } from '@/lib/storage/signed-urls';
 import { ProfileView } from './profile-view';
@@ -17,25 +19,28 @@ export default async function LiffProfilePage() {
 
   // Re-fetch to pick up branch + department names (requireRole only returns
   // the bare Employee row). One round-trip; pages don't run often.
-  const fullEmployee = await prisma.employee.findUnique({
-    where: { id: employee.id },
-    select: {
-      id: true,
-      firstName: true,
-      lastName: true,
-      nickname: true,
-      phone: true,
-      personalEmail: true,
-      address: true,
-      emergencyContact: true,
-      photoKey: true,
-      salaryType: true,
-      baseSalary: true,
-      hiredAt: true,
-      branch: { select: { name: true } },
-      department: { select: { name: true } },
-    },
-  });
+  const [fullEmployee, locale] = await Promise.all([
+    prisma.employee.findUnique({
+      where: { id: employee.id },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        nickname: true,
+        phone: true,
+        personalEmail: true,
+        address: true,
+        emergencyContact: true,
+        photoKey: true,
+        salaryType: true,
+        baseSalary: true,
+        hiredAt: true,
+        branch: { select: { name: true, nameEn: true } },
+        department: { select: { name: true } },
+      },
+    }),
+    getLocale(),
+  ]);
   if (!fullEmployee) {
     throw new Error('Employee row vanished between auth + read — race condition?');
   }
@@ -51,7 +56,7 @@ export default async function LiffProfilePage() {
         nickname: fullEmployee.nickname,
         photoUrl,
         shortId: fullEmployee.id.slice(0, 8),
-        branchName: fullEmployee.branch.name,
+        branchName: localizedBranchName(fullEmployee.branch, locale),
         departmentName: fullEmployee.department?.name ?? null,
         salaryType: fullEmployee.salaryType,
         baseSalary: fullEmployee.baseSalary.toString(),

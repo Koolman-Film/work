@@ -124,7 +124,7 @@ describe('advanceReport', () => {
       ],
     });
 
-    const [row] = await advanceReport(PERIOD, {});
+    const [row] = await advanceReport(PERIOD, {}, 'all');
     expect(row?.approvedInPeriod).toBe(5_000);
     expect(row?.outstandingNow).toBe(5_000);
     // availableNow comes from advanceBalanceFor, which reserves BOTH Pending and
@@ -139,10 +139,10 @@ describe('advanceReport', () => {
     const a = await makeEmployee({ firstName: 'Ann', branchId: b1.id });
     await makeEmployee({ firstName: 'Bob', branchId: b2.id });
 
-    const all = await advanceReport(PERIOD, {});
+    const all = await advanceReport(PERIOD, {}, 'all');
     expect(all).toHaveLength(2);
 
-    const onlyB1 = await advanceReport(PERIOD, { branchId: b1.id });
+    const onlyB1 = await advanceReport(PERIOD, { branchId: b1.id }, 'all');
     expect(onlyB1).toHaveLength(1);
     expect(onlyB1[0]?.employeeId).toBe(a.id);
   });
@@ -193,7 +193,7 @@ describe('attendanceReport', () => {
       },
     });
 
-    const [row] = await attendanceReport(PERIOD, { departmentId: dept.id });
+    const [row] = await attendanceReport(PERIOD, { departmentId: dept.id }, 'all');
     expect(row?.lateCount).toBe(2); // June 5 + June 6 (July 1 excluded)
     expect(row?.lateMinutes).toBe(45); // 30 + 15
     expect(row?.earlyCount).toBe(1);
@@ -208,7 +208,7 @@ describe('attendanceReport', () => {
     const e1 = await makeEmployee({ departmentId: d1.id });
     await makeEmployee({ departmentId: d2.id });
 
-    const rows = await attendanceReport(PERIOD, { departmentId: d1.id });
+    const rows = await attendanceReport(PERIOD, { departmentId: d1.id }, 'all');
     expect(rows).toHaveLength(1);
     expect(rows[0]?.employeeId).toBe(e1.id);
   });
@@ -259,7 +259,7 @@ describe('leaveReport', () => {
       },
     });
 
-    const { rows, types } = await leaveReport(PERIOD, {}, YEAR);
+    const { rows, types } = await leaveReport(PERIOD, {}, YEAR, 'all');
     expect(types.some((t) => t.id === lt.id)).toBe(true);
     const cell = rows[0]?.byType[lt.id];
     expect(cell?.usedMinutes).toBe(420); // 420 + null + (pending excluded)
@@ -281,7 +281,7 @@ describe('leaveReport', () => {
       data: { name: `ลากิจ-${uid().slice(0, 8)}`, annualQuota: 10 },
     });
 
-    const { rows } = await leaveReport(PERIOD, { branchId: b1.id }, YEAR);
+    const { rows } = await leaveReport(PERIOD, { branchId: b1.id }, YEAR, 'all');
     expect(rows).toHaveLength(1);
     expect(rows[0]?.employeeId).toBe(a.id);
     // no requests → cell zero-filled, not absent
@@ -324,7 +324,7 @@ describe('advanceDetail (drill-down)', () => {
       ],
     });
 
-    const detail = await advanceDetail(PERIOD, {});
+    const detail = await advanceDetail(PERIOD, {}, 'all');
     const items = detail[emp.id] ?? [];
     expect(items).toHaveLength(2);
     expect(items.map((i) => i.amount).sort((a, b) => a - b)).toEqual([2_000, 5_000]);
@@ -363,7 +363,7 @@ describe('leaveDetail (drill-down)', () => {
       },
     });
 
-    const detail = await leaveDetail(PERIOD, {});
+    const detail = await leaveDetail(PERIOD, {}, 'all');
     const items = detail[emp.id] ?? [];
     expect(items).toHaveLength(1);
     expect(items[0]?.leaveTypeName).toBe(lt.name);

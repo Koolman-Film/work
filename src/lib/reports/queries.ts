@@ -14,7 +14,9 @@ import 'server-only';
  * Bounded by headcount (tens, not thousands); revisit with a batched query
  * only if a report page measures slow.
  */
+import type { Prisma } from '@prisma/client';
 import { advanceBalanceFor } from '@/lib/advance/available';
+import { employeeBranchScope, type PermittedBranches } from '@/lib/auth/branch-scope';
 import { prisma } from '@/lib/db/prisma';
 import { remainingByTypeForEmployees } from '@/lib/leave/balance';
 import { computeLiveLeaveCharges } from '@/lib/leave/recompute';
@@ -23,8 +25,11 @@ const utc = (ymd: string) => new Date(`${ymd}T00:00:00.000Z`);
 
 export type EmployeeFilter = { branchId?: string; departmentId?: string; q?: string };
 
-function employeeWhere(f: EmployeeFilter) {
-  return {
+export function employeeWhere(
+  f: EmployeeFilter,
+  permitted: PermittedBranches,
+): Prisma.EmployeeWhereInput {
+  const base: Prisma.EmployeeWhereInput = {
     archivedAt: null,
     ...(f.branchId ? { branchId: f.branchId } : {}),
     ...(f.departmentId ? { departmentId: f.departmentId } : {}),
@@ -38,6 +43,8 @@ function employeeWhere(f: EmployeeFilter) {
         }
       : {}),
   };
+  const scope = employeeBranchScope(permitted); // {} for 'all'
+  return Object.keys(scope).length ? { AND: [base, scope] } : base;
 }
 
 function displayName(e: { firstName: string; lastName: string; nickname: string | null }) {
@@ -56,9 +63,10 @@ export type AdvanceReportRow = {
 export async function advanceReport(
   period: { from: string; to: string },
   filter: EmployeeFilter,
+  permitted: PermittedBranches,
 ): Promise<AdvanceReportRow[]> {
   const employees = await prisma.employee.findMany({
-    where: employeeWhere(filter),
+    where: employeeWhere(filter, permitted),
     orderBy: [{ firstName: 'asc' }],
     select: { id: true, firstName: true, lastName: true, nickname: true },
   });
@@ -112,9 +120,10 @@ export type AttendanceReportRow = {
 export async function attendanceReport(
   period: { from: string; to: string },
   filter: EmployeeFilter,
+  permitted: PermittedBranches,
 ): Promise<AttendanceReportRow[]> {
   const employees = await prisma.employee.findMany({
-    where: employeeWhere(filter),
+    where: employeeWhere(filter, permitted),
     orderBy: [{ firstName: 'asc' }],
     select: { id: true, firstName: true, lastName: true, nickname: true },
   });
@@ -192,6 +201,7 @@ export async function leaveReport(
   period: { from: string; to: string },
   filter: EmployeeFilter,
   year: number,
+  permitted: PermittedBranches,
 ): Promise<{ types: Array<{ id: string; name: string }>; rows: LeaveReportRow[] }> {
   const [types, employees] = await Promise.all([
     prisma.leaveType.findMany({
@@ -200,7 +210,7 @@ export async function leaveReport(
       select: { id: true, name: true, overQuotaPolicy: true },
     }),
     prisma.employee.findMany({
-      where: employeeWhere(filter),
+      where: employeeWhere(filter, permitted),
       orderBy: [{ firstName: 'asc' }],
       select: { id: true, firstName: true, lastName: true, nickname: true },
     }),
@@ -289,9 +299,10 @@ export type LeaveDetailItem = {
 export async function leaveDetail(
   period: { from: string; to: string },
   filter: EmployeeFilter,
+  permitted: PermittedBranches,
 ): Promise<Record<string, LeaveDetailItem[]>> {
   const employees = await prisma.employee.findMany({
-    where: employeeWhere(filter),
+    where: employeeWhere(filter, permitted),
     select: { id: true },
   });
   const ids = employees.map((e) => e.id);
@@ -346,9 +357,10 @@ export type AdvanceDetailItem = {
 export async function advanceDetail(
   period: { from: string; to: string },
   filter: EmployeeFilter,
+  permitted: PermittedBranches,
 ): Promise<Record<string, AdvanceDetailItem[]>> {
   const employees = await prisma.employee.findMany({
-    where: employeeWhere(filter),
+    where: employeeWhere(filter, permitted),
     select: { id: true },
   });
   const ids = employees.map((e) => e.id);

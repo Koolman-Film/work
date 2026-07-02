@@ -11,6 +11,12 @@ export type PayslipDocument = {
     employeeName: string;
     employeeId: string;
     branch: string;
+    branchEn: string | null;
+    letterhead: {
+      payslipNameEn: string | null;
+      payslipNameNative: string | null;
+      payslipLogoKey: string | null;
+    };
     department: string | null;
     payType: 'Monthly' | 'Daily' | 'Hourly';
     month: string;

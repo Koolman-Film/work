@@ -34,10 +34,10 @@ import { prisma } from '@/lib/db/prisma';
  *
  * Pure / synchronous because the caller already has both tiers in hand.
  */
-export function canActOnRole(actorRole: Role, targetRole: Role): boolean {
+export function canActOnRole(actorRole: Role | null, targetRole: Role): boolean {
   if (actorRole === 'Superadmin') return true;
   if (actorRole === 'Admin') return targetRole === 'Admin';
-  return false;
+  return false; // null or 'Staff': no team jurisdiction
 }
 
 /**
@@ -96,6 +96,40 @@ export function checkUserScope(
     if (actorBranches.has(a.branchId)) return true;
   }
   return false;
+}
+
+/**
+ * Tier-conferring (system) roles — admin/staff/superadmin — may only be
+ * granted or removed by an actor who actually holds an admin tier. A
+ * permission-only actor (tier null) or Staff with role.assign must not be
+ * able to mint or strip system roles: that would be privilege escalation
+ * now that permission-based admission lets tier-less users reach the
+ * role-assignment actions. Custom roles (isSystem=false) are governed by
+ * the existing canDo / branch-scope guards, not this one.
+ */
+export function canManageSystemRole(actorRole: Role | null, role: { isSystem: boolean }): boolean {
+  if (!role.isSystem) return true;
+  return actorRole === 'Admin' || actorRole === 'Superadmin';
+}
+
+/**
+ * Static (non-branch) grant guard shared by createTeamMember and
+ * addRoleAssignment: a Superadmin role may only be granted by a Superadmin,
+ * and any system (tier-conferring) role requires the actor to hold an admin
+ * tier. Returns a Thai error string to surface, or null if allowed on these
+ * grounds. Branch/global authority is checked separately by the caller.
+ */
+export function systemRoleGrantError(
+  actorRole: Role | null,
+  role: { isSuperadmin: boolean; isSystem: boolean },
+): string | null {
+  if (role.isSuperadmin && actorRole !== 'Superadmin') {
+    return 'ต้องเป็น Superadmin เพื่อมอบบทบาท Superadmin';
+  }
+  if (!canManageSystemRole(actorRole, role)) {
+    return 'ต้องมีสิทธิ์ระดับผู้ดูแลเพื่อมอบบทบาทระบบ';
+  }
+  return null;
 }
 
 /**

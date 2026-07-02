@@ -13,6 +13,7 @@
  */
 
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { KpiHero } from '@/components/ui/kpi-hero';
@@ -21,7 +22,15 @@ import { Pill } from '@/components/ui/pill';
 import { StatCard } from '@/components/ui/stat-card';
 import { bangkokDateUtcMidnight, isClosedDay } from '@/lib/attendance/date';
 import { isScheduledWorkday } from '@/lib/attendance/schedule';
-import { canDo, requirePermission } from '@/lib/auth/check-permission';
+import { requireAdminArea } from '@/lib/auth/admin-area';
+import { firstAccessibleAdminPath } from '@/lib/auth/admin-landing';
+import { ADMIN_LINE_LINK_ENABLED } from '@/lib/auth/admin-line-feature';
+import {
+  employeeBranchScope,
+  permittedBranchesFromAssignments,
+  viaEmployeeBranchScope,
+} from '@/lib/auth/branch-scope';
+import { canDo, getUserAssignments } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { getOrgCalendarData } from '@/lib/leave/team-calendar';
 import { currentMonthYM, parseMonth } from '@/lib/leave/team-calendar-shape';
@@ -81,7 +90,10 @@ function formatDateTimeShort(d: Date): string {
 }
 
 export default async function AdminHomePage() {
-  const { user } = await requirePermission('dashboard.read');
+  const { user, permissions } = await requireAdminArea();
+  if (!permissions.has('dashboard.read')) {
+    redirect(firstAccessibleAdminPath(permissions));
+  }
   const canViewLiveBoard = await canDo(user, 'attendance.live-board');
 
   const today = bangkokDateUtcMidnight(new Date());
@@ -91,6 +103,17 @@ export default async function AdminHomePage() {
   const initialYm = currentMonthYM();
   const calMonth = parseMonth(initialYm);
   if (!calMonth) throw new Error('Could not parse current month — date system broken?');
+  const assignments = await getUserAssignments(user.id);
+  const leaveScope = viaEmployeeBranchScope(
+    permittedBranchesFromAssignments(assignments, 'leave.read'),
+  );
+  const advScope = viaEmployeeBranchScope(
+    permittedBranchesFromAssignments(assignments, 'advance.read'),
+  );
+  const attPermitted = permittedBranchesFromAssignments(assignments, 'attendance.read');
+  const attScope = viaEmployeeBranchScope(attPermitted);
+  const rosterScope = employeeBranchScope(attPermitted);
+  const calPermitted = permittedBranchesFromAssignments(assignments, 'dashboard.read');
 
   // Fetch current user's employee relation + dismiss flag to decide whether
   // to show the "link your employee account" card. Done in the same Promise.all
@@ -112,15 +135,20 @@ export default async function AdminHomePage() {
       where: { id: user.id },
       select: { employee: { select: { id: true } }, mergePromptDismissedAt: true },
     }),
-    prisma.leaveRequest.count({ where: { status: 'Pending' } }),
-    prisma.cashAdvance.count({ where: { status: 'Pending' } }),
+    prisma.leaveRequest.count({ where: { status: 'Pending', ...leaveScope } }),
+    prisma.cashAdvance.count({ where: { status: 'Pending', ...advScope } }),
     prisma.attendance.findMany({
-      where: { type: 'CheckIn', date: today },
+      where: { type: 'CheckIn', date: today, ...attScope },
       distinct: ['employeeId'],
       select: { employeeId: true },
     }),
     prisma.employee.findMany({
-      where: { archivedAt: null, status: { not: 'Archived' }, canCheckIn: true },
+      where: {
+        archivedAt: null,
+        status: { not: 'Archived' },
+        canCheckIn: true,
+        ...rosterScope,
+      },
       select: {
         id: true,
         workSchedule: { select: { days: { select: { dayOfWeek: true } } } },
@@ -129,7 +157,7 @@ export default async function AdminHomePage() {
     // Distinct by employee: a date can hold two OnLeave rows (two halves), so
     // count people on leave, not rows.
     prisma.attendance.findMany({
-      where: { type: 'OnLeave', date: today, deletedAt: null },
+      where: { type: 'OnLeave', date: today, deletedAt: null, ...attScope },
       distinct: ['employeeId'],
       select: { employeeId: true },
     }),
@@ -138,7 +166,7 @@ export default async function AdminHomePage() {
       select: { name: true },
     }),
     prisma.leaveRequest.findMany({
-      where: { status: 'Pending' },
+      where: { status: 'Pending', ...leaveScope },
       orderBy: { createdAt: 'desc' },
       take: 5,
       select: {
@@ -151,7 +179,7 @@ export default async function AdminHomePage() {
       },
     }),
     prisma.cashAdvance.findMany({
-      where: { status: 'Pending' },
+      where: { status: 'Pending', ...advScope },
       orderBy: { requestedAt: 'desc' },
       take: 5,
       select: {
@@ -162,7 +190,7 @@ export default async function AdminHomePage() {
       },
     }),
     prisma.attendance.findMany({
-      where: { type: 'OnLeave', date: today, deletedAt: null },
+      where: { type: 'OnLeave', date: today, deletedAt: null, ...attScope },
       distinct: ['employeeId'],
       orderBy: { employee: { firstName: 'asc' } },
       select: {
@@ -177,13 +205,22 @@ export default async function AdminHomePage() {
         },
       },
     }),
-    getOrgCalendarData({ monthStart: calMonth.start, monthEnd: calMonth.end }),
+    getOrgCalendarData({
+      monthStart: calMonth.start,
+      monthEnd: calMonth.end,
+      permitted: calPermitted,
+    }),
   ]);
 
   // Show the "link your employee account" card only to pure admins (no Employee
   // row) who haven't dismissed it. The layout already enforced Admin/Superadmin,
   // so we only need the employee + dismissed checks here.
-  const showMergeCard = me !== null && me.employee === null && me.mergePromptDismissedAt === null;
+  // Gated off while the admin LINE experience is disabled (ADMIN_LINE_LINK_ENABLED).
+  const showMergeCard =
+    ADMIN_LINE_LINK_ENABLED &&
+    me !== null &&
+    me.employee === null &&
+    me.mergePromptDismissedAt === null;
 
   const checkedInTodayCount = checkedInTodayRows.length;
   const onLeaveTodayCount = onLeaveTodayRows.length;

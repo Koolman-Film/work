@@ -11,18 +11,21 @@
 
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageHeader } from '@/components/ui/page-header';
+import { employeeBranchScope, getPermittedBranches } from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { AttendanceTabs } from '../attendance-tabs';
 import { ManualAttendanceForm } from './manual-form';
 
 export default async function ManualAttendancePage() {
-  await requirePermission('attendance.manual-create');
+  const { user } = await requirePermission('attendance.manual-create');
+  const permitted = await getPermittedBranches(user, 'attendance.manual-create');
 
   const employees = await prisma.employee.findMany({
     where: {
       archivedAt: null,
       status: { not: 'Archived' },
+      ...employeeBranchScope(permitted),
     },
     orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }],
     select: {

@@ -7,7 +7,25 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { canActOnRole, checkUserScope, type ScopeAssignment } from './team-guards';
+import {
+  canActOnRole,
+  canManageSystemRole,
+  checkUserScope,
+  type ScopeAssignment,
+  systemRoleGrantError,
+} from './team-guards';
+
+describe('canActOnRole with null actor', () => {
+  it('a tier-less (custom-only) actor cannot act on any tier', () => {
+    expect(canActOnRole(null, 'Admin')).toBe(false);
+    expect(canActOnRole(null, 'Superadmin')).toBe(false);
+  });
+  it('existing behaviour preserved', () => {
+    expect(canActOnRole('Superadmin', 'Superadmin')).toBe(true);
+    expect(canActOnRole('Admin', 'Admin')).toBe(true);
+    expect(canActOnRole('Admin', 'Superadmin')).toBe(false);
+  });
+});
 
 const BRANCH_A = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 const BRANCH_B = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
@@ -115,6 +133,62 @@ describe('checkUserScope (branch jurisdiction guard)', () => {
       // its own branch-scoped permission check) — not through the
       // user-scope guard.
       expect(checkUserScope([admin(BRANCH_A)], [], false)).toBe(false);
+    });
+  });
+
+  describe('canManageSystemRole (privilege-escalation guard)', () => {
+    describe('custom roles (isSystem: false) — always allowed', () => {
+      it('null actor can manage a custom role', () => {
+        expect(canManageSystemRole(null, { isSystem: false })).toBe(true);
+      });
+
+      it('Staff actor can manage a custom role', () => {
+        expect(canManageSystemRole('Staff', { isSystem: false })).toBe(true);
+      });
+
+      it('Admin actor can manage a custom role', () => {
+        expect(canManageSystemRole('Admin', { isSystem: false })).toBe(true);
+      });
+
+      it('Superadmin actor can manage a custom role', () => {
+        expect(canManageSystemRole('Superadmin', { isSystem: false })).toBe(true);
+      });
+    });
+
+    describe('system roles (isSystem: true) — admin tier required', () => {
+      it('null actor CANNOT manage a system role', () => {
+        expect(canManageSystemRole(null, { isSystem: true })).toBe(false);
+      });
+
+      it('Staff actor CANNOT manage a system role', () => {
+        expect(canManageSystemRole('Staff', { isSystem: true })).toBe(false);
+      });
+
+      it('Admin actor CAN manage a system role', () => {
+        expect(canManageSystemRole('Admin', { isSystem: true })).toBe(true);
+      });
+
+      it('Superadmin actor CAN manage a system role', () => {
+        expect(canManageSystemRole('Superadmin', { isSystem: true })).toBe(true);
+      });
+    });
+  });
+
+  describe('systemRoleGrantError (static grant guard)', () => {
+    const sys = (isSuperadmin = false) => ({ isSuperadmin, isSystem: true });
+    it('blocks non-Superadmin from granting the superadmin role', () => {
+      expect(systemRoleGrantError('Admin', sys(true))).toBe(
+        'ต้องเป็น Superadmin เพื่อมอบบทบาท Superadmin',
+      );
+    });
+    it('blocks tier-less/Staff from granting a system role', () => {
+      expect(systemRoleGrantError(null, sys())).toBe('ต้องมีสิทธิ์ระดับผู้ดูแลเพื่อมอบบทบาทระบบ');
+      expect(systemRoleGrantError('Staff', sys())).toBe('ต้องมีสิทธิ์ระดับผู้ดูแลเพื่อมอบบทบาทระบบ');
+    });
+    it('allows Admin/Superadmin to grant a system role; anyone to grant a custom role', () => {
+      expect(systemRoleGrantError('Admin', sys())).toBeNull();
+      expect(systemRoleGrantError('Superadmin', sys(true))).toBeNull();
+      expect(systemRoleGrantError(null, { isSuperadmin: false, isSystem: false })).toBeNull();
     });
   });
 

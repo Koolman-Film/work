@@ -7,6 +7,8 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Pagination } from '@/components/ui/pagination';
 import { type Column, ResponsiveTable } from '@/components/ui/responsive-table';
 import { StatusBadge, type StatusKey } from '@/components/ui/status-badge';
+import { employeeBranchScope, getPermittedBranches } from '@/lib/auth/branch-scope';
+import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { buildPageMeta, pageArgs, parsePageParam } from '@/lib/pagination';
 import { signAttendancePhotoUrls } from '@/lib/storage/signed-urls';
@@ -71,6 +73,8 @@ function statusWhere(status: string): Prisma.EmployeeWhereInput {
 }
 
 export default async function EmployeeListPage({ searchParams }: { searchParams: SearchParams }) {
+  const { user } = await requirePermission('employee.read');
+  const permitted = await getPermittedBranches(user, 'employee.read');
   const sp = await searchParams;
   const error = sp.error;
   const q = sp.q?.trim() ?? '';
@@ -91,6 +95,13 @@ export default async function EmployeeListPage({ searchParams }: { searchParams:
       { lastName: { contains: q, mode: 'insensitive' } },
       { nickname: { contains: q, mode: 'insensitive' } },
     ];
+  }
+  // Branch-scope enforcement: restrict to the actor's permitted branches.
+  // employeeBranchScope returns {} for 'all' (no-op) or { OR: [...] } for scoped.
+  // We use AND to avoid clobbering the existing search OR above.
+  const branchScopeFragment = employeeBranchScope(permitted);
+  if (Object.keys(branchScopeFragment).length > 0) {
+    where.AND = [branchScopeFragment];
   }
 
   // Single round-trip for the page of data, its total (for the pager), and the
@@ -115,7 +126,7 @@ export default async function EmployeeListPage({ searchParams }: { searchParams:
     }),
     prisma.employee.count({ where }),
     prisma.branch.findMany({
-      where: { archivedAt: null },
+      where: { archivedAt: null, ...(permitted === 'all' ? {} : { id: { in: permitted } }) },
       orderBy: { name: 'asc' },
       select: { id: true, name: true },
     }),

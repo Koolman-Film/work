@@ -18,6 +18,7 @@ import {
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect } from 'react';
+import type { Permission } from '@/lib/auth/permissions';
 import { cn } from '@/lib/utils';
 import { useMobileNav } from './use-mobile-nav';
 
@@ -55,14 +56,24 @@ type NavItem = {
   enabled?: boolean;
   /** Which badge count (if any) to show next to this item. */
   badgeKey?: keyof SidebarBadges;
+  /** Backing permission; item shows only if the user holds it. Omit = always show. */
+  permission?: Permission;
+  /** Show if the user holds ANY of these (used for hub items like Settings). */
+  anyOf?: ReadonlyArray<Permission>;
 };
 
 const SECTIONS: ReadonlyArray<{ label: string; items: ReadonlyArray<NavItem> }> = [
   {
     label: 'ภาพรวม',
     items: [
-      { href: '/admin', label: 'หน้าหลัก', Icon: Home, enabled: true },
-      { href: '/admin/calendar', label: 'ปฏิทินงาน', Icon: CalendarDays, enabled: true },
+      { href: '/admin', label: 'หน้าหลัก', Icon: Home, enabled: true, permission: 'dashboard.read' },
+      {
+        href: '/admin/calendar',
+        label: 'ปฏิทินงาน',
+        Icon: CalendarDays,
+        enabled: true,
+        permission: 'dashboard.read',
+      },
     ],
   },
   {
@@ -74,6 +85,7 @@ const SECTIONS: ReadonlyArray<{ label: string; items: ReadonlyArray<NavItem> }> 
         Icon: Clock,
         enabled: true,
         badgeKey: 'attendance',
+        anyOf: ['attendance.read', 'attendance.live-board'],
       },
       {
         href: '/admin/leave',
@@ -81,6 +93,7 @@ const SECTIONS: ReadonlyArray<{ label: string; items: ReadonlyArray<NavItem> }> 
         Icon: CalendarOff,
         enabled: true,
         badgeKey: 'leave',
+        permission: 'leave.read',
       },
       {
         href: '/admin/advance',
@@ -88,39 +101,92 @@ const SECTIONS: ReadonlyArray<{ label: string; items: ReadonlyArray<NavItem> }> 
         Icon: Banknote,
         enabled: true,
         badgeKey: 'advance',
+        permission: 'advance.read',
       },
     ],
   },
   {
     label: 'ข้อมูล & รายงาน',
     items: [
-      { href: '/admin/employees', label: 'พนักงาน', Icon: Users, enabled: true },
-      { href: '/admin/reports', label: 'รายงาน', Icon: BarChart3, enabled: true },
+      {
+        href: '/admin/employees',
+        label: 'พนักงาน',
+        Icon: Users,
+        enabled: true,
+        permission: 'employee.read',
+      },
+      {
+        href: '/admin/reports',
+        label: 'รายงาน',
+        Icon: BarChart3,
+        enabled: true,
+        permission: 'report.read',
+      },
     ],
   },
   {
     label: 'การเงิน',
     items: [
-      { href: '/admin/payroll', label: 'เงินเดือน', Icon: FileText, enabled: true },
-      { href: '/admin/accounting', label: 'บัญชี', Icon: Calculator },
+      {
+        href: '/admin/payroll',
+        label: 'เงินเดือน',
+        Icon: FileText,
+        enabled: true,
+        permission: 'payroll.read',
+      },
+      { href: '/admin/accounting', label: 'บัญชี', Icon: Calculator }, // disabled — "coming soon" placeholder
     ],
   },
   {
     label: 'ระบบ',
     items: [
-      { href: '/admin/settings', label: 'ตั้งค่า', Icon: Settings, enabled: true },
-      { href: '/admin/audit', label: 'Audit log', Icon: History },
+      {
+        href: '/admin/settings',
+        label: 'ตั้งค่า',
+        Icon: Settings,
+        enabled: true,
+        anyOf: [
+          'settings.branch.manage',
+          'settings.department.manage',
+          'settings.accounting-group.manage',
+          'settings.leave-type.manage',
+          'settings.leave-config.manage',
+          'settings.holiday.manage',
+          'settings.work-schedule.manage',
+          'settings.attendance.manage',
+          'team.read',
+          'role.read',
+        ],
+      },
+      { href: '/admin/audit', label: 'Audit log', Icon: History }, // disabled — "coming soon" placeholder
     ],
   },
 ];
 
-export function Sidebar({ badges }: { badges: SidebarBadges }) {
+export function Sidebar({
+  badges,
+  allowedPermissions,
+}: {
+  badges: SidebarBadges;
+  allowedPermissions: Permission[];
+}) {
   const pathname = usePathname();
   const open = useMobileNav((s) => s.open);
   const close = useMobileNav((s) => s.close);
 
   const isActive = (href: string) =>
     href === '/admin' ? pathname === '/admin' : pathname.startsWith(href);
+
+  const allowed = new Set(allowedPermissions);
+  const canSee = (item: NavItem) => {
+    if (item.enabled !== true) return true; // placeholder (enabled omitted/false) — always shown disabled
+    if (item.anyOf) return item.anyOf.some((p) => allowed.has(p));
+    if (item.permission) return allowed.has(item.permission);
+    return true;
+  };
+  const visibleSections = SECTIONS.map((s) => ({ ...s, items: s.items.filter(canSee) })).filter(
+    (s) => s.items.length > 0,
+  );
 
   // Auto-close on route change (tapping a drawer link shouldn't leave it open).
   // biome-ignore lint/correctness/useExhaustiveDependencies: close is stable from zustand
@@ -221,14 +287,18 @@ export function Sidebar({ badges }: { badges: SidebarBadges }) {
 
           {/* Nav (grouped sections) */}
           <nav className="flex-1 overflow-y-auto px-3 pb-4">
-            {SECTIONS.map((section) => (
+            {visibleSections.map((section) => (
               <div key={section.label} className="mb-1">
                 <p className="px-2 pb-1.5 pt-3 font-display text-[10.5px] font-bold uppercase tracking-[0.09em] text-ink-4">
                   {section.label}
                 </p>
                 <ul className="space-y-0.5">
                   {section.items.map((item) => {
-                    const active = isActive(item.href);
+                    const href =
+                      item.href === '/admin/attendance' && !allowed.has('attendance.read')
+                        ? '/admin/attendance/live'
+                        : item.href;
+                    const active = isActive(href);
                     const Icon = item.Icon;
                     const count = item.badgeKey ? badges[item.badgeKey] : 0;
 
@@ -254,7 +324,7 @@ export function Sidebar({ badges }: { badges: SidebarBadges }) {
                     return (
                       <li key={item.href}>
                         <Link
-                          href={item.href}
+                          href={href}
                           aria-current={active ? 'page' : undefined}
                           className={cn(
                             'relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition',

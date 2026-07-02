@@ -3,13 +3,16 @@
 import { Prisma } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
-import { redirect } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { auditLog } from '@/lib/audit/log';
+import {
+  canActOnEmployeeBranches,
+  canSetEmployeeBranches,
+  getPermittedBranches,
+} from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
-import { assignAdminRole } from '@/lib/employee/assign-admin-role';
 import { maskBankAccountNumber } from '@/lib/employee/bank';
-import { syncRichMenuForUser } from '@/lib/line/rich-menu';
 import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 import { readForm } from './employee-schema';
 
@@ -44,6 +47,14 @@ export async function createEmployee(formData: FormData) {
 
   const data = parsed.data;
   const assignedBranchIds = normalizeAssigned(data.branchId, data.assignedBranchIds);
+
+  // Branch-placement gate: a scoped admin may only create employees in their
+  // permitted branches. assignedBranchIds already includes home via
+  // normalizeAssigned, so this covers both home + assigned. 'all' → no filter.
+  const permitted = await getPermittedBranches(user, 'employee.create');
+  if (!canSetEmployeeBranches(permitted, assignedBranchIds)) {
+    redirect(`/admin/employees/new?error=${encodeURIComponent('ไม่มีสิทธิ์สร้างพนักงานในสาขาที่เลือก')}`);
+  }
 
   // Create User + Employee + Staff UserRoleAssignment(s) atomically.
   // Phase 4.6 dropped the legacy User.role column — the User row now
@@ -172,6 +183,14 @@ export async function updateEmployee(id: string, formData: FormData) {
 
   const before = await prisma.employee.findUnique({ where: { id } });
   if (!before) redirect('/admin/employees');
+  const permitted = await getPermittedBranches(user, 'employee.update');
+  if (!canActOnEmployeeBranches(permitted, [before.branchId, ...before.assignedBranchIds])) {
+    notFound();
+  }
+  // Branch reassignment is global-only: scoped actors keep the employee's
+  // existing branch membership regardless of what the form submitted.
+  const nextBranchId = permitted === 'all' ? data.branchId : before.branchId;
+  const nextAssignedBranchIds = permitted === 'all' ? assignedBranchIds : before.assignedBranchIds;
 
   try {
     await prisma.employee.update({
@@ -180,8 +199,8 @@ export async function updateEmployee(id: string, formData: FormData) {
         firstName: data.firstName,
         lastName: data.lastName,
         nickname: data.nickname,
-        branchId: data.branchId,
-        assignedBranchIds,
+        branchId: nextBranchId,
+        assignedBranchIds: nextAssignedBranchIds,
         departmentId: data.departmentId,
         accountingGroupId: data.accountingGroupId,
         workScheduleId: data.workScheduleId,
@@ -214,8 +233,11 @@ export async function updateEmployee(id: string, formData: FormData) {
         firstName: data.firstName,
         lastName: data.lastName,
         nickname: data.nickname,
-        branchId: data.branchId,
-        assignedBranchIds,
+        // Log what was actually PERSISTED, not what was submitted — a scoped
+        // admin's branch change is ignored (preserved from `before`), so the
+        // audit trail must reflect nextBranchId/nextAssignedBranchIds.
+        branchId: nextBranchId,
+        assignedBranchIds: nextAssignedBranchIds,
         departmentId: data.departmentId,
         accountingGroupId: data.accountingGroupId,
         workScheduleId: data.workScheduleId,
@@ -258,6 +280,14 @@ export async function archiveEmployee(id: string) {
 
   const before = await prisma.employee.findUnique({ where: { id } });
   if (!before || before.archivedAt) redirect('/admin/employees');
+  if (
+    !canActOnEmployeeBranches(await getPermittedBranches(user, 'employee.archive'), [
+      before.branchId,
+      ...before.assignedBranchIds,
+    ])
+  ) {
+    notFound();
+  }
 
   await prisma.employee.update({
     where: { id },
@@ -315,6 +345,8 @@ export async function deleteEmployee(id: string) {
       firstName: true,
       lastName: true,
       photoKey: true,
+      branchId: true,
+      assignedBranchIds: true,
       user: { select: { authUserId: true, lineUserId: true } },
       // NOTE: this _count intentionally counts ALL related rows, including
       // soft-deleted (voided) ones. Voided rows still hold an onDelete:Restrict
@@ -333,6 +365,14 @@ export async function deleteEmployee(id: string) {
     },
   });
   if (!emp) redirect('/admin/employees');
+  if (
+    !canActOnEmployeeBranches(await getPermittedBranches(user, 'employee.delete'), [
+      emp.branchId,
+      ...emp.assignedBranchIds,
+    ])
+  ) {
+    notFound();
+  }
 
   // Refuse if any related data exists — admin should use Archive instead.
   const counts = emp._count;
@@ -449,11 +489,21 @@ export async function unlinkLineFromEmployee(id: string): Promise<void> {
       firstName: true,
       lastName: true,
       nickname: true,
+      branchId: true,
+      assignedBranchIds: true,
       user: { select: { id: true, authUserId: true, lineUserId: true } },
     },
   });
   if (!emp) {
     redirect(`/admin/employees?error=${encodeURIComponent('ไม่พบพนักงาน')}`);
+  }
+  if (
+    !canActOnEmployeeBranches(await getPermittedBranches(actor, 'employee.line-unlink'), [
+      emp.branchId,
+      ...emp.assignedBranchIds,
+    ])
+  ) {
+    notFound();
   }
 
   // Idempotency: already unlinked → no-op.
@@ -595,48 +645,4 @@ function isFkViolation(err: unknown): boolean {
     'code' in err &&
     (err as { code: string }).code === 'P2003'
   );
-}
-
-// ─── Admin access ──────────────────────────────────────────────────────────
-
-async function readRequestContext() {
-  const headerList = await headers();
-  const ip =
-    headerList.get('x-forwarded-for')?.split(',')[0]?.trim() ??
-    headerList.get('x-real-ip') ??
-    undefined;
-  const userAgent = headerList.get('user-agent') ?? undefined;
-  return { ip, userAgent };
-}
-
-/**
- * Admin UI action: grant admin access to an employee. Granting a GLOBAL role
- * requires the actor be Superadmin (mirrors team/actions.ts addRoleAssignment).
- */
-export async function grantAdminAccess(employeeId: string): Promise<void> {
-  const { user: actor, tier } = await requirePermission('role.assign');
-  if (tier !== 'Superadmin') {
-    redirect(
-      `/admin/employees/${employeeId}/edit?error=${encodeURIComponent('ต้องเป็น Superadmin เพื่อมอบสิทธิ์แอดมิน')}`,
-    );
-  }
-  await assignAdminRole(employeeId);
-  // The employee just gained admin → combined menu (if LINE-bound). Best-effort.
-  const linked = await prisma.employee.findUnique({
-    where: { id: employeeId },
-    select: { userId: true },
-  });
-  // Employee.userId is non-nullable (schema), so linked.userId is always set when the row exists.
-  if (linked) await syncRichMenuForUser(linked.userId);
-  const ctx = await readRequestContext();
-  auditLog({
-    actorId: actor.id,
-    action: 'roleAssignment.create',
-    entityType: 'UserRoleAssignment',
-    entityId: employeeId,
-    after: { employeeId, roleKey: 'admin', branchId: null, via: 'employee-edit' },
-    metadata: { ...ctx, source: 'admin-ui' },
-  });
-  revalidatePath(`/admin/employees/${employeeId}/edit`);
-  redirect(`/admin/employees/${employeeId}/edit?ok=1`);
 }

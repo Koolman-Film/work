@@ -30,7 +30,7 @@ export function StatCard({
       <p className="font-display text-[11px] font-semibold uppercase tracking-wide text-ink-4">
         {label}
       </p>
-      <p className="mt-1 font-display text-3xl font-bold leading-none text-ink-1 tabular">
+      <p className="mt-1 truncate font-display text-2xl font-bold leading-none text-ink-1 tabular sm:text-3xl">
         {value}
       </p>
       {delta && (
@@ -54,7 +54,7 @@ export function StatCard({
         onClick={onClick}
         aria-pressed={active}
         className={cn(
-          'surface block w-full p-4 text-left transition hover:-translate-y-0.5 hover:shadow-cta',
+          'surface block w-full min-w-0 p-4 text-left transition hover:-translate-y-0.5 hover:shadow-cta',
           'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-300',
           active && 'ring-2 ring-primary-400',
           className,
@@ -65,5 +65,5 @@ export function StatCard({
     );
   }
 
-  return <div className={cn('surface p-4', className)}>{body}</div>;
+  return <div className={cn('surface min-w-0 p-4', className)}>{body}</div>;
 }

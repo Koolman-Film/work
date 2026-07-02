@@ -33,7 +33,8 @@ import type { Role, User } from '@prisma/client';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/db/prisma';
 import { ALL_PERMISSIONS, type Permission } from './permissions';
-import { requireRole } from './require-role';
+import { resolveAuthedUser } from './require-role';
+import { computeTier } from './user-tier';
 
 /**
  * The shape canDo()'s pure logic needs from an assignment row. Kept
@@ -225,14 +226,9 @@ export function permissionsFromAssignments(
 export async function requirePermission(
   permission: Permission,
   ctx?: { branchId?: string | null },
-): Promise<{ user: User; authUserId: string; tier: Role }> {
-  // We need an authenticated user first; reuse requireRole's session
-  // resolution by calling it with the union of all known roles (so it
-  // doesn't reject anyone authenticated). Forwards `tier` (Phase 4 —
-  // computed from active assignments) so callers don't need to
-  // re-fetch.
-  const { user, authUserId, tier } = await requireRole(['Staff', 'Admin', 'Superadmin']);
-  const ok = await canDo(user, permission, ctx);
-  if (!ok) notFound();
+): Promise<{ user: User; authUserId: string; tier: Role | null }> {
+  const { user, authUserId, assignments } = await resolveAuthedUser();
+  if (!checkAssignments(assignments, permission, ctx)) notFound();
+  const tier = computeTier(assignments);
   return { user, authUserId, tier };
 }

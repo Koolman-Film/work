@@ -1,4 +1,5 @@
 import { PageHeader } from '@/components/ui/page-header';
+import { ADMIN_LINE_LINK_ENABLED } from '@/lib/auth/admin-line-feature';
 import { requireRole } from '@/lib/auth/require-role';
 import { LinePairingCard } from './line-pairing-card';
 
@@ -21,7 +22,13 @@ export default async function LineSettingsPage() {
         subtitle="เชื่อมบัญชีผู้ดูแลกับ LINE เพื่อใช้เมนูแอดมินในแชท OA และรับการแจ้งเตือน"
       />
       <div className="max-w-xl">
-        <LinePairingCard paired={user.lineUserId != null} />
+        {ADMIN_LINE_LINK_ENABLED ? (
+          <LinePairingCard paired={user.lineUserId != null} />
+        ) : (
+          <div className="rounded-xl border border-gray-200 bg-gray-50 px-5 py-4 text-sm text-ink-3">
+            ฟีเจอร์เชื่อมต่อ LINE สำหรับผู้ดูแลถูกปิดใช้งานชั่วคราว
+          </div>
+        )}
       </div>
     </div>
   );

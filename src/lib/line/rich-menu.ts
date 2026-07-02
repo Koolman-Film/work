@@ -1,28 +1,19 @@
 /**
- * Per-user admin rich menu link/unlink.
+ * Capability-driven, all-dynamic per-user rich menus.
  *
- * The menu object itself is created once by scripts/setup-admin-rich-menu.ts
- * (OA-Manager menus CANNOT be linked per-user via API). Its id lives in
- * ADMIN_RICH_MENU_ID. Both helpers are best-effort: a rich-menu failure
- * must never break pairing/unpairing — they log and return.
+ * There is NO OA default menu (removed from the LINE console) — every menu is
+ * linked per-user by capability: employee → employee menu, admin → admin menu,
+ * both → combined menu, neither/archived → unlink (blank bar). The three menu
+ * objects are created once by scripts/setup-rich-menus.ts; their ids live in
+ * EMPLOYEE_RICH_MENU_ID / ADMIN_RICH_MENU_ID / COMBINED_RICH_MENU_ID.
+ *
+ * Everything here is best-effort: a rich-menu API failure must never break the
+ * pairing / merge / role-change / archive that triggered it — we log and return.
  */
 
 import { computeTier, type TierAssignment } from '@/lib/auth/user-tier';
 import { prisma } from '@/lib/db/prisma';
 import { getLineMessagingClient } from './messaging-client';
-
-export async function linkAdminRichMenu(lineUserId: string): Promise<void> {
-  const richMenuId = process.env.ADMIN_RICH_MENU_ID;
-  if (!richMenuId) {
-    console.warn('[rich-menu] ADMIN_RICH_MENU_ID not set — skipping link');
-    return;
-  }
-  try {
-    await getLineMessagingClient().linkRichMenuIdToUser(lineUserId, richMenuId);
-  } catch (err) {
-    console.error('[rich-menu] link failed (non-fatal)', { lineUserId, err: String(err) });
-  }
-}
 
 export async function unlinkAdminRichMenu(lineUserId: string): Promise<void> {
   try {
@@ -32,25 +23,47 @@ export async function unlinkAdminRichMenu(lineUserId: string): Promise<void> {
   }
 }
 
-export type MenuTarget = 'combined' | 'admin' | 'none';
+export type MenuTarget = 'combined' | 'admin' | 'employee' | 'none';
+
+/** The env var holding the LINE rich-menu id for each non-'none' target. */
+export function menuIdForTarget(target: Exclude<MenuTarget, 'none'>): string | undefined {
+  switch (target) {
+    case 'combined':
+      return process.env.COMBINED_RICH_MENU_ID;
+    case 'admin':
+      return process.env.ADMIN_RICH_MENU_ID;
+    case 'employee':
+      return process.env.EMPLOYEE_RICH_MENU_ID;
+  }
+}
 
 /**
  * Pure policy: which rich menu should a user with these capabilities see?
- * Employee-only and "neither" both resolve to 'none' (unlink) — the OA
- * default menu is the employee menu, so we only per-user-link the two
- * override menus (admin, combined).
+ *
+ * Every menu is per-user-linked (all-dynamic) — there is NO OA default menu
+ * (removed from the LINE console), so an employee-only user must be explicitly
+ * linked to the employee menu, and a user with no capabilities (archived, or a
+ * pure admin who lost their role) gets 'none' → a blank menu bar.
  */
 export function computeMenuTarget(caps: { hasEmployee: boolean; hasAdmin: boolean }): MenuTarget {
   if (caps.hasAdmin && caps.hasEmployee) return 'combined';
   if (caps.hasAdmin) return 'admin';
+  if (caps.hasEmployee) return 'employee';
   return 'none';
 }
 
-/** Pure: derive capability flags from a loaded user's relations. */
+/**
+ * Pure: derive capability flags from a loaded user's relations. An archived
+ * User has no capabilities — it resolves to 'none' (unlink), so archiving a
+ * user strips their menu regardless of the roles still attached (the direct
+ * fix for the 2026-07-01 archive incident).
+ */
 export function resolveCapabilities(user: {
+  archivedAt: Date | null;
   employee: { id: string } | null;
   roleAssignments: ReadonlyArray<TierAssignment>;
 }): { hasEmployee: boolean; hasAdmin: boolean } {
+  if (user.archivedAt !== null) return { hasEmployee: false, hasAdmin: false };
   const tier = computeTier(user.roleAssignments);
   return {
     hasEmployee: user.employee !== null,
@@ -67,6 +80,7 @@ export function resolveCapabilities(user: {
 export async function syncRichMenuForUser(userId: string): Promise<void> {
   let user: {
     lineUserId: string | null;
+    archivedAt: Date | null;
     employee: { id: string } | null;
     roleAssignments: ReadonlyArray<TierAssignment>;
   } | null;
@@ -75,6 +89,7 @@ export async function syncRichMenuForUser(userId: string): Promise<void> {
       where: { id: userId },
       select: {
         lineUserId: true,
+        archivedAt: true,
         employee: { select: { id: true } },
         roleAssignments: {
           select: { role: { select: { key: true, isSuperadmin: true, archivedAt: true } } },
@@ -96,8 +111,7 @@ export async function syncRichMenuForUser(userId: string): Promise<void> {
       await client.unlinkRichMenuIdFromUser(lineUserId);
       return;
     }
-    const richMenuId =
-      target === 'combined' ? process.env.COMBINED_RICH_MENU_ID : process.env.ADMIN_RICH_MENU_ID;
+    const richMenuId = menuIdForTarget(target);
     if (!richMenuId) {
       console.warn('[rich-menu] menu id env not set — skipping link', { target });
       return;

@@ -52,6 +52,23 @@ import { prisma } from '@/lib/db/prisma';
 import { createClient } from '@/lib/supabase/server';
 import { computeTier } from './user-tier';
 
+export type AuthedAssignment = {
+  branchId: string | null;
+  role: {
+    key: string;
+    name: string;
+    isSuperadmin: boolean;
+    archivedAt: Date | null;
+    permissions: string[];
+  };
+};
+
+export type AuthedSession = {
+  user: User;
+  authUserId: string;
+  assignments: AuthedAssignment[];
+};
+
 export type RequireRoleResult = {
   user: User;
   /** Present for any user who has an Employee record; undefined when the user has no Employee row (e.g. a pure admin). */
@@ -61,6 +78,68 @@ export type RequireRoleResult = {
   /** Supabase auth.users.id — UUID. Same as user.authUserId, exposed for convenience. */
   authUserId: string;
 };
+
+/**
+ * Single include shape used by both resolveAuthedUser and requireRole.
+ * Selecting `permissions` and `name` on the role means downstream
+ * pure functions (canDo, computeTier) need no extra round-trip.
+ */
+const AUTHED_INCLUDE = {
+  employee: true,
+  roleAssignments: {
+    select: {
+      branchId: true,
+      role: {
+        select: {
+          key: true,
+          name: true,
+          isSuperadmin: true,
+          archivedAt: true,
+          permissions: true,
+        },
+      },
+    },
+  },
+} as const;
+
+/**
+ * Resolve the authenticated user WITHOUT requiring a system tier.
+ * Session → User (by authUserId, with LIFF custom:line fallback) →
+ * archived check. notFound() on no/archived user. Tier is NOT computed
+ * or gated here — callers decide what tier-less means.
+ */
+export async function resolveAuthedUser(): Promise<AuthedSession> {
+  const supabase = await createClient();
+  const {
+    data: { user: authUser },
+  } = await supabase.auth.getUser();
+  if (!authUser) notFound();
+
+  let user = await prisma.user.findUnique({
+    where: { authUserId: authUser.id },
+    include: AUTHED_INCLUDE,
+  });
+
+  if (!user) {
+    const lineSub = (authUser.identities ?? []).find((i) => i.provider === 'custom:line')?.id;
+    if (lineSub) {
+      user = await prisma.user.findUnique({
+        where: { lineUserId: lineSub },
+        include: AUTHED_INCLUDE,
+      });
+    }
+  }
+
+  if (!user) notFound();
+  if (user.archivedAt !== null) notFound();
+
+  const { employee: _employee, roleAssignments, ...userOnly } = user;
+  return {
+    user: userOnly as User,
+    authUserId: authUser.id,
+    assignments: roleAssignments as AuthedAssignment[],
+  };
+}
 
 export async function requireRole(roles: readonly Role[]): Promise<RequireRoleResult> {
   const supabase = await createClient();
@@ -73,20 +152,12 @@ export async function requireRole(roles: readonly Role[]): Promise<RequireRoleRe
   // Single round-trip: fetch User + (optionally) Employee + role
   // assignments in one query. We need assignments to compute tier;
   // folding them into the existing include keeps auth at one network
-  // hop. The select on `role` is narrow — we only need the fields
-  // computeTier looks at.
-  const includeShape = {
-    employee: true,
-    roleAssignments: {
-      select: {
-        role: { select: { key: true, isSuperadmin: true, archivedAt: true } },
-      },
-    },
-  } as const;
-
+  // hop. AUTHED_INCLUDE is a superset of the former narrow select —
+  // it additionally loads `name`, `branchId`, and `permissions` so
+  // resolveAuthedUser can share the same shape.
   let user = await prisma.user.findUnique({
     where: { authUserId: authUser.id },
-    include: includeShape,
+    include: AUTHED_INCLUDE,
   });
 
   // LIFF fallback: an admin paired via /liff/pair-admin keeps their
@@ -99,7 +170,7 @@ export async function requireRole(roles: readonly Role[]): Promise<RequireRoleRe
     if (lineSub) {
       user = await prisma.user.findUnique({
         where: { lineUserId: lineSub },
-        include: includeShape,
+        include: AUTHED_INCLUDE,
       });
     }
   }

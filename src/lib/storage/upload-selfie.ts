@@ -92,6 +92,35 @@ export async function compressToJpeg(file: File): Promise<Blob> {
   return best;
 }
 
+const LOGO_MAX_DIMENSION = 256; // logos are small; a 256px square is crisp at 48px
+
+/**
+ * Read a logo File, downscale to ≤256px (longest edge), encode as PNG so a
+ * round/transparent mark stays crisp and keeps its alpha. Logos are tiny, so
+ * unlike compressToJpeg there is no quality-step loop.
+ */
+export async function compressToPng(file: File): Promise<Blob> {
+  const bitmap = await createImageBitmap(file).catch(() => null);
+  if (!bitmap) {
+    throw { kind: 'decode-failed', message: 'Browser failed to decode the image' };
+  }
+  const longest = Math.max(bitmap.width, bitmap.height);
+  const scale = longest > LOGO_MAX_DIMENSION ? LOGO_MAX_DIMENSION / longest : 1;
+  const w = Math.round(bitmap.width * scale);
+  const h = Math.round(bitmap.height * scale);
+  const canvas =
+    typeof OffscreenCanvas !== 'undefined'
+      ? new OffscreenCanvas(w, h)
+      : Object.assign(document.createElement('canvas'), { width: w, height: h });
+  const ctx = canvas.getContext('2d') as
+    | CanvasRenderingContext2D
+    | OffscreenCanvasRenderingContext2D;
+  if (!ctx) throw { kind: 'decode-failed', message: 'Canvas 2D context unavailable' };
+  ctx.drawImage(bitmap, 0, 0, w, h);
+  bitmap.close();
+  return canvasToBlob(canvas, 'image/png', 1);
+}
+
 /**
  * canvas.toBlob normalized across HTMLCanvasElement + OffscreenCanvas
  * (the two have completely different APIs for the same operation).
@@ -253,6 +282,36 @@ export async function uploadEmployeePhoto(
   }
   const { error } = await supabase.storage.from('attendance-photos').upload(key, blob, {
     contentType: 'image/jpeg',
+    upsert: true,
+  });
+  if (error) {
+    throw { kind: 'upload-failed', message: error.message };
+  }
+  return { key, sizeBytes: blob.size };
+}
+
+/**
+ * Upload a compressed branch logo to
+ * `{adminAuthUserId}/branch-logos/{branchId|new-rand}.png`.
+ *
+ * Same admin-uploads-to-own-folder RLS as uploadEmployeePhoto. Keyed by
+ * branchId with upsert:true so re-uploads replace in place; the create form
+ * has no id yet, so it uses a random suffix and the server action persists
+ * whatever key it receives.
+ */
+export async function uploadBranchLogo(
+  supabase: SupabaseClient,
+  blob: Blob,
+  adminAuthUserId: string,
+  branchId: string | null,
+): Promise<SelfieUploadResult> {
+  const suffix = branchId ?? `new-${Math.random().toString(36).slice(2, 10)}`;
+  const key = `${adminAuthUserId}/branch-logos/${suffix}.png`;
+  if (blob.size > MAX_BYTES) {
+    throw { kind: 'too-large-after-compress', sizeBytes: blob.size };
+  }
+  const { error } = await supabase.storage.from('attendance-photos').upload(key, blob, {
+    contentType: 'image/png',
     upsert: true,
   });
   if (error) {

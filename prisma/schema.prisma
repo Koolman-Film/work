@@ -287,6 +287,13 @@ model Bank {
 model Branch {
   id               String    @id @default(uuid()) @db.Uuid
   name             String    @unique
+  /// English variant of the branch's own location name (e.g. "Chiang Mai").
+  /// Null → fall back to `name`. Shown to non-Thai employees.
+  nameEn            String?
+  /// Payslip letterhead overrides. Null → hardcoded Koolman default.
+  payslipNameEn     String?   // English company name, e.g. "Koolman Co., Ltd."
+  payslipNameNative String?   // Native company name, e.g. "บริษัท คูลแมน จำกัด"
+  payslipLogoKey    String?   // storage key in `attendance-photos`
   address          String?
   // Null lat/lng = no geofence enforcement on LIFF check-in.
   latitude         Decimal?  @db.Decimal(10, 7)
