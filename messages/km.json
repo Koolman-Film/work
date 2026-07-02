@@ -543,6 +543,7 @@
     "pickerLabel": "ជ្រើសរើសបុគ្គលិកដែលជាអ្នក",
     "pickerCta": "បង្កើត QR",
     "pickerEmpty": "រកមិនឃើញបុគ្គលិកសកម្ម",
-    "pickerPlaceholder": "— ជ្រើសរើសបុគ្គលិក —"
+    "pickerPlaceholder": "— ជ្រើសរើសបុគ្គលិក —",
+    "pickerSearch": "ស្វែងរកឈ្មោះ ឬ ឈ្មោះហៅក្រៅ…"
   }
 }
