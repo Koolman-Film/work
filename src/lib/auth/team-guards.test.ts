@@ -217,15 +217,15 @@ describe('checkUserScope (branch jurisdiction guard)', () => {
 });
 
 describe('payrollRoleBranchScopeError', () => {
-  const payrollRole = { permissions: ['leave.read', 'payroll.read'] };
-  const plainRole = { permissions: ['leave.read', 'advance.read'] };
+  const payrollRole = { permissions: ['leave.read', 'payroll.read'], isSystem: false };
+  const plainRole = { permissions: ['leave.read', 'advance.read'], isSystem: false };
 
   it('global assignment (branchId=null) → null for any role', () => {
     expect(payrollRoleBranchScopeError(payrollRole, null)).toBeNull();
     expect(payrollRoleBranchScopeError(plainRole, null)).toBeNull();
   });
 
-  it('branch-scoped assignment of a payroll-bearing role → error', () => {
+  it('branch-scoped assignment of a payroll-bearing CUSTOM role → error', () => {
     expect(payrollRoleBranchScopeError(payrollRole, 'b1')).toBe(
       'บทบาทที่มีสิทธิ์เงินเดือนต้องกำหนดแบบทั้งองค์กร (ไม่ระบุสาขา)',
     );
@@ -235,9 +235,17 @@ describe('payrollRoleBranchScopeError', () => {
     expect(payrollRoleBranchScopeError(plainRole, 'b1')).toBeNull();
   });
 
-  it('each payroll permission triggers the guard', () => {
+  it('each payroll permission triggers the guard for a custom role', () => {
     for (const p of ['payroll.read', 'payroll.run', 'payroll.publish', 'settings.payroll.manage']) {
-      expect(payrollRoleBranchScopeError({ permissions: [p] }, 'b1')).not.toBeNull();
+      expect(
+        payrollRoleBranchScopeError({ permissions: [p], isSystem: false }, 'b1'),
+      ).not.toBeNull();
     }
+  });
+
+  it('a SYSTEM role with payroll perms assigned to a branch → exempt (null)', () => {
+    expect(
+      payrollRoleBranchScopeError({ permissions: ['payroll.read'], isSystem: true }, 'b1'),
+    ).toBeNull();
   });
 });
