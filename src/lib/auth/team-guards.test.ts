@@ -11,6 +11,7 @@ import {
   canActOnRole,
   canManageSystemRole,
   checkUserScope,
+  customRoleGlobalGrantError,
   payrollRoleBranchScopeError,
   type ScopeAssignment,
   systemRoleGrantError,
@@ -247,5 +248,48 @@ describe('payrollRoleBranchScopeError', () => {
     expect(
       payrollRoleBranchScopeError({ permissions: ['payroll.read'], isSystem: true }, 'b1'),
     ).toBeNull();
+  });
+});
+
+describe('customRoleGlobalGrantError', () => {
+  // The 2026-07-02 incident shape: checker01 = a custom role with org-wide
+  // read perms, granted globally → org-wide leak with tier=null.
+  const checker = { permissions: ['attendance.live-board', 'dashboard.read'], isSystem: false };
+  const payrollCustom = { permissions: ['leave.read', 'payroll.read'], isSystem: false };
+
+  it('GLOBAL grant of a custom role → error (the leak shape)', () => {
+    expect(customRoleGlobalGrantError(checker, null)).toBe(
+      'บทบาทที่กำหนดเองต้องระบุสาขา — การมอบแบบทั้งองค์กร (Global) จะเปิดข้อมูลทุกสาขา',
+    );
+  });
+
+  it('BRANCH-scoped grant of a custom role → null (the intended shape)', () => {
+    expect(customRoleGlobalGrantError(checker, 'b1')).toBeNull();
+  });
+
+  it('GLOBAL grant of a SYSTEM role → null (system roles are global-capable)', () => {
+    expect(customRoleGlobalGrantError({ permissions: [], isSystem: true }, null)).toBeNull();
+    expect(
+      customRoleGlobalGrantError({ permissions: ['dashboard.read'], isSystem: true }, null),
+    ).toBeNull();
+  });
+
+  it('GLOBAL grant of a payroll-bearing CUSTOM role → null (payroll must be global)', () => {
+    // Exemption: payrollRoleBranchScopeError forces payroll roles global, so
+    // this guard must NOT also block them — otherwise the role is un-assignable.
+    expect(customRoleGlobalGrantError(payrollCustom, null)).toBeNull();
+  });
+
+  it('the two branch guards never deadlock a role into un-assignable', () => {
+    // For every role/branch combination, at least one placement is allowed.
+    for (const role of [checker, payrollCustom, { permissions: ['role.read'], isSystem: false }]) {
+      const globalOk =
+        customRoleGlobalGrantError(role, null) === null &&
+        payrollRoleBranchScopeError(role, null) === null;
+      const branchOk =
+        customRoleGlobalGrantError(role, 'b1') === null &&
+        payrollRoleBranchScopeError(role, 'b1') === null;
+      expect(globalOk || branchOk).toBe(true);
+    }
   });
 });
