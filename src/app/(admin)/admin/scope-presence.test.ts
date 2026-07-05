@@ -22,27 +22,27 @@ const EXEMPT: ReadonlyArray<{ file: string; reason: string }> = [
   {
     file: 'settings/accounting-groups/actions.ts',
     reason:
-      "prisma.employee.count referential-integrity (dependents) check before mutate; behind settings.accounting-group.manage; org-config, count-only.",
+      'prisma.employee.count referential-integrity (dependents) check before mutate; behind settings.accounting-group.manage; org-config, count-only.',
   },
   {
     file: 'settings/departments/actions.ts',
     reason:
-      "prisma.employee.count dependents before delete; behind settings.department.manage; org-config, count-only.",
+      'prisma.employee.count dependents before delete; behind settings.department.manage; org-config, count-only.',
   },
   {
     file: 'settings/work-schedules/actions.ts',
     reason:
-      "prisma.employee.count usage before delete; behind settings.work-schedule.manage; org-config, count-only.",
+      'prisma.employee.count usage before delete; behind settings.work-schedule.manage; org-config, count-only.',
   },
   {
     file: 'settings/leave-types/actions.ts',
     reason:
-      "prisma.leaveRequest.count active references before delete; behind settings.leave-type.manage; org-config referential-integrity, count-only.",
+      'prisma.leaveRequest.count active references before delete; behind settings.leave-type.manage; org-config referential-integrity, count-only.',
   },
   {
     file: 'settings/branches/actions.ts',
     reason:
-      "prisma.employee.count dependents before delete; behind settings.branch.manage; org-config, count-only.",
+      'prisma.employee.count dependents before delete; behind settings.branch.manage; org-config, count-only.',
   },
   {
     file: 'payroll/adjustments/_employee-options.ts',
@@ -56,7 +56,11 @@ function walk(dir: string): string[] {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, e.name);
     if (e.isDirectory()) out.push(...walk(full));
-    else if (/\.(ts|tsx)$/.test(e.name) && !e.name.endsWith('.test.ts') && !e.name.endsWith('.test.tsx'))
+    else if (
+      /\.(ts|tsx)$/.test(e.name) &&
+      !e.name.endsWith('.test.ts') &&
+      !e.name.endsWith('.test.tsx')
+    )
       out.push(full);
   }
   return out;

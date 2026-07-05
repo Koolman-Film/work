@@ -194,7 +194,7 @@ describe('voidCashAdvance — full branch act-on gate + ordering', () => {
       fn({
         cashAdvance: {
           findUnique: vi.fn(async () => ({ id: 'ca1' })),
-          update: (...a: any[]) => (txUpdate as (...args: any[]) => unknown)(...a),
+          update: (...a: unknown[]) => (txUpdate as (...args: unknown[]) => unknown)(...a),
         },
       }),
     );
@@ -250,7 +250,9 @@ describe('restoreCashAdvance — full branch act-on gate + ordering', () => {
     requirePermission.mockResolvedValue({ user: { id: 'actor' }, authUserId: 'auth-1' });
     transactionFn.mockImplementation(async (fn: (tx: unknown) => unknown) =>
       fn({
-        cashAdvance: { update: (...a: any[]) => (txUpdate as (...args: any[]) => unknown)(...a) },
+        cashAdvance: {
+          update: (...a: unknown[]) => (txUpdate as (...args: unknown[]) => unknown)(...a),
+        },
       }),
     );
   });

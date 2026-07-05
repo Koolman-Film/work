@@ -2,7 +2,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { PageHeader } from '@/components/ui/page-header';
-import { employeeBranchScope, getPermittedBranches, viaEmployeeBranchScope } from '@/lib/auth/branch-scope';
+import {
+  employeeBranchScope,
+  getPermittedBranches,
+  viaEmployeeBranchScope,
+} from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { approveOt, dismissOt, voidOt } from '@/lib/overtime/actions';
