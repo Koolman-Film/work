@@ -16,16 +16,18 @@ const CUR = '฿';
 export interface BuildPayslipHtmlOpts {
   locale: string;
   /**
-   * Root (namespace-less) translator for the locale language.
+   * Root (namespace-less) translator for the PRIMARY (employee's) language.
    * Pass full dotted keys, e.g. `payslip.income.title`, `payslipPdf.employee`.
    * Obtained via `getTranslations({ locale })` with no namespace argument.
    */
   t: (key: string, vars?: Record<string, string | number>) => string;
   /**
-   * Root (namespace-less) translator always in English.
-   * Pass full dotted keys — same convention as `t`.
+   * Root (namespace-less) translator for the REFERENCE language shown on the
+   * second line of each label: English when the employee's language is Thai,
+   * otherwise Thai. Caller computes `refLocale = locale === 'th' ? 'en' : 'th'`
+   * and passes `getTranslations({ locale: refLocale })`.
    */
-  tEn: (key: string) => string;
+  tRef: (key: string) => string;
   /** formatMoney bound to the locale */
   money: (n: number) => string;
   /** fontFaceCss(locale) */
@@ -64,9 +66,12 @@ const PAYSLIP_CSS = (fontFace: string) => `${fontFace}
   .t1{display:block;font-weight:500;}
   .t2{display:block;font-size:9.5px;letter-spacing:.15em;text-transform:uppercase;color:var(--faint);font-weight:500;line-height:1.3;margin-top:1px;}
   .t2i{font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--faint);font-weight:500;margin-left:8px;}
-  /* Native text inside the tracked/uppercase micro-labels (summary, legend) must
-     NOT inherit letter-spacing/uppercase — it breaks Khmer/Myanmar/Lao shaping. */
-  .ml-n{letter-spacing:normal;text-transform:none;}
+  /* Native/reference text inside the tracked/uppercase micro-labels must NOT
+     inherit letter-spacing/uppercase — it breaks Khmer/Myanmar/Lao shaping and
+     spaces out Thai. Uses !important because some targets are descendant
+     selectors (.stamp .s1, .card-h .h-en) or defined later (.doc-plbl, .nh-lbl)
+     that would otherwise win the cascade when ml-n is added to their class. */
+  .ml-n{letter-spacing:normal !important;text-transform:none !important;}
   .dt{display:block;font-size:11px;color:var(--muted);margin-top:2px;font-weight:400;white-space:normal;font-variant-numeric:tabular-nums;}
 
   /* Repeating header via table thead — the print spec repeats on EVERY page. */
@@ -144,7 +149,7 @@ export function buildPayslipHtml(doc: PayslipDocument, opts: BuildPayslipHtmlOpt
   const {
     locale,
     t,
-    tEn,
+    tRef,
     money,
     fontFace,
     logoSvg,
@@ -153,45 +158,55 @@ export function buildPayslipHtml(doc: PayslipDocument, opts: BuildPayslipHtmlOpt
     periodLabel,
     generatedAt,
   } = opts;
-  const isEn = locale === 'en';
+
+  // The slip is always bilingual: line 1 = the employee's language (`t`),
+  // line 2 = the reference language (`tRef`) — English for Thai employees,
+  // Thai for everyone else. The reference is Latin only when the employee is
+  // Thai; a Thai reference must drop the Latin micro-label tracking/uppercase
+  // (via .ml-n) or the shaping looks wrong.
+  const refIsLatin = locale === 'th';
+  const refCls = refIsLatin ? '' : ' ml-n';
+  // The seal text uses the employee's own language; only English (Latin) may
+  // keep the .s1 uppercase/tracking — other scripts need the .ml-n reset.
+  const primaryCls = locale === 'en' ? '' : ' ml-n';
+  // Thai text regardless of employee locale (Thai is `t` for th, `tRef` for the
+  // rest) — used for the fixed masthead sub-title.
+  const tThai = (k: string): string => (locale === 'th' ? t(k) : tRef(k));
 
   // Non-Thai employees see the English branch name in the สาขา field.
   const branchLabel = locale === 'th' ? doc.meta.branch : doc.meta.branchEn || doc.meta.branch;
 
-  // Dual-language label: native .t1 + English .t2 (omit .t2 when locale is en)
-  const label = (native: string, en: string): string =>
-    isEn
-      ? `<span class="t1">${en}</span>`
-      : `<span class="t1">${native}</span><span class="t2">${en}</span>`;
+  // Dual-language label: primary .t1 + reference .t2.
+  const label = (primary: string, ref: string): string =>
+    `<span class="t1">${primary}</span><span class="t2${refCls}">${ref}</span>`;
 
   // Inline label for summary strip (uses .t2i inline style, not block). The
-  // native part is wrapped in .ml-n so it does NOT inherit the micro-label's
-  // letter-spacing/uppercase (which would break complex-script shaping).
-  const labelInline = (native: string, en: string): string =>
-    isEn
-      ? `<span class="t2i">${en}</span>`
-      : `<span class="ml-n">${native}</span><span class="t2i">${en}</span>`;
+  // primary is wrapped in .ml-n so it does NOT inherit the micro-label's
+  // letter-spacing/uppercase (which would break complex-script shaping); the
+  // reference keeps the tracked style only when it is Latin.
+  const labelInline = (primary: string, ref: string): string =>
+    `<span class="ml-n">${primary}</span><span class="t2i${refCls}">${ref}</span>`;
 
   const lineRow = (cls: 'pos' | 'neg' | '', l: PayslipLine): string => {
-    const native = l.label ?? t(`payslip.${l.labelKey!}`);
-    const en = l.label ?? tEn(`payslip.${l.labelKey!}`);
+    // Free-text lines (adjustment reasons) have no translation — render once.
+    const cell = l.label
+      ? `<span class="t1">${l.label}</span>`
+      : label(t(`payslip.${l.labelKey!}`), tRef(`payslip.${l.labelKey!}`));
     const detail = l.detail
       ? `<span class="dt">${t(`payslipPdf.detail.${l.detail.key}`, l.detail.vars)}</span>`
       : '';
     const sign = cls === 'neg' ? '−' : '';
     return (
-      `<tr><td class="cell">${label(native, en)}</td>` +
+      `<tr><td class="cell">${cell}</td>` +
       `<td class="amt ${cls}">${sign}${money(l.amount)}${detail}</td></tr>`
     );
   };
 
-  const infoRow = (native: string, en: string, value: string): string =>
-    `<div class="irow"><div class="ik">${label(native, en)}</div><div class="iv">${value}</div></div>`;
+  const infoRow = (primary: string, ref: string, value: string): string =>
+    `<div class="irow"><div class="ik">${label(primary, ref)}</div><div class="iv">${value}</div></div>`;
 
-  const sectionHead = (kind: 'earn' | 'ded', native: string, en: string): string =>
-    isEn
-      ? `<div class="card-h"><span class="seal-sq ${kind}"></span><span class="h-en">${en}</span></div>`
-      : `<div class="card-h"><span class="seal-sq ${kind}"></span><span class="h-t1">${native}</span><span class="h-en">${en}</span></div>`;
+  const sectionHead = (kind: 'earn' | 'ded', primary: string, ref: string): string =>
+    `<div class="card-h"><span class="seal-sq ${kind}"></span><span class="h-t1">${primary}</span><span class="h-en${refCls}">${ref}</span></div>`;
 
   const gross = doc.income.total;
   const ded = doc.deduct.total;
@@ -225,14 +240,14 @@ ${PAYSLIP_CSS(fontFace)}${screenCss}
         ${logoSvg}
         <div>
           <div class="co-name">${companyEn}</div>
-          <div class="co-sub">${isEn ? '' : companyNative}</div>
+          <div class="co-sub">${companyNative}</div>
         </div>
       </div>
       <div class="doc">
         <div class="doc-title">Payslip</div>
-        ${isEn ? '' : `<div class="doc-native">${t('payslip.title')}</div>`}
+        <div class="doc-native">${tThai('payslip.title')}</div>
         <div class="doc-period">${periodLabel}</div>
-        <div class="doc-plbl">${tEn('payslipPdf.payPeriod')}</div>
+        <div class="doc-plbl${refCls}">${tRef('payslipPdf.payPeriod')}</div>
       </div>
     </div>
     <div class="rule"></div>
@@ -240,53 +255,53 @@ ${PAYSLIP_CSS(fontFace)}${screenCss}
   <tbody><tr><td>
   <main>
     <div class="summary">
-      <div class="metric"><div class="m-lbl">${labelInline(t('payslip.income.title'), tEn('payslip.income.title'))}</div><div class="m-val earn">${money(gross)}</div></div>
-      <div class="metric"><div class="m-lbl">${labelInline(t('payslip.deduct.title'), tEn('payslip.deduct.title'))}</div><div class="m-val ded">−${money(ded)}</div></div>
-      <div class="metric"><div class="m-lbl">${labelInline(t('payslip.net'), tEn('payslip.net'))}</div><div class="m-val net">${money(doc.net)}</div></div>
+      <div class="metric"><div class="m-lbl">${labelInline(t('payslip.income.title'), tRef('payslip.income.title'))}</div><div class="m-val earn">${money(gross)}</div></div>
+      <div class="metric"><div class="m-lbl">${labelInline(t('payslip.deduct.title'), tRef('payslip.deduct.title'))}</div><div class="m-val ded">−${money(ded)}</div></div>
+      <div class="metric"><div class="m-lbl">${labelInline(t('payslip.net'), tRef('payslip.net'))}</div><div class="m-val net">${money(doc.net)}</div></div>
     </div>
     <div class="bar"><div class="b-net" style="width:${netPct}%"></div><div class="b-ded" style="width:${dedPct}%"></div></div>
     <div class="legend">
-      <span><span class="sw" style="background:var(--indigo)"></span>${isEn ? tEn('payslipPdf.kept') : `<span class="ml-n">${t('payslipPdf.kept')}</span>`} ${netPct}%</span>
-      <span><span class="sw" style="background:#cfc8ba"></span>${tEn('payslip.deduct.title')} ${dedPct}%</span>
+      <span><span class="sw" style="background:var(--indigo)"></span><span class="ml-n">${t('payslipPdf.kept')}</span> ${netPct}%</span>
+      <span><span class="sw" style="background:#cfc8ba"></span><span class="ml-n">${t('payslip.deduct.title')}</span> ${dedPct}%</span>
     </div>
 
     <div class="card"><div class="info">
-      ${infoRow(t('payslipPdf.employee'), tEn('payslipPdf.employee'), doc.meta.employeeName)}
-      ${infoRow(t('profile.readonly.branch'), tEn('profile.readonly.branch'), branchLabel)}
-      ${doc.meta.department ? infoRow(t('profile.readonly.department'), tEn('profile.readonly.department'), doc.meta.department) : ''}
-      ${infoRow(t('payslipPdf.payType'), tEn('payslipPdf.payType'), t(`profile.salaryType.${doc.meta.payType}`))}
-      ${infoRow(t('payslipPdf.payPeriod'), tEn('payslipPdf.payPeriod'), periodLabel)}
+      ${infoRow(t('payslipPdf.employee'), tRef('payslipPdf.employee'), doc.meta.employeeName)}
+      ${infoRow(t('profile.readonly.branch'), tRef('profile.readonly.branch'), branchLabel)}
+      ${doc.meta.department ? infoRow(t('profile.readonly.department'), tRef('profile.readonly.department'), doc.meta.department) : ''}
+      ${infoRow(t('payslipPdf.payType'), tRef('payslipPdf.payType'), t(`profile.salaryType.${doc.meta.payType}`))}
+      ${infoRow(t('payslipPdf.payPeriod'), tRef('payslipPdf.payPeriod'), periodLabel)}
     </div></div>
 
     <div class="cols">
     <div class="card">
-      ${sectionHead('earn', t('payslip.income.title'), tEn('payslip.income.title'))}
+      ${sectionHead('earn', t('payslip.income.title'), tRef('payslip.income.title'))}
       <table class="lines">
         ${incomeRows}
       </table>
-      <div class="card-foot"><div class="f-lbl">${label(t('payslip.income.total'), tEn('payslip.income.total'))}</div><div class="f-amt">${money(gross)}</div></div>
+      <div class="card-foot"><div class="f-lbl">${label(t('payslip.income.total'), tRef('payslip.income.total'))}</div><div class="f-amt">${money(gross)}</div></div>
     </div>
 
     <div class="card">
-      ${sectionHead('ded', t('payslip.deduct.title'), tEn('payslip.deduct.title'))}
+      ${sectionHead('ded', t('payslip.deduct.title'), tRef('payslip.deduct.title'))}
       <table class="lines">
         ${deductRows}
       </table>
-      <div class="card-foot"><div class="f-lbl">${label(t('payslip.deduct.total'), tEn('payslip.deduct.total'))}</div><div class="f-amt neg">−${money(ded)}</div></div>
+      <div class="card-foot"><div class="f-lbl">${label(t('payslip.deduct.total'), tRef('payslip.deduct.total'))}</div><div class="f-amt neg">−${money(ded)}</div></div>
     </div>
     </div>
 
     <div class="net-hero">
       <div>
-        <div class="nh-lbl">${tEn('payslip.net')}</div>
-        ${isEn ? '' : `<div class="nh-native">${t('payslip.net')}</div>`}
+        <div class="nh-lbl${refCls}">${tRef('payslip.net')}</div>
+        <div class="nh-native">${t('payslip.net')}</div>
         <div class="nh-eq">${money(gross)} − ${money(ded)}</div>
       </div>
       <div class="nh-val"><span class="cur">${CUR}</span>${money(doc.net).replace(/^฿/, '')}</div>
     </div>
     <div class="endmark">
       <div class="disc">${t('payslipPdf.disclaimer')}</div>
-      <div class="stamp"><div class="s1">${isEn ? tEn('payslipPdf.issued') : t('payslipPdf.issued')}</div><div class="s2">${stampDate}</div></div>
+      <div class="stamp"><div class="s1${primaryCls}">${t('payslipPdf.issued')}</div><div class="s2">${stampDate}</div></div>
     </div>
   </main>
   </td></tr></tbody>

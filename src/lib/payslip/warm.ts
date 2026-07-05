@@ -29,9 +29,6 @@ export async function warmPublishedPayslips(args: {
 }): Promise<void> {
   if (args.targets.length === 0) return;
 
-  const enT = await getTranslations({ locale: 'en' });
-  const tEn = (k: string) => enT(k as Parameters<typeof enT>[0]);
-
   const translators = new Map<Locale, Awaited<ReturnType<typeof getTranslations>>>();
   const translatorFor = async (locale: Locale) => {
     const cached = translators.get(locale);
@@ -54,11 +51,13 @@ export async function warmPublishedPayslips(args: {
 
   for (const target of args.targets) {
     const locale: Locale = isLocale(target.locale) ? target.locale : DEFAULT_LOCALE;
+    // Reference (second-line) language: English for Thai slips, Thai otherwise.
+    const refLocale: Locale = locale === 'th' ? 'en' : 'th';
     try {
       const doc = await getPayslipDocument(target.employeeId, args.month);
       if (!doc) continue;
       const letterhead = await letterheadFor(doc.meta.letterhead);
-      const t = await translatorFor(locale);
+      const [t, tRef] = [await translatorFor(locale), await translatorFor(refLocale)];
       await getOrRenderPayslipPdf({
         employeeId: target.employeeId,
         month: args.month,
@@ -67,7 +66,7 @@ export async function warmPublishedPayslips(args: {
             buildPayslipHtml(doc, {
               locale,
               t: (k, v) => t(k as Parameters<typeof t>[0], v as Parameters<typeof t>[1]),
-              tEn,
+              tRef: (k) => tRef(k as Parameters<typeof tRef>[0]),
               money: (n) => formatMoney(n, locale),
               fontFace: fontFaceCss(locale),
               logoSvg: letterhead.logoHtml,
