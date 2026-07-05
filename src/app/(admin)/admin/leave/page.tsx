@@ -11,7 +11,6 @@
  * that expands the request into Attendance(OnLeave) rows.
  */
 
-import type { Prisma } from '@prisma/client';
 import Link from 'next/link';
 import { RestoreButton } from '@/components/admin/void-dialog';
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,21 +19,21 @@ import { ListSearch } from '@/components/ui/list-search';
 import { PageHeader } from '@/components/ui/page-header';
 import { Pagination } from '@/components/ui/pagination';
 import { StatusBadge, type StatusKey } from '@/components/ui/status-badge';
-import { getPermittedBranches, viaEmployeeBranchScope } from '@/lib/auth/branch-scope';
+import { getPermittedBranches } from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
-import { prisma, prismaRaw } from '@/lib/db/prisma';
+import { prisma } from '@/lib/db/prisma';
 import { getLeaveConfig } from '@/lib/leave/leave-config';
 import { leaveDurationLabel } from '@/lib/leave/units';
 import { restoreLeaveRequest } from '@/lib/leave/void';
 import { expandHolidaysWithSubstitutes, workingDaysIn } from '@/lib/leave/working-days';
 import { buildPageMeta, pageArgs, parsePageParam } from '@/lib/pagination';
 import { signAttendancePhotoUrls } from '@/lib/storage/signed-urls';
+import { loadLeaveInbox } from './_load-inbox';
 import { LeaveInbox, type LeaveRowVM } from './leave-inbox';
 import {
   buildLeaveRowVM,
   formatLeaveDateTime,
   formatLeaveRange,
-  LEAVE_SELECT,
   LEAVE_STATUS_INFO,
   leaveOverQuotaVM,
 } from './leave-row-vm';
@@ -60,57 +59,12 @@ export default async function AdminLeaveInboxPage({
   const requestedPage = parsePageParam(pageRaw);
 
   const permitted = await getPermittedBranches(user, 'leave.read');
-  const scope = viaEmployeeBranchScope(permitted); // {} for 'all' (global/Superadmin)
-
-  // Status filter → base where; an employee-name search (q) narrows on top.
-  const where: Prisma.LeaveRequestWhereInput = (() => {
-    if (status === 'all') return {};
-    if (status === 'approved') return { status: 'Approved' };
-    if (status === 'rejected') return { status: 'Rejected' };
-    return { status: 'Pending' };
-  })();
-  if (q) {
-    where.employee = {
-      OR: [
-        { firstName: { contains: q, mode: 'insensitive' } },
-        { lastName: { contains: q, mode: 'insensitive' } },
-        { nickname: { contains: q, mode: 'insensitive' } },
-      ],
-    };
-  }
-
-  // Branch scope: a scoped admin only sees leave for employees in their branches.
-  // Merge with any name-search `where.employee` via AND so both apply.
-  if (scope.employee) {
-    where.employee = where.employee ? { AND: [where.employee, scope.employee] } : scope.employee;
-  }
-
-  const trashWhere: Prisma.LeaveRequestWhereInput = { deletedAt: { not: null } };
-  if (scope.employee) trashWhere.employee = scope.employee;
   const { skip, take } = pageArgs(requestedPage);
 
-  // The page of rows + the matching total (for the pager) go through the same
-  // client: trash reads use prismaRaw (sees soft-deleted), the live inbox uses
-  // the soft-delete-filtered prisma. count mirrors findMany's where exactly.
-  const [rows, total, holidays, leaveCfg] = await Promise.all([
-    isTrash
-      ? prismaRaw.leaveRequest.findMany({
-          where: trashWhere,
-          orderBy: { deletedAt: 'desc' },
-          skip,
-          take,
-          select: LEAVE_SELECT,
-        })
-      : prisma.leaveRequest.findMany({
-          where,
-          orderBy: { createdAt: 'desc' },
-          skip,
-          take,
-          select: LEAVE_SELECT,
-        }),
-    isTrash
-      ? prismaRaw.leaveRequest.count({ where: trashWhere })
-      : prisma.leaveRequest.count({ where }),
+  // Branch-scoped inbox read (extracted to `_load-inbox` so it is testable
+  // end-to-end), in parallel with the holiday + leave-config lookups.
+  const [{ rows, total }, holidays, leaveCfg] = await Promise.all([
+    loadLeaveInbox({ permitted, status, q, isTrash, skip, take }),
     prisma.holiday.findMany({
       where: { archivedAt: null },
       select: { date: true, name: true },
