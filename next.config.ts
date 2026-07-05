@@ -40,6 +40,7 @@ const config: NextConfig = {
     'pino-pretty',
     '@sparticuz/chromium',
     'puppeteer-core',
+    'exceljs',
   ],
 
   // Both PDF routes render via @sparticuz/chromium (puppeteer-core). The chromium
@@ -58,6 +59,13 @@ const config: NextConfig = {
     ],
     '/admin/payroll/preview-pdf': [
       './src/lib/payslip/fonts/**',
+      './node_modules/@sparticuz/chromium/bin/**',
+      './node_modules/.pnpm/@sparticuz+chromium@*/node_modules/@sparticuz/chromium/bin/**',
+    ],
+    // Reports export route renders PDF via the same chromium path and reads
+    // the IBM Plex Thai webfonts at runtime — include both, like the routes above.
+    '/admin/reports/[report]/export': [
+      './src/lib/export/fonts/**',
       './node_modules/@sparticuz/chromium/bin/**',
       './node_modules/.pnpm/@sparticuz+chromium@*/node_modules/@sparticuz/chromium/bin/**',
     ],

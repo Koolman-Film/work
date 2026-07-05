@@ -9,6 +9,7 @@ import { resolveReportPeriod } from '@/lib/reports/period';
 import { leaveDetail, leaveReport } from '@/lib/reports/queries';
 import { asUuid, loadPayrollCutoffDay, loadReportFilterOptions } from '../_load-filter-options';
 import { ExpandableReportRows } from '../expandable-report-rows';
+import { ExportButtons } from '../export-buttons';
 import { PeriodPicker } from '../period-picker';
 import { ReportFilters } from '../report-filters';
 
@@ -44,14 +45,17 @@ export default async function LeaveReportPage({
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <PeriodPicker month={period.month} from={period.from} to={period.to} />
-        <ReportFilters
-          period={{ m: params.m, from: params.from, to: params.to }}
-          branchId={branchId ?? ''}
-          departmentId={departmentId ?? ''}
-          q={params.q ?? ''}
-          branches={options.branches}
-          departments={options.departments}
-        />
+        <div className="flex flex-wrap items-center gap-3">
+          <ExportButtons report="leave" params={params} />
+          <ReportFilters
+            period={{ m: params.m, from: params.from, to: params.to }}
+            branchId={branchId ?? ''}
+            departmentId={departmentId ?? ''}
+            q={params.q ?? ''}
+            branches={options.branches}
+            departments={options.departments}
+          />
+        </div>
       </div>
       <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
         {rows.length === 0 ? (
