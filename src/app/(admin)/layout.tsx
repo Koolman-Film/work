@@ -1,3 +1,4 @@
+import { ProductUpdates } from '@/components/admin/product-updates/product-updates';
 import { Sidebar } from '@/components/admin/sidebar';
 import { Topbar } from '@/components/admin/topbar';
 import { requireAdminArea } from '@/lib/auth/admin-area';
@@ -37,6 +38,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <Topbar userLabel={user.email ?? 'Admin'} userId={user.id} />
         <main className="min-w-0 flex-1">{children}</main>
       </div>
+      <ProductUpdates />
     </div>
   );
 }

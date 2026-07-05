@@ -46,6 +46,7 @@ export default defineConfig({
         'src/lib/db/prisma.ts',
         'src/lib/supabase/**',
         'src/lib/inngest/client.ts',
+        'src/lib/product-updates/seen.ts',
       ],
     },
   },

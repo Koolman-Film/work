@@ -1,9 +1,10 @@
 'use client';
 
-import { ChevronDown, LogOut, Menu, Search, UserCog } from 'lucide-react';
+import { ChevronDown, LogOut, Menu, Search, Sparkles, UserCog } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 import { LanguageSwitcher } from '@/components/language-switcher';
+import { useProductUpdates } from '@/lib/product-updates/store';
 import { cn } from '@/lib/utils';
 import { NotificationBell } from './notification-bell';
 import { useMobileNav } from './use-mobile-nav';
@@ -65,7 +66,9 @@ export function Topbar({ userLabel, userId }: Props) {
 
       {/* Right cluster */}
       <div className="flex items-center gap-2">
-        <NotificationBell userId={userId} />
+        <span data-tour="topbar-bell">
+          <NotificationBell userId={userId} />
+        </span>
         <UserMenu userLabel={userLabel} />
       </div>
     </header>
@@ -76,6 +79,7 @@ export function Topbar({ userLabel, userId }: Props) {
 
 function UserMenu({ userLabel }: { userLabel: string }) {
   const [open, setOpen] = useState(false);
+  const startTour = useProductUpdates((s) => s.startTour);
   const initials = userLabel.slice(0, 2).toUpperCase();
 
   return (
@@ -127,6 +131,18 @@ function UserMenu({ userLabel }: { userLabel: string }) {
           <div className="border-t border-gray-100">
             <LanguageSwitcher variant="topbar" />
           </div>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setOpen(false);
+              startTour('welcome');
+            }}
+            className="flex w-full items-center gap-2 border-t border-gray-100 px-3 py-2 text-sm text-ink-2 transition hover:bg-gray-50"
+          >
+            <Sparkles size={16} aria-hidden="true" />
+            <span>เริ่มทัวร์แนะนำใหม่</span>
+          </button>
           <form action="/logout" method="post" className="border-t border-gray-100">
             <button
               type="submit"
