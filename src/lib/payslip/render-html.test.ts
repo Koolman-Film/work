@@ -35,11 +35,11 @@ const doc: PayslipDocument = {
 };
 const t = (k: string, v?: Record<string, string | number>) =>
   k === 'payslipPdf.detail.sso' ? `${v!.pct}% · cap ฿${v!.cap}` : k; // echo key
-const tEn = (k: string) => k; // echo key for English
+const tRef = (k: string) => k; // echo key for the reference line
 const money = (n: number) => `฿${n.toFixed(2)}`;
 const opts = {
   t,
-  tEn,
+  tRef,
   money,
   fontFace: '/*f*/',
   logoSvg: '<svg/>',
@@ -64,9 +64,16 @@ describe('buildPayslipHtml', () => {
     expect(t2).toMatch(/letter-spacing/);
     expect(t2).toMatch(/uppercase/);
   });
-  it('omits the English second line when locale is en', () => {
+  it('renders a Thai reference second line (.ml-n) for a non-Thai employee', () => {
+    // Non-Thai slip → reference line is Thai, which must drop the Latin
+    // tracking/uppercase via .ml-n so the script shapes correctly.
     const html = buildPayslipHtml(doc, { ...opts, locale: 'en' });
-    expect(html).not.toContain('class="t2"');
+    expect(html).toContain('class="t2 ml-n"');
+  });
+  it('renders an English reference second line (tracked, no .ml-n) for a Thai employee', () => {
+    const html = buildPayslipHtml(doc, { ...opts, locale: 'th' });
+    expect(html).toContain('class="t2"'); // Latin reference keeps the micro-label style
+    expect(html).not.toContain('class="t2 ml-n"');
   });
   it('renders the ISSUED stamp as YYYY·MM·DD only (full ISO timestamp in)', () => {
     const html = buildPayslipHtml(doc, {
@@ -81,8 +88,12 @@ describe('buildPayslipHtml', () => {
     const html = buildPayslipHtml(doc, { ...opts, locale: 'th' });
     const css = html.slice(html.indexOf('<style>'), html.indexOf('</style>'));
     const mln = css.match(/\.ml-n\s*\{[^}]*\}/)![0];
-    expect(mln).toMatch(/letter-spacing:\s*normal/);
-    expect(mln).toMatch(/text-transform:\s*none/);
+    // !important is required: `ml-n` is appended to higher-specificity descendant
+    // selectors (.stamp .s1, .card-h .h-en) and later-defined rules (.doc-plbl,
+    // .nh-lbl), so a plain rule would lose the cascade and leave Thai/complex
+    // scripts letter-spaced.
+    expect(mln).toMatch(/letter-spacing:\s*normal\s*!important/);
+    expect(mln).toMatch(/text-transform:\s*none\s*!important/);
     expect(html).toContain('<span class="ml-n">'); // native is wrapped, not a bare node
   });
   it('localizes the pay-type VALUE via profile.salaryType (not the raw enum)', () => {
@@ -149,7 +160,7 @@ describe('buildPayslipHtml — real en.json keys', () => {
     const html = buildPayslipHtml(realDoc, {
       locale: 'en',
       t: resolve,
-      tEn: resolve,
+      tRef: resolve,
       money: (n) => `฿${n.toFixed(2)}`,
       fontFace: '/*f*/',
       logoSvg: '<svg/>',

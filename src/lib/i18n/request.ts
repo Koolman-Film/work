@@ -14,24 +14,33 @@
  * We DO NOT load the DB User.locale here. See resolve.ts for the
  * reasoning — the cookie is the per-request source of truth; DB sync
  * happens at login time.
+ *
+ * EXPLICIT LOCALE OVERRIDE: when a caller passes a locale to an awaitable
+ * server function (`getTranslations({ locale })`), next-intl forwards it here
+ * as `locale`. We MUST honor it — that is how the payslip renderer resolves a
+ * label in a target language (the employee's language, plus English/Thai as
+ * the reference line) independent of the request cookie. Ignoring it silently
+ * returned the cookie locale, which rendered `tRef`/`tEn` in the wrong
+ * language (e.g. Thai twice on a Thai slip).
  */
 
 import { cookies, headers } from 'next/headers';
 import { getRequestConfig } from 'next-intl/server';
-import { LOCALE_COOKIE_NAME } from './config';
+import { isLocale, LOCALE_COOKIE_NAME } from './config';
 import { resolveLocale } from './resolve';
 
-export default getRequestConfig(async () => {
-  const cookieStore = await cookies();
-  const headerStore = await headers();
-
-  const locale = resolveLocale({
-    cookieValue: cookieStore.get(LOCALE_COOKIE_NAME)?.value,
-    acceptLanguage: headerStore.get('accept-language'),
-  });
+export default getRequestConfig(async ({ locale }) => {
+  // Explicit override wins; otherwise resolve from the request (cookie → header).
+  const resolved =
+    locale && isLocale(locale)
+      ? locale
+      : resolveLocale({
+          cookieValue: (await cookies()).get(LOCALE_COOKIE_NAME)?.value,
+          acceptLanguage: (await headers()).get('accept-language'),
+        });
 
   // getMessages applies the fallback chain (target ← en ← th), so an
   // untranslated key renders English, then Thai, before the raw key.
   const { getMessages } = await import('./messages');
-  return { locale, messages: getMessages(locale) };
+  return { locale: resolved, messages: getMessages(resolved) };
 });

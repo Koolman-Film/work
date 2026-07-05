@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import { getLocale, getTranslations } from 'next-intl/server';
+import { getTranslations } from 'next-intl/server';
 import { auditLog } from '@/lib/audit/log';
 import { requireGlobalPermission } from '@/lib/auth/require-global-permission';
 import { prisma } from '@/lib/db/prisma';
-import type { Locale } from '@/lib/i18n/config';
+import { DEFAULT_LOCALE, isLocale, type Locale } from '@/lib/i18n/config';
 import { formatMoney } from '@/lib/i18n/format';
 import { getPayslipDocument } from '@/lib/payslip/document';
 import { fontFaceCss } from '@/lib/payslip/fonts';
@@ -60,16 +60,24 @@ export async function GET(req: Request): Promise<Response> {
   const letterhead = await resolveLetterhead(doc.meta.letterhead);
 
   try {
-    const locale = await getLocale();
-    const [t, tEn] = await Promise.all([
+    // Preview in the TARGET EMPLOYEE's language (not the admin's UI locale), so
+    // the admin sees exactly what the employee receives. Reference second line
+    // is English for Thai slips, Thai otherwise.
+    const emp = await prisma.employee.findUnique({
+      where: { id: employeeId },
+      select: { user: { select: { locale: true } } },
+    });
+    const locale: Locale = isLocale(emp?.user?.locale) ? emp.user.locale : DEFAULT_LOCALE;
+    const refLocale: Locale = locale === 'th' ? 'en' : 'th';
+    const [t, tRef] = await Promise.all([
       getTranslations({ locale }),
-      getTranslations({ locale: 'en' }),
+      getTranslations({ locale: refLocale }),
     ]);
     const html = buildPayslipHtml(doc, {
       locale,
       t: (k, v) => t(k as Parameters<typeof t>[0], v as Parameters<typeof t>[1]),
-      tEn: (k) => tEn(k as Parameters<typeof tEn>[0]),
-      money: (n) => formatMoney(n, locale as Locale),
+      tRef: (k) => tRef(k as Parameters<typeof tRef>[0]),
+      money: (n) => formatMoney(n, locale),
       fontFace: fontFaceCss(locale),
       logoSvg: letterhead.logoHtml,
       companyEn: letterhead.companyEn,
