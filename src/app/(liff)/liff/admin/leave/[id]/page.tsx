@@ -11,16 +11,16 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import {
   buildLeaveRowVM,
-  LEAVE_SELECT,
   LEAVE_STATUS_INFO,
   leaveOverQuotaVM,
 } from '@/app/(admin)/admin/leave/leave-row-vm';
-import { getPermittedBranches, viaEmployeeBranchScope } from '@/lib/auth/branch-scope';
+import { getPermittedBranches } from '@/lib/auth/branch-scope';
 import { requireLiffAdmin } from '@/lib/auth/require-liff-admin';
 import { prisma } from '@/lib/db/prisma';
 import { getLeaveConfig } from '@/lib/leave/leave-config';
 import { expandHolidaysWithSubstitutes, workingDaysIn } from '@/lib/leave/working-days';
 import { resolveStoredImageUrl } from '@/lib/storage/signed-urls';
+import { loadLiffLeaveDetail } from './_load';
 import { LeaveReviewActions } from './leave-review-actions';
 
 type Params = Promise<{ id: string }>;
@@ -37,11 +37,10 @@ export default async function LiffAdminLeaveDetailPage({ params }: { params: Par
   const { user } = await requireLiffAdmin();
   const permitted = await getPermittedBranches(user, 'leave.read');
 
+  // Branch-scoped by-id read (extracted to `_load` so the existence-hide is
+  // testable — an out-of-branch id returns null → notFound).
   const [row, holidays, leaveCfg] = await Promise.all([
-    prisma.leaveRequest.findFirst({
-      where: { id, ...viaEmployeeBranchScope(permitted) },
-      select: LEAVE_SELECT,
-    }),
+    loadLiffLeaveDetail(id, permitted),
     prisma.holiday.findMany({ where: { archivedAt: null }, select: { date: true } }),
     getLeaveConfig(),
   ]);
