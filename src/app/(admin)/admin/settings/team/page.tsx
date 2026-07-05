@@ -6,6 +6,7 @@ import { type Column, ResponsiveTable } from '@/components/ui/responsive-table';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { computeTier } from '@/lib/auth/user-tier';
 import { prisma } from '@/lib/db/prisma';
+import { type MemberEmployee, memberIdentity, memberSortKey } from './member-label';
 
 type SearchParams = Promise<{ error?: string; notice?: string }>;
 
@@ -39,6 +40,9 @@ export default async function TeamListPage({ searchParams }: { searchParams: Sea
       id: true,
       email: true,
       createdAt: true,
+      // LINE-based employee-admins have no email — pull their name so the
+      // list can identify them instead of rendering a bare dash.
+      employee: { select: { nickname: true, firstName: true, lastName: true } },
       roleAssignments: {
         select: {
           role: { select: { key: true, isSuperadmin: true, archivedAt: true } },
@@ -51,36 +55,50 @@ export default async function TeamListPage({ searchParams }: { searchParams: Sea
   // which interleaved Admins then Superadmins; the tier comparator
   // here preserves that intent (Admin < Superadmin alphabetically →
   // same ordering). Falls back to email asc within a tier.
-  type Member = { id: string; email: string | null; createdAt: Date; tier: 'Admin' | 'Superadmin' };
+  type Member = {
+    id: string;
+    email: string | null;
+    employee: MemberEmployee | null;
+    createdAt: Date;
+    tier: 'Admin' | 'Superadmin';
+  };
   const members: Member[] = rawMembers
     .map((m) => {
       const t = computeTier(m.roleAssignments);
       // We queried for admin-tier users; tier should never be null or
       // Staff for these rows. Defensive coercion.
       return t === 'Admin' || t === 'Superadmin'
-        ? { id: m.id, email: m.email, createdAt: m.createdAt, tier: t }
+        ? { id: m.id, email: m.email, employee: m.employee, createdAt: m.createdAt, tier: t }
         : null;
     })
     .filter((m): m is Member => m !== null)
     .sort((a, b) => {
       if (a.tier !== b.tier) return a.tier < b.tier ? -1 : 1;
-      return (a.email ?? '').localeCompare(b.email ?? '');
+      return memberSortKey(a).localeCompare(memberSortKey(b));
     });
 
   const columns: Column<Member>[] = [
     {
       key: 'email',
       header: 'อีเมล',
-      cell: (m) => (
-        <span className="font-medium text-ink-1">
-          {m.email ?? '—'}
-          {m.id === actor.id && (
-            <span className="ml-2 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600">
-              คุณ
-            </span>
-          )}
-        </span>
-      ),
+      cell: (m) => {
+        const id = memberIdentity(m);
+        return (
+          <span className="font-medium text-ink-1">
+            {id.kind === 'unknown' ? <span className="text-ink-4">—</span> : id.label}
+            {id.kind === 'line' && (
+              <span className="ml-2 rounded bg-green-100 px-1.5 py-0.5 text-[10px] font-medium text-green-700">
+                LINE
+              </span>
+            )}
+            {m.id === actor.id && (
+              <span className="ml-2 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600">
+                คุณ
+              </span>
+            )}
+          </span>
+        );
+      },
     },
     {
       key: 'tier',

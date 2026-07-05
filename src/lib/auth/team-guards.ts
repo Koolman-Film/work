@@ -157,6 +157,36 @@ export function payrollRoleBranchScopeError(
 }
 
 /**
+ * A CUSTOM role may not be granted GLOBALLY (branchId=null). Returns a Thai
+ * error string when a global assignment targets a non-system role; null when
+ * allowed.
+ *
+ * Why: the whole branch-scope program assumes custom roles are branch-scoped —
+ * `getPermittedBranches` treats a null-branch grant as `'all'`, so a global
+ * custom role leaks every branch's data even though it confers no admin TIER
+ * (this is exactly the 2026-07-02 checker01 incident: a global `checker01`
+ * exposed org-wide live-board + dashboard). System roles (admin/staff/
+ * superadmin) are intentionally global-capable and are exempt.
+ *
+ * Payroll exemption: a payroll-bearing custom role is REQUIRED to be global
+ * (`payrollRoleBranchScopeError` forbids scoping it). Exempt it here, or the
+ * two guards would deadlock the role into un-assignable. Its org-wide reach is
+ * the deliberate, gated (`requireGlobalPermission`) payroll design.
+ */
+export function customRoleGlobalGrantError(
+  role: { permissions: ReadonlyArray<string>; isSystem: boolean },
+  branchId: string | null,
+): string | null {
+  // Only fires on a GLOBAL grant of a CUSTOM role.
+  if (branchId !== null || role.isSystem) return null;
+  const hasPayroll = role.permissions.some((p) =>
+    (PAYROLL_PERMISSIONS as ReadonlyArray<string>).includes(p),
+  );
+  if (hasPayroll) return null; // payroll custom roles must be global — see above
+  return 'บทบาทที่กำหนดเองต้องระบุสาขา — การมอบแบบทั้งองค์กร (Global) จะเปิดข้อมูลทุกสาขา';
+}
+
+/**
  * Async I/O wrapper around `checkUserScope`. Fetches the two assignment
  * sets in parallel.
  */

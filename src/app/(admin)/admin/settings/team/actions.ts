@@ -65,6 +65,7 @@ import {
   canActOnRole,
   canActOnUserScope,
   canManageSystemRole,
+  customRoleGlobalGrantError,
   payrollRoleBranchScopeError,
   systemRoleGrantError,
 } from '@/lib/auth/team-guards';
@@ -194,6 +195,12 @@ export async function createTeamMember(formData: FormData): Promise<void> {
     if (payrollErr) {
       redirect(
         `/admin/settings/team/new?error=${encodeURIComponent(payrollErr)}&email=${encodeURIComponent(email)}`,
+      );
+    }
+    const customGlobalErr = customRoleGlobalGrantError(role, row.branchId);
+    if (customGlobalErr) {
+      redirect(
+        `/admin/settings/team/new?error=${encodeURIComponent(customGlobalErr)}&email=${encodeURIComponent(email)}`,
       );
     }
     // Branch/global authority (mirrors addRoleAssignment).
@@ -671,6 +678,11 @@ export async function addRoleAssignment(userId: string, formData: FormData): Pro
   const payrollErr = payrollRoleBranchScopeError(role, branchId);
   if (payrollErr) {
     redirect(`/admin/settings/team/${userId}/edit?error=${encodeURIComponent(payrollErr)}`);
+  }
+
+  const customGlobalErr = customRoleGlobalGrantError(role, branchId);
+  if (customGlobalErr) {
+    redirect(`/admin/settings/team/${userId}/edit?error=${encodeURIComponent(customGlobalErr)}`);
   }
 
   // Phase 3.7 branch-scope check on the GRANT:
