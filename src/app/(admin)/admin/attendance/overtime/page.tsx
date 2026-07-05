@@ -2,6 +2,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { PageHeader } from '@/components/ui/page-header';
+import { employeeBranchScope, getPermittedBranches, viaEmployeeBranchScope } from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { approveOt, dismissOt, voidOt } from '@/lib/overtime/actions';
@@ -23,7 +24,8 @@ export default async function OvertimePage({
 }: {
   searchParams: Promise<{ ym?: string; error?: string }>;
 }) {
-  await requirePermission('attendance.overtime.manage');
+  const { user } = await requirePermission('attendance.overtime.manage');
+  const permitted = await getPermittedBranches(user, 'attendance.overtime.manage');
   const sp = await searchParams;
   const nowYm = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' }).slice(0, 7);
   const ym = sp.ym && /^\d{4}-\d{2}$/.test(sp.ym) ? sp.ym : nowYm;
@@ -33,9 +35,9 @@ export default async function OvertimePage({
   const end = new Date(Date.UTC(Number(yStr), Number(mStr), 1));
 
   const [candidates, history, employees] = await Promise.all([
-    getOtCandidates({ ym }),
+    getOtCandidates({ ym }, permitted),
     prisma.overtimeEntry.findMany({
-      where: { date: { gte: start, lt: end } },
+      where: { date: { gte: start, lt: end }, ...viaEmployeeBranchScope(permitted) },
       orderBy: [{ date: 'asc' }],
       select: {
         id: true,
@@ -51,7 +53,7 @@ export default async function OvertimePage({
       },
     }),
     prisma.employee.findMany({
-      where: { archivedAt: null, status: { not: 'Archived' } },
+      where: { archivedAt: null, status: { not: 'Archived' }, ...employeeBranchScope(permitted) },
       orderBy: { firstName: 'asc' },
       select: { id: true, firstName: true, lastName: true, nickname: true },
     }),

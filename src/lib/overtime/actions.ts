@@ -4,6 +4,7 @@ import Decimal from 'decimal.js';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { auditLog } from '@/lib/audit/log';
+import { canActOnEmployeeBranches, getPermittedBranches } from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { getLeaveConfig } from '@/lib/leave/leave-config';
@@ -100,6 +101,16 @@ export async function approveOt(formData: FormData): Promise<void> {
     redirect(backUrl(ym, parsed.error.issues[0]?.message ?? 'ข้อมูลไม่ถูกต้อง'));
   }
   const d = parsed.data;
+
+  const permitted = await getPermittedBranches(user, 'attendance.overtime.manage');
+  const emp = await prisma.employee.findUnique({
+    where: { id: d.employeeId },
+    select: { branchId: true, assignedBranchIds: true },
+  });
+  if (!emp || !canActOnEmployeeBranches(permitted, [emp.branchId, ...emp.assignedBranchIds])) {
+    redirect(backUrl(ym, 'ไม่พบพนักงาน'));
+  }
+
   const amount = await priceOt(d);
 
   try {
@@ -149,6 +160,15 @@ export async function dismissOt(formData: FormData): Promise<void> {
   const sourceAttendanceId = formData.get('sourceAttendanceId');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) redirect(backUrl(ym, 'วันที่ไม่ถูกต้อง'));
 
+  const permitted = await getPermittedBranches(user, 'attendance.overtime.manage');
+  const emp = await prisma.employee.findUnique({
+    where: { id: employeeId },
+    select: { branchId: true, assignedBranchIds: true },
+  });
+  if (!emp || !canActOnEmployeeBranches(permitted, [emp.branchId, ...emp.assignedBranchIds])) {
+    redirect(backUrl(ym, 'ไม่พบพนักงาน'));
+  }
+
   try {
     const row = await prisma.overtimeEntry.create({
       data: {
@@ -186,6 +206,22 @@ export async function voidOt(formData: FormData): Promise<void> {
   const ym = String(formData.get('ym') ?? '');
   const id = String(formData.get('id') ?? '');
   const reason = String(formData.get('reason') ?? '').trim() || null;
+
+  const permitted = await getPermittedBranches(user, 'attendance.overtime.manage');
+  const target = await prisma.overtimeEntry.findUnique({
+    where: { id },
+    select: { employee: { select: { branchId: true, assignedBranchIds: true } } },
+  });
+  if (
+    !target ||
+    !canActOnEmployeeBranches(permitted, [
+      target.employee.branchId,
+      ...target.employee.assignedBranchIds,
+    ])
+  ) {
+    redirect(backUrl(ym, 'ไม่พบรายการ'));
+  }
+
   const row = await prisma.overtimeEntry.update({
     where: { id },
     data: { deletedAt: new Date(), deletedById: user.id, deleteReason: reason },

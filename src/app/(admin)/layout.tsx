@@ -1,6 +1,8 @@
 import { Sidebar } from '@/components/admin/sidebar';
 import { Topbar } from '@/components/admin/topbar';
 import { requireAdminArea } from '@/lib/auth/admin-area';
+import { permittedBranchesFromAssignments, viaEmployeeBranchScope } from '@/lib/auth/branch-scope';
+import { getUserAssignments } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 
 /**
@@ -22,13 +24,18 @@ import { prisma } from '@/lib/db/prisma';
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user, permissions } = await requireAdminArea();
 
+  const assignments = await getUserAssignments(user.id);
+  const leaveScope = viaEmployeeBranchScope(permittedBranchesFromAssignments(assignments, 'leave.read'));
+  const advScope = viaEmployeeBranchScope(permittedBranchesFromAssignments(assignments, 'advance.read'));
+  const attScope = viaEmployeeBranchScope(permittedBranchesFromAssignments(assignments, 'attendance.read'));
+
   // Pending-work counts for the sidebar badges. Counted per request — the
   // layout re-renders on every admin navigation, so the numbers stay fresh
   // without any client-side polling.
   const [leave, advance, attendance] = await Promise.all([
-    prisma.leaveRequest.count({ where: { status: 'Pending' } }),
-    prisma.cashAdvance.count({ where: { status: 'Pending' } }),
-    prisma.attendance.count({ where: { type: 'CheckIn', checkInStatus: 'Disputed' } }),
+    prisma.leaveRequest.count({ where: { status: 'Pending', ...leaveScope } }),
+    prisma.cashAdvance.count({ where: { status: 'Pending', ...advScope } }),
+    prisma.attendance.count({ where: { type: 'CheckIn', checkInStatus: 'Disputed', ...attScope } }),
   ]);
 
   return (
