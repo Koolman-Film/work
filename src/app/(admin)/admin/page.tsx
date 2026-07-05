@@ -25,17 +25,14 @@ import { isScheduledWorkday } from '@/lib/attendance/schedule';
 import { requireAdminArea } from '@/lib/auth/admin-area';
 import { firstAccessibleAdminPath } from '@/lib/auth/admin-landing';
 import { ADMIN_LINE_LINK_ENABLED } from '@/lib/auth/admin-line-feature';
-import {
-  employeeBranchScope,
-  permittedBranchesFromAssignments,
-  viaEmployeeBranchScope,
-} from '@/lib/auth/branch-scope';
+import { permittedBranchesFromAssignments } from '@/lib/auth/branch-scope';
 import { canDo, getUserAssignments } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { getOrgCalendarData } from '@/lib/leave/team-calendar';
 import { currentMonthYM, parseMonth } from '@/lib/leave/team-calendar-shape';
 import { DashboardCalendarSummary } from './_calendar/dashboard-calendar-summary';
 import { MergeNudge } from './_components/merge-nudge';
+import { loadDashboardStats } from './_load-dashboard-stats';
 
 /**
  * Re-render the dashboard at most every 30 seconds.
@@ -104,106 +101,21 @@ export default async function AdminHomePage() {
   const calMonth = parseMonth(initialYm);
   if (!calMonth) throw new Error('Could not parse current month — date system broken?');
   const assignments = await getUserAssignments(user.id);
-  const leaveScope = viaEmployeeBranchScope(
-    permittedBranchesFromAssignments(assignments, 'leave.read'),
-  );
-  const advScope = viaEmployeeBranchScope(
-    permittedBranchesFromAssignments(assignments, 'advance.read'),
-  );
-  const attPermitted = permittedBranchesFromAssignments(assignments, 'attendance.read');
-  const attScope = viaEmployeeBranchScope(attPermitted);
-  const rosterScope = employeeBranchScope(attPermitted);
   const calPermitted = permittedBranchesFromAssignments(assignments, 'dashboard.read');
 
-  // Fetch current user's employee relation + dismiss flag to decide whether
-  // to show the "link your employee account" card. Done in the same Promise.all
-  // below so it doesn't add latency.
-  const [
-    me,
-    pendingLeaveCount,
-    pendingAdvanceCount,
-    checkedInTodayRows,
-    activeEmployees,
-    onLeaveTodayRows,
-    todayHoliday,
-    pendingLeaveRecent,
-    pendingAdvanceRecent,
-    onLeaveToday,
-    initialCalendar,
-  ] = await Promise.all([
+  // Branch-scoped widget reads (extracted to `_load-dashboard-stats` so they are
+  // testable end-to-end) run in parallel with the self-user, holiday, and
+  // calendar lookups. `me` decides the "link your employee account" card;
+  // `todayHoliday` and the calendar are not employee-linked branch reads.
+  const [stats, me, todayHoliday, initialCalendar] = await Promise.all([
+    loadDashboardStats({ assignments, today }),
     prisma.user.findUnique({
       where: { id: user.id },
       select: { employee: { select: { id: true } }, mergePromptDismissedAt: true },
     }),
-    prisma.leaveRequest.count({ where: { status: 'Pending', ...leaveScope } }),
-    prisma.cashAdvance.count({ where: { status: 'Pending', ...advScope } }),
-    prisma.attendance.findMany({
-      where: { type: 'CheckIn', date: today, ...attScope },
-      distinct: ['employeeId'],
-      select: { employeeId: true },
-    }),
-    prisma.employee.findMany({
-      where: {
-        archivedAt: null,
-        status: { not: 'Archived' },
-        canCheckIn: true,
-        ...rosterScope,
-      },
-      select: {
-        id: true,
-        workSchedule: { select: { days: { select: { dayOfWeek: true } } } },
-      },
-    }),
-    // Distinct by employee: a date can hold two OnLeave rows (two halves), so
-    // count people on leave, not rows.
-    prisma.attendance.findMany({
-      where: { type: 'OnLeave', date: today, deletedAt: null, ...attScope },
-      distinct: ['employeeId'],
-      select: { employeeId: true },
-    }),
     prisma.holiday.findFirst({
       where: { date: today, archivedAt: null },
       select: { name: true },
-    }),
-    prisma.leaveRequest.findMany({
-      where: { status: 'Pending', ...leaveScope },
-      orderBy: { createdAt: 'desc' },
-      take: 5,
-      select: {
-        id: true,
-        createdAt: true,
-        startDate: true,
-        endDate: true,
-        leaveType: { select: { name: true } },
-        employee: { select: { firstName: true, lastName: true, nickname: true } },
-      },
-    }),
-    prisma.cashAdvance.findMany({
-      where: { status: 'Pending', ...advScope },
-      orderBy: { requestedAt: 'desc' },
-      take: 5,
-      select: {
-        id: true,
-        amount: true,
-        requestedAt: true,
-        employee: { select: { firstName: true, lastName: true, nickname: true } },
-      },
-    }),
-    prisma.attendance.findMany({
-      where: { type: 'OnLeave', date: today, deletedAt: null, ...attScope },
-      distinct: ['employeeId'],
-      orderBy: { employee: { firstName: 'asc' } },
-      select: {
-        id: true,
-        employee: { select: { firstName: true, lastName: true, nickname: true } },
-        leaveRequest: {
-          select: {
-            startDate: true,
-            endDate: true,
-            leaveType: { select: { name: true } },
-          },
-        },
-      },
     }),
     getOrgCalendarData({
       monthStart: calMonth.start,
@@ -211,6 +123,16 @@ export default async function AdminHomePage() {
       permitted: calPermitted,
     }),
   ]);
+  const {
+    pendingLeaveCount,
+    pendingAdvanceCount,
+    checkedInTodayRows,
+    activeEmployees,
+    onLeaveTodayRows,
+    pendingLeaveRecent,
+    pendingAdvanceRecent,
+    onLeaveToday,
+  } = stats;
 
   // Show the "link your employee account" card only to pure admins (no Employee
   // row) who haven't dismissed it. The layout already enforced Admin/Superadmin,
