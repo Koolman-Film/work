@@ -12,6 +12,7 @@ import {
   History,
   Home,
   Settings,
+  Sparkles,
   Users,
   X,
 } from 'lucide-react';
@@ -19,6 +20,9 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect } from 'react';
 import type { Permission } from '@/lib/auth/permissions';
+import { UPDATES } from '@/lib/product-updates/registry';
+import { unseenCount } from '@/lib/product-updates/selectors';
+import { useProductUpdates } from '@/lib/product-updates/store';
 import { cn } from '@/lib/utils';
 import { useMobileNav } from './use-mobile-nav';
 
@@ -173,6 +177,10 @@ export function Sidebar({
   const pathname = usePathname();
   const open = useMobileNav((s) => s.open);
   const close = useMobileNav((s) => s.close);
+  const openPanel = useProductUpdates((s) => s.openPanel);
+  const hydrated = useProductUpdates((s) => s.hydrated);
+  const seen = useProductUpdates((s) => s.seen);
+  const unseen = hydrated ? unseenCount(UPDATES, seen) : 0;
 
   const isActive = (href: string) =>
     href === '/admin' ? pathname === '/admin' : pathname.startsWith(href);
@@ -326,6 +334,7 @@ export function Sidebar({
                         <Link
                           href={href}
                           aria-current={active ? 'page' : undefined}
+                          data-tour={item.href === '/admin' ? 'sidebar-home' : undefined}
                           className={cn(
                             'relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition',
                             active
@@ -350,9 +359,28 @@ export function Sidebar({
             ))}
           </nav>
 
-          {/* Footer brand mark (the functional user menu lives in the Topbar). */}
-          <div className="border-t border-gray-100 px-4 py-3">
-            <p className="font-display text-[11px] uppercase tracking-wider text-ink-4">
+          {/* Footer: What's New entry + brand mark. */}
+          <div className="border-t border-gray-100 px-3 py-3">
+            <button
+              type="button"
+              data-tour="whats-new-button"
+              onClick={() => {
+                openPanel();
+                close();
+              }}
+              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-ink-2 transition hover:bg-gray-50"
+            >
+              <span className="relative">
+                <Sparkles size={18} strokeWidth={2} aria-hidden="true" />
+                {unseen > 0 && (
+                  <span className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-primary-600 ring-2 ring-white">
+                    <span className="sr-only">มีอัปเดตใหม่</span>
+                  </span>
+                )}
+              </span>
+              <span className="flex-1 text-left">มีอะไรใหม่</span>
+            </button>
+            <p className="px-3 pt-2 font-display text-[11px] uppercase tracking-wider text-ink-4">
               Koolman Work · V1
             </p>
           </div>
