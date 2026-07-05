@@ -7,7 +7,6 @@
  * plus reject and void; decided rows are read-only (with a receipt link).
  */
 
-import type { Prisma } from '@prisma/client';
 import Link from 'next/link';
 import { RestoreButton } from '@/components/admin/void-dialog';
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,14 +16,13 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Pagination } from '@/components/ui/pagination';
 import { StatusBadge, type StatusKey } from '@/components/ui/status-badge';
 import { restoreCashAdvance } from '@/lib/advance/void';
-import { getPermittedBranches, viaEmployeeBranchScope } from '@/lib/auth/branch-scope';
+import { getPermittedBranches } from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
-import { prisma, prismaRaw } from '@/lib/db/prisma';
 import { buildPageMeta, pageArgs, parsePageParam } from '@/lib/pagination';
 import { signAttendancePhotoUrls } from '@/lib/storage/signed-urls';
+import { loadAdvanceInbox } from './_load-inbox';
 import { AdvanceInbox, type AdvanceRowVM } from './advance-inbox';
 import {
-  ADVANCE_SELECT,
   ADVANCE_STATUS_INFO,
   advanceGuardVM,
   buildAdvanceRowVM,
@@ -53,57 +51,11 @@ export default async function AdminAdvanceInboxPage({
   const requestedPage = parsePageParam(pageRaw);
 
   const permitted = await getPermittedBranches(user, 'advance.read');
-  const scope = viaEmployeeBranchScope(permitted); // {} for 'all' (global/Superadmin)
-
-  // Status filter → base where; an employee-name search (q) narrows on top.
-  const where: Prisma.CashAdvanceWhereInput = (() => {
-    if (status === 'all') return {};
-    if (status === 'approved') return { status: 'Approved' };
-    if (status === 'rejected') return { status: 'Rejected' };
-    return { status: 'Pending' };
-  })();
-  if (q) {
-    where.employee = {
-      OR: [
-        { firstName: { contains: q, mode: 'insensitive' } },
-        { lastName: { contains: q, mode: 'insensitive' } },
-        { nickname: { contains: q, mode: 'insensitive' } },
-      ],
-    };
-  }
-
-  // Branch scope: a scoped admin only sees advances for employees in their branches.
-  if (scope.employee) {
-    where.employee = where.employee ? { AND: [where.employee, scope.employee] } : scope.employee;
-  }
-
-  const trashWhere: Prisma.CashAdvanceWhereInput = { deletedAt: { not: null } };
-  if (scope.employee) trashWhere.employee = scope.employee;
   const { skip, take } = pageArgs(requestedPage);
 
-  // Page of rows + matching total go through the same client: trash uses
-  // prismaRaw (sees soft-deleted), the live inbox uses soft-delete-filtered
-  // prisma. count mirrors findMany's where exactly.
-  const [rows, total] = await Promise.all([
-    isTrash
-      ? prismaRaw.cashAdvance.findMany({
-          where: trashWhere,
-          orderBy: { deletedAt: 'desc' },
-          skip,
-          take,
-          select: ADVANCE_SELECT,
-        })
-      : prisma.cashAdvance.findMany({
-          where,
-          orderBy: { requestedAt: 'desc' },
-          skip,
-          take,
-          select: ADVANCE_SELECT,
-        }),
-    isTrash
-      ? prismaRaw.cashAdvance.count({ where: trashWhere })
-      : prisma.cashAdvance.count({ where }),
-  ]);
+  // Branch-scoped inbox read (extracted to `_load-inbox` so it is testable
+  // end-to-end — see tests/integration/advance-inbox-branch.integration.test.ts).
+  const { rows, total } = await loadAdvanceInbox({ permitted, status, q, isTrash, skip, take });
 
   const meta = buildPageMeta(total, requestedPage);
 

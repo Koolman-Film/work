@@ -9,11 +9,11 @@
 
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageHeader } from '@/components/ui/page-header';
-import { getPermittedBranches, viaEmployeeBranchScope } from '@/lib/auth/branch-scope';
+import { getPermittedBranches } from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
-import { prisma } from '@/lib/db/prisma';
 import { signAttendancePhotoUrls } from '@/lib/storage/signed-urls';
 import { AttendanceTabs } from '../attendance-tabs';
+import { loadDisputedCheckIns } from './_load-inbox';
 import { DisputedClient, type DisputedVM } from './disputed-client';
 
 function formatBkk(d: Date): string {
@@ -41,35 +41,9 @@ function haversineMeters(aLat: number, aLng: number, bLat: number, bLng: number)
 export default async function DisputedInboxPage() {
   const { user } = await requirePermission('attendance.read');
   const permitted = await getPermittedBranches(user, 'attendance.read');
-  const rows = await prisma.attendance.findMany({
-    where: {
-      type: 'CheckIn',
-      checkInStatus: { in: ['Disputed'] },
-      ...viaEmployeeBranchScope(permitted),
-    },
-    orderBy: { clockInAt: 'desc' },
-    take: 50,
-    select: {
-      id: true,
-      clockInAt: true,
-      checkInLat: true,
-      checkInLng: true,
-      disputeReason: true,
-      checkInSelfieUrl: true,
-      checkInBranch: {
-        select: { name: true, latitude: true, longitude: true, radiusMeters: true },
-      },
-      employee: {
-        select: {
-          firstName: true,
-          lastName: true,
-          nickname: true,
-          branch: { select: { name: true } },
-          department: { select: { name: true } },
-        },
-      },
-    },
-  });
+  // Branch-scoped disputed-check-in read (extracted to `_load-inbox` so it is
+  // testable end-to-end — see the disputed-inbox integration harness).
+  const rows = await loadDisputedCheckIns(permitted);
 
   const selfieKeys = rows
     .map((r) => r.checkInSelfieUrl)
