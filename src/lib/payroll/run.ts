@@ -23,6 +23,7 @@
  */
 
 import { Prisma } from '@prisma/client';
+import { bangkokDateUtcMidnight } from '@/lib/attendance/date';
 import { prisma } from '@/lib/db/prisma';
 import { sendNotification } from '@/lib/inngest/events';
 import { computeLiveLeaveCharges } from '@/lib/leave/recompute';
@@ -93,7 +94,7 @@ async function gatherAndCalc(db: Tx | typeof prisma, month: string, employeeId?:
         deductedInPayrollId: null,
         deletedAt: null,
       },
-      select: { id: true, employeeId: true, amount: true },
+      select: { id: true, employeeId: true, amount: true, requestedAt: true },
     }),
     db.recurringDeduction.findMany({
       where: { employeeId: { in: empIds }, endedAt: null, monthsRemaining: { gt: 0 } },
@@ -139,8 +140,17 @@ async function gatherAndCalc(db: Tx | typeof prisma, month: string, employeeId?:
     return map;
   };
 
+  // Only sweep เบิก REQUESTED on/before this period's cutoff. A เบิก taken after
+  // the cutoff belongs to the NEXT month's payslip — it stays un-swept until a
+  // later month picks it up (C8). requestedAt is a full timestamp, so normalise
+  // it to its Bangkok calendar date before comparing to `end` (UTC-midnight of
+  // the cutoff day) — mirrors how leave windows its live charges by startDate.
+  const sweepableAdvances = advances.filter(
+    (a) => bangkokDateUtcMidnight(a.requestedAt).getTime() <= end.getTime(),
+  );
+
   const attByEmp = byEmp(attendances);
-  const advByEmp = byEmp(advances);
+  const advByEmp = byEmp(sweepableAdvances);
   const recByEmp = byEmp(recurring);
   const adjByEmp = byEmp(adjustments);
 

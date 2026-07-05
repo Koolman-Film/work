@@ -82,7 +82,12 @@ describe('runPayrollDraft', () => {
   it('gathers inputs and computes the deduction buckets', async () => {
     const emp = await makeEmployee({ baseSalary: 20_000 });
     await prisma.cashAdvance.create({
-      data: { employeeId: emp.id, amount: new Prisma.Decimal(3_000), status: 'Approved' },
+      data: {
+        employeeId: emp.id,
+        amount: new Prisma.Decimal(3_000),
+        status: 'Approved',
+        requestedAt: inMonth,
+      },
     });
     await prisma.attendance.create({
       data: {
@@ -132,6 +137,31 @@ describe('runPayrollDraft', () => {
       where: { employeeId: emp.id, month: MONTH },
     });
     expect(Number(row.deductAttendance)).toBe(1_000); // only the 2 in-window absents × ฿500
+  });
+
+  it('windows advances by the payroll cutoff — a เบิก after the cutoff rolls to next month (C8)', async () => {
+    // cutoff 26 → the 2026-06 period is 2026-05-27 .. 2026-06-26 (inclusive).
+    // A เบิก REQUESTED after the 26th belongs to the NEXT month's payslip, not June.
+    await prisma.payrollConfig.updateMany({ data: { cutoffDay: 26 } });
+    const emp = await makeEmployee({ baseSalary: 20_000 });
+    const advance = (ymd: string, amount: number) =>
+      prisma.cashAdvance.create({
+        data: {
+          employeeId: emp.id,
+          amount: new Prisma.Decimal(amount),
+          status: 'Approved',
+          requestedAt: new Date(`${ymd}T00:00:00.000Z`),
+        },
+      });
+    await advance('2026-06-20', 1_000); // within window → counts in June
+    await advance('2026-06-26', 2_000); // cutoff day, inclusive → counts in June
+    await advance('2026-06-28', 4_000); // after cutoff → excluded (rolls to July)
+
+    await runPayrollDraft(MONTH);
+    const row = await prisma.payroll.findFirstOrThrow({
+      where: { employeeId: emp.id, month: MONTH },
+    });
+    expect(Number(row.deductAdvance)).toBe(3_000); // only the two in-window เบิก (1000 + 2000)
   });
 
   // ── Late penalties (C9) — defaults from reset()'s config: 3-strike on,
@@ -198,7 +228,12 @@ describe('publishPayroll', () => {
   it('stamps swept advances/leave and decrements recurring deductions', async () => {
     const emp = await makeEmployee({ baseSalary: 20_000, hasSso: true });
     const advance = await prisma.cashAdvance.create({
-      data: { employeeId: emp.id, amount: new Prisma.Decimal(3_000), status: 'Approved' },
+      data: {
+        employeeId: emp.id,
+        amount: new Prisma.Decimal(3_000),
+        status: 'Approved',
+        requestedAt: inMonth,
+      },
     });
     const recurring = await prisma.recurringDeduction.create({
       data: {
@@ -447,7 +482,12 @@ describe('previewPayrollDrafts (stale-draft detection)', () => {
 
     // An advance is approved AFTER the draft was calculated.
     await prisma.cashAdvance.create({
-      data: { employeeId: emp.id, amount: new Prisma.Decimal(2_000), status: 'Approved' },
+      data: {
+        employeeId: emp.id,
+        amount: new Prisma.Decimal(2_000),
+        status: 'Approved',
+        requestedAt: inMonth,
+      },
     });
 
     const fresh = await previewPayrollDrafts(MONTH);
@@ -489,6 +529,7 @@ describe('publishPayroll per-employee', () => {
         amount: new Prisma.Decimal(1000),
         status: 'Approved',
         isDeducted: false,
+        requestedAt: inMonth,
       },
     });
     const advB = await prisma.cashAdvance.create({
@@ -497,6 +538,7 @@ describe('publishPayroll per-employee', () => {
         amount: new Prisma.Decimal(1000),
         status: 'Approved',
         isDeducted: false,
+        requestedAt: inMonth,
       },
     });
 
