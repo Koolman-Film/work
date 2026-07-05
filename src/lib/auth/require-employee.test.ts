@@ -49,12 +49,12 @@ describe('requireEmployee', () => {
   it('passes an admin-employee (Admin tier but has an Employee)', async () => {
     stubSession({ id: 'auth-1', identities: [] });
     mockedFindUnique.mockResolvedValue(
-      // biome-ignore lint/suspicious/noExplicitAny: prisma mock
       row({
         roleAssignments: [
           { role: { key: 'staff', isSuperadmin: false, archivedAt: null } },
           { role: { key: 'admin', isSuperadmin: false, archivedAt: null } },
         ],
+        // biome-ignore lint/suspicious/noExplicitAny: prisma mock
       }) as any,
     );
     const r = await requireEmployee();
@@ -65,10 +65,10 @@ describe('requireEmployee', () => {
   it('rejects a pure admin (no Employee record)', async () => {
     stubSession({ id: 'auth-1', identities: [] });
     mockedFindUnique.mockResolvedValue(
-      // biome-ignore lint/suspicious/noExplicitAny: prisma mock
       row({
         employee: null,
         roleAssignments: [{ role: { key: 'admin', isSuperadmin: false, archivedAt: null } }],
+        // biome-ignore lint/suspicious/noExplicitAny: prisma mock
       }) as any,
     );
     await expect(requireEmployee()).rejects.toThrow('NEXT_NOT_FOUND');
