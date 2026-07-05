@@ -9,6 +9,9 @@
  * Mocks required because `admin-review.ts` is a Next.js Server Action:
  *   - `@/lib/auth/check-permission` → requirePermission: bypasses Supabase
  *     session; returns the seeded admin User so auditLogTx has a real actorId.
+ *     Also getUserAssignments: review() branch-scope-gates via
+ *     getPermittedBranches → getUserAssignments, so we stub it with a
+ *     superadmin (global) grant → permitted = 'all', gate passes.
  *   - `next/headers` → headers(): the action reads IP / user-agent headers
  *     that don't exist outside a Next.js request context.
  *   - `@/lib/inngest/events` → sendNotification: fire-and-forget Inngest
@@ -30,6 +33,21 @@ vi.mock('@/lib/auth/check-permission', () => ({
     authUserId: adminUserHolder.id,
     tier: 'Admin',
   })),
+  // review() gates on getPermittedBranches(user, 'attendance.dispute-resolve'),
+  // which reads getUserAssignments. A superadmin global grant → permitted 'all'.
+  getUserAssignments: vi.fn(async () => [
+    {
+      branchId: null,
+      role: {
+        id: 'test-superadmin',
+        key: 'superadmin',
+        name: 'Superadmin',
+        permissions: [],
+        isSuperadmin: true,
+        archivedAt: null,
+      },
+    },
+  ]),
 }));
 
 // ── Next.js headers() stub ───────────────────────────────────────────────────
@@ -48,9 +66,21 @@ vi.mock('@/lib/inngest/events', () => ({
 import { approveDisputed, rejectDisputed } from '@/lib/attendance/admin-review';
 
 // ── DB reset ─────────────────────────────────────────────────────────────────
+// This DB is shared across integration files (fileParallelism: false), so a
+// prior file's last-test rows persist. Delete every table that FKs Employee
+// BEFORE employee.deleteMany, or the reset fails on a stray FK (e.g. a
+// CashAdvance left by the advance-* reports tests). deleteMany on an empty
+// table is a no-op, so listing the superset is safe and order-independent.
 async function reset() {
   await prisma.auditLog.deleteMany({});
+  await prisma.payrollAdjustment.deleteMany({});
+  await prisma.payroll.deleteMany({});
+  await prisma.recurringDeduction.deleteMany({});
+  await prisma.overtimeEntry.deleteMany({});
   await prisma.attendance.deleteMany({});
+  await prisma.cashAdvance.deleteMany({});
+  await prisma.leaveRequest.deleteMany({});
+  await prisma.leaveEntitlement.deleteMany({});
   await prisma.employee.deleteMany({});
   await prisma.userRoleAssignment.deleteMany({});
   await prisma.user.deleteMany({});
