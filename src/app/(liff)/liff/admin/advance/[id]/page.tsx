@@ -14,10 +14,10 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { advanceBalanceFor } from '@/lib/advance/available';
 import { isOverCap } from '@/lib/advance/balance';
-import { getPermittedBranches, viaEmployeeBranchScope } from '@/lib/auth/branch-scope';
+import { getPermittedBranches } from '@/lib/auth/branch-scope';
 import { requireLiffAdmin } from '@/lib/auth/require-liff-admin';
-import { prisma } from '@/lib/db/prisma';
 import { resolveStoredImageUrl } from '@/lib/storage/signed-urls';
+import { loadLiffAdvanceDetail } from './_load';
 import { AdvanceReviewActions, SlipUploadBlock } from './advance-review-actions';
 
 type Params = Promise<{ id: string }>;
@@ -49,22 +49,9 @@ export default async function LiffAdminAdvanceDetailPage({ params }: { params: P
   const { user } = await requireLiffAdmin();
   const permitted = await getPermittedBranches(user, 'advance.read');
 
-  const row = await prisma.cashAdvance.findFirst({
-    where: { id, ...viaEmployeeBranchScope(permitted) },
-    select: {
-      id: true,
-      employeeId: true,
-      amount: true,
-      status: true,
-      requestedAt: true,
-      approvedAt: true,
-      paidAt: true,
-      receiptUrl: true,
-      isDeducted: true,
-      deletedAt: true,
-      employee: { select: { firstName: true, lastName: true, nickname: true } },
-    },
-  });
+  // Branch-scoped by-id read (extracted to `_load` so the existence-hide is
+  // testable — an out-of-branch id returns null → notFound).
+  const row = await loadLiffAdvanceDetail(id, permitted);
   if (!row || row.deletedAt) notFound();
 
   // Exclude this advance from "reserved" when it's still Pending — same as
