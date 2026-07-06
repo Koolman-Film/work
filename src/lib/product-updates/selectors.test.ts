@@ -7,7 +7,7 @@ import {
   unseenCount,
   unseenItems,
 } from './selectors';
-import type { UpdateItem } from './types';
+import type { LocalizedText, UpdateItem } from './types';
 
 const items: UpdateItem[] = [
   { id: 'a', date: '2026-01-01', title: { th: 'A' }, body: { th: 'a' } },
@@ -24,6 +24,27 @@ describe('pickText', () => {
   });
   it('returns the th value for the th locale', () => {
     expect(pickText({ th: 'สวัสดี', en: 'Hi' }, 'th')).toBe('สวัสดี');
+  });
+
+  it('resolves each non-Thai locale when present', () => {
+    const t: LocalizedText = {
+      th: 'ไทย',
+      en: 'English',
+      my: 'မြန်မာ',
+      lo: 'ລາວ',
+      'zh-CN': '简体中文',
+      km: 'ខ្មែរ',
+    };
+    expect(pickText(t, 'my')).toBe('မြန်မာ');
+    expect(pickText(t, 'lo')).toBe('ລາວ');
+    expect(pickText(t, 'zh-CN')).toBe('简体中文');
+    expect(pickText(t, 'km')).toBe('ខ្មែរ');
+  });
+
+  it('falls back to th when the requested locale key is absent', () => {
+    const t: LocalizedText = { th: 'ไทย', en: 'English' };
+    expect(pickText(t, 'my')).toBe('ไทย');
+    expect(pickText(t, 'km')).toBe('ไทย');
   });
 });
 
