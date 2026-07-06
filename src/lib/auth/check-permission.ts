@@ -33,7 +33,7 @@ import type { Role, User } from '@prisma/client';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/db/prisma';
 import { ALL_PERMISSIONS, type Permission } from './permissions';
-import { type AuthedAssignment, resolveAuthedUser } from './require-role';
+import { resolveAuthedUser } from './require-role';
 import { computeTier } from './user-tier';
 
 /**
@@ -231,29 +231,4 @@ export async function requirePermission(
   if (!checkAssignments(assignments, permission, ctx)) notFound();
   const tier = computeTier(assignments);
   return { user, authUserId, tier };
-}
-
-/**
- * Pure predicate: does this assignment set confer `permission` at GLOBAL scope
- * (an assignment with branchId === null, or any superadmin assignment)?
- */
-export function hasGlobalPermission(
-  assignments: AuthedAssignment[],
-  permission: Permission,
-): boolean {
-  return assignments.some(
-    (a) => a.role.isSuperadmin || (a.branchId === null && a.role.permissions.includes(permission)),
-  );
-}
-
-/**
- * Admin-area gate for surfaces that must not be branch-scoped (e.g. the audit
- * log). Throws notFound() unless the caller holds `permission` globally.
- */
-export async function requireGlobalPermission(
-  permission: Permission,
-): Promise<{ user: User; authUserId: string }> {
-  const { user, authUserId, assignments } = await resolveAuthedUser();
-  if (!hasGlobalPermission(assignments, permission)) notFound();
-  return { user, authUserId };
 }
