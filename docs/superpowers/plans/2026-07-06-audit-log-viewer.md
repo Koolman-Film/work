@@ -1059,7 +1059,7 @@ git commit -m "feat(audit): URL-driven filter bar (actor/action/entity/date)"
 - Create: `src/app/(admin)/admin/audit/page.tsx`
 
 **Interfaces:**
-- Consumes: `requireGlobalPermission` from `@/lib/auth/check-permission`; `buildAuditWhere`, `fetchAuditPage`, `resolveActors` from `@/lib/audit/query`; `AuditRow`, `AuditRowData` from `./audit-row`; `AuditFilters` from `./audit-filters`; `prisma`; `PageHeader` from `@/components/ui/page-header`.
+- Consumes: `requireGlobalPermission` from `@/lib/auth/require-global-permission` (PRE-EXISTING — reused, not the Task-3 duplicate which was reverted; returns `{ user, authUserId, tier }`, all unused by the page); `buildAuditWhere`, `fetchAuditPage`, `resolveActors` from `@/lib/audit/query`; `AuditRow`, `AuditRowData` from `./audit-row`; `AuditFilters` from `./audit-filters`; `prisma`; `PageHeader` from `@/components/ui/page-header`.
 
 - [ ] **Step 1: Create the page**
 
@@ -1068,7 +1068,7 @@ Create `src/app/(admin)/admin/audit/page.tsx`:
 ```tsx
 import Link from 'next/link';
 import { prisma } from '@/lib/db/prisma';
-import { requireGlobalPermission } from '@/lib/auth/check-permission';
+import { requireGlobalPermission } from '@/lib/auth/require-global-permission';
 import { buildAuditWhere, fetchAuditPage, resolveActors } from '@/lib/audit/query';
 import { PageHeader } from '@/components/ui/page-header';
 import { AuditFilters } from './audit-filters';
