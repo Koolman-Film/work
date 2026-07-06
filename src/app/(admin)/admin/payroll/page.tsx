@@ -10,8 +10,13 @@ import { requireGlobalPermission } from '@/lib/auth/require-global-permission';
 import { prisma } from '@/lib/db/prisma';
 import { formatTHB, formatTHB2, monthLabelTh } from '@/lib/format';
 import { deductionBreakdown, deductionBreakdownLabel } from '@/lib/payroll/deduction-breakdown';
+import { payrollPeriodLabel } from '@/lib/payroll/period';
 import { previewPayrollDrafts } from '@/lib/payroll/run';
-import { asUuid, loadReportFilterOptions } from '../reports/_load-filter-options';
+import {
+  asUuid,
+  loadPayrollCutoffDay,
+  loadReportFilterOptions,
+} from '../reports/_load-filter-options';
 import { ReportFilters } from '../reports/report-filters';
 import {
   calculatePayrollAction,
@@ -118,12 +123,23 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
       )
     : rows;
 
-  const [activeEmployees, options] = await Promise.all([
+  const [activeEmployees, options, cutoffDay] = await Promise.all([
     prisma.employee.count({ where: { status: { not: 'Archived' } } }),
     // Payroll's branch filter is out of scope for B5 (no `permitted` here) —
     // pass 'all' to preserve current unfiltered behavior.
     loadReportFilterOptions('all'),
+    // Same cutoff the reports pages resolve their period from, so the range
+    // shown here is provably the identical window (C8).
+    loadPayrollCutoffDay(),
   ]);
+  // The concrete cutoff window this "month" covers (e.g. 27 พ.ค. – 26 มิ.ย.),
+  // surfaced so it visibly matches the report period. Same in-range guard as
+  // resolveReportPeriod (reports/period.ts) so an out-of-range/absent cutoff
+  // degrades to no label instead of throwing on render — never a 500.
+  const periodLabel =
+    cutoffDay != null && cutoffDay >= 1 && cutoffDay <= 28
+      ? payrollPeriodLabel(month, cutoffDay)
+      : null;
 
   // Frozen buckets straight off the persisted row — NO engine call.
   const frozenOf = (r: (typeof rows)[number]): FrozenSlipVM => ({
@@ -368,6 +384,13 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
             ›
           </Link>
         </div>
+        {/* Concrete cutoff window — same period the reports pages resolve from
+            PayrollConfig.cutoffDay, so "เดือน" here ties out with รายงาน. */}
+        {periodLabel && (
+          <span className="text-xs text-ink-3">
+            รอบจ่าย <span className="font-medium text-ink-2">{periodLabel}</span>
+          </span>
+        )}
         <ReportFilters
           period={{ m: month }}
           branchId={branchId ?? ''}
@@ -517,6 +540,7 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
             <div className="surface">
               <EmptyState
                 title={`ยังไม่ได้คำนวณเงินเดือนเดือน ${monthLabelTh(month)}`}
+                hint={periodLabel ? `รอบจ่าย ${periodLabel}` : undefined}
                 action={
                   mayRun ? (
                     <RunActionForm
