@@ -7,6 +7,7 @@ import type { Locale } from '@/lib/i18n/config';
 import { UPDATES } from '@/lib/product-updates/registry';
 import { pickText, sortByDateDesc, unseenItems } from '@/lib/product-updates/selectors';
 import { useProductUpdates } from '@/lib/product-updates/store';
+import { UI } from '@/lib/product-updates/ui-text';
 
 /**
  * Lists all updates newest-first. Opening the panel marks every listed item
@@ -33,11 +34,7 @@ export function WhatsNewPanel() {
   const items = sortByDateDesc(UPDATES);
 
   return (
-    <Dialog
-      open={panelOpen}
-      onClose={closePanel}
-      title={locale === 'en' ? "What's New" : 'มีอะไรใหม่'}
-    >
+    <Dialog open={panelOpen} onClose={closePanel} title={pickText(UI.whatsNewTitle, locale)}>
       <ul className="divide-y divide-gray-100">
         {items.map((item) => (
           <li key={item.id} className="py-3 first:pt-0 last:pb-0">
@@ -58,7 +55,7 @@ export function WhatsNewPanel() {
                 }}
                 className="mt-2 text-sm font-medium text-primary-700 transition hover:text-primary-800"
               >
-                {locale === 'en' ? 'Take the tour →' : 'ดูทัวร์แนะนำ →'}
+                {pickText(UI.takeTheTourArrow, locale)}
               </button>
             )}
           </li>
