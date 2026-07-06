@@ -8,9 +8,10 @@ import { canActOnEmployeeBranches, getPermittedBranches } from '@/lib/auth/branc
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { getLeaveConfig } from '@/lib/leave/leave-config';
-import { standardDayMinutes } from '@/lib/leave/units';
+import { adjustmentToMinutes, standardDayMinutes } from '@/lib/leave/units';
 
-// Inputs are DECIMAL DAYS; converted to minutes via standardDayMinutes.
+// granted/carryover are DECIMAL DAYS; adjustment is a decimal value in the unit
+// named by `adjustmentUnit` (วัน or ชม.). All are converted to minutes below.
 const Schema = z.object({
   granted: z
     .union([
@@ -23,7 +24,8 @@ const Schema = z.object({
     ])
     .nullable(),
   carryover: z.coerce.number().min(0).max(366),
-  adjustment: z.coerce.number().min(-366).max(366),
+  adjustment: z.coerce.number().finite(),
+  adjustmentUnit: z.enum(['day', 'hour']).catch('day'),
   note: z
     .string()
     .trim()
@@ -47,6 +49,7 @@ export async function upsertEntitlement(
     granted: formData.get('granted') ?? '',
     carryover: formData.get('carryover') ?? 0,
     adjustment: formData.get('adjustment') ?? 0,
+    adjustmentUnit: formData.get('adjustmentUnit') ?? 'day',
     note: formData.get('note') ?? undefined,
   });
   if (!parsed.success) {
@@ -73,10 +76,21 @@ export async function upsertEntitlement(
 
   const std = standardDayMinutes(await getLeaveConfig());
   const toMin = (days: number) => Math.round(days * std);
+  // adjustment carries its own unit; convert then bound to ±366 days of minutes
+  // (the same ±366-day range granted/carryover use), so the hour path can't
+  // sneak past the day-based limit.
+  const adjustmentMinutes = adjustmentToMinutes(
+    parsed.data.adjustment,
+    parsed.data.adjustmentUnit,
+    std,
+  );
+  if (Math.abs(adjustmentMinutes) > 366 * std) {
+    redirect(`${back}&error=${encodeURIComponent('ค่าปรับปรุงเกินช่วงที่กำหนด (สูงสุด 366 วัน)')}`);
+  }
   const data = {
     grantedMinutes: parsed.data.granted == null ? null : toMin(parsed.data.granted),
     carryoverMinutes: toMin(parsed.data.carryover),
-    adjustmentMinutes: toMin(parsed.data.adjustment),
+    adjustmentMinutes,
     note: parsed.data.note,
   };
 
