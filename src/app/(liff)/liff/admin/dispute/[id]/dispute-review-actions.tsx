@@ -8,6 +8,7 @@
  */
 
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useState, useTransition } from 'react';
 import { approveDisputed, rejectDisputed } from '@/lib/attendance/admin-review';
 
@@ -15,6 +16,7 @@ type Arm = 'approve' | 'reject' | null;
 
 export function DisputeReviewActions({ attendanceId }: { attendanceId: string }) {
   const router = useRouter();
+  const t = useTranslations('liffAdmin.disputeActions');
   const [note, setNote] = useState('');
   const [armed, setArmed] = useState<Arm>(null);
   const [error, setError] = useState('');
@@ -24,7 +26,7 @@ export function DisputeReviewActions({ attendanceId }: { attendanceId: string })
 
   function fire(kind: 'approve' | 'reject') {
     if (note.trim().length === 0) {
-      setError('กรุณาระบุหมายเหตุ');
+      setError(t('noteRequired'));
       return;
     }
     if (armed !== kind) {
@@ -59,7 +61,7 @@ export function DisputeReviewActions({ attendanceId }: { attendanceId: string })
         <p
           className={`text-sm font-medium ${done === 'rejected' ? 'text-red-800' : 'text-green-800'}`}
         >
-          {done === 'approved' ? 'ยืนยันการเช็คอินแล้ว ✓' : 'ปฏิเสธการเช็คอินแล้ว'}
+          {done === 'approved' ? t('approvedBanner') : t('rejectedBanner')}
         </p>
       </section>
     );
@@ -68,7 +70,7 @@ export function DisputeReviewActions({ attendanceId }: { attendanceId: string })
   return (
     <section className="mt-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
       <label htmlFor="dispute-note" className="text-xs font-medium text-gray-500">
-        หมายเหตุ (จำเป็น)
+        {t('noteLabel')}
       </label>
       <textarea
         id="dispute-note"
@@ -78,7 +80,7 @@ export function DisputeReviewActions({ attendanceId }: { attendanceId: string })
           setArmed(null);
         }}
         rows={2}
-        placeholder="เช่น: ยืนยันตามรูป / ปฏิเสธ — อยู่นอกพื้นที่"
+        placeholder={t('notePlaceholder')}
         className="mt-1 w-full rounded-lg border border-gray-300 p-2 text-sm focus:border-primary-500 focus:outline-none"
       />
       {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
@@ -90,10 +92,10 @@ export function DisputeReviewActions({ attendanceId }: { attendanceId: string })
           className="rounded-lg bg-green-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-green-700 disabled:opacity-50"
         >
           {isPending && firing === 'approve'
-            ? 'กำลังบันทึก…'
+            ? t('saving')
             : armed === 'approve'
-              ? 'ยืนยันอนุมัติ?'
-              : 'ยืนยันเช็คอิน'}
+              ? t('confirmApprove')
+              : t('confirmCheckin')}
         </button>
         <button
           type="button"
@@ -102,10 +104,10 @@ export function DisputeReviewActions({ attendanceId }: { attendanceId: string })
           className="rounded-lg bg-red-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-red-700 disabled:opacity-50"
         >
           {isPending && firing === 'reject'
-            ? 'กำลังบันทึก…'
+            ? t('saving')
             : armed === 'reject'
-              ? 'ยืนยันปฏิเสธ?'
-              : 'ปฏิเสธ'}
+              ? t('confirmReject')
+              : t('reject')}
         </button>
       </div>
     </section>

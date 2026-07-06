@@ -15,6 +15,7 @@
  */
 
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useRef, useState, useTransition } from 'react';
 import { approveCashAdvance, markAdvancePaid, rejectCashAdvance } from '@/lib/advance/admin';
 import { compressToJpeg, uploadAdvanceReceipt } from '@/lib/storage/upload-selfie';
@@ -24,6 +25,7 @@ type Arm = 'approve' | 'reject' | null;
 
 export function AdvanceReviewActions({ cashAdvanceId }: { cashAdvanceId: string }) {
   const router = useRouter();
+  const t = useTranslations('liffAdmin.advanceActions');
   const [armed, setArmed] = useState<Arm>(null);
   const [firing, setFiring] = useState<Arm>(null);
   const [error, setError] = useState('');
@@ -57,7 +59,7 @@ export function AdvanceReviewActions({ cashAdvanceId }: { cashAdvanceId: string 
     return (
       <section className="mt-3 rounded-xl border border-green-200 bg-green-50 p-4 text-center">
         <p className="text-sm font-medium text-green-800">
-          {done === 'approved' ? 'อนุมัติเรียบร้อยแล้ว ✓ — โอนเงินแล้วอย่าลืมแนบสลิป' : 'ปฏิเสธคำขอแล้ว'}
+          {done === 'approved' ? t('approvedBanner') : t('rejectedBanner')}
         </p>
       </section>
     );
@@ -74,10 +76,10 @@ export function AdvanceReviewActions({ cashAdvanceId }: { cashAdvanceId: string 
           className="rounded-lg bg-green-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-green-700 disabled:opacity-50"
         >
           {isPending && firing === 'approve'
-            ? 'กำลังบันทึก…'
+            ? t('saving')
             : armed === 'approve'
-              ? 'ยืนยันอนุมัติ?'
-              : 'อนุมัติ'}
+              ? t('confirmApprove')
+              : t('approve')}
         </button>
         <button
           type="button"
@@ -86,13 +88,13 @@ export function AdvanceReviewActions({ cashAdvanceId }: { cashAdvanceId: string 
           className="rounded-lg bg-red-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-red-700 disabled:opacity-50"
         >
           {isPending && firing === 'reject'
-            ? 'กำลังบันทึก…'
+            ? t('saving')
             : armed === 'reject'
-              ? 'ยืนยันปฏิเสธ?'
-              : 'ปฏิเสธ'}
+              ? t('confirmReject')
+              : t('reject')}
         </button>
       </div>
-      <p className="mt-2 text-[10px] text-gray-400">อนุมัติแล้วค่อยโอนเงินและแนบสลิปในขั้นตอนถัดไป</p>
+      <p className="mt-2 text-[10px] text-gray-400">{t('hint')}</p>
     </section>
   );
 }
@@ -107,6 +109,7 @@ export function SlipUploadBlock({
   buttonLabel: string;
 }) {
   const router = useRouter();
+  const t = useTranslations('liffAdmin.advanceActions');
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
@@ -121,7 +124,7 @@ export function SlipUploadBlock({
       const { data: authData } = await supabase.auth.getUser();
       const sessionAuthUid = authData.user?.id;
       if (!sessionAuthUid) {
-        setError('ไม่พบเซสชันผู้ใช้ กรุณาเปิดหน้านี้ใหม่');
+        setError(t('noSession'));
         return;
       }
       const blob = await compressToJpeg(file);
@@ -135,11 +138,7 @@ export function SlipUploadBlock({
       router.refresh();
     } catch (err) {
       const e = err as { kind?: string; message?: string };
-      setError(
-        e?.kind === 'too-large-after-compress'
-          ? 'ไฟล์ภาพใหญ่เกินไป กรุณาเลือกภาพอื่น'
-          : 'อัปโหลดสลิปไม่สำเร็จ กรุณาลองใหม่อีกครั้ง',
-      );
+      setError(e?.kind === 'too-large-after-compress' ? t('tooLarge') : t('uploadFailed'));
     } finally {
       setUploading(false);
       if (inputRef.current) inputRef.current.value = '';
@@ -150,7 +149,7 @@ export function SlipUploadBlock({
     <section className="mt-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
       <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">{heading}</h2>
       {doneOnce && (
-        <p className="mt-2 rounded-lg bg-green-50 p-2 text-xs text-green-800">แนบสลิปเรียบร้อยแล้ว ✓</p>
+        <p className="mt-2 rounded-lg bg-green-50 p-2 text-xs text-green-800">{t('slipDone')}</p>
       )}
       {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
       <input
@@ -166,7 +165,7 @@ export function SlipUploadBlock({
         onClick={() => inputRef.current?.click()}
         className="mt-3 w-full rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-primary-700 disabled:opacity-50"
       >
-        {uploading ? 'กำลังอัปโหลด…' : buttonLabel}
+        {uploading ? t('uploading') : buttonLabel}
       </button>
     </section>
   );

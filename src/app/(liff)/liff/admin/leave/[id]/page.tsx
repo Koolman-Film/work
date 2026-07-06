@@ -5,10 +5,16 @@
  * buildLeaveRowVM, leaveOverQuotaVM) so the quota/deduction preview shows
  * the SAME numbers as the web review modal. Pending → mount the client
  * approve/reject actions; decided → read-only badge + review note.
+ *
+ * The static chrome (labels, headings, buttons) is localized via the
+ * `liffAdmin` namespace. The VM-derived values (status label, leave-type name,
+ * duration/range text) come from the Thai-only web admin view-model and are
+ * rendered as-is — translating them belongs to the web admin i18n effort.
  */
 
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { getTranslations } from 'next-intl/server';
 import {
   buildLeaveRowVM,
   LEAVE_STATUS_INFO,
@@ -60,16 +66,19 @@ export default async function LiffAdminLeaveDetailPage({ params }: { params: Par
   });
 
   const cls = STATUS_CLS[vm.status] ?? STATUS_CLS.Pending;
+  // Status label comes from the Thai-only web admin VM (see file header).
   const statusLabel = LEAVE_STATUS_INFO[vm.status]?.label ?? vm.status;
+
+  const t = await getTranslations('liffAdmin.leaveDetail');
 
   return (
     <main className="px-4 pt-4 pb-12">
       <header className="mb-4">
         <Link href="/liff/admin/inbox" className="text-sm text-gray-500 hover:text-gray-700">
-          ← กลับไปงานรออนุมัติ
+          {t('back')}
         </Link>
         <div className="mt-3 flex items-center justify-between gap-3">
-          <h1 className="text-2xl font-semibold text-gray-900">คำขอลา</h1>
+          <h1 className="text-2xl font-semibold text-gray-900">{t('title')}</h1>
           <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${cls}`}>
             {statusLabel}
           </span>
@@ -86,29 +95,31 @@ export default async function LiffAdminLeaveDetailPage({ params }: { params: Par
           {vm.department ? ` • ${vm.department}` : ''}
         </p>
         <dl className="mt-3 space-y-2 border-t border-gray-100 pt-3 text-sm">
-          <Row label="ประเภท">
+          <Row label={t('type')}>
             {vm.leaveType}
-            {vm.isPaid ? '' : ' (ไม่จ่าย)'}
+            {vm.isPaid ? '' : t('unpaidSuffix')}
           </Row>
-          <Row label="ช่วงวันที่">{vm.range}</Row>
-          <Row label="ระยะเวลา">{vm.durationLabel}</Row>
-          <Row label="ส่งเมื่อ">{vm.submitted}</Row>
-          <Row label="เหตุผล">{vm.reason}</Row>
+          <Row label={t('dateRange')}>{vm.range}</Row>
+          <Row label={t('duration')}>{vm.durationLabel}</Row>
+          <Row label={t('submittedAt')}>{vm.submitted}</Row>
+          <Row label={t('reason')}>{vm.reason}</Row>
         </dl>
       </section>
 
       {vm.overQuota && (
         <section className="mt-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-          <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">โควต้าคงเหลือ</h2>
+          <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">
+            {t('quotaTitle')}
+          </h2>
           <dl className="mt-2 space-y-2 text-sm">
-            <Row label="คงเหลือ">{vm.overQuota.remainingLabel}</Row>
+            <Row label={t('remaining')}>{vm.overQuota.remainingLabel}</Row>
             {vm.overQuota.overLabel && (
-              <Row label="เกินโควต้า">
+              <Row label={t('overQuota')}>
                 <span className="text-red-600">{vm.overQuota.overLabel}</span>
               </Row>
             )}
             {vm.overQuota.estimatedDeduction > 0 && (
-              <Row label="หักเงินโดยประมาณ">
+              <Row label={t('estimatedDeduction')}>
                 <span className="text-red-600">
                   ฿{vm.overQuota.estimatedDeduction.toLocaleString('th-TH')}
                 </span>
@@ -117,7 +128,7 @@ export default async function LiffAdminLeaveDetailPage({ params }: { params: Par
           </dl>
           {vm.overQuota.blocksApproval && (
             <p className="mt-2 rounded-lg bg-red-50 p-2 text-xs text-red-700">
-              เกินโควต้า (นโยบาย: ห้ามอนุมัติ) — ไม่สามารถอนุมัติคำขอนี้ได้
+              {t('blockApproval')}
             </p>
           )}
         </section>
@@ -125,7 +136,9 @@ export default async function LiffAdminLeaveDetailPage({ params }: { params: Par
 
       {vm.attachmentUrl && (
         <section className="mt-3 rounded-xl border border-gray-200 bg-gray-50 p-4">
-          <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">เอกสารแนบ</h2>
+          <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">
+            {t('attachment')}
+          </h2>
           <a
             href={vm.attachmentUrl}
             target="_blank"
@@ -133,7 +146,7 @@ export default async function LiffAdminLeaveDetailPage({ params }: { params: Par
             className="mt-2 block overflow-hidden rounded-lg border border-gray-200 transition hover:opacity-90"
           >
             {/* biome-ignore lint/performance/noImgElement: signed URL, short TTL — next/image can't optimize it */}
-            <img src={vm.attachmentUrl} alt="เอกสารแนบ" className="w-full" />
+            <img src={vm.attachmentUrl} alt={t('attachmentAlt')} className="w-full" />
           </a>
         </section>
       )}
@@ -146,11 +159,11 @@ export default async function LiffAdminLeaveDetailPage({ params }: { params: Par
       ) : (
         <section className="mt-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
           <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">
-            ผลการตรวจสอบ
+            {t('reviewResult')}
           </h2>
           <dl className="mt-2 space-y-2 text-sm">
-            {vm.reviewedAt && <Row label="ตรวจสอบเมื่อ">{vm.reviewedAt}</Row>}
-            {vm.reviewNote && <Row label="หมายเหตุ">{vm.reviewNote}</Row>}
+            {vm.reviewedAt && <Row label={t('reviewedAt')}>{vm.reviewedAt}</Row>}
+            {vm.reviewNote && <Row label={t('note')}>{vm.reviewNote}</Row>}
           </dl>
         </section>
       )}

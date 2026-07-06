@@ -7,11 +7,13 @@
  * the web reports (payroll-cutoff window, `report.read` permitted branches)
  * so the numbers tie out.
  *
- * Thai-only literals — admin-facing, matches the untranslated admin panel.
+ * Localized via the `liffAdmin` namespace — the shared LIFF language switcher
+ * applies to these admin screens too.
  */
 
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { getTranslations } from 'next-intl/server';
 import { StatCard } from '@/components/ui/stat-card';
 import { getPermittedBranches } from '@/lib/auth/branch-scope';
 import { canDo } from '@/lib/auth/check-permission';
@@ -45,26 +47,28 @@ export default async function LiffAdminReportsPage() {
   const approved = advRows.reduce((s, r) => s + r.approvedInPeriod, 0);
   const outstanding = advRows.reduce((s, r) => s + r.outstandingNow, 0);
 
+  const t = await getTranslations('liffAdmin.reports');
+
   return (
     <main className="px-4 pt-4 pb-12">
       <p className="mb-3 text-xs text-gray-500">
-        รอบ {period.from} – {period.to}
+        {t('period', { from: period.from, to: period.to })}
       </p>
 
       <section>
-        <h2 className="mb-2 text-sm font-semibold text-gray-700">การเข้างาน</h2>
+        <h2 className="mb-2 text-sm font-semibold text-gray-700">{t('attendance')}</h2>
         <div className="grid grid-cols-3 gap-2">
-          <StatCard label="มาสาย (ครั้ง)" value={lateCount} />
-          <StatCard label="ขาด (วัน)" value={absentDays} />
-          <StatCard label="OT (ชม.)" value={otHours.toFixed(1)} />
+          <StatCard label={t('lateCount')} value={lateCount} />
+          <StatCard label={t('absentDays')} value={absentDays} />
+          <StatCard label={t('otHours')} value={otHours.toFixed(1)} />
         </div>
       </section>
 
       <section className="mt-6">
-        <h2 className="mb-2 text-sm font-semibold text-gray-700">การเบิกเงิน</h2>
+        <h2 className="mb-2 text-sm font-semibold text-gray-700">{t('advances')}</h2>
         <div className="grid grid-cols-2 gap-2">
-          <StatCard label="อนุมัติรอบนี้" value={baht(approved)} />
-          <StatCard label="ค้างชำระ" value={baht(outstanding)} />
+          <StatCard label={t('approvedThisPeriod')} value={baht(approved)} />
+          <StatCard label={t('outstanding')} value={baht(outstanding)} />
         </div>
       </section>
 
@@ -72,7 +76,7 @@ export default async function LiffAdminReportsPage() {
         href="/admin/reports/attendance"
         className="mt-6 block rounded-xl border border-gray-200 bg-white p-4 text-center text-sm font-medium text-primary-700 shadow-sm"
       >
-        ดูรายงานแบบละเอียด (เว็บแอดมิน) →
+        {t('viewDetailed')}
       </Link>
     </main>
   );

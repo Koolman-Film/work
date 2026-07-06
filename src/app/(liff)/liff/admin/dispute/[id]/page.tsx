@@ -7,16 +7,18 @@
 
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { getLocale, getTranslations } from 'next-intl/server';
 import { requireLiffAdmin } from '@/lib/auth/require-liff-admin';
 import { prisma } from '@/lib/db/prisma';
+import type { Locale } from '@/lib/i18n/config';
 import { resolveStoredImageUrl } from '@/lib/storage/signed-urls';
 import { DisputeReviewActions } from './dispute-review-actions';
 
 type Params = Promise<{ id: string }>;
 
-const fmtTime = (d: Date | null) =>
+const fmtTime = (d: Date | null, locale: Locale) =>
   d
-    ? d.toLocaleString('th-TH', {
+    ? d.toLocaleString(locale, {
         timeZone: 'Asia/Bangkok',
         day: 'numeric',
         month: 'short',
@@ -51,20 +53,25 @@ export default async function LiffAdminDisputeDetailPage({ params }: { params: P
   const lng = row.checkInLng?.toString();
   const name = `${row.employee.firstName} ${row.employee.lastName}`.trim();
 
+  const [t, locale] = await Promise.all([
+    getTranslations('liffAdmin.disputeDetail'),
+    getLocale() as Promise<Locale>,
+  ]);
+
   return (
     <main className="px-4 pt-4 pb-12">
       <header className="mb-4">
         <Link href="/liff/admin/inbox" className="text-sm text-gray-500 hover:text-gray-700">
-          ← กลับไปงานรออนุมัติ
+          {t('back')}
         </Link>
         <div className="mt-3 flex items-center justify-between gap-3">
-          <h1 className="text-2xl font-semibold text-gray-900">ตรวจสอบการลงเวลา</h1>
+          <h1 className="text-2xl font-semibold text-gray-900">{t('title')}</h1>
           <span
             className={`rounded-full px-2.5 py-1 text-xs font-medium ${
               isPending ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-700'
             }`}
           >
-            {isPending ? 'รอตรวจสอบ' : 'ตรวจสอบแล้ว'}
+            {isPending ? t('statusPending') : t('statusReviewed')}
           </span>
         </div>
       </header>
@@ -77,22 +84,22 @@ export default async function LiffAdminDisputeDetailPage({ params }: { params: P
           )}
         </p>
         <dl className="mt-3 space-y-2 border-t border-gray-100 pt-3 text-sm">
-          <Row label="เวลาเช็คอิน">{fmtTime(row.clockInAt)}</Row>
-          {row.checkInBranch && <Row label="สาขา">{row.checkInBranch.name}</Row>}
+          <Row label={t('checkinTime')}>{fmtTime(row.clockInAt, locale)}</Row>
+          {row.checkInBranch && <Row label={t('branch')}>{row.checkInBranch.name}</Row>}
           {row.disputeReason && (
-            <Row label="เหตุที่ถูกตั้งข้อสงสัย">
+            <Row label={t('disputeReason')}>
               <span className="text-amber-700">{row.disputeReason}</span>
             </Row>
           )}
           {lat && lng && (
-            <Row label="ตำแหน่ง">
+            <Row label={t('location')}>
               <a
                 href={`https://www.google.com/maps?q=${lat},${lng}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-primary-600 underline"
               >
-                เปิดแผนที่ →
+                {t('openMap')}
               </a>
             </Row>
           )}
@@ -101,7 +108,9 @@ export default async function LiffAdminDisputeDetailPage({ params }: { params: P
 
       {selfieUrl && (
         <section className="mt-3 rounded-xl border border-gray-200 bg-gray-50 p-4">
-          <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">รูปเช็คอิน</h2>
+          <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">
+            {t('selfieSection')}
+          </h2>
           <a
             href={selfieUrl}
             target="_blank"
@@ -109,7 +118,7 @@ export default async function LiffAdminDisputeDetailPage({ params }: { params: P
             className="mt-2 block overflow-hidden rounded-lg border border-gray-200 transition hover:opacity-90"
           >
             {/* biome-ignore lint/performance/noImgElement: signed URL, short TTL — next/image can't optimize it */}
-            <img src={selfieUrl} alt="รูปเช็คอิน" className="w-full" />
+            <img src={selfieUrl} alt={t('selfieAlt')} className="w-full" />
           </a>
         </section>
       )}
@@ -118,7 +127,7 @@ export default async function LiffAdminDisputeDetailPage({ params }: { params: P
         <DisputeReviewActions attendanceId={row.id} />
       ) : (
         <section className="mt-3 rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-600 shadow-sm">
-          การเช็คอินนี้ได้รับการตรวจสอบแล้ว
+          {t('alreadyReviewed')}
         </section>
       )}
     </main>

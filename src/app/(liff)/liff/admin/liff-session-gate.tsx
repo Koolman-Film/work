@@ -19,16 +19,21 @@
  */
 
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 import { type LiffBootstrapError, liffBootstrap } from '@/lib/liff/init';
 import { createClient } from '@/lib/supabase/browser';
 
 type GateState = 'checking' | 'ready' | 'error';
+// Store the failure as a message KEY (resolved via t() at render) rather than a
+// resolved string, so the effect doesn't need `t` in its dependency list.
+type ErrorKey = 'openInLine' | 'signInFailed';
 
 export function LiffSessionGate({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const t = useTranslations('liffAdmin.session');
   const [state, setState] = useState<GateState>('checking');
-  const [errorMsg, setErrorMsg] = useState('');
+  const [errorKey, setErrorKey] = useState<ErrorKey>('signInFailed');
 
   useEffect(() => {
     let cancelled = false;
@@ -56,11 +61,7 @@ export function LiffSessionGate({ children }: { children: React.ReactNode }) {
       } catch (err) {
         if (cancelled) return;
         const e = err as LiffBootstrapError;
-        setErrorMsg(
-          e?.kind === 'not-in-line'
-            ? 'กรุณาเปิดลิงก์นี้ในแอป LINE บนมือถือ'
-            : 'เข้าสู่ระบบไม่สำเร็จ กรุณาลองใหม่อีกครั้ง',
-        );
+        setErrorKey(e?.kind === 'not-in-line' ? 'openInLine' : 'signInFailed');
         setState('error');
       }
     }
@@ -72,10 +73,10 @@ export function LiffSessionGate({ children }: { children: React.ReactNode }) {
   }, [router]);
 
   if (state === 'checking') {
-    return <div className="px-4 py-16 text-center text-sm text-gray-500">กำลังเข้าสู่ระบบ…</div>;
+    return <div className="px-4 py-16 text-center text-sm text-gray-500">{t('signingIn')}</div>;
   }
   if (state === 'error') {
-    return <div className="px-4 py-16 text-center text-sm text-red-600">{errorMsg}</div>;
+    return <div className="px-4 py-16 text-center text-sm text-red-600">{t(errorKey)}</div>;
   }
   return <>{children}</>;
 }
