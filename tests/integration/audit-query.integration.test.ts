@@ -60,6 +60,32 @@ describe('fetchAuditPage', () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]!.action).toBe('payroll.publish');
   });
+
+  it('applies an inclusive Bangkok-day date range filter', async () => {
+    // 2026-06-15 03:00 UTC = 2026-06-15 10:00 +07:00 -> inside the window
+    await makeAudit({
+      action: 'inside.window',
+      createdAt: new Date(Date.UTC(2026, 5, 15, 3, 0, 0)),
+    });
+    // 2026-06-01 03:00 UTC = 2026-06-01 10:00 +07:00 -> inside the window (lower edge day)
+    await makeAudit({
+      action: 'inside.window.start',
+      createdAt: new Date(Date.UTC(2026, 5, 1, 3, 0, 0)),
+    });
+    // 2026-05-31 16:00 UTC = 2026-05-31 23:00 +07:00 -> just before the window starts
+    await makeAudit({
+      action: 'before.window',
+      createdAt: new Date(Date.UTC(2026, 4, 31, 16, 0, 0)),
+    });
+    // 2026-07-01 01:00 UTC = 2026-07-01 08:00 +07:00 -> just after the window ends
+    await makeAudit({ action: 'after.window', createdAt: new Date(Date.UTC(2026, 6, 1, 1, 0, 0)) });
+
+    const { rows } = await fetchAuditPage(
+      buildAuditWhere({ dateFrom: '2026-06-01', dateTo: '2026-06-30' }),
+    );
+    const actions = rows.map((r) => r.action).sort();
+    expect(actions).toEqual(['inside.window', 'inside.window.start']);
+  });
 });
 
 describe('resolveActors', () => {

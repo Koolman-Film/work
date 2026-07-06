@@ -24,6 +24,12 @@ export function AuditRow({ row }: { row: AuditRowData }) {
   const diff = diffValues(row.before, row.after);
   const when = formatThaiDate(new Date(row.createdAt));
   const entityHref = `/admin/audit?entityType=${encodeURIComponent(row.entityType)}&entityId=${encodeURIComponent(row.entityId)}`;
+  const meta = (row.metadata && typeof row.metadata === 'object' ? row.metadata : {}) as {
+    source?: unknown;
+    ip?: unknown;
+  };
+  const metaSource = typeof meta.source === 'string' ? meta.source : undefined;
+  const metaIp = typeof meta.ip === 'string' ? meta.ip : undefined;
 
   return (
     <li className="surface px-4 py-3">
@@ -63,6 +69,12 @@ export function AuditRow({ row }: { row: AuditRowData }) {
             </table>
           ) : (
             <p className="text-ink-4">ไม่มีรายละเอียดการเปลี่ยนแปลง</p>
+          )}
+
+          {(metaSource || metaIp) && (
+            <p className="text-xs text-ink-4">
+              ที่มา: {metaSource ?? '—'} · IP: {metaIp ?? '—'}
+            </p>
           )}
 
           <button
