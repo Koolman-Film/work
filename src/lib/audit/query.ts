@@ -20,13 +20,19 @@ function clean(v: string | undefined): string | undefined {
   return t ? t : undefined;
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function uuidOrUndefined(v: string | undefined): string | undefined {
+  const t = v?.trim();
+  return t && UUID_RE.test(t) ? t : undefined;
+}
+
 /** Pure: build a Prisma where-clause from parsed filter params. */
 export function buildAuditWhere(p: AuditFilterParams): Prisma.AuditLogWhereInput {
   const where: Prisma.AuditLogWhereInput = {};
-  const actor = clean(p.actor);
+  const actor = uuidOrUndefined(p.actor);
   const action = clean(p.action);
   const entityType = clean(p.entityType);
-  const entityId = clean(p.entityId);
+  const entityId = uuidOrUndefined(p.entityId);
   const from = clean(p.dateFrom);
   const to = clean(p.dateTo);
 
@@ -34,12 +40,18 @@ export function buildAuditWhere(p: AuditFilterParams): Prisma.AuditLogWhereInput
   if (action) where.action = action;
   if (entityType) where.entityType = entityType;
   if (entityId) where.entityId = entityId;
-  if (from || to) {
-    const range: Prisma.DateTimeFilter = {};
-    if (from) range.gte = new Date(`${from}T00:00:00+07:00`);
-    if (to) range.lte = new Date(`${to}T23:59:59.999+07:00`);
-    where.createdAt = range;
+
+  const range: Prisma.DateTimeFilter = {};
+  if (from) {
+    const gte = new Date(`${from}T00:00:00+07:00`);
+    if (!Number.isNaN(gte.getTime())) range.gte = gte;
   }
+  if (to) {
+    const lte = new Date(`${to}T23:59:59.999+07:00`);
+    if (!Number.isNaN(lte.getTime())) range.lte = lte;
+  }
+  if (range.gte || range.lte) where.createdAt = range;
+
   return where;
 }
 
