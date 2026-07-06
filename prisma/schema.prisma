@@ -157,6 +157,11 @@ model User {
   /// NULL ⇒ the LIFF first-run language modal fires. Admin writes to
   /// `locale` never touch this. See src/lib/i18n/modal-trigger.ts.
   localeChosenByEmployeeAt DateTime?
+  /// Product-updates "seen" ids (welcome tour, announcements, what's-new items),
+  /// per-user across devices. Replaces the old per-browser localStorage set.
+  /// Array of stable UpdateItem ids + the 'first-run.welcome' marker.
+  /// NULL ⇒ empty set. Add-only — ids are never removed.
+  productUpdatesSeen       Json?
   createdAt                DateTime  @default(now())
   updatedAt                DateTime  @updatedAt
   archivedAt               DateTime?

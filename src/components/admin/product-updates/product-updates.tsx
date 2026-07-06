@@ -17,12 +17,12 @@ const FIRST_RUN_KEY = 'first-run.welcome';
 
 /**
  * Single client mount for the product-updates system (admin layout). Owns:
- *   - store hydration from localStorage,
+ *   - store hydration from the server-provided `initialSeen`,
  *   - first-run auto-start of the welcome tour (once),
  *   - running the active tour via driver.js,
  *   - rendering the announcement modal + what's-new panel.
  */
-export function ProductUpdates() {
+export function ProductUpdates({ initialSeen }: { initialSeen: string[] }) {
   const locale = useLocale() as Locale;
   const hydrate = useProductUpdates((s) => s.hydrate);
   const hydrated = useProductUpdates((s) => s.hydrated);
@@ -32,10 +32,12 @@ export function ProductUpdates() {
   const startTour = useProductUpdates((s) => s.startTour);
   const endTour = useProductUpdates((s) => s.endTour);
 
-  // Hydrate the seen-set from localStorage once on mount.
+  // Hydrate the seen-set once on mount from the server-loaded value the
+  // admin layout passed down (User.productUpdatesSeen). No flash: the value
+  // is present on the first client render.
   useEffect(() => {
-    hydrate();
-  }, [hydrate]);
+    hydrate(initialSeen);
+  }, [hydrate, initialSeen]);
 
   // First-run: auto-start the welcome tour exactly once per browser — but
   // only when nothing is already interrupting. If an announcement modal is
