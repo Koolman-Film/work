@@ -2,11 +2,16 @@
  * Product-updates content model (admin web).
  *
  * All content is code-shipped — these types describe the typed registry
- * devs edit per release. Copy is inline & localized; `th` is the source of
- * truth, `en` an optional proofread fallback target.
+ * devs edit per release. Copy is inline & localized; `th` is the required
+ * human-authored source and `en` is human-authored. `my`/`lo`/`zh-CN`/`km`
+ * are AI-drafted (pending native-speaker proofread) and each falls back to
+ * `th` via pickText when absent.
  */
 
-export type LocalizedText = { th: string; en?: string };
+import type { Locale } from '@/lib/i18n/config';
+
+/** Localized string: `th` required; every other supported locale optional. */
+export type LocalizedText = { th: string } & Partial<Record<Exclude<Locale, 'th'>, string>>;
 
 export type UpdateItem = {
   /** Stable slug — the seen key. NEVER rename or reuse. */
