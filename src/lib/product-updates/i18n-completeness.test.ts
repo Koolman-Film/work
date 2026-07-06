@@ -38,4 +38,14 @@ describe('product-updates i18n completeness', () => {
       expect((record[locale] as string).length).toBeGreaterThan(0);
     }
   });
+
+  // Defense-in-depth: catch a typo'd/extra locale key (e.g. 'zn-CN', 'en-US')
+  // that would never render — the widened type rejects these at authoring
+  // sites, but an `as`/`@ts-expect-error` cast could slip one through.
+  it.each(allStrings())('%s has no unknown locale keys', (_label, text) => {
+    const allowed = new Set<string>(LOCALES);
+    for (const key of Object.keys(text)) {
+      expect(allowed.has(key)).toBe(true);
+    }
+  });
 });
