@@ -1,3 +1,4 @@
+import { formatThaiDate } from '@/lib/format';
 import { fieldLabel } from './labels';
 
 export type DiffRow = {
@@ -16,6 +17,7 @@ export function formatValue(v: unknown): string {
   if (typeof v === 'boolean') return v ? 'ใช่' : 'ไม่ใช่';
   if (typeof v === 'number') return num.format(v);
   if (typeof v === 'string') return v;
+  if (v instanceof Date) return formatThaiDate(v);
   return JSON.stringify(v);
 }
 

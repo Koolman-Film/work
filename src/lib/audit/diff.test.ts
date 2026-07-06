@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { formatThaiDate } from '@/lib/format';
 import { diffValues, formatValue } from './diff';
 
 describe('formatValue', () => {
@@ -18,6 +19,12 @@ describe('formatValue', () => {
   });
   it('stringifies objects/arrays', () => {
     expect(formatValue(['a', 'b'])).toBe('["a","b"]');
+  });
+  it('renders Date instances as a Thai date', () => {
+    const d = new Date('2026-06-01T12:00:00+07:00');
+    expect(formatValue(d)).toBe(formatThaiDate(d));
+    // sanity: it is NOT the raw JSON.stringify form
+    expect(formatValue(d)).not.toContain('T12:00');
   });
 });
 
