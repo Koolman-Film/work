@@ -12,6 +12,8 @@
  * cutoffDay is bounded 1–28 (same as payrollPeriodFor) so `cutoffDay + 1`
  * never overflows a short month (Feb 28) into the next via Date.UTC rollover.
  */
+import { formatThaiDate } from '@/lib/format';
+
 export function payrollMonthWindow(month: string, cutoffDay: number): { start: Date; end: Date } {
   const [y, m] = month.split('-').map(Number);
   if (!y || !m || m < 1 || m > 12) throw new Error(`payrollMonthWindow: invalid month '${month}'`);
@@ -29,4 +31,17 @@ export function payrollMonthWindowYmd(
 ): { from: string; to: string } {
   const { start, end } = payrollMonthWindow(month, cutoffDay);
   return { from: start.toISOString().slice(0, 10), to: end.toISOString().slice(0, 10) };
+}
+
+/**
+ * Human-readable Thai date range for the cutoff window — e.g.
+ * "27 พ.ค. 2569 – 26 มิ.ย. 2569". Surfaced on the payroll page so its period
+ * is visibly the SAME window resolveReportPeriod builds for the reports pages
+ * (both consume PayrollConfig.cutoffDay). Uses the shared formatThaiDate so the
+ * era/spacing match the rest of the admin UI.
+ */
+export function payrollPeriodLabel(month: string, cutoffDay: number): string {
+  const { from, to } = payrollMonthWindowYmd(month, cutoffDay);
+  const asDate = (ymd: string) => new Date(`${ymd}T00:00:00.000Z`);
+  return `${formatThaiDate(asDate(from))} – ${formatThaiDate(asDate(to))}`;
 }
