@@ -14,6 +14,7 @@ import { payrollPeriodLabel } from '@/lib/payroll/period';
 import { previewPayrollDrafts } from '@/lib/payroll/run';
 import {
   asUuid,
+  loadAccountingGroupOptions,
   loadPayrollCutoffDay,
   loadReportFilterOptions,
 } from '../reports/_load-filter-options';
@@ -49,6 +50,7 @@ type SearchParams = Promise<{
   msg?: string;
   branchId?: string;
   departmentId?: string;
+  accountingGroupId?: string;
 }>;
 
 const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
@@ -75,16 +77,24 @@ const STATUS_INFO: Record<string, { key: StatusKey; label: string }> = {
 };
 
 export default async function PayrollRunPage({ searchParams }: { searchParams: SearchParams }) {
-  const { m, msg, branchId: rawBranchId, departmentId: rawDepartmentId } = await searchParams;
+  const {
+    m,
+    msg,
+    branchId: rawBranchId,
+    departmentId: rawDepartmentId,
+    accountingGroupId: rawAccountingGroupId,
+  } = await searchParams;
   const month = m && MONTH_RE.test(m) ? m : currentMonth();
   const branchId = asUuid(rawBranchId);
   const departmentId = asUuid(rawDepartmentId);
-  const hasFilter = Boolean(branchId || departmentId);
+  const accountingGroupId = asUuid(rawAccountingGroupId);
+  const hasFilter = Boolean(branchId || departmentId || accountingGroupId);
   // Suffix appended to the month-nav links so changing month keeps the active
-  // branch/department filter (the ReportFilters side preserves `m` likewise).
+  // branch/department/group filter (the ReportFilters side preserves `m` likewise).
   const filterQs =
     (branchId ? `&branchId=${branchId}` : '') +
-    (departmentId ? `&departmentId=${departmentId}` : '');
+    (departmentId ? `&departmentId=${departmentId}` : '') +
+    (accountingGroupId ? `&accountingGroupId=${accountingGroupId}` : '');
 
   const { user } = await requireGlobalPermission('payroll.read');
   const [mayRun, mayPublish] = await Promise.all([
@@ -108,6 +118,7 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
           nickname: true,
           branchId: true,
           departmentId: true,
+          accountingGroupId: true,
           user: { select: { lineUserId: true } },
         },
       },
@@ -119,11 +130,12 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
     ? rows.filter(
         (r) =>
           (!branchId || r.employee.branchId === branchId) &&
-          (!departmentId || r.employee.departmentId === departmentId),
+          (!departmentId || r.employee.departmentId === departmentId) &&
+          (!accountingGroupId || r.employee.accountingGroupId === accountingGroupId),
       )
     : rows;
 
-  const [activeEmployees, options, cutoffDay] = await Promise.all([
+  const [activeEmployees, options, cutoffDay, accountingGroups] = await Promise.all([
     prisma.employee.count({ where: { status: { not: 'Archived' } } }),
     // Payroll's branch filter is out of scope for B5 (no `permitted` here) —
     // pass 'all' to preserve current unfiltered behavior.
@@ -131,6 +143,9 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
     // Same cutoff the reports pages resolve their period from, so the range
     // shown here is provably the identical window (C8).
     loadPayrollCutoffDay(),
+    // Account groups (ค่าใช้จ่ายบริษัท / จ่ายแทน-รับคืน) for the group filter —
+    // payroll-only, so the option list is loaded here, not in ReportFilters.
+    loadAccountingGroupOptions(),
   ]);
   // The concrete cutoff window this "month" covers (e.g. 27 พ.ค. – 26 มิ.ย.),
   // surfaced so it visibly matches the report period. Same in-range guard as
@@ -399,6 +414,8 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
           branches={options.branches}
           departments={options.departments}
           showSearch={false}
+          accountingGroupId={accountingGroupId ?? ''}
+          accountingGroups={accountingGroups}
         />
       </div>
 
@@ -534,7 +551,7 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
           // admin it's the filter, not a missing payroll run (no calc button).
           hasFilter && rows.length > 0 ? (
             <div className="surface">
-              <EmptyState title="ไม่มีพนักงานในสาขา/แผนกที่เลือก" />
+              <EmptyState title="ไม่มีพนักงานตรงกับตัวกรองที่เลือก" />
             </div>
           ) : (
             <div className="surface">
