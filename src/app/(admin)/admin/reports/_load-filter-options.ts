@@ -40,6 +40,19 @@ export async function loadPayrollCutoffDay(): Promise<number | undefined> {
   return cfg?.cutoffDay;
 }
 
+/**
+ * Active accounting groups (ค่าใช้จ่ายบริษัท / จ่ายแทน-รับคืน) for the payroll
+ * page's group filter. Read-only; archived groups are excluded so the dropdown
+ * only offers groups an employee can currently belong to.
+ */
+export async function loadAccountingGroupOptions(): Promise<FilterOption[]> {
+  return prisma.accountingGroup.findMany({
+    where: { archivedAt: null },
+    orderBy: { name: 'asc' },
+    select: { id: true, name: true },
+  });
+}
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**

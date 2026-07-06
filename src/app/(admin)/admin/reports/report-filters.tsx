@@ -1,18 +1,20 @@
 'use client';
 
 /**
- * Branch + department (+ optional name search) filter bar for the report
- * tabs and the payroll run page. URL-driven, no local state — same rationale
- * as employees/employee-filters.tsx (shareable / bookmarkable / server
- * re-renders straight from searchParams).
+ * Branch + department filter bar for the report tabs and the payroll run page,
+ * plus an optional name search (reports) and account-group dropdown (payroll).
+ * URL-driven, no local state — same rationale as employees/employee-filters.tsx
+ * (shareable / bookmarkable / server re-renders straight from searchParams).
  *
  * Path-agnostic via usePathname(), so one component serves every report tab
  * and /admin/payroll. The active period (`m` / `from` / `to`) is preserved
- * across every navigation, so picking a branch never resets the month.
+ * across every navigation, so picking a branch never resets the month. The
+ * account-group dropdown renders only when `accountingGroups` is passed, so the
+ * report tabs stay two-filter and only payroll gets the group split.
  *
  * Submit behaviour matches the employee filter bar: dropdowns auto-submit on
- * change; the search box submits on Enter; "ล้างตัวกรอง" clears branch /
- * department / q while keeping the period.
+ * change; the search box submits on Enter; "ล้างตัวกรอง" clears every filter
+ * (branch / department / group / q) while keeping the period.
  */
 
 import Link from 'next/link';
@@ -31,6 +33,12 @@ type Props = {
   departments: readonly Option[];
   /** Render the name-search box (reports yes, payroll no). */
   showSearch?: boolean;
+  /** Active accounting-group id. Only meaningful when `accountingGroups` is
+   *  passed (payroll only) — omit and the group dropdown is not rendered. */
+  accountingGroupId?: string;
+  /** Accounting groups for the payroll page's group filter. When undefined the
+   *  dropdown is hidden, so the report tabs stay two-filter. */
+  accountingGroups?: readonly Option[];
 };
 
 export function ReportFilters({
@@ -41,6 +49,8 @@ export function ReportFilters({
   branches,
   departments,
   showSearch = true,
+  accountingGroupId = '',
+  accountingGroups,
 }: Props) {
   const pathname = usePathname();
   const router = useRouter();
@@ -72,7 +82,7 @@ export function ReportFilters({
     return qs ? `${pathname}?${qs}` : pathname;
   })();
 
-  const hasFilter = branchId !== '' || departmentId !== '' || q !== '';
+  const hasFilter = branchId !== '' || departmentId !== '' || q !== '' || accountingGroupId !== '';
 
   return (
     <form ref={formRef} onSubmit={handleSubmit} className="flex flex-wrap items-center gap-2">
@@ -90,6 +100,15 @@ export function ReportFilters({
         onChange={() => formRef.current?.requestSubmit()}
         options={[{ id: '', name: 'แผนกทั้งหมด' }, ...departments]}
       />
+      {accountingGroups && (
+        <FilterSelect
+          name="accountingGroupId"
+          defaultValue={accountingGroupId}
+          ariaLabel="กรองตามกลุ่มบัญชี"
+          onChange={() => formRef.current?.requestSubmit()}
+          options={[{ id: '', name: 'กลุ่มบัญชีทั้งหมด' }, ...accountingGroups]}
+        />
+      )}
       {showSearch && (
         <input
           type="search"
