@@ -27,8 +27,8 @@
 
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
+import { resolveSessionUser } from '@/lib/auth/resolve-session-user';
 import { prisma } from '@/lib/db/prisma';
-import { createClient } from '@/lib/supabase/server';
 import { isLocale, LOCALE_COOKIE_MAX_AGE, LOCALE_COOKIE_NAME, type Locale } from './config';
 
 export async function setLocale(locale: Locale): Promise<{ ok: boolean; locale: Locale | null }> {
@@ -49,17 +49,17 @@ export async function setLocale(locale: Locale): Promise<{ ok: boolean; locale: 
   });
 
   // 2. DB sync — best-effort, doesn't fail the action.
-  //    Why Supabase getUser() and not requireRole(): this action is
-  //    callable from /login pre-auth too (user is picking language
-  //    before signing in). requireRole would notFound() and break that.
+  //    resolveSessionUser (not requireRole) because this action is callable
+  //    from /login pre-auth too — it returns null instead of notFound().
+  //    Crucially it resolves via authUserId → custom:line/lineUserId, so an
+  //    admin's LIFF session (LINE-minted, whose auth id doesn't match their
+  //    User.authUserId) still updates the RIGHT row. We update by primary key
+  //    (`id`) so both worker and admin sessions hit that resolved row.
   try {
-    const supabase = await createClient();
-    const {
-      data: { user: authUser },
-    } = await supabase.auth.getUser();
-    if (authUser) {
+    const sessionUser = await resolveSessionUser();
+    if (sessionUser) {
       await prisma.user.update({
-        where: { authUserId: authUser.id },
+        where: { id: sessionUser.id },
         // This action is the WORKER's explicit choice (modal/switcher), so
         // stamp localeChosenByEmployeeAt — that's what stops the first-run
         // modal from reappearing. Admin default-setting uses a separate

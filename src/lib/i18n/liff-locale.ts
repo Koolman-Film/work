@@ -2,8 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { cookies, headers } from 'next/headers';
-import { prisma } from '@/lib/db/prisma';
-import { createClient } from '@/lib/supabase/server';
+import { resolveSessionUser } from '@/lib/auth/resolve-session-user';
 import { isLocale, LOCALE_COOKIE_MAX_AGE, LOCALE_COOKIE_NAME, type Locale } from './config';
 import { resolvePreselectLocale, shouldShowLanguageModal } from './modal-trigger';
 
@@ -33,17 +32,12 @@ export type LiffLocaleSync =
  * - Returns whether the first-run modal should show + its pre-selection.
  */
 export async function syncLiffLocale(): Promise<LiffLocaleSync> {
-  const supabase = await createClient();
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
-  if (!authUser) return { paired: false };
-
-  const dbUser = await prisma.user.findUnique({
-    where: { authUserId: authUser.id },
-    select: { locale: true, localeChosenByEmployeeAt: true, lineUserId: true, archivedAt: true },
-  });
-  // Only paired, active workers get the LIFF locale experience.
+  // resolveSessionUser resolves via authUserId → custom:line/lineUserId, so an
+  // admin's LIFF session (LINE-minted, whose auth id doesn't match their
+  // User.authUserId) is matched to the right row instead of missing — that
+  // miss is what previously made this return { paired: false } for admins.
+  const dbUser = await resolveSessionUser();
+  // Only paired, active workers/admins get the LIFF locale experience.
   if (!dbUser || dbUser.archivedAt || !dbUser.lineUserId) return { paired: false };
 
   const cookieStore = await cookies();
