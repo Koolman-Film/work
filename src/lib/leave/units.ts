@@ -100,6 +100,39 @@ export function formatDaysHours(minutes: number, cfg: LeaveUnitConfig): string {
   return formatDurationParts(splitDaysHours(minutes, cfg), THAI_UNIT_LABELS);
 }
 
+// ── Entitlement-adjustment unit conversion (the editor's วัน/ชม. toggle) ──────
+// The adjustment is stored in minutes; the admin may enter it in either วัน
+// (× the standard day) or ชม. (× 60). These pure helpers back both the server
+// action's parse and the client cell's lossless unit toggle. `std` is the
+// standard-day length in minutes (standardDayMinutes) — passed in, never
+// assumed, so a 7h or 8h day both work.
+
+export type AdjustmentUnit = 'day' | 'hour';
+
+/** A day/hour adjustment value → stored minutes (rounded to the nearest min). */
+export function adjustmentToMinutes(value: number, unit: AdjustmentUnit, std: number): number {
+  return Math.round(value * (unit === 'hour' ? 60 : std));
+}
+
+/** Stored minutes → the value in the requested unit (exact; may be fractional). */
+export function minutesInUnit(minutes: number, unit: AdjustmentUnit, std: number): number {
+  return minutes / (unit === 'hour' ? 60 : std);
+}
+
+/**
+ * Pick the unit to display a stored adjustment in: วัน for a whole/half-day
+ * value (a multiple of ½ standard day, so every existing day-entered adjustment
+ * is unchanged), else ชม. for finer, hour-precision values. `(2·minutes) % std`
+ * is 0 exactly when minutes/std is a multiple of 0.5, independent of day parity.
+ */
+export function adjustmentDisplay(
+  minutes: number,
+  std: number,
+): { value: number; unit: AdjustmentUnit } {
+  const unit: AdjustmentUnit = (2 * minutes) % std === 0 ? 'day' : 'hour';
+  return { value: minutesInUnit(minutes, unit, std), unit };
+}
+
 export type LeaveUnit = 'FullDay' | 'HalfMorning' | 'HalfAfternoon' | 'Hourly';
 
 export type LeaveSegment = {
