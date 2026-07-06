@@ -1,9 +1,12 @@
 'use server';
 
+import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { loginErrorMessage } from '@/lib/auth/login-error';
+import { resolveSessionUser } from '@/lib/auth/resolve-session-user';
 import { safeRedirect } from '@/lib/auth/safe-redirect';
+import { isLocale, LOCALE_COOKIE_MAX_AGE, LOCALE_COOKIE_NAME } from '@/lib/i18n/config';
 import { createClient } from '@/lib/supabase/server';
 
 const SignInSchema = z.object({
@@ -32,6 +35,28 @@ export async function signIn(formData: FormData) {
   if (error) {
     const message = loginErrorMessage(error);
     redirect(`/login?error=${encodeURIComponent(message)}`);
+  }
+
+  // Login-time DB→cookie sync: restore the user's saved language on THIS
+  // device from User.locale, so the preference follows them across devices.
+  // The web login path has no other per-request DB read of the locale, so
+  // without this a fresh device falls back to Accept-Language. Best-effort —
+  // never blocks login.
+  try {
+    const sessionUser = await resolveSessionUser();
+    if (sessionUser && isLocale(sessionUser.locale)) {
+      const cookieStore = await cookies();
+      cookieStore.set(LOCALE_COOKIE_NAME, sessionUser.locale, {
+        maxAge: LOCALE_COOKIE_MAX_AGE,
+        sameSite: 'lax',
+        path: '/',
+        httpOnly: false,
+      });
+    }
+  } catch (err) {
+    console.warn('[login.signIn] locale restore skipped', {
+      error: err instanceof Error ? err.message : String(err),
+    });
   }
 
   // Success → bounce to the originally-requested URL (or home).
