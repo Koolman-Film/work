@@ -3,6 +3,7 @@ import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
 import { getOrSeedEntitlements } from '@/lib/leave/balance';
 import { getLeaveConfig } from '@/lib/leave/leave-config';
 import { formatDaysHours, standardDayMinutes } from '@/lib/leave/units';
+import { AdjustmentInput } from './adjustment-input';
 import { upsertEntitlement } from './entitlements-actions';
 
 export async function EntitlementsSection({
@@ -42,8 +43,8 @@ export async function EntitlementsSection({
       </CardHeader>
       <CardBody>
         <p className="mb-3 text-xs text-ink-4">
-          กรอกเป็น “วัน” (เช่น 6, 5.5). ปรับปรุง (Adjustment) ใส่ค่าติดลบได้ เช่น −3.5
-          สำหรับวันลาที่ใช้ไปก่อนเริ่มใช้ระบบ. แสดงผลเป็น วัน/ชม. (1 วัน = {std / 60} ชม.).
+          กรอกเป็น “วัน” (เช่น 6, 5.5). ปรับปรุง (Adjustment) ใส่ค่าติดลบได้ เช่น −3.5 และเลือกหน่วยเป็น วัน หรือ
+          ชม. ได้ (สำหรับวันลาที่ใช้ไปก่อนเริ่มใช้ระบบ). แสดงผลเป็น วัน/ชม. (1 วัน = {std / 60} ชม.).
         </p>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px] text-sm">
@@ -52,7 +53,7 @@ export async function EntitlementsSection({
                 <th className="py-2 pr-3">ประเภท</th>
                 <th className="px-2">สิทธิ (วัน)</th>
                 <th className="px-2">ยกมา (วัน)</th>
-                <th className="px-2">ปรับปรุง (วัน)</th>
+                <th className="px-2">ปรับปรุง</th>
                 <th className="px-2">ใช้ไป</th>
                 <th className="px-2">คงเหลือ</th>
                 <th className="px-2">หมายเหตุ</th>
@@ -93,15 +94,10 @@ export async function EntitlementsSection({
                     />
                   </td>
                   <td className="px-2">
-                    <input
-                      form={`ent-${r.leaveTypeId}`}
-                      name="adjustment"
-                      type="number"
-                      step="0.5"
-                      min="-366"
-                      max="366"
-                      defaultValue={days(r.adjustmentMinutes)}
-                      className="w-20 rounded-md border border-gray-300 px-2 py-1"
+                    <AdjustmentInput
+                      formId={`ent-${r.leaveTypeId}`}
+                      initialMinutes={r.adjustmentMinutes}
+                      std={std}
                     />
                   </td>
                   <td className="px-2 tabular-nums text-ink-3">

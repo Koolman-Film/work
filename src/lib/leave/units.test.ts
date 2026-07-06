@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
+  adjustmentDisplay,
+  adjustmentToMinutes,
   afternoonMinutes,
   formatDaysHours,
   formatDurationParts,
   type LeaveUnitConfig,
   leaveDurationLabel,
+  minutesInUnit,
   minutesOf,
   morningMinutes,
   segmentFor,
@@ -159,5 +162,57 @@ describe('splitDaysHours + formatDurationParts', () => {
     expect(formatDurationParts(splitDaysHours(600, CFG), en)).toBe('1 day 3 hr');
     expect(formatDurationParts(splitDaysHours(630, CFG), en)).toBe('1 day 3 hr 30 min');
     expect(formatDurationParts(splitDaysHours(0, CFG), en)).toBe('0 hr');
+  });
+});
+
+// Adjustment unit conversion for the entitlement editor's วัน/ชม. toggle.
+// std = standardDayMinutes; 480 (8h day) used for readable arithmetic.
+describe('adjustmentToMinutes', () => {
+  it('converts a day value to minutes (× standard day)', () => {
+    expect(adjustmentToMinutes(-3.5, 'day', 480)).toBe(-1680);
+    expect(adjustmentToMinutes(0.5, 'day', 480)).toBe(240);
+    expect(adjustmentToMinutes(-3.5, 'day', 420)).toBe(-1470); // 7h day
+  });
+
+  it('converts an hour value to minutes (× 60), independent of day length', () => {
+    expect(adjustmentToMinutes(-1, 'hour', 480)).toBe(-60);
+    expect(adjustmentToMinutes(-28, 'hour', 480)).toBe(-1680);
+    expect(adjustmentToMinutes(2.5, 'hour', 420)).toBe(150);
+  });
+
+  it('rounds to the nearest minute', () => {
+    expect(adjustmentToMinutes(0.01, 'hour', 480)).toBe(1); // 0.6 → 1
+  });
+});
+
+describe('minutesInUnit', () => {
+  it('expresses minutes in the requested unit', () => {
+    expect(minutesInUnit(-1680, 'day', 480)).toBe(-3.5);
+    expect(minutesInUnit(-1680, 'hour', 480)).toBe(-28);
+    expect(minutesInUnit(-60, 'hour', 480)).toBe(-1);
+    expect(minutesInUnit(240, 'day', 480)).toBe(0.5);
+  });
+});
+
+describe('adjustmentDisplay', () => {
+  it('shows whole/half-day adjustments in วัน (existing values unchanged)', () => {
+    expect(adjustmentDisplay(-1680, 480)).toEqual({ value: -3.5, unit: 'day' });
+    expect(adjustmentDisplay(-240, 480)).toEqual({ value: -0.5, unit: 'day' });
+    expect(adjustmentDisplay(0, 480)).toEqual({ value: 0, unit: 'day' });
+    expect(adjustmentDisplay(-1470, 420)).toEqual({ value: -3.5, unit: 'day' }); // 7h day
+  });
+
+  it('shows sub-half-day (hour-precision) adjustments in ชม.', () => {
+    expect(adjustmentDisplay(-60, 480)).toEqual({ value: -1, unit: 'hour' });
+    expect(adjustmentDisplay(-120, 480)).toEqual({ value: -2, unit: 'hour' });
+    expect(adjustmentDisplay(90, 480)).toEqual({ value: 1.5, unit: 'hour' });
+  });
+
+  it('round-trips exactly: display → toMinutes recovers the stored minutes', () => {
+    for (const m of [-1680, -240, -60, -120, 90, 0, 210, 1470]) {
+      const std = 480;
+      const d = adjustmentDisplay(m, std);
+      expect(adjustmentToMinutes(d.value, d.unit, std)).toBe(m);
+    }
   });
 });
