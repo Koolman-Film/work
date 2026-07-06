@@ -2,21 +2,25 @@
  * /liff/admin/inbox — mobile pending-work inbox for paired admins.
  *
  * Three sections (same pending where-clauses as the admin web inboxes):
- *   - คำขอลา      → /liff/admin/leave/[id]
- *   - คำขอเบิก    → /liff/admin/advance/[id]
- *   - ลงเวลารอตรวจสอบ → /liff/admin/dispute/[id]
+ *   - Leave requests      → /liff/admin/leave/[id]
+ *   - Advance requests    → /liff/admin/advance/[id]
+ *   - Check-ins to review → /liff/admin/dispute/[id]
  *
- * Thai-only literals — admin-facing, matches the untranslated admin panel.
+ * Localized via the `liffAdmin` namespace — the shared LIFF language switcher
+ * applies to these admin screens too. Dates use the active locale so month
+ * names follow the chosen language.
  */
 
 import Link from 'next/link';
+import { getLocale, getTranslations } from 'next-intl/server';
 import { permittedBranchesFromAssignments, viaEmployeeBranchScope } from '@/lib/auth/branch-scope';
 import { getUserAssignments } from '@/lib/auth/check-permission';
 import { requireLiffAdmin } from '@/lib/auth/require-liff-admin';
 import { prisma } from '@/lib/db/prisma';
+import type { Locale } from '@/lib/i18n/config';
 
-function formatBkk(d: Date): string {
-  return d.toLocaleString('th-TH', {
+function formatBkk(d: Date, locale: Locale): string {
+  return d.toLocaleString(locale, {
     timeZone: 'Asia/Bangkok',
     day: 'numeric',
     month: 'short',
@@ -25,8 +29,8 @@ function formatBkk(d: Date): string {
   });
 }
 
-function formatBkkDate(d: Date): string {
-  return d.toLocaleDateString('th-TH', {
+function formatBkkDate(d: Date, locale: Locale): string {
+  return d.toLocaleDateString(locale, {
     timeZone: 'Asia/Bangkok',
     day: 'numeric',
     month: 'short',
@@ -97,49 +101,60 @@ export default async function LiffAdminInboxPage() {
 
   const empty = leaves.length === 0 && advances.length === 0 && disputes.length === 0;
 
+  const [t, locale] = await Promise.all([
+    getTranslations('liffAdmin.inbox'),
+    getLocale() as Promise<Locale>,
+  ]);
+
   return (
     <main className="px-4 pt-4 pb-12">
       {empty ? (
         <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-12 text-center">
-          <p className="text-sm text-gray-500">ไม่มีงานค้าง 🎉</p>
+          <p className="text-sm text-gray-500">{t('empty')}</p>
         </div>
       ) : (
         <div className="space-y-6">
-          <Section title="คำขอลา" count={leaves.length}>
+          <Section title={t('leaveRequests')} count={leaves.length}>
             {leaves.map((r) => (
               <ItemCard key={r.id} href={`/liff/admin/leave/${r.id}`}>
                 <p className="text-sm font-medium text-gray-900">{fullName(r.employee)}</p>
                 <p className="mt-0.5 text-xs text-gray-500">
-                  {r.leaveType.name} • {formatBkkDate(r.startDate)}
+                  {r.leaveType.name} • {formatBkkDate(r.startDate, locale)}
                   {r.endDate.getTime() !== r.startDate.getTime()
-                    ? ` – ${formatBkkDate(r.endDate)}`
+                    ? ` – ${formatBkkDate(r.endDate, locale)}`
                     : ''}
                 </p>
-                <p className="mt-0.5 text-[10px] text-gray-400">ส่งเมื่อ {formatBkk(r.createdAt)}</p>
+                <p className="mt-0.5 text-[10px] text-gray-400">
+                  {t('submittedAt', { datetime: formatBkk(r.createdAt, locale) })}
+                </p>
               </ItemCard>
             ))}
           </Section>
 
-          <Section title="คำขอเบิก" count={advances.length}>
+          <Section title={t('advanceRequests')} count={advances.length}>
             {advances.map((r) => (
               <ItemCard key={r.id} href={`/liff/admin/advance/${r.id}`}>
                 <p className="text-sm font-medium text-gray-900">{fullName(r.employee)}</p>
                 <p className="mt-0.5 text-lg font-semibold tabular-nums text-gray-900">
                   ฿{Number(r.amount).toLocaleString('th-TH')}
                 </p>
-                <p className="mt-0.5 text-[10px] text-gray-400">ส่งเมื่อ {formatBkk(r.requestedAt)}</p>
+                <p className="mt-0.5 text-[10px] text-gray-400">
+                  {t('submittedAt', { datetime: formatBkk(r.requestedAt, locale) })}
+                </p>
               </ItemCard>
             ))}
           </Section>
 
-          <Section title="ลงเวลารอตรวจสอบ" count={disputes.length}>
+          <Section title={t('disputedCheckins')} count={disputes.length}>
             {disputes.map((r) => (
               <ItemCard key={r.id} href={`/liff/admin/dispute/${r.id}`}>
                 <p className="text-sm font-medium text-gray-900">{fullName(r.employee)}</p>
                 <p className="mt-0.5 text-xs text-gray-500">
-                  {r.clockInAt ? `เช็คอิน ${formatBkk(r.clockInAt)}` : 'ไม่มีเวลาเช็คอิน'}
+                  {r.clockInAt
+                    ? t('checkedInAt', { datetime: formatBkk(r.clockInAt, locale) })
+                    : t('noCheckinTime')}
                 </p>
-                <p className="mt-0.5 text-[10px] text-gray-400">แตะเพื่อตรวจสอบ</p>
+                <p className="mt-0.5 text-[10px] text-gray-400">{t('tapToReview')}</p>
               </ItemCard>
             ))}
           </Section>

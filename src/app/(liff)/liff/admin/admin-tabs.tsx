@@ -10,16 +10,18 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 
 const TABS = [
-  { href: '/liff/admin/dashboard', label: 'สรุป' },
-  { href: '/liff/admin/inbox', label: 'งานรออนุมัติ' },
-  { href: '/liff/admin/advance', label: 'รอแนบสลิป' },
-  { href: '/liff/admin/reports', label: 'รายงาน' },
+  { href: '/liff/admin/dashboard', labelKey: 'summary' },
+  { href: '/liff/admin/inbox', labelKey: 'pending' },
+  { href: '/liff/admin/advance', labelKey: 'awaitingSlip' },
+  { href: '/liff/admin/reports', labelKey: 'reports' },
 ] as const;
 
 export function AdminTabs() {
   const pathname = usePathname();
+  const t = useTranslations('liffAdmin.tabs');
   return (
     <nav className="flex gap-1 px-4 pt-2 text-sm">
       {TABS.map((tab) => {
@@ -39,7 +41,7 @@ export function AdminTabs() {
                 : 'rounded-full px-3 py-1.5 font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-700'
             }
           >
-            {tab.label}
+            {t(tab.labelKey)}
           </Link>
         );
       })}

@@ -12,25 +12,28 @@
 
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { getLocale, getTranslations } from 'next-intl/server';
 import { advanceBalanceFor } from '@/lib/advance/available';
 import { isOverCap } from '@/lib/advance/balance';
 import { getPermittedBranches } from '@/lib/auth/branch-scope';
 import { requireLiffAdmin } from '@/lib/auth/require-liff-admin';
+import type { Locale } from '@/lib/i18n/config';
 import { resolveStoredImageUrl } from '@/lib/storage/signed-urls';
 import { loadLiffAdvanceDetail } from './_load';
 import { AdvanceReviewActions, SlipUploadBlock } from './advance-review-actions';
 
 type Params = Promise<{ id: string }>;
 
-const STATUS_INFO: Record<string, { label: string; cls: string }> = {
-  Pending: { label: 'รออนุมัติ', cls: 'bg-amber-100 text-amber-800' },
-  Approved: { label: 'อนุมัติแล้ว', cls: 'bg-green-100 text-green-800' },
-  Rejected: { label: 'ไม่อนุมัติ', cls: 'bg-red-100 text-red-800' },
-  Cancelled: { label: 'ยกเลิก', cls: 'bg-gray-100 text-gray-700' },
+// Status → i18n key (resolved via t() at render) + badge class.
+const STATUS_INFO: Record<string, { labelKey: string; cls: string }> = {
+  Pending: { labelKey: 'statusPending', cls: 'bg-amber-100 text-amber-800' },
+  Approved: { labelKey: 'statusApproved', cls: 'bg-green-100 text-green-800' },
+  Rejected: { labelKey: 'statusRejected', cls: 'bg-red-100 text-red-800' },
+  Cancelled: { labelKey: 'statusCancelled', cls: 'bg-gray-100 text-gray-700' },
 };
 
-function formatBkk(d: Date): string {
-  return d.toLocaleString('th-TH', {
+function formatBkk(d: Date, locale: Locale): string {
+  return d.toLocaleString(locale, {
     timeZone: 'Asia/Bangkok',
     day: 'numeric',
     month: 'short',
@@ -63,7 +66,14 @@ export default async function LiffAdminAdvanceDetailPage({ params }: { params: P
   const amount = Number(row.amount);
   const overCap = row.status === 'Pending' && isOverCap(amount, balance.available);
 
-  const info = STATUS_INFO[row.status] ?? { label: row.status, cls: 'bg-gray-100 text-gray-700' };
+  const [t, locale] = await Promise.all([
+    getTranslations('liffAdmin.advanceDetail'),
+    getLocale() as Promise<Locale>,
+  ]);
+
+  const statusInfo = STATUS_INFO[row.status];
+  const statusCls = statusInfo?.cls ?? 'bg-gray-100 text-gray-700';
+  const statusLabel = statusInfo ? t(statusInfo.labelKey) : row.status;
   const name = `${row.employee.firstName} ${row.employee.lastName}`.trim();
 
   // receiptUrl: storage key → signed URL (renderable <img>); legacy
@@ -85,12 +95,12 @@ export default async function LiffAdminAdvanceDetailPage({ params }: { params: P
           }
           className="text-sm text-gray-500 hover:text-gray-700"
         >
-          ← กลับไปรายการคำขอเบิก
+          {t('back')}
         </Link>
         <div className="mt-3 flex items-center justify-between gap-3">
-          <h1 className="text-2xl font-semibold text-gray-900">คำขอเบิก</h1>
-          <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${info.cls}`}>
-            {paid ? 'โอนเงินแล้ว' : info.label}
+          <h1 className="text-2xl font-semibold text-gray-900">{t('title')}</h1>
+          <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${statusCls}`}>
+            {paid ? t('statusTransferred') : statusLabel}
           </span>
         </div>
       </header>
@@ -103,29 +113,35 @@ export default async function LiffAdminAdvanceDetailPage({ params }: { params: P
           )}
         </p>
         <p className="mt-2 text-3xl font-bold tabular-nums text-gray-900">{baht(amount)}</p>
-        <p className="mt-1 text-xs text-gray-500">ส่งเมื่อ {formatBkk(row.requestedAt)}</p>
+        <p className="mt-1 text-xs text-gray-500">
+          {t('submittedAt', { datetime: formatBkk(row.requestedAt, locale) })}
+        </p>
         {row.approvedAt && (
-          <p className="mt-0.5 text-xs text-gray-500">อนุมัติเมื่อ {formatBkk(row.approvedAt)}</p>
+          <p className="mt-0.5 text-xs text-gray-500">
+            {t('approvedAt', { datetime: formatBkk(row.approvedAt, locale) })}
+          </p>
         )}
         {row.paidAt && (
-          <p className="mt-0.5 text-xs text-green-700">โอนเงินเมื่อ {formatBkk(row.paidAt)}</p>
+          <p className="mt-0.5 text-xs text-green-700">
+            {t('transferredAt', { datetime: formatBkk(row.paidAt, locale) })}
+          </p>
         )}
       </section>
 
       <section className="mt-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
         <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">
-          วงเงินของพนักงาน
+          {t('creditTitle')}
         </h2>
         <dl className="mt-2 space-y-2 text-sm">
           {balance.kind === 'monthly' ? (
-            <BalanceRow label="เงินเดือน">{baht(balance.baseSalary)}</BalanceRow>
+            <BalanceRow label={t('salary')}>{baht(balance.baseSalary)}</BalanceRow>
           ) : (
-            <BalanceRow label="รายได้งวดนี้">
+            <BalanceRow label={t('periodEarnings')}>
               {balance.earnings === null ? '—' : baht(balance.earnings)}
             </BalanceRow>
           )}
-          <BalanceRow label="ยอดจองไว้ (รอ/อนุมัติยังไม่หัก)">{baht(balance.reserved)}</BalanceRow>
-          <BalanceRow label="คงเหลือเบิกได้">
+          <BalanceRow label={t('reserved')}>{baht(balance.reserved)}</BalanceRow>
+          <BalanceRow label={t('available')}>
             {balance.available === null ? (
               '—'
             ) : (
@@ -136,22 +152,26 @@ export default async function LiffAdminAdvanceDetailPage({ params }: { params: P
           </BalanceRow>
         </dl>
         {overCap && (
-          <p className="mt-2 rounded-lg bg-amber-50 p-2 text-xs text-amber-800">
-            ⚠️ จำนวนที่ขอเกินวงเงินคงเหลือ — อนุมัติได้แต่ควรตรวจสอบก่อน
-          </p>
+          <p className="mt-2 rounded-lg bg-amber-50 p-2 text-xs text-amber-800">{t('overCap')}</p>
         )}
       </section>
 
       {row.status === 'Pending' && <AdvanceReviewActions cashAdvanceId={row.id} />}
 
       {awaitingSlip && (
-        <SlipUploadBlock cashAdvanceId={row.id} heading="แนบสลิปการโอนเงิน" buttonLabel="แนบสลิป" />
+        <SlipUploadBlock
+          cashAdvanceId={row.id}
+          heading={t('attachSlipHeading')}
+          buttonLabel={t('attachSlipButton')}
+        />
       )}
 
       {paid && (
         <>
           <section className="mt-3 rounded-xl border border-gray-200 bg-gray-50 p-4">
-            <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">สลิปการโอน</h2>
+            <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">
+              {t('slipSection')}
+            </h2>
             {receiptIsExternal && resolvedReceiptUrl ? (
               // Legacy web path stored an external URL — link, don't hotlink.
               <a
@@ -160,7 +180,7 @@ export default async function LiffAdminAdvanceDetailPage({ params }: { params: P
                 rel="noopener noreferrer"
                 className="mt-2 block text-sm font-medium text-primary-700 underline"
               >
-                เปิดดูสลิป (ลิงก์ภายนอก)
+                {t('openExternalSlip')}
               </a>
             ) : resolvedReceiptUrl ? (
               <a
@@ -170,13 +190,17 @@ export default async function LiffAdminAdvanceDetailPage({ params }: { params: P
                 className="mt-2 block overflow-hidden rounded-lg border border-gray-200 transition hover:opacity-90"
               >
                 {/* biome-ignore lint/performance/noImgElement: signed URL, short TTL — next/image can't optimize it */}
-                <img src={resolvedReceiptUrl} alt="สลิปการโอน" className="w-full" />
+                <img src={resolvedReceiptUrl} alt={t('slipAlt')} className="w-full" />
               </a>
             ) : (
-              <p className="mt-2 text-sm text-gray-500">ไม่พบไฟล์สลิป</p>
+              <p className="mt-2 text-sm text-gray-500">{t('noSlipFile')}</p>
             )}
           </section>
-          <SlipUploadBlock cashAdvanceId={row.id} heading="แนบสลิปใหม่" buttonLabel="แนบสลิปใหม่" />
+          <SlipUploadBlock
+            cashAdvanceId={row.id}
+            heading={t('reattachHeading')}
+            buttonLabel={t('reattachButton')}
+          />
         </>
       )}
     </main>

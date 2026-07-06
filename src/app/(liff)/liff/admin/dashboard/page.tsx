@@ -5,11 +5,13 @@
  * split + pending-work counts, each branch-scoped to the admin's permission.
  * Detailed drill-ins live in the inbox tab / web admin.
  *
- * Thai-only literals — admin-facing, matches the untranslated admin panel.
+ * Localized via the `liffAdmin` namespace — the shared LIFF language switcher
+ * applies to these admin screens too.
  */
 
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { getTranslations } from 'next-intl/server';
 import { StatCard } from '@/components/ui/stat-card';
 import { bangkokDateUtcMidnight } from '@/lib/attendance/date';
 import {
@@ -68,26 +70,30 @@ export default async function LiffAdminDashboardPage() {
   // or on leave). Clamp at 0 — a checked-in employee could be off-roster.
   const notCheckedIn = Math.max(0, activeCount - checkedIn - onLeave);
 
+  const t = await getTranslations('liffAdmin.dashboard');
+
   return (
     <main className="px-4 pt-4 pb-12">
       <section>
-        <h2 className="mb-2 text-sm font-semibold text-gray-700">การเข้างานวันนี้</h2>
+        <h2 className="mb-2 text-sm font-semibold text-gray-700">{t('attendanceToday')}</h2>
         <div className="grid grid-cols-3 gap-2">
-          <StatCard label="เข้างานแล้ว" value={checkedIn} />
-          <StatCard label="ยังไม่เข้า" value={notCheckedIn} />
-          <StatCard label="ลาวันนี้" value={onLeave} />
+          <StatCard label={t('checkedIn')} value={checkedIn} />
+          <StatCard label={t('notCheckedIn')} value={notCheckedIn} />
+          <StatCard label={t('onLeave')} value={onLeave} />
         </div>
-        <p className="mt-2 text-[11px] text-gray-400">พนักงานที่ลงเวลาได้ทั้งหมด {activeCount} คน</p>
+        <p className="mt-2 text-[11px] text-gray-400">
+          {t('totalCheckinEmployees', { count: activeCount })}
+        </p>
       </section>
 
       <section className="mt-6">
-        <h2 className="mb-2 text-sm font-semibold text-gray-700">งานรออนุมัติ</h2>
+        <h2 className="mb-2 text-sm font-semibold text-gray-700">{t('pendingApprovals')}</h2>
         <div className="grid grid-cols-2 gap-2">
           <Link href="/liff/admin/inbox" className="block">
-            <StatCard label="คำขอลา" value={pendingLeave} hint="แตะเพื่อดู" />
+            <StatCard label={t('leaveRequests')} value={pendingLeave} hint={t('tapToView')} />
           </Link>
           <Link href="/liff/admin/inbox" className="block">
-            <StatCard label="คำขอเบิก" value={pendingAdvance} hint="แตะเพื่อดู" />
+            <StatCard label={t('advanceRequests')} value={pendingAdvance} hint={t('tapToView')} />
           </Link>
         </div>
       </section>

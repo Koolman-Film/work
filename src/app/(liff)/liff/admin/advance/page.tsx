@@ -11,12 +11,14 @@
  */
 
 import Link from 'next/link';
+import { getLocale, getTranslations } from 'next-intl/server';
 import { getPermittedBranches, viaEmployeeBranchScope } from '@/lib/auth/branch-scope';
 import { requireLiffAdmin } from '@/lib/auth/require-liff-admin';
 import { prisma } from '@/lib/db/prisma';
+import type { Locale } from '@/lib/i18n/config';
 
-function formatBkk(d: Date): string {
-  return d.toLocaleString('th-TH', {
+function formatBkk(d: Date, locale: Locale): string {
+  return d.toLocaleString(locale, {
     timeZone: 'Asia/Bangkok',
     day: 'numeric',
     month: 'short',
@@ -46,13 +48,18 @@ export default async function LiffAdminAwaitingSlipPage() {
     },
   });
 
+  const [t, locale] = await Promise.all([
+    getTranslations('liffAdmin.awaitingSlip'),
+    getLocale() as Promise<Locale>,
+  ]);
+
   return (
     <main className="px-4 pt-4 pb-12">
-      <p className="mb-4 text-sm text-gray-500">อนุมัติแล้ว — โอนเงินแล้วแตะรายการเพื่อแนบสลิป</p>
+      <p className="mb-4 text-sm text-gray-500">{t('intro')}</p>
 
       {rows.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-12 text-center">
-          <p className="text-sm text-gray-500">ไม่มีรายการรอแนบสลิป 🎉</p>
+          <p className="text-sm text-gray-500">{t('empty')}</p>
         </div>
       ) : (
         <ul className="space-y-2">
@@ -77,12 +84,12 @@ export default async function LiffAdminAwaitingSlipPage() {
                       </p>
                       {r.approvedAt && (
                         <p className="mt-0.5 text-[10px] text-gray-400">
-                          อนุมัติเมื่อ {formatBkk(r.approvedAt)}
+                          {t('approvedAt', { datetime: formatBkk(r.approvedAt, locale) })}
                         </p>
                       )}
                     </div>
                     <span className="shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-800">
-                      รอแนบสลิป
+                      {t('badge')}
                     </span>
                   </div>
                 </Link>
