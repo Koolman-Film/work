@@ -17,7 +17,7 @@ const FIRST_RUN_KEY = 'first-run.welcome';
 
 /**
  * Single client mount for the product-updates system (admin layout). Owns:
- *   - store hydration from localStorage,
+ *   - store hydration from the server-provided `initialSeen`,
  *   - first-run auto-start of the welcome tour (once),
  *   - running the active tour via driver.js,
  *   - rendering the announcement modal + what's-new panel.
