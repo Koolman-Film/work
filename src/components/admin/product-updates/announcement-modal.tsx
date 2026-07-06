@@ -7,6 +7,7 @@ import type { Locale } from '@/lib/i18n/config';
 import { UPDATES } from '@/lib/product-updates/registry';
 import { nextAnnounce, pickText } from '@/lib/product-updates/selectors';
 import { useProductUpdates } from '@/lib/product-updates/store';
+import { UI } from '@/lib/product-updates/ui-text';
 
 /**
  * Auto-opens when there is an unseen announce item. "Got it" marks just that
@@ -48,7 +49,7 @@ export function AnnouncementModal() {
               }}
               className="rounded-lg px-3 py-2 text-sm text-ink-2 transition hover:bg-gray-100"
             >
-              {locale === 'en' ? 'See all updates' : 'ดูทั้งหมด'}
+              {pickText(UI.seeAllUpdates, locale)}
             </button>
             {item.tour && (
               <button
@@ -60,7 +61,7 @@ export function AnnouncementModal() {
                 }}
                 className="rounded-lg border border-[var(--border-color)] px-3 py-2 text-sm font-medium text-ink-1 transition hover:bg-gray-50"
               >
-                {locale === 'en' ? 'Take the tour' : 'ดูทัวร์แนะนำ'}
+                {pickText(UI.takeTheTour, locale)}
               </button>
             )}
             <button
@@ -68,7 +69,7 @@ export function AnnouncementModal() {
               onClick={dismiss}
               className="rounded-lg bg-primary-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-primary-700"
             >
-              {locale === 'en' ? 'Got it' : 'เข้าใจแล้ว'}
+              {pickText(UI.gotIt, locale)}
             </button>
           </div>
         </div>
