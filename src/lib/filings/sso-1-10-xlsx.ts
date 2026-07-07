@@ -77,6 +77,7 @@ export async function buildSso110Xlsx(filing: SsoFiling): Promise<Buffer> {
     ['เงินสมทบผู้ประกันตน', filing.totals.employee],
     ['เงินสมทบนายจ้าง', filing.totals.employer],
     ['รวมนำส่งทั้งสิ้น', filing.totals.grand],
+    ['อัตราเงินสมทบ (%)', filing.ratePercent],
   ];
   summary.forEach(([label, val], i) => {
     const r = ws.getRow(sumStart + i);
@@ -87,7 +88,8 @@ export async function buildSso110Xlsx(filing: SsoFiling): Promise<Buffer> {
     const valCell = r.getCell(colCount);
     valCell.value = val;
     valCell.font = { name: FONT, size: 10, bold: true };
-    if (label !== 'จำนวนผู้ประกันตน (คน)') valCell.numFmt = '#,##0.00';
+    if (label === 'อัตราเงินสมทบ (%)') valCell.numFmt = '0.##';
+    else if (label !== 'จำนวนผู้ประกันตน (คน)') valCell.numFmt = '#,##0.00';
   });
 
   COLUMNS.forEach((c, i) => {

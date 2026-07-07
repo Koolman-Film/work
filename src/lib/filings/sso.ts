@@ -31,7 +31,7 @@ export async function loadSsoFiling(month: string, branchId: string): Promise<Ss
         month,
         employee: { branchId, hasSso: true, status: { not: 'Archived' } },
       },
-      orderBy: { employee: { firstName: 'asc' } },
+      orderBy: [{ employee: { firstName: 'asc' } }, { employee: { lastName: 'asc' } }],
       select: {
         incomeBase: true,
         deductSso: true,
@@ -48,6 +48,9 @@ export async function loadSsoFiling(month: string, branchId: string): Promise<Ss
       employeeId: p.employee.id,
       nationalId: p.employee.nationalId,
       name: `${p.employee.firstName} ${p.employee.lastName}`,
+      // NOTE: wages = incomeBase, contribution = deductSso (computed on Employee.baseSalary).
+      // Consistent only while incomeBase == baseSalary (V1, no proration in calc.ts).
+      // TODO(proration): revisit the wages source when Payroll starts prorating mid-month.
       wages: p.incomeBase.toNumber(),
       // Thai SSO employer rate mirrors the employee rate → employer == employee.
       employeeContribution: contribution,
