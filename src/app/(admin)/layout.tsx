@@ -34,7 +34,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <div className="flex min-h-dvh bg-canvas">
-      <Sidebar badges={{ leave, advance, attendance }} allowedPermissions={[...permissions]} />
+      <Sidebar
+        badges={{ leave, advance, attendance, approvals: leave + advance + attendance }}
+        allowedPermissions={[...permissions]}
+      />
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar userLabel={user.email ?? 'Admin'} userId={user.id} />
         <main className="min-w-0 flex-1">{children}</main>
