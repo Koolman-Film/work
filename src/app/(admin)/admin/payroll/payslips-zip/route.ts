@@ -1,8 +1,7 @@
 import JSZip from 'jszip';
 import { type NextRequest, NextResponse } from 'next/server';
 import { auditLog } from '@/lib/audit/log';
-import { getPermittedBranches } from '@/lib/auth/branch-scope';
-import { requirePermission } from '@/lib/auth/check-permission';
+import { requireGlobalPermission } from '@/lib/auth/require-global-permission';
 import { loadMonthPayslipTargets } from '@/lib/payslip/history';
 import { buildPayslipRenderClosure } from '@/lib/payslip/render-closure';
 import { getPayslipPdfBytes } from '@/lib/payslip/storage';
@@ -14,12 +13,13 @@ export const maxDuration = 300;
 const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 export async function GET(req: NextRequest): Promise<Response> {
-  const { user } = await requirePermission('payroll.read');
+  // Payroll permissions are global-only (see payroll-gates guardrail): a
+  // global payroll admin gets every branch's slips for the month — pass 'all'.
+  const { user } = await requireGlobalPermission('payroll.read');
   const month = req.nextUrl.searchParams.get('m') ?? '';
   if (!MONTH_RE.test(month)) return new NextResponse('Bad month', { status: 400 });
 
-  const permitted = await getPermittedBranches(user, 'payroll.read');
-  const targets = await loadMonthPayslipTargets(month, permitted);
+  const targets = await loadMonthPayslipTargets(month, 'all');
   if (targets.length === 0) return new NextResponse('No payslips', { status: 404 });
 
   try {

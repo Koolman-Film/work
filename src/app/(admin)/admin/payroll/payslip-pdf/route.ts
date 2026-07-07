@@ -1,8 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { auditLog } from '@/lib/audit/log';
-import { canActOnEmployeeBranches, getPermittedBranches } from '@/lib/auth/branch-scope';
-import { requirePermission } from '@/lib/auth/check-permission';
-import { prisma } from '@/lib/db/prisma';
+import { requireGlobalPermission } from '@/lib/auth/require-global-permission';
 import { buildPayslipRenderClosure } from '@/lib/payslip/render-closure';
 import { getOrRenderPayslipPdf } from '@/lib/payslip/storage';
 
@@ -13,7 +11,9 @@ const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function GET(req: NextRequest): Promise<Response> {
-  const { user } = await requirePermission('payroll.read');
+  // Payroll permissions are global-only (see payroll-gates guardrail): a
+  // global payroll admin may download any employee's slip — no branch scope.
+  const { user } = await requireGlobalPermission('payroll.read');
   const sp = req.nextUrl.searchParams;
   const month = sp.get('m') ?? '';
   const employeeId = sp.get('employeeId') ?? '';
@@ -21,16 +21,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     return new NextResponse('Bad params', { status: 400 });
   }
 
-  const emp = await prisma.employee.findUnique({
-    where: { id: employeeId },
-    select: { branchId: true, assignedBranchIds: true },
-  });
-  if (!emp) return new NextResponse('Not found', { status: 404 });
-  const permitted = await getPermittedBranches(user, 'payroll.read');
-  if (!canActOnEmployeeBranches(permitted, [emp.branchId, ...emp.assignedBranchIds])) {
-    return new NextResponse('Forbidden', { status: 403 });
-  }
-
+  // No frozen slip (incl. unknown employee) → closure is null → 404.
   const rc = await buildPayslipRenderClosure(employeeId, month);
   if (!rc) return new NextResponse('Not found', { status: 404 });
 

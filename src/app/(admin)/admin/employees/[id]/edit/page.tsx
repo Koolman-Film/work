@@ -2,7 +2,7 @@ import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { PageHeader } from '@/components/ui/page-header';
 import { canActOnEmployeeBranches, getPermittedBranches } from '@/lib/auth/branch-scope';
-import { canDo, requirePermission } from '@/lib/auth/check-permission';
+import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { isLocale } from '@/lib/i18n/config';
 import { loadEmployeePayslipHistory } from '@/lib/payslip/history';
@@ -86,9 +86,10 @@ export default async function EditEmployeePage({
   const branchReadOnly = (await getPermittedBranches(user, 'employee.update')) !== 'all';
 
   // Payslip history section is gated separately — payroll.read is a distinct
-  // permission from employee.read, so a caller who can view this employee
-  // page may still lack visibility into their payslips.
-  const mayPayroll = await canDo(user, 'payroll.read');
+  // permission from employee.read. Payroll is global-only (see the payroll-gates
+  // guardrail): require a GLOBAL grant, never a branch-scoped one, or a scoped
+  // grant could leak this employee's net pay.
+  const mayPayroll = (await getPermittedBranches(user, 'payroll.read')) === 'all';
   const payslipHistory = mayPayroll ? await loadEmployeePayslipHistory(id) : null;
 
   const photoUrl = await resolveStoredImageUrl(emp.photoKey);
