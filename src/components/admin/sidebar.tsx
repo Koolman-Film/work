@@ -162,7 +162,13 @@ const SECTIONS: ReadonlyArray<{ label: string; items: ReadonlyArray<NavItem> }> 
           'role.read',
         ],
       },
-      { href: '/admin/audit', label: 'Audit log', Icon: History }, // disabled — "coming soon" placeholder
+      {
+        href: '/admin/audit',
+        label: 'ประวัติการเปลี่ยนแปลง',
+        Icon: History,
+        enabled: true,
+        permission: 'audit.read',
+      },
     ],
   },
 ];
