@@ -26,7 +26,7 @@ export default async function SsoFilingPage({ searchParams }: { searchParams: Se
     filing.rows.length > 0 &&
     filing.problems.missingNationalIds === 0 &&
     !filing.problems.missingBranchSso;
-  const downloadHref = `/admin/filings/sso/export?m=${month}&branchId=${branchId}&format=xlsx`;
+  const downloadHref = `/admin/filings/sso/export?m=${month}&branchId=${branchId}`;
 
   return (
     <div className="px-4 py-6 sm:px-6 lg:px-8">
@@ -113,6 +113,9 @@ export default async function SsoFilingPage({ searchParams }: { searchParams: Se
                 <Download size={16} /> ดาวน์โหลด Excel (สปส.1-10)
               </span>
             )}
+            <p className="mt-2 text-xs text-ink-4">
+              รูปแบบไฟล์อยู่ระหว่างตรวจสอบกับเทมเพลตจริงของ e-Service — โปรดตรวจทานก่อนนำส่ง
+            </p>
           </div>
         </>
       )}
