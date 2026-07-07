@@ -69,6 +69,15 @@ playwright/.cache/
 # MCP browser captures + ad-hoc dev screenshots (repo root only)
 .playwright-mcp/
 /*.png
+# Ad-hoc PDFs dropped at the repo root (sample slips, user-shared docs) — never
+# part of the project; mirrors the root-PNG rule above.
+/*.pdf
+
+# Local dev artifacts that live untracked in the tree — keep them out of
+# commits so a stray `git add -A` can't sweep them in.
+.claude/launch.json
+/payslip-samples/
+/scripts/sample-payslip-pdf.mjs
 
 # Supabase CLI local scaffolding (untracked dev state, not part of the project)
 supabase/
