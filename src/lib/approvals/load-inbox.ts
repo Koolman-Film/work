@@ -10,7 +10,6 @@ import { prisma } from '@/lib/db/prisma';
 import {
   type ApprovalCard,
   type ApprovalFilters,
-  type DisputedCardInput,
   filterApprovalCards,
   mapAdvanceCard,
   mapDisputedCard,
@@ -100,22 +99,19 @@ export async function loadApprovalsInbox(
   const all: ApprovalCard[] = [
     ...leave.map((r) => mapLeaveCard(r)),
     ...advance.map((r) => mapAdvanceCard(r)),
-    // Two narrow casts remain, both DIFFERENT from the null-checkInBranch bug
-    // this fix addresses (that case is now handled structurally by the
-    // mapper — no cast needed for it):
+    // One narrow cast remains:
     //  - `clockInAt` is nullable in the schema (Attendance.clockInAt
     //    DateTime?), but this query filters `type: 'CheckIn'`, and a CheckIn
     //    row always has clockInAt set at creation — non-null in practice.
-    //  - `checkInBranch.latitude`/`.longitude` are nullable in the schema
-    //    (Branch.latitude/longitude Decimal? — "no geofence configured"),
-    //    but a Disputed row only ever gets a non-null checkInBranch when the
-    //    matched branch had `requireGps: true` (see evaluate.ts), which in
-    //    practice always has lat/lng configured — non-null in practice.
+    // `checkInBranch.latitude`/`.longitude` ARE nullable in practice (an
+    // admin can clear a branch's geofence pin at any time via `updateBranch`,
+    // leaving a non-null `checkInBranch` object with null coords). No cast
+    // is needed for that: `DisputedCardInput['checkInBranch']` already
+    // allows null coords, and `mapDisputedCard` guards on them before use.
     ...disputed.map((r) =>
       mapDisputedCard({
         ...r,
         clockInAt: r.clockInAt as Date,
-        checkInBranch: r.checkInBranch as DisputedCardInput['checkInBranch'],
       }),
     ),
   ];

@@ -82,6 +82,22 @@ describe('mapDisputedCard', () => {
     expect((c as { reason: string }).reason).toBe('นอกพื้นที่');
   });
 
+  it('does not throw and is null distance when checkInBranch coords are null (geofence pin cleared)', () => {
+    const c = mapDisputedCard({
+      id: 'd4',
+      clockInAt: new Date('2026-07-03T02:30:00Z'), // 09:30 Bangkok
+      checkInLat: 13.7573,
+      checkInLng: 100.5018,
+      disputeReason: null,
+      checkInBranch: { latitude: null, longitude: null },
+      employee: { ...emp, branchId: 'b1' },
+    });
+    expect(c.type).toBe('disputed');
+    const card = c as { distanceMeters: number | null; clockInLabel: string };
+    expect(card.distanceMeters).toBeNull();
+    expect(card.clockInLabel).toContain('09:30');
+  });
+
   it('does not throw and is null distance when checkInBranch is null (no-configured-branch dispute)', () => {
     const c = mapDisputedCard({
       id: 'd3',
