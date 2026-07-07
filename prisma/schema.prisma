@@ -299,6 +299,9 @@ model Branch {
   payslipNameEn     String?   // English company name, e.g. "Koolman Co., Ltd."
   payslipNameNative String?   // Native company name, e.g. "บริษัท คูลแมน จำกัด"
   payslipLogoKey    String?   // storage key in `attendance-photos`
+  /// SSO employer account number (เลขที่บัญชีนายจ้าง) for this branch's
+  /// สปส.1-10 filing. Nullable — required before this branch can export.
+  ssoAccountNo     String?
   address          String?
   // Null lat/lng = no geofence enforcement on LIFF check-in.
   latitude         Decimal?  @db.Decimal(10, 7)
@@ -379,6 +382,10 @@ model Employee {
   firstName String
   lastName  String
   nickname  String?
+
+  /// 13-digit Thai national ID (เลขประจำตัวประชาชน). Nullable — backfilled by
+  /// admins; required before an employee appears in a สปส.1-10 export.
+  nationalId String?
 
   // ─── Employee-managed contact fields (Sprint 2, /liff/profile) ──────────
   // All optional — employees self-service via /liff/profile after pairing.

@@ -11,6 +11,7 @@
 
 import { z } from 'zod';
 import { normalizeBankAccountNumber } from '@/lib/employee/bank';
+import { isValidThaiNationalId } from '@/lib/tax/national-id';
 
 export const EmployeeSchema = z.object({
   firstName: z.string().trim().min(1, 'กรุณากรอกชื่อจริง').max(80),
@@ -98,6 +99,15 @@ export const EmployeeSchema = z.object({
     .optional()
     .transform((s) => (s ? s : null)),
 
+  nationalId: z
+    .string()
+    .optional()
+    .transform((s) => {
+      const t = (s ?? '').replace(/\D/g, '');
+      return t.length > 0 ? t : null;
+    })
+    .refine((v) => v === null || isValidThaiNationalId(v), 'เลขประจำตัวประชาชนไม่ถูกต้อง (13 หลัก)'),
+
   // ─── Default OT rate (all optional + clearable) ─────────────────────────
   defaultOtRateType: z
     .string()
@@ -148,6 +158,7 @@ export function readForm(formData: FormData) {
     bankId: str(formData, 'bankId'),
     bankAccountNumber: str(formData, 'bankAccountNumber'),
     bankAccountName: str(formData, 'bankAccountName'),
+    nationalId: str(formData, 'nationalId'),
     defaultOtRateType: str(formData, 'defaultOtRateType'),
     defaultOtRatePerHour: str(formData, 'defaultOtRatePerHour'),
     defaultOtMultiplier: str(formData, 'defaultOtMultiplier'),

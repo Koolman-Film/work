@@ -91,6 +91,10 @@ export const PERMISSIONS = {
   // ─── Reports ─────────────────────────────────────────────────────────
   'report.read': 'ดูรายงานสรุป',
 
+  // ─── Statutory filings ───────────────────────────────────────────────
+  'filing.read': 'ดูหน้ายื่นแบบ (ประกันสังคม/ภาษี)',
+  'filing.export': 'ดาวน์โหลดไฟล์ยื่นแบบ',
+
   // ─── LIFF (employee-facing actions) ──────────────────────────────────
   'liff.check-in': 'เช็คอิน/เช็คเอาท์',
   'liff.leave-submit': 'ยื่นคำขอลา',
@@ -209,6 +213,11 @@ export const PERMISSION_GROUPS: ReadonlyArray<{
     key: 'report',
     label: 'รายงาน',
     permissions: ['report.read'],
+  },
+  {
+    key: 'filing',
+    label: 'ยื่นแบบ',
+    permissions: ['filing.read', 'filing.export'],
   },
   {
     key: 'misc',

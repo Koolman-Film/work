@@ -99,6 +99,12 @@ const BranchSchema = z
       .max(300)
       .optional()
       .transform((s) => (s ? s : null)),
+    ssoAccountNo: z
+      .string()
+      .trim()
+      .max(30)
+      .optional()
+      .transform((s) => (s ? s : null)),
   })
   .refine((d) => (d.latitude == null) === (d.longitude == null), {
     message: 'ต้องระบุพิกัดทั้ง lat และ lng หรือทั้งคู่ว่าง',
@@ -126,6 +132,7 @@ function readForm(formData: FormData) {
     payslipNameEn: get('payslipNameEn'),
     payslipNameNative: get('payslipNameNative'),
     payslipLogoKey: get('payslipLogoKey'),
+    ssoAccountNo: get('ssoAccountNo'),
   });
 }
 

@@ -15,6 +15,7 @@ import { prisma } from '@/lib/db/prisma';
 import { maskBankAccountNumber } from '@/lib/employee/bank';
 import { syncRichMenuForUser, unlinkAdminRichMenu } from '@/lib/line/rich-menu';
 import { getSupabaseAdminClient } from '@/lib/supabase/admin';
+import { maskNationalId } from '@/lib/tax/national-id';
 import { readForm } from './employee-schema';
 
 /**
@@ -93,6 +94,7 @@ export async function createEmployee(formData: FormData) {
           bankId: data.bankId,
           bankAccountNumber: data.bankAccountNumber,
           bankAccountName: data.bankAccountName,
+          nationalId: data.nationalId,
           defaultOtRateType: data.defaultOtRateType,
           defaultOtRatePerHour:
             data.defaultOtRatePerHour == null
@@ -149,6 +151,7 @@ export async function createEmployee(formData: FormData) {
         bankId: data.bankId,
         bankAccountNumber: maskBankAccountNumber(data.bankAccountNumber),
         bankAccountName: data.bankAccountName,
+        nationalId: maskNationalId(data.nationalId),
         hasPhoto: data.photoKey !== null,
       },
       metadata: { source: 'admin-ui' },
@@ -216,6 +219,7 @@ export async function updateEmployee(id: string, formData: FormData) {
         bankId: data.bankId,
         bankAccountNumber: data.bankAccountNumber,
         bankAccountName: data.bankAccountName,
+        nationalId: data.nationalId,
         defaultOtRateType: data.defaultOtRateType,
         defaultOtRatePerHour:
           data.defaultOtRatePerHour == null ? null : new Prisma.Decimal(data.defaultOtRatePerHour),
@@ -252,6 +256,7 @@ export async function updateEmployee(id: string, formData: FormData) {
         bankId: data.bankId,
         bankAccountNumber: maskBankAccountNumber(data.bankAccountNumber),
         bankAccountName: data.bankAccountName,
+        nationalId: maskNationalId(data.nationalId),
         hasPhoto: data.photoKey !== null,
       },
       metadata: { source: 'admin-ui' },
@@ -624,6 +629,7 @@ function serializableEmployee(e: {
   bankId: string | null;
   bankAccountNumber: string | null;
   bankAccountName: string | null;
+  nationalId: string | null;
 }) {
   return {
     firstName: e.firstName,
@@ -645,6 +651,7 @@ function serializableEmployee(e: {
     bankId: e.bankId,
     bankAccountNumber: maskBankAccountNumber(e.bankAccountNumber),
     bankAccountName: e.bankAccountName,
+    nationalId: maskNationalId(e.nationalId),
   };
 }
 
