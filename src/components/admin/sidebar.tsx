@@ -11,6 +11,7 @@ import {
   FileText,
   History,
   Home,
+  Inbox,
   Settings,
   Sparkles,
   Users,
@@ -51,6 +52,8 @@ export type SidebarBadges = {
   advance: number;
   /** Attendance check-ins with checkInStatus=Disputed. */
   attendance: number;
+  /** Combined pending across leave+advance+attendance. */
+  approvals: number;
 };
 
 type NavItem = {
@@ -83,6 +86,14 @@ const SECTIONS: ReadonlyArray<{ label: string; items: ReadonlyArray<NavItem> }> 
   {
     label: 'งานประจำวัน',
     items: [
+      {
+        href: '/admin/approvals',
+        label: 'รออนุมัติ',
+        Icon: Inbox,
+        enabled: true,
+        badgeKey: 'approvals',
+        anyOf: ['leave.read', 'advance.read', 'attendance.read'],
+      },
       {
         href: '/admin/attendance',
         label: 'ลงเวลา',
