@@ -1,5 +1,6 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { getAdvanceReviewRow, getLeaveReviewRow } from '@/app/(admin)/admin/_calendar/actions';
 import type { AdvanceRowVM } from '@/app/(admin)/admin/advance/advance-review-modal';
@@ -28,14 +29,28 @@ export function ApprovalsList({
   const [advanceRow, setAdvanceRow] = useState<AdvanceRowVM | null>(null);
   const [disputedRow, setDisputedRow] = useState<DisputedReviewVM | null>(null);
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  const router = useRouter();
 
   async function open(card: ApprovalCard) {
     if (!canReview[card.type]) return;
     setLoadingId(card.id);
     try {
-      if (card.type === 'leave') setLeaveRow(await getLeaveReviewRow(card.id));
-      else if (card.type === 'advance') setAdvanceRow(await getAdvanceReviewRow(card.id));
-      else setDisputedRow(await getDisputedReviewRow(card.id));
+      if (card.type === 'leave') {
+        const vm = await getLeaveReviewRow(card.id);
+        setLeaveRow(vm);
+        if (!vm) router.refresh();
+      } else if (card.type === 'advance') {
+        const vm = await getAdvanceReviewRow(card.id);
+        setAdvanceRow(vm);
+        if (!vm) router.refresh();
+      } else {
+        const vm = await getDisputedReviewRow(card.id);
+        setDisputedRow(vm);
+        if (!vm) router.refresh();
+      }
+    } catch (err) {
+      console.error('approvals: failed to load review row', err);
+      router.refresh();
     } finally {
       setLoadingId(null);
     }
