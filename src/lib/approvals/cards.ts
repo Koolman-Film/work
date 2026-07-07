@@ -33,8 +33,8 @@ export type DisputedCardInput = {
   checkInLng: number | { toString(): string } | null;
   disputeReason: string | null;
   checkInBranch: {
-    latitude: number | { toString(): string };
-    longitude: number | { toString(): string };
+    latitude: number | { toString(): string } | null;
+    longitude: number | { toString(): string } | null;
   } | null;
   employee: EmployeeShape;
 };
@@ -99,7 +99,11 @@ export function mapAdvanceCard(r: AdvanceCardInput): ApprovalCard {
 
 export function mapDisputedCard(r: DisputedCardInput): ApprovalCard {
   const distanceMeters =
-    r.checkInBranch !== null && r.checkInLat !== null && r.checkInLng !== null
+    r.checkInBranch !== null &&
+    r.checkInBranch.latitude !== null &&
+    r.checkInBranch.longitude !== null &&
+    r.checkInLat !== null &&
+    r.checkInLng !== null
       ? haversineMeters(
           num(r.checkInLat),
           num(r.checkInLng),

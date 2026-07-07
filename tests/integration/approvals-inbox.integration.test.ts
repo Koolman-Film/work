@@ -113,6 +113,33 @@ async function seedDisputed(emp: { id: string; userId: string; branchId: string 
   return { withBranch, noBranch };
 }
 
+async function seedDisputedWithNullCoordsBranch(emp: { id: string; userId: string }) {
+  // A branch whose geofence pin has been cleared (both lat/lng null — the
+  // schema only requires both-or-neither, so this is a valid, reachable
+  // state via `updateBranch`). A Disputed row referencing it has a non-null
+  // `checkInBranch` at read time, but with null coordinates — this used to
+  // crash `mapDisputedCard` by calling `num(null)`.
+  const pinlessBranch = await prisma.branch.create({
+    data: { name: 'Pinless Branch', latitude: null, longitude: null, radiusMeters: 100 },
+  });
+  const disputed = await prisma.attendance.create({
+    data: {
+      employeeId: emp.id,
+      date: new Date('2026-07-05'),
+      type: 'CheckIn',
+      source: 'Liff',
+      checkInStatus: 'Disputed',
+      clockInAt: new Date('2026-07-05T02:30:00Z'),
+      checkInLat: new Prisma.Decimal(13.77),
+      checkInLng: new Prisma.Decimal(100.52),
+      checkInBranchId: pinlessBranch.id,
+      disputeReason: 'out-of-range',
+      createdById: emp.userId,
+    },
+  });
+  return { pinlessBranch, disputed };
+}
+
 beforeEach(reset);
 afterAll(async () => {
   await prisma.$disconnect();
@@ -164,5 +191,23 @@ describe('loadApprovalsInbox', () => {
       | { distanceMeters: number | null }
       | undefined;
     expect(withBranchCard?.distanceMeters).not.toBeNull();
+  });
+
+  it('includes disputed check-ins whose matched branch has a cleared geofence pin (null lat/lng), without throwing', async () => {
+    const { empId, userId } = await seed();
+    const { disputed } = await seedDisputedWithNullCoordsBranch({ id: empId, userId });
+
+    const { cards, counts } = await loadApprovalsInbox(superadmin, {});
+
+    expect(counts.disputed).toBe(1);
+    const disputedCards = cards.filter((c) => c.type === 'disputed');
+    expect(disputedCards).toHaveLength(1);
+    const card = disputedCards[0] as {
+      id: string;
+      type: 'disputed';
+      distanceMeters: number | null;
+    };
+    expect(card.id).toBe(disputed.id);
+    expect(card.distanceMeters).toBeNull();
   });
 });
