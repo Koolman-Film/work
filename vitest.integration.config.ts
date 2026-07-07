@@ -35,6 +35,9 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['tests/integration/**/*.integration.test.ts'],
+    // FK-safe full truncate before each file — the shared serial DB accumulates
+    // FK-referencing rows across files whose per-file resets are incomplete.
+    setupFiles: ['tests/integration/_reset-db.ts'],
     fileParallelism: false,
     testTimeout: 30_000,
     hookTimeout: 30_000,
