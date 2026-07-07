@@ -37,6 +37,7 @@ type Initial = {
   bankId: string | null;
   bankAccountNumber: string | null;
   bankAccountName: string | null;
+  nationalId: string | null;
   photoKey: string | null;
   photoUrl: string | null; // signed URL for preview
 };
@@ -167,6 +168,20 @@ export function EmployeeForm({
                     name="dateOfBirth"
                     type="date"
                     defaultValue={initial?.dateOfBirth ?? ''}
+                    className="max-w-xs"
+                  />
+                </FormField>
+                <FormField
+                  label="เลขประจำตัวประชาชน"
+                  htmlFor="nationalId"
+                  hint="13 หลัก — จำเป็นสำหรับยื่นประกันสังคม"
+                >
+                  <Input
+                    id="nationalId"
+                    name="nationalId"
+                    inputMode="numeric"
+                    maxLength={13}
+                    defaultValue={initial?.nationalId ?? ''}
                     className="max-w-xs"
                   />
                 </FormField>

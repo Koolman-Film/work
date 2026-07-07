@@ -63,4 +63,21 @@ describe('readForm — new profile fields', () => {
     expect(set.success && set.data.photoKey).toBe('uid/employee-photos/abc.jpg');
     expect(cleared.success && cleared.data.photoKey).toBeNull();
   });
+
+  it('accepts a valid Thai national ID, stripping non-digits', () => {
+    const r = readForm(buildForm({ nationalId: '1-1009-01212-70-6' }));
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.nationalId).toBe('1100901212706');
+  });
+
+  it('treats a blank national ID as null (clearable)', () => {
+    const r = readForm(buildForm({ nationalId: '' }));
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.nationalId).toBeNull();
+  });
+
+  it('rejects an invalid national ID (bad check digit)', () => {
+    const r = readForm(buildForm({ nationalId: '1234567890123' }));
+    expect(r.success).toBe(false);
+  });
 });
