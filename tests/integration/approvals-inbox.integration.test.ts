@@ -1,7 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
-import type { AssignmentForCheck } from '@/lib/auth/branch-scope';
 import { loadApprovalsInbox } from '@/lib/approvals/load-inbox';
+import type { AssignmentForCheck } from '@/lib/auth/branch-scope';
 import { prisma } from '@/lib/db/prisma';
 
 const superadmin: AssignmentForCheck[] = [
@@ -52,7 +52,12 @@ async function seed() {
     },
   });
   await prisma.cashAdvance.create({
-    data: { employeeId: emp.id, amount: new Prisma.Decimal(2500), status: 'Pending', requestedAt: new Date('2026-07-02') },
+    data: {
+      employeeId: emp.id,
+      amount: new Prisma.Decimal(2500),
+      status: 'Pending',
+      requestedAt: new Date('2026-07-02'),
+    },
   });
   await prisma.leaveRequest.create({
     data: {
@@ -66,7 +71,46 @@ async function seed() {
       createdAt: new Date('2026-06-01'),
     },
   });
-  return { branchId: branch.id };
+  return { branchId: branch.id, empId: emp.id, userId: user.id };
+}
+
+async function seedDisputed(emp: { id: string; userId: string; branchId: string }) {
+  // Disputed check-in with a matched branch (out-of-range / accuracy style dispute).
+  const withBranch = await prisma.attendance.create({
+    data: {
+      employeeId: emp.id,
+      date: new Date('2026-07-03'),
+      type: 'CheckIn',
+      source: 'Liff',
+      checkInStatus: 'Disputed',
+      clockInAt: new Date('2026-07-03T02:30:00Z'),
+      checkInLat: new Prisma.Decimal(13.7573),
+      checkInLng: new Prisma.Decimal(100.5018),
+      checkInBranchId: emp.branchId,
+      disputeReason: 'out-of-range',
+      createdById: emp.userId,
+    },
+  });
+  // Disputed check-in with NO configured branch (evaluate.ts's
+  // `no-configured-branch` reason) — checkInBranchId is null. This is the
+  // row shape that used to crash `mapDisputedCard` by dereferencing
+  // `checkInBranch.latitude` on a null `checkInBranch`.
+  const noBranch = await prisma.attendance.create({
+    data: {
+      employeeId: emp.id,
+      date: new Date('2026-07-04'),
+      type: 'CheckIn',
+      source: 'Liff',
+      checkInStatus: 'Disputed',
+      clockInAt: new Date('2026-07-04T02:30:00Z'),
+      checkInLat: new Prisma.Decimal(13.76),
+      checkInLng: new Prisma.Decimal(100.51),
+      checkInBranchId: null,
+      disputeReason: 'no-configured-branch',
+      createdById: emp.userId,
+    },
+  });
+  return { withBranch, noBranch };
 }
 
 beforeEach(reset);
@@ -97,5 +141,28 @@ describe('loadApprovalsInbox', () => {
     const { cards } = await loadApprovalsInbox(superadmin, { type: 'advance' });
     expect(cards).toHaveLength(1);
     expect(cards[0]?.type).toBe('advance');
+  });
+
+  it('includes disputed check-ins, incl. ones with no configured branch, without throwing', async () => {
+    const { branchId, empId, userId } = await seed();
+    const { withBranch, noBranch } = await seedDisputed({ id: empId, userId, branchId });
+
+    const { cards, counts } = await loadApprovalsInbox(superadmin, {});
+
+    expect(counts.disputed).toBe(2);
+    const disputedCards = cards.filter((c) => c.type === 'disputed');
+    expect(disputedCards).toHaveLength(2);
+    const ids = disputedCards.map((c) => c.id).sort();
+    expect(ids).toEqual([withBranch.id, noBranch.id].sort());
+
+    const noBranchCard = disputedCards.find((c) => c.id === noBranch.id) as
+      | { distanceMeters: number | null }
+      | undefined;
+    expect(noBranchCard?.distanceMeters).toBeNull();
+
+    const withBranchCard = disputedCards.find((c) => c.id === withBranch.id) as
+      | { distanceMeters: number | null }
+      | undefined;
+    expect(withBranchCard?.distanceMeters).not.toBeNull();
   });
 });
