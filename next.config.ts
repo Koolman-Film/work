@@ -62,6 +62,11 @@ const config: NextConfig = {
       './node_modules/@sparticuz/chromium/bin/**',
       './node_modules/.pnpm/@sparticuz+chromium@*/node_modules/@sparticuz/chromium/bin/**',
     ],
+    '/admin/payroll/payslips-zip': [
+      './src/lib/payslip/fonts/**',
+      './node_modules/@sparticuz/chromium/bin/**',
+      './node_modules/.pnpm/@sparticuz+chromium@*/node_modules/@sparticuz/chromium/bin/**',
+    ],
     // Reports export route renders PDF via the same chromium path and reads
     // the IBM Plex Thai webfonts at runtime — include both, like the routes above.
     '/admin/reports/[report]/export': [
