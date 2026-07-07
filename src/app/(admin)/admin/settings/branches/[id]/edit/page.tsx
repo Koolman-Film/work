@@ -36,6 +36,7 @@ export default async function EditBranchPage({
       payslipNameEn: true,
       payslipNameNative: true,
       payslipLogoKey: true,
+      ssoAccountNo: true,
     },
   });
   if (!branch || branch.archivedAt) notFound();
@@ -67,6 +68,7 @@ export default async function EditBranchPage({
             payslipNameNative: branch.payslipNameNative,
             payslipLogoKey: branch.payslipLogoKey,
             payslipLogoUrl,
+            ssoAccountNo: branch.ssoAccountNo ?? '',
           }}
           error={error ? decodeURIComponent(error) : null}
           extraActions={
