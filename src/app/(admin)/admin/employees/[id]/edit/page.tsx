@@ -59,6 +59,7 @@ export default async function EditEmployeePage({
         bankId: true,
         bankAccountNumber: true,
         bankAccountName: true,
+        nationalId: true,
         archivedAt: true,
         inviteToken: true,
         inviteExpiresAt: true,
@@ -137,6 +138,7 @@ export default async function EditEmployeePage({
           bankId: emp.bankId,
           bankAccountNumber: emp.bankAccountNumber,
           bankAccountName: emp.bankAccountName,
+          nationalId: emp.nationalId,
           photoKey: emp.photoKey,
           photoUrl,
         }}
