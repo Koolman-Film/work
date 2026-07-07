@@ -12,6 +12,7 @@ import {
   History,
   Home,
   Inbox,
+  Landmark,
   Settings,
   Sparkles,
   Users,
@@ -148,6 +149,13 @@ const SECTIONS: ReadonlyArray<{ label: string; items: ReadonlyArray<NavItem> }> 
         Icon: FileText,
         enabled: true,
         permission: 'payroll.read',
+      },
+      {
+        href: '/admin/filings/sso',
+        label: 'ยื่นประกันสังคม',
+        Icon: Landmark,
+        enabled: true,
+        permission: 'filing.read',
       },
       { href: '/admin/accounting', label: 'บัญชี', Icon: Calculator }, // disabled — "coming soon" placeholder
     ],
