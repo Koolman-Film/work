@@ -18,6 +18,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { PageHeader } from '@/components/ui/page-header';
 import { Pill } from '@/components/ui/pill';
 import { StatCard } from '@/components/ui/stat-card';
+import { actionLabel } from '@/lib/audit/labels';
 import { prisma } from '@/lib/db/prisma';
 
 function bangkokDateUtcMidnight(d: Date): Date {
@@ -64,47 +65,6 @@ function formatDateTime(d: Date): string {
     minute: '2-digit',
   });
 }
-
-/**
- * Translate an audit action key to a human-readable Thai phrase.
- * Defaults to the raw key — owner sees the underlying machine label rather
- * than an obscured "—" if a new action type ships before we add a label.
- */
-function actionLabel(action: string): string {
-  return ACTION_LABELS[action] ?? action;
-}
-
-const ACTION_LABELS: Record<string, string> = {
-  'employee.create': 'เพิ่มพนักงาน',
-  'employee.update': 'แก้ไขพนักงาน',
-  'employee.archive': 'พ้นสภาพพนักงาน',
-  'employee.line-link': 'เชื่อม LINE',
-  'employee.line-unlink': 'ยกเลิกการเชื่อม LINE',
-  'branch.create': 'เพิ่มสาขา',
-  'branch.update': 'แก้ไขสาขา',
-  'branch.archive': 'ลบถาวรสาขา',
-  'department.create': 'เพิ่มแผนก',
-  'department.update': 'แก้ไขแผนก',
-  'department.archive': 'ลบถาวรแผนก',
-  'leaveType.create': 'เพิ่มประเภทการลา',
-  'leaveType.update': 'แก้ไขประเภทการลา',
-  'leaveType.archive': 'ลบถาวรประเภทการลา',
-  'holiday.create': 'เพิ่มวันหยุด',
-  'holiday.update': 'แก้ไขวันหยุด',
-  'holiday.archive': 'ลบถาวรวันหยุด',
-  'leave.submit': 'ส่งคำขอลา',
-  'leave.approve': 'อนุมัติคำขอลา',
-  'leave.reject': 'ปฏิเสธคำขอลา',
-  'leave.cancel': 'ยกเลิกคำขอลา',
-  'advance.submit': 'ส่งคำขอเบิก',
-  'advance.approve': 'อนุมัติคำขอเบิก',
-  'advance.reject': 'ปฏิเสธคำขอเบิก',
-  'advance.cancel': 'ยกเลิกคำขอเบิก',
-  'attendance.checkin': 'เช็คอิน',
-  'attendance.checkout': 'เช็คเอาท์',
-  'attendance.dispute-approve': 'อนุมัติเช็คอินที่ตรวจสอบ',
-  'attendance.dispute-reject': 'ปฏิเสธเช็คอินที่ตรวจสอบ',
-};
 
 export default async function SuperadminHomePage() {
   // Role gate runs in the parent layout; no double-check needed here.
