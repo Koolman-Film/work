@@ -356,7 +356,7 @@ export function payslipZipEntryName(name: string, month: string, seen: Set<strin
     .trim()
     .replace(/[/\\]+/g, '-') // path separators
     // biome-ignore lint/suspicious/noControlCharactersInRegex: strip control chars from filenames
-    .replace(/[ -]+/g, '')
+    .replace(/[\x00-\x1f\x7f]+/g, '')
     .replace(/\s+/g, '_');
   const base = `${safe}_${month}`;
   let candidate = `${base}.pdf`;
