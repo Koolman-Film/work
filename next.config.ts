@@ -57,7 +57,12 @@ const config: NextConfig = {
       './node_modules/@sparticuz/chromium/bin/**',
       './node_modules/.pnpm/@sparticuz+chromium@*/node_modules/@sparticuz/chromium/bin/**',
     ],
-    '/admin/payroll/preview-pdf': [
+    '/admin/payroll/payslip-pdf': [
+      './src/lib/payslip/fonts/**',
+      './node_modules/@sparticuz/chromium/bin/**',
+      './node_modules/.pnpm/@sparticuz+chromium@*/node_modules/@sparticuz/chromium/bin/**',
+    ],
+    '/admin/payroll/payslips-zip': [
       './src/lib/payslip/fonts/**',
       './node_modules/@sparticuz/chromium/bin/**',
       './node_modules/.pnpm/@sparticuz+chromium@*/node_modules/@sparticuz/chromium/bin/**',

@@ -5,6 +5,7 @@ import { canActOnEmployeeBranches, getPermittedBranches } from '@/lib/auth/branc
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { isLocale } from '@/lib/i18n/config';
+import { loadEmployeePayslipHistory } from '@/lib/payslip/history';
 import { resolveStoredImageUrl } from '@/lib/storage/signed-urls';
 import { loadEmployeeFormOptions } from '../../_load-options';
 import { archiveEmployee, deleteEmployee, updateEmployee } from '../../actions';
@@ -13,6 +14,7 @@ import { PairingCard } from '../../pairing-card';
 import { DangerActions } from './danger-actions';
 import { EntitlementsSection } from './entitlements-section';
 import { LocaleDefaultCard } from './locale-default-card';
+import { PayslipHistorySection } from './payslip-history-section';
 
 type Params = Promise<{ id: string }>;
 type SearchParams = Promise<{ error?: string; ok?: string; year?: string }>;
@@ -82,6 +84,13 @@ export default async function EditEmployeePage({
 
   // Scoped admins (non-global) cannot reassign branches — show read-only branch UI.
   const branchReadOnly = (await getPermittedBranches(user, 'employee.update')) !== 'all';
+
+  // Payslip history section is gated separately — payroll.read is a distinct
+  // permission from employee.read. Payroll is global-only (see the payroll-gates
+  // guardrail): require a GLOBAL grant, never a branch-scoped one, or a scoped
+  // grant could leak this employee's net pay.
+  const mayPayroll = (await getPermittedBranches(user, 'payroll.read')) === 'all';
+  const payslipHistory = mayPayroll ? await loadEmployeePayslipHistory(id) : null;
 
   const photoUrl = await resolveStoredImageUrl(emp.photoKey);
 
@@ -157,6 +166,9 @@ export default async function EditEmployeePage({
         belowForm={
           <div className="mt-6 space-y-6">
             <EntitlementsSection employeeId={id} year={year} />
+            {mayPayroll && payslipHistory && (
+              <PayslipHistorySection employeeId={id} history={payslipHistory} />
+            )}
             <LocaleDefaultCard
               employeeId={emp.id}
               currentLocale={isLocale(emp.user.locale) ? emp.user.locale : null}

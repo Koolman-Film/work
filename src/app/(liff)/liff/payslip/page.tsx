@@ -38,6 +38,66 @@ export default async function LiffPayslipPage({
 }) {
   const { employee } = await requireEmployee();
   const params = await searchParams;
+  const cardCls = 'rounded-2xl border border-gray-200 bg-white p-5 shadow-sm';
+
+  // Bare /liff/payslip (no valid ?m=) lists every Published/Locked month so
+  // employees can browse history instead of only seeing the current month.
+  if (!params.m || !MONTH_RE.test(params.m)) {
+    const [t, tPdf, rawLocale, months] = await Promise.all([
+      getTranslations('payslip'),
+      getTranslations('payslipPdf'),
+      getLocale(),
+      prisma.payroll.findMany({
+        where: { employeeId: employee.id, status: { in: ['Published', 'Locked'] } },
+        orderBy: { month: 'desc' },
+        select: { month: true, netPay: true },
+      }),
+    ]);
+    const locale = rawLocale as Locale;
+
+    return (
+      <main className="mx-auto max-w-md space-y-4 px-4 pt-8 pb-12">
+        <header className="flex items-center justify-between gap-2">
+          <h1 className="text-2xl font-semibold text-gray-900">{t('title')}</h1>
+        </header>
+
+        {months.length === 0 ? (
+          <section className={`${cardCls} text-center`}>
+            <p className="text-sm text-gray-500">{t('empty')}</p>
+          </section>
+        ) : (
+          months.map((m) => (
+            <div key={m.month} className={`${cardCls} flex items-center justify-between gap-3`}>
+              <Link href={`/liff/payslip?m=${m.month}`} className="flex-1">
+                <p className="text-sm font-medium text-gray-900">
+                  {buildMonthLabel(locale, m.month)}
+                </p>
+                <p className="mt-0.5 text-sm text-gray-500">
+                  {formatMoney(m.netPay.toNumber(), locale)}
+                </p>
+              </Link>
+              <a
+                href={`/liff/payslip/pdf?m=${m.month}`}
+                className="rounded-md border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
+              >
+                {tPdf('download')}
+              </a>
+            </div>
+          ))
+        )}
+
+        <nav className="flex justify-center gap-4 text-xs">
+          <Link href="/liff/summary" className="text-gray-500 hover:text-gray-700">
+            {t('backToSummary')}
+          </Link>
+          <Link href="/liff/check-in" className="text-gray-500 hover:text-gray-700">
+            {t('backToCheckin')}
+          </Link>
+        </nav>
+      </main>
+    );
+  }
+
   const todayYm = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' }).slice(0, 7);
   const month = params.m && MONTH_RE.test(params.m) ? params.m : todayYm;
 
@@ -84,7 +144,6 @@ export default async function LiffPayslipPage({
   const showDeductDetail =
     slip != null && deductLines.length > 0 && sumOf(deductLines) === slip.deductOther.toNumber();
 
-  const cardCls = 'rounded-2xl border border-gray-200 bg-white p-5 shadow-sm';
   const row = (label: string, value: string, opts?: { strong?: boolean; muted?: boolean }) => (
     <div className={`flex justify-between ${opts?.strong ? 'font-medium' : ''}`}>
       <dt className={opts?.muted ? 'text-gray-400' : 'text-gray-500'}>{label}</dt>

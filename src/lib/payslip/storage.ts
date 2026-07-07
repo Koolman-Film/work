@@ -43,3 +43,34 @@ export async function invalidatePayslipPdf(employeeId: string, month: string): P
     .remove([keyFor(employeeId, month)]);
   if (error) throw error;
 }
+
+/**
+ * Like getOrRenderPayslipPdf but returns the raw PDF bytes (for zipping),
+ * not a signed URL. Cache hit → download the object; miss → render + upload.
+ */
+export async function getPayslipPdfBytes(args: {
+  employeeId: string;
+  month: string;
+  render: () => Promise<Buffer>;
+}): Promise<Buffer> {
+  const supabase = getSupabaseAdminClient();
+  const key = keyFor(args.employeeId, args.month);
+
+  const { data: list, error: listErr } = await supabase.storage
+    .from(BUCKET)
+    .list(args.employeeId, { search: `${args.month}.pdf` });
+  if (listErr) throw listErr;
+
+  if (list?.some((f) => f.name === `${args.month}.pdf`)) {
+    const { data, error } = await supabase.storage.from(BUCKET).download(key);
+    if (!error && data) return Buffer.from(await data.arrayBuffer());
+    // fall through to re-render if the object vanished between list and download
+  }
+
+  const buf = await args.render();
+  const { error } = await supabase.storage
+    .from(BUCKET)
+    .upload(key, buf, { contentType: 'application/pdf', upsert: true });
+  if (error) throw error;
+  return buf;
+}
