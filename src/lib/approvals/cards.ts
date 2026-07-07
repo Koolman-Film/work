@@ -32,7 +32,10 @@ export type DisputedCardInput = {
   checkInLat: number | { toString(): string } | null;
   checkInLng: number | { toString(): string } | null;
   disputeReason: string | null;
-  checkInBranch: { latitude: number | { toString(): string }; longitude: number | { toString(): string } };
+  checkInBranch: {
+    latitude: number | { toString(): string };
+    longitude: number | { toString(): string };
+  } | null;
   employee: EmployeeShape;
 };
 
@@ -49,7 +52,12 @@ type CardBase = {
 export type ApprovalCard =
   | (CardBase & { type: 'leave'; leaveType: string; range: string })
   | (CardBase & { type: 'advance'; amount: string })
-  | (CardBase & { type: 'disputed'; clockInLabel: string; distanceMeters: number | null; reason: string });
+  | (CardBase & {
+      type: 'disputed';
+      clockInLabel: string;
+      distanceMeters: number | null;
+      reason: string;
+    });
 
 export type ApprovalFilters = { type?: string; branchId?: string; q?: string };
 
@@ -73,16 +81,25 @@ export function mapLeaveCard(r: LeaveCardInput): ApprovalCard {
     r.startDate.getTime() === r.endDate.getTime()
       ? formatThaiDate(r.startDate)
       : `${formatThaiDate(r.startDate)} – ${formatThaiDate(r.endDate)}`;
-  return { ...base(r.employee, r.id, r.createdAt), type: 'leave', leaveType: r.leaveType.name, range };
+  return {
+    ...base(r.employee, r.id, r.createdAt),
+    type: 'leave',
+    leaveType: r.leaveType.name,
+    range,
+  };
 }
 
 export function mapAdvanceCard(r: AdvanceCardInput): ApprovalCard {
-  return { ...base(r.employee, r.id, r.requestedAt), type: 'advance', amount: formatTHB2(num(r.amount)) };
+  return {
+    ...base(r.employee, r.id, r.requestedAt),
+    type: 'advance',
+    amount: formatTHB2(num(r.amount)),
+  };
 }
 
 export function mapDisputedCard(r: DisputedCardInput): ApprovalCard {
   const distanceMeters =
-    r.checkInLat !== null && r.checkInLng !== null
+    r.checkInBranch !== null && r.checkInLat !== null && r.checkInLng !== null
       ? haversineMeters(
           num(r.checkInLat),
           num(r.checkInLng),

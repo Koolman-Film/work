@@ -1,15 +1,16 @@
 import 'server-only';
 
 import type { Prisma } from '@prisma/client';
-import type { AssignmentForCheck } from '@/lib/auth/branch-scope';
-import { permittedBranchesFromAssignments, viaEmployeeBranchScope } from '@/lib/auth/branch-scope';
-import { prisma } from '@/lib/db/prisma';
 import { ADVANCE_SELECT } from '@/app/(admin)/admin/advance/advance-row-vm';
 import { DISPUTED_SELECT } from '@/app/(admin)/admin/attendance/disputed/_load-inbox';
 import { LEAVE_SELECT } from '@/app/(admin)/admin/leave/leave-row-vm';
+import type { AssignmentForCheck } from '@/lib/auth/branch-scope';
+import { permittedBranchesFromAssignments, viaEmployeeBranchScope } from '@/lib/auth/branch-scope';
+import { prisma } from '@/lib/db/prisma';
 import {
   type ApprovalCard,
   type ApprovalFilters,
+  type DisputedCardInput,
   filterApprovalCards,
   mapAdvanceCard,
   mapDisputedCard,
@@ -55,9 +56,15 @@ export async function loadApprovalsInbox(
   counts: { leave: number; advance: number; disputed: number; total: number };
   capped: boolean;
 }> {
-  const leaveScope = viaEmployeeBranchScope(permittedBranchesFromAssignments(assignments, 'leave.read'));
-  const advScope = viaEmployeeBranchScope(permittedBranchesFromAssignments(assignments, 'advance.read'));
-  const attScope = viaEmployeeBranchScope(permittedBranchesFromAssignments(assignments, 'attendance.read'));
+  const leaveScope = viaEmployeeBranchScope(
+    permittedBranchesFromAssignments(assignments, 'leave.read'),
+  );
+  const advScope = viaEmployeeBranchScope(
+    permittedBranchesFromAssignments(assignments, 'advance.read'),
+  );
+  const attScope = viaEmployeeBranchScope(
+    permittedBranchesFromAssignments(assignments, 'attendance.read'),
+  );
 
   const take = APPROVALS_CAP + 1;
   const [leaveRows, advanceRows, disputedRows] = await Promise.all([
@@ -93,12 +100,24 @@ export async function loadApprovalsInbox(
   const all: ApprovalCard[] = [
     ...leave.map((r) => mapLeaveCard(r)),
     ...advance.map((r) => mapAdvanceCard(r)),
-    // `clockInAt`/`checkInBranch`/`checkInBranch.lat|lng` are nullable in the
-    // schema (Attendance.clockInAt DateTime?, Branch.latitude/longitude
-    // Decimal?) but the pure mapper's structural input treats them as
-    // required — practically always populated for a real Disputed CheckIn
-    // row. Cast narrowly at the mapper boundary rather than widen the mapper.
-    ...disputed.map((r) => mapDisputedCard(r as unknown as Parameters<typeof mapDisputedCard>[0])),
+    // Two narrow casts remain, both DIFFERENT from the null-checkInBranch bug
+    // this fix addresses (that case is now handled structurally by the
+    // mapper — no cast needed for it):
+    //  - `clockInAt` is nullable in the schema (Attendance.clockInAt
+    //    DateTime?), but this query filters `type: 'CheckIn'`, and a CheckIn
+    //    row always has clockInAt set at creation — non-null in practice.
+    //  - `checkInBranch.latitude`/`.longitude` are nullable in the schema
+    //    (Branch.latitude/longitude Decimal? — "no geofence configured"),
+    //    but a Disputed row only ever gets a non-null checkInBranch when the
+    //    matched branch had `requireGps: true` (see evaluate.ts), which in
+    //    practice always has lat/lng configured — non-null in practice.
+    ...disputed.map((r) =>
+      mapDisputedCard({
+        ...r,
+        clockInAt: r.clockInAt as Date,
+        checkInBranch: r.checkInBranch as DisputedCardInput['checkInBranch'],
+      }),
+    ),
   ];
 
   const cards = sortApprovalCardsDesc(filterApprovalCards(all, filters));
