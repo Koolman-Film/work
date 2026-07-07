@@ -11,3 +11,12 @@ export function isValidThaiNationalId(id: string): boolean {
   const check = (11 - (sum % 11)) % 10;
   return check === Number(id[12]);
 }
+
+/** Mask all but the last 4 digits (`•••••••••7285`) for audit-log payloads —
+ * mirrors `maskBankAccountNumber` so PII is never written to the audit trail
+ * in full. Short values pass through. */
+export function maskNationalId(value: string | null | undefined): string | null {
+  if (!value) return null;
+  if (value.length <= 4) return value;
+  return `${'•'.repeat(value.length - 4)}${value.slice(-4)}`;
+}
