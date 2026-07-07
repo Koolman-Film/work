@@ -85,8 +85,18 @@ describe('loadSsoFiling', () => {
     const filing = await loadSsoFiling(MONTH, branch.id);
     expect(filing).not.toBeNull();
     expect(filing?.rows).toHaveLength(1);
-    expect(filing?.rows[0]).toMatchObject({ wages: 20000, employeeContribution: 750, employerContribution: 750 });
-    expect(filing?.totals).toMatchObject({ wages: 20000, employee: 750, employer: 750, grand: 1500, count: 1 });
+    expect(filing?.rows[0]).toMatchObject({
+      wages: 20000,
+      employeeContribution: 750,
+      employerContribution: 750,
+    });
+    expect(filing?.totals).toMatchObject({
+      wages: 20000,
+      employee: 750,
+      employer: 750,
+      grand: 1500,
+      count: 1,
+    });
     expect(filing?.ratePercent).toBe(5);
     expect(filing?.problems).toEqual({ missingNationalIds: 0, missingBranchSso: false });
   });
