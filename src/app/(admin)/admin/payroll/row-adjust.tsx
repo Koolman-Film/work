@@ -147,6 +147,10 @@ export function RowAdjust({
         {/* Quick-add */}
         <form action={createAction} className="relative mt-4 space-y-4">
           <input type="hidden" name="employeeId" value={employeeId} />
+          {/* `month` drives readMonth() in createRowAdjustment (recompute + redirect
+              target); `startMonth` is the adjustment's own start (schema). Both are
+              the row's month here, but the action reads them separately. */}
+          <input type="hidden" name="month" value={month} />
           <input type="hidden" name="startMonth" value={month} />
           <input type="hidden" name="frequency" value={frequency} />
 

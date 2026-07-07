@@ -138,7 +138,12 @@ export async function publishPayrollAction(formData: FormData) {
  */
 export async function createRowAdjustment(formData: FormData) {
   const { user } = await requireGlobalPermission('payroll.run');
-  const month = readMonth(formData);
+  // The row modal sends `month` as a hidden field (recompute + redirect target).
+  // Fall back to `startMonth` — always the row's month here — so a form that
+  // omits `month` still saves + recomputes instead of silently redirecting out
+  // (the bug that made the per-row +เพิ่ม/ลด button appear to do nothing).
+  const month = String(formData.get('month') || formData.get('startMonth') || '');
+  if (!MONTH_RE.test(month)) redirect('/admin/payroll');
 
   const parsed = readForm(formData);
   if (!parsed.success) {
