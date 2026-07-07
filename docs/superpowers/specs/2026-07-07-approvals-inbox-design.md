@@ -72,39 +72,50 @@ already exist.
   `loadSidebarBadgeCounts()` result. No new count query — the layout already
   computes the three; the sidebar sums them for this item's badge.
 
-### Data layer — `loadApprovalsInbox(assignments, filters)`
+### Data layer — `loadApprovalsInbox(assignments, filters)` (slim cards)
 
-New server-only function (e.g. `src/lib/approvals/load-inbox.ts`) that:
+**Confirmed at planning time:** an absent read-permission yields
+`permittedBranchesFromAssignments → []` → `viaEmployeeBranchScope → { employee: { id: { in: [] } } }`
+→ 0 rows/0 count. No guard task needed.
 
-1. Runs three pending queries in parallel, each scoped by its own permission via
-   `permittedBranchesFromAssignments(assignments, <read-perm>)` +
-   `viaEmployeeBranchScope(...)`. A queue the user cannot read resolves to an
-   empty scope → 0 rows (verify `permittedBranchesFromAssignments` returns an
-   empty permitted set, not "all", when the permission is absent).
-2. Maps each result to a common **type-tagged row** (pure mappers, unit-tested):
+The loader produces **slim list cards only** — it does NOT build the heavy full
+review VMs. This is deliberate: building a full `LeaveRowVM` requires async
+per-row work (over-quota preview = 4–5 queries/row, working-day calc, signed
+attachment URL) and `AdvanceRowVM` needs an async balance guard + signed receipt.
+Doing that for every pending row on page load is wasteful; instead the full VM is
+built **lazily on click** (see Interaction). The list stays cheap and synchronous.
+
+New server-only function `src/lib/approvals/load-inbox.ts`:
+
+1. Runs three pending `findMany` queries in parallel, each scoped by its own
+   permission via `permittedBranchesFromAssignments(assignments, <read-perm>)` +
+   `viaEmployeeBranchScope(...)`, reusing the existing `LEAVE_SELECT` /
+   `ADVANCE_SELECT` / `DISPUTED_SELECT`. `take = CAP + 1` (CAP e.g. 200) per queue
+   to detect truncation. A queue the user cannot read → empty scope → 0 rows.
+2. Maps each raw row to a slim, type-tagged card via **pure, synchronous**
+   mappers (unit-tested) — no async, no signing, no over-quota/guard:
 
 ```ts
-type UnifiedApprovalRow =
-  | { type: 'leave';    id: string; employeeName: string; nickname: string | null;
-      branch: string; department: string | null; submittedAt: Date;
-      leaveType: string; range: string; durationLabel: string }
-  | { type: 'advance';  id: string; employeeName: string; nickname: string | null;
-      branch: string; department: string | null; submittedAt: Date;
-      amount: string }
-  | { type: 'disputed'; id: string; employeeName: string; nickname: string | null;
-      branch: string; department: string | null; submittedAt: Date;
-      clockInLabel: string; distanceMeters: number | null; reason: string;
-      selfieUrl: string | null };
+type ApprovalCard =
+  | { type: 'leave';    id; employeeName; nickname; branch; department;
+      submittedAt: Date; leaveType: string; range: string }
+  | { type: 'advance';  id; employeeName; nickname; branch; department;
+      submittedAt: Date; amount: string }
+  | { type: 'disputed'; id; employeeName; nickname; branch; department;
+      submittedAt: Date; clockInLabel: string; distanceMeters: number | null;
+      reason: string };
 ```
 
-3. Applies filters (type, branchId, employee-name search `q`), merges, and sorts
-   by `submittedAt` **descending** (leave `createdAt` / advance `requestedAt` /
-   dispute detected-at).
-4. Returns `{ rows, counts: { leave, advance, disputed, total }, capped: boolean }`.
-
-`submittedAt` is the single cross-type sort key. The mappers reuse existing
-formatting helpers (`@/lib/format`, and whatever the leave/advance row VMs use
-for range/duration/amount) to keep display identical to the dedicated pages.
+   - `leave`: `range` = `formatLeaveRange(startDate,endDate)`; `submittedAt` = `createdAt`.
+   - `advance`: `amount` = `formatAdvanceMoney(amount)`; `submittedAt` = `requestedAt`.
+   - `disputed`: `clockInLabel` = Bangkok `HH:MM` via `formatTime` (`@/lib/i18n/format`);
+     `distanceMeters` = haversine(`checkInLat/Lng`, `checkInBranch.lat/lng`) via a
+     shared `src/lib/geo/distance.ts` (the disputed page has a private copy — the
+     new module is shared; the page's copy is left untouched to avoid changing a
+     shipped file); `submittedAt` = `clockInAt`; `reason` = `disputeReason ?? 'ไม่ระบุ'`.
+3. Applies pure filters (`type`, `branchId`, employee-name `q`), merges, sorts by
+   `submittedAt` **descending**.
+4. Returns `{ cards: ApprovalCard[]; counts: { leave; advance; disputed; total }; capped: boolean }`.
 
 ### Volume handling
 
@@ -114,26 +125,40 @@ hit, `capped: true` drives a "refine with filters" note. No pagination.
 Filters (type chips, branch, employee search) are **URL-driven** (shareable),
 mirroring the audit page.
 
-### Interaction — reuse existing modals
+### Interaction — lazy full-VM on click, reuse existing modals
 
-The page renders the merged list; clicking a row opens the modal for its type:
+The list shows slim cards. Clicking a card **fetches the full review VM on
+demand**, then opens the existing modal for that type. The single-record getters
+already exist and are permission-gated + branch-scoped:
 
-- **Leave** → existing `LeaveReviewModal` → `approveLeaveRequest`/`rejectLeaveRequest`.
-- **Advance** → existing `AdvanceReviewModal` (money-confirm two-step) →
-  `approveCashAdvance`/`rejectCashAdvance`.
-- **Disputed** → NEW lightweight modal (`DisputedReviewModalLite`): employee,
-  clock-in time, distance, system reason, selfie thumbnail, required note →
+- **Leave** → `getLeaveReviewRow(id)` (EXISTING, `src/app/(admin)/admin/_calendar/actions.ts`;
+  gates `leave.approve` + branch scope) → returns `LeaveRowVM` → existing
+  `LeaveReviewModal` → `approveLeaveRequest`/`rejectLeaveRequest`.
+- **Advance** → `getAdvanceReviewRow(id)` (EXISTING, same file; gates
+  `advance.approve`) → `AdvanceRowVM` → existing `AdvanceReviewModal`
+  (money-confirm two-step + receipt upload) → `approveCashAdvance`/`rejectCashAdvance`.
+- **Disputed** → NEW `getDisputedReviewRow(id)` single-record action (gates
+  `attendance.dispute-resolve` + branch scope; signs the selfie, computes
+  distance) → NEW lightweight `DisputedReviewModalLite` (employee, clock-in time,
+  distance, reason, selfie thumbnail, required note) →
   `approveDisputed`/`rejectDisputed`; plus a "ดูแผนที่ / ดูรายละเอียดเต็ม" link to
   `/admin/attendance/disputed`.
 
-Row action buttons are gated by the matching **approve** permission
-(`leave.approve` / `advance.approve` / `attendance.dispute-resolve`) resolved on
-the server and passed to the client rows; a read-only user sees facts without
-buttons. On action success: `router.refresh()`.
+The **heavy per-row async work runs only for the opened row**, not the whole
+list. Because leave/advance reuse their exact existing getters + modals + actions,
+approving from the inbox is behaviorally identical to approving from the dedicated
+page (same quota/cap checks, audit, notifications). Only disputed introduces new
+UI + a new getter.
 
-Because leave/advance reuse their exact existing modals and actions, approving
-from the inbox is behaviorally identical to approving from the dedicated page
-(same quota/cap checks, audit, notifications). Only disputed introduces new UI.
+**Clickability by permission:** the page computes a per-type `canReview`
+(`leave.approve` / `advance.approve` / `attendance.dispute-resolve`) on the server
+and passes it to the client. Cards whose type the user cannot review are shown but
+**not clickable** (facts only — no modal), since the getters require the approve
+permission. This satisfies "read-but-not-approve sees rows read-only." (A richer
+read-only detail panel is deferred — Phase 2.)
+
+On action success the modals already call `router.refresh()`, which re-runs the
+approvals page loader — the decided row drops out of the list. No extra wiring.
 
 ## Error / empty states
 
@@ -147,42 +172,57 @@ from the inbox is behaviorally identical to approving from the dedicated page
 ## Testing
 
 - **Unit:**
-  - Per-type row mappers (range label, duration label, amount format, distance,
-    `submittedAt` selection, null nickname/department).
-  - Merge + sort (interleaving across types, newest-first, cap flag).
-  - Filter application (type/branch/`q`; blank params ignored).
+  - `haversineMeters` (known coordinate pairs → expected metres; zero distance).
+  - Per-type card mappers (`range`, `amount`, `clockInLabel`, `distanceMeters`,
+    `submittedAt` selection, null nickname/department, `reason` fallback).
+  - `filterApprovalCards` (type/branch/`q`; blank params ignored) and
+    `sortApprovalCardsDesc` (interleaving across types, newest-first).
 - **Integration:** `loadApprovalsInbox` against seeded data across
   `LeaveRequest` + `CashAdvance` + `Attendance(Disputed)`:
-  - Correct aggregation and counts.
+  - Correct aggregation, counts, and `capped` flag.
   - **Per-permission scoping:** a user with only `leave.read` sees only leave
-    rows; counts for other queues are 0.
+    cards; other queues yield 0.
   - Branch scoping restricts to permitted branches.
   - Only pending items appear (approved/rejected/cancelled excluded).
-- Client components (page, unified list, `DisputedReviewModalLite`) verified via
+- Client components (page, `approvals-list`, `approvals-filters`,
+  `DisputedReviewModalLite`) and the `getDisputedReviewRow` action verified via
   `tsc` + `lint` (no React render harness — node-only vitest), consistent with
   the audit-log feature.
-- No new tests for the reused leave/advance/disputed actions — they are unchanged
-  and already covered.
+- No new tests for the reused `getLeaveReviewRow`/`getAdvanceReviewRow` getters,
+  the leave/advance modals, or the approve/reject actions — all unchanged and
+  already covered.
 
 ## Files
 
 **New**
-- `src/lib/approvals/load-inbox.ts` — `loadApprovalsInbox` + `UnifiedApprovalRow`.
-- `src/lib/approvals/row-vm.ts` — pure per-type mappers/formatters (unit-tested).
+- `src/lib/geo/distance.ts` — shared `haversineMeters(...)` (pure).
+- `src/lib/approvals/cards.ts` — `ApprovalCard` union + pure per-type mappers +
+  `filterApprovalCards` + `sortApprovalCardsDesc` (unit-tested).
+- `src/lib/approvals/load-inbox.ts` — `loadApprovalsInbox(assignments, filters)`
+  (server-only; the three scoped queries + mapping + counts).
+- `src/app/(admin)/admin/approvals/disputed-review.ts` — `getDisputedReviewRow(id)`
+  single-record server action + its light `DisputedReviewVM` type.
 - `src/app/(admin)/admin/approvals/page.tsx` — server component.
-- `src/app/(admin)/admin/approvals/approvals-list.tsx` — client list + row →
-  modal dispatch.
+- `src/app/(admin)/admin/approvals/approvals-list.tsx` — client list; card →
+  lazy getter → modal dispatch; holds the selected full-VM state.
 - `src/app/(admin)/admin/approvals/disputed-review-modal-lite.tsx` — light
-  disputed modal.
+  disputed modal (reuses `ReviewModal`).
 - `src/app/(admin)/admin/approvals/approvals-filters.tsx` — URL-driven filter bar
   (type chips, branch, employee search).
-- Tests: `src/lib/approvals/row-vm.test.ts`,
+- Tests: `src/lib/geo/distance.test.ts`, `src/lib/approvals/cards.test.ts`,
   `tests/integration/approvals-inbox.integration.test.ts`.
 
+**Reused as-is (imported, not modified):** `getLeaveReviewRow`,
+`getAdvanceReviewRow` (`src/app/(admin)/admin/_calendar/actions.ts`);
+`LeaveReviewModal`, `AdvanceReviewModal`; `LEAVE_SELECT`/`ADVANCE_SELECT`/`DISPUTED_SELECT`;
+`viaEmployeeBranchScope`/`permittedBranchesFromAssignments`.
+
 **Modified**
-- `src/components/admin/sidebar.tsx` — add the "รออนุมัติ" item + combined badge.
-- `src/app/(admin)/layout.tsx` — pass the combined/needed badge value to the
-  sidebar (reusing the existing `loadSidebarBadgeCounts` result; no new query).
+- `src/components/admin/sidebar.tsx` — add the "รออนุมัติ" nav item (`anyOf`
+  read perms) with `badgeKey: 'approvals'`; extend `SidebarBadges` with
+  `approvals: number`.
+- `src/app/(admin)/layout.tsx` — pass `approvals: leave + advance + attendance`
+  into `badges` (reusing the existing `loadSidebarBadgeCounts` result; no new query).
 
 ## Phase 2 (deferred, no rework implied)
 
