@@ -2,9 +2,10 @@ import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { PageHeader } from '@/components/ui/page-header';
 import { canActOnEmployeeBranches, getPermittedBranches } from '@/lib/auth/branch-scope';
-import { requirePermission } from '@/lib/auth/check-permission';
+import { canDo, requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { isLocale } from '@/lib/i18n/config';
+import { loadEmployeePayslipHistory } from '@/lib/payslip/history';
 import { resolveStoredImageUrl } from '@/lib/storage/signed-urls';
 import { loadEmployeeFormOptions } from '../../_load-options';
 import { archiveEmployee, deleteEmployee, updateEmployee } from '../../actions';
@@ -13,6 +14,7 @@ import { PairingCard } from '../../pairing-card';
 import { DangerActions } from './danger-actions';
 import { EntitlementsSection } from './entitlements-section';
 import { LocaleDefaultCard } from './locale-default-card';
+import { PayslipHistorySection } from './payslip-history-section';
 
 type Params = Promise<{ id: string }>;
 type SearchParams = Promise<{ error?: string; ok?: string; year?: string }>;
@@ -82,6 +84,12 @@ export default async function EditEmployeePage({
 
   // Scoped admins (non-global) cannot reassign branches — show read-only branch UI.
   const branchReadOnly = (await getPermittedBranches(user, 'employee.update')) !== 'all';
+
+  // Payslip history section is gated separately — payroll.read is a distinct
+  // permission from employee.read, so a caller who can view this employee
+  // page may still lack visibility into their payslips.
+  const mayPayroll = await canDo(user, 'payroll.read');
+  const payslipHistory = mayPayroll ? await loadEmployeePayslipHistory(id) : null;
 
   const photoUrl = await resolveStoredImageUrl(emp.photoKey);
 
@@ -157,6 +165,9 @@ export default async function EditEmployeePage({
         belowForm={
           <div className="mt-6 space-y-6">
             <EntitlementsSection employeeId={id} year={year} />
+            {mayPayroll && payslipHistory && (
+              <PayslipHistorySection employeeId={id} history={payslipHistory} />
+            )}
             <LocaleDefaultCard
               employeeId={emp.id}
               currentLocale={isLocale(emp.user.locale) ? emp.user.locale : null}
