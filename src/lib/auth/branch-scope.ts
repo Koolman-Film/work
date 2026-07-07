@@ -3,6 +3,8 @@ import type { Prisma, User } from '@prisma/client';
 import { type AssignmentForCheck, getUserAssignments } from './check-permission';
 import type { Permission } from './permissions';
 
+export type { AssignmentForCheck };
+
 /** 'all' = holds the permission via a global (branchId=null) assignment.
  *  Otherwise the de-duped scoped branchIds granting it; [] = nowhere. */
 export type PermittedBranches = 'all' | string[];
