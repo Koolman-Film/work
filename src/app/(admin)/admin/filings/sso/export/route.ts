@@ -8,6 +8,7 @@ export const runtime = 'nodejs';
 export const maxDuration = 60;
 
 const XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function GET(req: NextRequest) {
   const { user } = await requirePermission('filing.export');
@@ -16,8 +17,11 @@ export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
   const month = sp.get('m') ?? '';
   const branchId = sp.get('branchId') ?? '';
-  if (!/^\d{4}-\d{2}$/.test(month) || !branchId) {
-    return NextResponse.json({ error: 'พารามิเตอร์ไม่ถูกต้อง (m=YYYY-MM, branchId)' }, { status: 400 });
+  if (!/^\d{4}-\d{2}$/.test(month) || !UUID_RE.test(branchId)) {
+    return NextResponse.json(
+      { error: 'พารามิเตอร์ไม่ถูกต้อง (m=YYYY-MM, branchId=uuid)' },
+      { status: 400 },
+    );
   }
   if (permitted !== 'all' && !permitted.includes(branchId)) {
     return NextResponse.json({ error: 'ไม่มีสิทธิ์เข้าถึงสาขานี้' }, { status: 403 });
