@@ -225,7 +225,7 @@ export default async function PayrollReconcilePage({
         {flaggedRows.length === 0 ? (
           <div className="surface flex items-center gap-2 bg-success-soft/40 px-4 py-4 text-sm text-success-deep">
             <span aria-hidden="true">✓</span>
-            <span>ไม่พบความผิดปกติ — {view.rows.length} รายการอยู่ในเกณฑ์ปกติ</span>
+            <span>ไม่พบความผิดปกติ — {view.totals.headcount} รายการอยู่ในเกณฑ์ปกติ</span>
           </div>
         ) : (
           <ul className="surface divide-y divide-gray-100">
@@ -236,8 +236,10 @@ export default async function PayrollReconcilePage({
         )}
       </div>
 
-      {/* All rows (collapsed by default) + per-row expandable derivation */}
-      <ReconcileRows rows={view.rows} />
+      {/* All rows IN THIS RUN (collapsed) + per-row expandable derivation.
+          Rows without a current payroll (roster members not in the run) are
+          excluded — a genuinely missing one already surfaces in Needs review. */}
+      <ReconcileRows rows={view.rows.filter((r) => r.current !== null)} />
     </div>
   );
 }
