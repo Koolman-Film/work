@@ -14,6 +14,13 @@ import { buildPageMeta, pageArgs, parsePageParam } from '@/lib/pagination';
 import { signAttendancePhotoUrls } from '@/lib/storage/signed-urls';
 import { EmployeeFilters } from './employee-filters';
 
+/** Thai suffix for the salary-type enum, shown after the base salary. */
+const SALARY_TYPE_TH: Record<string, string> = {
+  Monthly: 'เดือน',
+  Daily: 'วัน',
+  Hourly: 'ชม.',
+};
+
 /**
  * Employee list with URL-driven filters: search (q), branch, department,
  * status. Default view shows non-archived employees; explicit
@@ -186,7 +193,9 @@ export default async function EmployeeListPage({ searchParams }: { searchParams:
       cell: (e) => (
         <span className="tabular">
           {fmtMoney(e.baseSalary)}
-          <span className="ml-1 text-xs text-ink-4">/{e.salaryType.toLowerCase()}</span>
+          <span className="ml-1 text-xs text-ink-4">
+            /{SALARY_TYPE_TH[e.salaryType] ?? e.salaryType.toLowerCase()}
+          </span>
         </span>
       ),
     },
