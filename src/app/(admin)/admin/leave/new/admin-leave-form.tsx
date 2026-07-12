@@ -14,6 +14,7 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState, useTransition } from 'react';
 import { Button } from '@/components/ui/button';
+import { DateField } from '@/components/ui/date-field';
 import { FormField } from '@/components/ui/form-field';
 import { Input } from '@/components/ui/input';
 import { adminCreateLeaveRequest } from '@/lib/leave/admin';
@@ -174,36 +175,34 @@ export function AdminLeaveForm({ employees, leaveTypes }: Props) {
       {isFullDay ? (
         <div className="grid grid-cols-2 gap-3">
           <FormField label="วันที่เริ่ม" htmlFor="startDate" required>
-            <Input
+            <DateField
               id="startDate"
-              type="date"
-              value={startDate}
-              onChange={(e) => {
-                setStartDate(e.target.value);
-                if (e.target.value > endDate) setEndDate(e.target.value);
-              }}
               required
+              value={startDate}
+              onChange={(iso) => {
+                const v = iso ?? '';
+                setStartDate(v);
+                if (v > endDate) setEndDate(v);
+              }}
             />
           </FormField>
           <FormField label="วันที่สิ้นสุด" htmlFor="endDate" required>
-            <Input
+            <DateField
               id="endDate"
-              type="date"
+              required
               min={startDate}
               value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              required
+              onChange={(iso) => setEndDate(iso ?? '')}
             />
           </FormField>
         </div>
       ) : (
         <FormField label="วันที่" htmlFor="startDate" required>
-          <Input
+          <DateField
             id="startDate"
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
             required
+            value={startDate}
+            onChange={(iso) => setStartDate(iso ?? '')}
           />
         </FormField>
       )}

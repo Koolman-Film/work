@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { DateRangeField } from '@/components/ui/date-range-field';
 import { adjacentMonths } from '@/lib/reports/period';
 
 /** Month nav (← มิ.ย. 2569 →) + custom from–to range. Admin UI: Thai, Buddhist year (+543). */
@@ -71,9 +71,7 @@ export function PeriodPicker({
           router.push(withParams({ from: fromVal, to: toVal, m: null }));
         }}
       >
-        <Input type="date" name="from" required defaultValue={from} className="w-auto" />
-        <span className="text-sm text-ink-4">–</span>
-        <Input type="date" name="to" required defaultValue={to} className="w-auto" />
+        <DateRangeField fromName="from" toName="to" defaultFrom={from} defaultTo={to} />
         <Button type="submit" variant="secondary">
           ดูช่วงนี้
         </Button>
