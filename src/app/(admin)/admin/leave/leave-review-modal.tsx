@@ -58,15 +58,18 @@ function Badge({ row }: { row: LeaveRowVM }) {
 export function LeaveReviewModal({
   row,
   onClose,
+  onActioned,
 }: {
   row: LeaveRowVM | null;
   onClose: () => void;
+  onActioned?: () => void;
 }) {
   const isPending = row?.status === 'Pending';
   return (
     <ReviewModal
       open={row !== null}
       onClose={onClose}
+      onActioned={onActioned}
       title="ตรวจสอบคำขอลา"
       note={
         isPending
