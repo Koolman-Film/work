@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
+import { DateField } from '@/components/ui/date-field';
 import { FormField } from '@/components/ui/form-field';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -163,12 +164,12 @@ export function EmployeeForm({
                   />
                 </FormField>
                 <FormField label="วันเกิด" htmlFor="dateOfBirth" hint="ไม่บังคับ — ใช้แจ้งเตือนวันเกิด">
-                  <Input
+                  <DateField
                     id="dateOfBirth"
                     name="dateOfBirth"
-                    type="date"
-                    defaultValue={initial?.dateOfBirth ?? ''}
-                    className="max-w-xs"
+                    defaultValue={initial?.dateOfBirth || undefined}
+                    clearable
+                    placeholder="เลือกวันที่"
                   />
                 </FormField>
                 <FormField
