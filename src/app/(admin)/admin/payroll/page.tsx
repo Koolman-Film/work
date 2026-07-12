@@ -506,6 +506,18 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
             variant="secondary"
           />
         )}
+        {rows.length > 0 && (
+          <a
+            href={`/admin/payroll/reconcile?m=${month}`}
+            className={`inline-flex items-center justify-center rounded-lg border px-4 py-2 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30 ${
+              statusCounts.Draft > 0
+                ? 'border-primary-500 bg-primary-50 text-primary-700 hover:bg-primary-100'
+                : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            ตรวจสอบ
+          </a>
+        )}
         {statusCounts.Published + statusCounts.Locked > 0 && (
           // Bulk zip export — plain `<a download>` is enough (server component,
           // no client state needed). Exports the whole month within the
