@@ -19,6 +19,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import { DateRangeField } from '@/components/ui/date-range-field';
 import { ACTION_LABELS, ENTITY_TYPE_LABELS } from '@/lib/audit/labels';
 
 type AuditFiltersProps = {
@@ -34,8 +35,6 @@ type AuditFiltersProps = {
 
 const selectClassName =
   'max-w-[200px] rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100';
-const dateInputClassName =
-  'rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100';
 
 export function AuditFilters({ initial, actors }: AuditFiltersProps) {
   const router = useRouter();
@@ -104,25 +103,15 @@ export function AuditFilters({ initial, actors }: AuditFiltersProps) {
           </select>
         </label>
 
-        <label className="flex flex-col gap-1 text-xs text-ink-3">
-          ตั้งแต่
-          <input
-            type="date"
-            name="dateFrom"
-            defaultValue={initial.dateFrom ?? ''}
-            className={dateInputClassName}
+        <div className="flex flex-col gap-1 text-xs text-ink-3">
+          <span>ช่วงวันที่</span>
+          <DateRangeField
+            fromName="dateFrom"
+            toName="dateTo"
+            defaultFrom={initial.dateFrom || undefined}
+            defaultTo={initial.dateTo || undefined}
           />
-        </label>
-
-        <label className="flex flex-col gap-1 text-xs text-ink-3">
-          ถึง
-          <input
-            type="date"
-            name="dateTo"
-            defaultValue={initial.dateTo ?? ''}
-            className={dateInputClassName}
-          />
-        </label>
+        </div>
 
         <Button type="submit" variant="secondary" size="md">
           กรอง
