@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardBody, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { DateField } from '@/components/ui/date-field';
 import { FormField } from '@/components/ui/form-field';
 import { Input } from '@/components/ui/input';
 
@@ -43,14 +44,12 @@ export function HolidayForm({ mode, action, initial, error, extraActions }: Prop
             )}
 
             <FormField label="วันที่" htmlFor="date" required>
-              <Input
+              <DateField
                 id="date"
                 name="date"
-                type="date"
                 required
-                defaultValue={initial?.date ?? ''}
-                className="max-w-xs"
-                autoFocus={mode === 'create'}
+                defaultValue={initial?.date || undefined}
+                placeholder="เลือกวันที่"
               />
             </FormField>
 
