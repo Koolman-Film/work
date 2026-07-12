@@ -17,7 +17,7 @@
 
 import { useMemo, useState, useTransition } from 'react';
 import { CalendarGrid } from '@/app/(liff)/liff/calendar/calendar-grid';
-import { Card, CardBody, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import {
   buildMonthGrid,
   currentMonthYM,
@@ -122,11 +122,11 @@ export function AdminCalendarCard({ branches, initialYm, initialData }: Props) {
 
   return (
     <Card>
+      {/* No title/description here — the page's PageHeader already provides
+          "ปฏิทินงาน" + subtitle. Show the active scope inline with the controls
+          instead of duplicating the page title. */}
       <CardHeader className="flex-wrap gap-3">
-        <div className="min-w-0">
-          <CardTitle>ปฏิทินงาน</CardTitle>
-          <CardDescription>วันลาและวันหยุด — {scopeLabel}</CardDescription>
-        </div>
+        <p className="min-w-0 truncate text-sm text-ink-3">{scopeLabel}</p>
 
         <div className="flex flex-wrap items-center gap-2">
           {/* Branch filter — first option = all branches */}
