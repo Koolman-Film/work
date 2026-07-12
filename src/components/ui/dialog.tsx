@@ -11,7 +11,8 @@
  * Controlled: render it always and drive with `open` / `onClose`. Composed by
  * ConfirmDialog and the mobile FilterBar sheet.
  */
-import { type ReactNode, useEffect, useId, useRef } from 'react';
+import { type ReactNode, useEffect, useId, useRef, useState } from 'react';
+import { useExitTransition } from '@/lib/motion/use-exit-transition';
 import { cn } from '@/lib/utils';
 
 type Props = {
@@ -27,6 +28,46 @@ type Props = {
 export function Dialog({ open, onClose, title, children, dismissable = true, className }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
+
+  // Mount-through-exit: keep the panel/backdrop rendered for one
+  // `--duration-base` after `open` flips false so the close transition can
+  // play, instead of unmounting instantly. `entered` drives the actual
+  // enter/exit classes below (via `data-open`) and is deliberately out of
+  // step with `open` by one paint on the way in: the panel first mounts in
+  // its "not entered" state (opacity-0/scale-98), then flips a frame later —
+  // giving the transition a real style change to animate from. On the way
+  // out it flips immediately since the panel is already on-screen with a
+  // real "from" state to transition away from.
+  const [rendered, setRendered] = useState(open);
+  const [entered, setEntered] = useState(open);
+  const { beginExit } = useExitTransition();
+  // Read inside the exit timer's completion callback (not as an effect dep)
+  // so a close-then-reopen within one `--duration-base` window can't let a
+  // stale timer unmount a panel that has since reopened.
+  const openRef = useRef(open);
+
+  useEffect(() => {
+    openRef.current = open;
+  }, [open]);
+
+  // Enter: mount immediately, then flip to "entered" a frame later.
+  useEffect(() => {
+    if (!open) return;
+    setRendered(true);
+    const raf = requestAnimationFrame(() => setEntered(true));
+    return () => cancelAnimationFrame(raf);
+  }, [open]);
+
+  // Exit: flip out of "entered" right away (the panel is already visible, so
+  // there's a real style to transition from), then unmount once the exit
+  // transition has had time to play.
+  useEffect(() => {
+    if (open || !rendered) return;
+    setEntered(false);
+    beginExit('dialog', () => {
+      if (!openRef.current) setRendered(false);
+    });
+  }, [open, rendered, beginExit]);
 
   // Body-scroll lock + initial focus. Keyed on `open` ONLY — these must run
   // when the modal opens, never on subsequent re-renders. (Earlier this shared
@@ -64,14 +105,22 @@ export function Dialog({ open, onClose, title, children, dismissable = true, cla
     return () => window.removeEventListener('keydown', onKey);
   }, [open, dismissable, onClose]);
 
-  if (!open) return null;
+  if (!open && !rendered) return null;
 
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: backdrop is a decorative click-to-close target; keyboard dismissal is handled via the Esc listener above.
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-ink-1/40 p-0 sm:items-center sm:p-4"
+      data-open={entered ? 'true' : 'false'}
+      className={cn(
+        'fixed inset-0 z-50 flex items-end justify-center bg-ink-1/40 p-0 sm:items-center sm:p-4',
+        'opacity-0 transition-opacity duration-[var(--duration-base)] ease-[var(--ease-out-soft)]',
+        'data-[open=true]:opacity-100',
+      )}
       onMouseDown={(e) => {
-        if (dismissable && e.target === e.currentTarget) onClose();
+        // `open` guard: the backdrop lingers during the exit transition, so a
+        // click landing in that window shouldn't re-fire onClose (the parent
+        // has already been told to close).
+        if (dismissable && open && e.target === e.currentTarget) onClose();
       }}
     >
       <div
@@ -79,12 +128,15 @@ export function Dialog({ open, onClose, title, children, dismissable = true, cla
         role="dialog"
         aria-modal="true"
         aria-labelledby={title ? titleId : undefined}
+        data-open={entered ? 'true' : 'false'}
         className={cn(
           // text-left is load-bearing: the panel is position:fixed but text-align
           // still INHERITS from the DOM parent — a dialog triggered from a
           // right-aligned context (e.g. a table's actions cell) would otherwise
           // render fully right-aligned.
           'relative w-full rounded-t-2xl bg-white p-5 text-left shadow-hero sm:max-w-md sm:rounded-2xl',
+          'opacity-0 scale-[0.98] transition-[opacity,transform] duration-[var(--duration-base)] ease-[var(--ease-out-soft)]',
+          'data-[open=true]:scale-100 data-[open=true]:opacity-100',
           className,
         )}
       >
@@ -100,7 +152,11 @@ export function Dialog({ open, onClose, title, children, dismissable = true, cla
         {dismissable && (
           <button
             type="button"
-            onClick={onClose}
+            onClick={() => {
+              // Same double-fire guard as the backdrop: don't re-fire onClose
+              // while the panel is only lingering to finish its exit.
+              if (open) onClose();
+            }}
             aria-label="ปิด"
             className="absolute right-3 top-3 inline-flex size-8 items-center justify-center rounded-lg text-ink-4 transition hover:bg-gray-100 hover:text-ink-2"
           >

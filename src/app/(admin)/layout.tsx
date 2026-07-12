@@ -3,6 +3,7 @@ import { Sidebar } from '@/components/admin/sidebar';
 import { Topbar } from '@/components/admin/topbar';
 import { requireAdminArea } from '@/lib/auth/admin-area';
 import { getUserAssignments } from '@/lib/auth/check-permission';
+import { ToastProvider } from '@/lib/motion/toast-context';
 import { parseSeen } from '@/lib/product-updates/seen-json';
 import { loadSidebarBadgeCounts } from './_load-badge-counts';
 
@@ -33,16 +34,18 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const { leave, advance, attendance } = await loadSidebarBadgeCounts(assignments);
 
   return (
-    <div className="flex min-h-dvh bg-canvas">
-      <Sidebar
-        badges={{ leave, advance, attendance, approvals: leave + advance + attendance }}
-        allowedPermissions={[...permissions]}
-      />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar userLabel={user.email ?? 'Admin'} userId={user.id} />
-        <main className="min-w-0 flex-1">{children}</main>
+    <ToastProvider>
+      <div className="flex min-h-dvh bg-canvas">
+        <Sidebar
+          badges={{ leave, advance, attendance, approvals: leave + advance + attendance }}
+          allowedPermissions={[...permissions]}
+        />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <Topbar userLabel={user.email ?? 'Admin'} userId={user.id} />
+          <main className="min-w-0 flex-1">{children}</main>
+        </div>
+        <ProductUpdates initialSeen={parseSeen(user.productUpdatesSeen)} />
       </div>
-      <ProductUpdates initialSeen={parseSeen(user.productUpdatesSeen)} />
-    </div>
+    </ToastProvider>
   );
 }

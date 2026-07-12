@@ -8,14 +8,17 @@ import type { DisputedReviewVM } from './disputed-review';
 export function DisputedReviewModalLite({
   row,
   onClose,
+  onActioned,
 }: {
   row: DisputedReviewVM | null;
   onClose: () => void;
+  onActioned?: () => void;
 }) {
   return (
     <ReviewModal
       open={row !== null}
       onClose={onClose}
+      onActioned={onActioned}
       title="ตรวจสอบการลงเวลา"
       note={{ required: true, placeholder: 'เช่น: อยู่นอกพื้นที่แต่มีเหตุจำเป็น — อนุมัติ' }}
       onApprove={row ? (n) => approveDisputed({ attendanceId: row.id, note: n }) : undefined}

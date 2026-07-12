@@ -65,9 +65,11 @@ function uploadErrorMessage(e: { kind: string; message?: string }): string {
 export function AdvanceReviewModal({
   row,
   onClose,
+  onActioned,
 }: {
   row: AdvanceRowVM | null;
   onClose: () => void;
+  onActioned?: () => void;
 }) {
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -124,6 +126,7 @@ export function AdvanceReviewModal({
     <ReviewModal
       open={row !== null}
       onClose={closeModal}
+      onActioned={onActioned}
       title="ตรวจสอบคำขอเบิก"
       moneyConfirm={isPending && row ? { amountLabel: row.amount } : undefined}
       approveLabel={row ? `อนุมัติ ${row.amount}` : 'อนุมัติ'}
