@@ -1,8 +1,10 @@
+import { NextIntlClientProvider } from 'next-intl';
 import { ProductUpdates } from '@/components/admin/product-updates/product-updates';
 import { Sidebar } from '@/components/admin/sidebar';
 import { Topbar } from '@/components/admin/topbar';
 import { requireAdminArea } from '@/lib/auth/admin-area';
 import { getUserAssignments } from '@/lib/auth/check-permission';
+import { getMessages } from '@/lib/i18n/messages';
 import { ToastProvider } from '@/lib/motion/toast-context';
 import { parseSeen } from '@/lib/product-updates/seen-json';
 import { loadSidebarBadgeCounts } from './_load-badge-counts';
@@ -33,19 +35,25 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const assignments = await getUserAssignments(user.id);
   const { leave, advance, attendance } = await loadSidebarBadgeCounts(assignments);
 
+  // Pin the whole admin subtree to Thai. The admin UI is Thai-only (hardcoded
+  // literals); this overrides the root provider's request-locale so the few
+  // next-intl-based admin components render Thai regardless of the viewer's
+  // User.locale — the employee LIFF still honors User.locale independently.
   return (
-    <ToastProvider>
-      <div className="flex min-h-dvh bg-canvas">
-        <Sidebar
-          badges={{ leave, advance, attendance, approvals: leave + advance + attendance }}
-          allowedPermissions={[...permissions]}
-        />
-        <div className="flex min-w-0 flex-1 flex-col">
-          <Topbar userLabel={user.email ?? 'Admin'} userId={user.id} />
-          <main className="min-w-0 flex-1">{children}</main>
+    <NextIntlClientProvider locale="th" messages={getMessages('th')}>
+      <ToastProvider>
+        <div className="flex min-h-dvh bg-canvas">
+          <Sidebar
+            badges={{ leave, advance, attendance, approvals: leave + advance + attendance }}
+            allowedPermissions={[...permissions]}
+          />
+          <div className="flex min-w-0 flex-1 flex-col">
+            <Topbar userLabel={user.email ?? 'Admin'} userId={user.id} />
+            <main className="min-w-0 flex-1">{children}</main>
+          </div>
+          <ProductUpdates initialSeen={parseSeen(user.productUpdatesSeen)} />
         </div>
-        <ProductUpdates initialSeen={parseSeen(user.productUpdatesSeen)} />
-      </div>
-    </ToastProvider>
+      </ToastProvider>
+    </NextIntlClientProvider>
   );
 }
