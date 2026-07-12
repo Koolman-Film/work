@@ -16,7 +16,7 @@
 
 import { useLocale } from 'next-intl';
 import { useEffect, useState } from 'react';
-import { buildDayGrid, type ISODate } from '@/lib/date/be-calendar';
+import { buildDayGrid, type ISODate, isDisabled, parseISO } from '@/lib/date/be-calendar';
 import type { Locale } from '@/lib/i18n/config';
 import { formatMonthYear, formatShortDate } from '@/lib/i18n/format';
 import { formatThaiMonthLabel } from '@/lib/leave/team-calendar-shape';
@@ -83,6 +83,24 @@ export function CalendarMonth({
     setFocusedIso(selected ?? today);
   }, [selected, today]);
 
+  // Re-sync the focus ring when the view month changes without focus
+  // moving in lockstep (PageUp/PageDown and the ‹ › nav buttons only tell
+  // the parent to change viewYear/viewMonth0 — they don't touch
+  // focusedIso). Without this, the ring can end up on a day that's no
+  // longer part of the visible month. Land on the same day-of-month,
+  // clamped to the new month's length (arrow-key nav already sets
+  // focusedIso into the new month itself, so this is a no-op then).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally re-sync only on view-month change (reading focusedIso here is fine — including it would fight arrow-key nav, which sets it directly).
+  useEffect(() => {
+    const parsed = parseISO(focusedIso);
+    if (parsed && parsed.year === viewYear && parsed.month0 === viewMonth0) return;
+    const day = parsed?.day ?? 1;
+    const daysInMonth = new Date(Date.UTC(viewYear, viewMonth0 + 1, 0)).getUTCDate();
+    const mm = String(viewMonth0 + 1).padStart(2, '0');
+    const dd = String(Math.min(day, daysInMonth)).padStart(2, '0');
+    setFocusedIso(`${viewYear}-${mm}-${dd}`);
+  }, [viewYear, viewMonth0]);
+
   const monthLabel =
     locale === 'th'
       ? formatThaiMonthLabel(viewYear, viewMonth0)
@@ -133,7 +151,7 @@ export function CalendarMonth({
         break;
       case 'Enter':
         e.preventDefault();
-        onPick(focusedIso);
+        if (!isDisabled(focusedIso, min, max)) onPick(focusedIso);
         break;
       default:
         break;
@@ -147,7 +165,7 @@ export function CalendarMonth({
         <button
           type="button"
           onClick={() => onNavMonth(-1)}
-          aria-label="Previous month"
+          aria-label={locale === 'th' ? 'เดือนก่อนหน้า' : 'Previous month'}
           className="grid size-7 place-items-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-700"
         >
           ‹
@@ -156,7 +174,7 @@ export function CalendarMonth({
         <button
           type="button"
           onClick={() => onNavMonth(1)}
-          aria-label="Next month"
+          aria-label={locale === 'th' ? 'เดือนถัดไป' : 'Next month'}
           className="grid size-7 place-items-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-700"
         >
           ›
@@ -200,7 +218,7 @@ export function CalendarMonth({
                 : hover && hover > rangeFrom && cell.iso > rangeFrom && cell.iso <= hover),
           );
           const isFocused = cell.iso === focusedIso;
-          const dateLabel = formatShortDate(new Date(`${cell.iso}T00:00:00`), locale);
+          const dateLabel = formatShortDate(new Date(`${cell.iso}T12:00:00Z`), locale);
 
           return (
             // biome-ignore lint/a11y/useSemanticElements: same grid widget as above — cell is a focusable button, not a <td>.
