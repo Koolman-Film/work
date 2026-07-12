@@ -42,7 +42,11 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Se
 
   return (
     <div className="px-4 py-6 sm:px-6 lg:px-8">
-      <PageHeader title={`รออนุมัติ${counts.total > 0 ? ` (${counts.total})` : ''}`} />
+      <PageHeader
+        breadcrumb="รออนุมัติ"
+        title={`รออนุมัติ${counts.total > 0 ? ` (${counts.total})` : ''}`}
+        subtitle="รวมคำขอลา เบิกล่วงหน้า และข้อโต้แย้งการลงเวลา ที่รอการอนุมัติ"
+      />
 
       <ApprovalsFilters initial={sp} branches={branches} />
 
