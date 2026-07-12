@@ -70,6 +70,12 @@ export function DateRangeField({
   const [open, setOpen] = useState(false);
   const [picking, setPicking] = useState<'idle' | 'start'>('idle');
   const [hover, setHover] = useState<string | null>(null);
+  // Pending first-click anchor for the range being picked. Tracked
+  // independently of controlled/uncontrolled `from` so the second click can
+  // always read the true anchor — in controlled mode `from` is derived from
+  // the `value` prop and doesn't advance until the parent re-renders with the
+  // committed range, so relying on it alone would collapse the range.
+  const [anchor, setAnchor] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
 
   const todayIso = ymd(new Date());
@@ -106,6 +112,7 @@ export function DateRangeField({
 
   function pick(iso: string) {
     if (picking === 'idle') {
+      setAnchor(iso);
       if (!isControlled) {
         setInternalFrom(iso);
         setInternalTo(null);
@@ -115,10 +122,10 @@ export function DateRangeField({
       return;
     }
 
-    const startIso = from ?? iso;
-    const range = clampRange(startIso, iso);
+    const range = clampRange(anchor ?? iso, iso);
     setPicking('idle');
     setHover(null);
+    setAnchor(null);
     setOpen(false);
     commit(range);
   }
@@ -129,19 +136,22 @@ export function DateRangeField({
     if (parsed) setView({ year: parsed.year, month0: parsed.month0 });
     setPicking('idle');
     setHover(null);
+    setAnchor(null);
     setOpen((o) => !o);
   }
 
-  function fmt(iso: string): string {
-    return formatShortDate(new Date(`${iso}T12:00:00Z`), locale);
+  function fmt(iso: string): string | null {
+    return parseISO(iso) ? formatShortDate(new Date(`${iso}T12:00:00Z`), locale) : null;
   }
 
-  const label = from && to ? `${fmt(from)} – ${fmt(to)}` : (placeholder ?? '');
+  const fromLabel = from ? fmt(from) : null;
+  const toLabel = to ? fmt(to) : null;
+  const label = fromLabel && toLabel ? `${fromLabel} – ${toLabel}` : (placeholder ?? '');
 
   return (
     <div ref={rootRef} className={cn('relative', className)}>
-      {fromName && <input type="hidden" name={fromName} value={from ?? ''} />}
-      {toName && <input type="hidden" name={toName} value={to ?? ''} />}
+      {fromName && <input type="hidden" name={fromName} value={from ?? ''} disabled={disabled} />}
+      {toName && <input type="hidden" name={toName} value={to ?? ''} disabled={disabled} />}
 
       <button
         type="button"
@@ -176,11 +186,11 @@ export function DateRangeField({
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-30 mt-1">
+        <div role="dialog" aria-label="เลือกช่วงวันที่" className="absolute left-0 top-full z-30 mt-1">
           <CalendarMonth
             viewYear={view.year}
             viewMonth0={view.month0}
-            rangeFrom={from}
+            rangeFrom={picking === 'start' ? (anchor ?? from) : from}
             rangeTo={picking === 'start' ? hover : to}
             hover={hover}
             onHover={setHover}

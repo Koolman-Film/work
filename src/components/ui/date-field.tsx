@@ -108,13 +108,22 @@ export function DateField({
     setOpen((o) => !o);
   }
 
-  const label = value
-    ? formatShortDate(new Date(`${value}T12:00:00Z`), locale)
-    : (placeholder ?? '');
+  const label =
+    value && parseISO(value)
+      ? formatShortDate(new Date(`${value}T12:00:00Z`), locale)
+      : (placeholder ?? '');
 
   return (
     <div ref={rootRef} className={cn('relative', className)}>
-      {name && <input type="hidden" name={name} value={value ?? ''} required={required} />}
+      {name && (
+        <input
+          type="hidden"
+          name={name}
+          value={value ?? ''}
+          required={required}
+          disabled={disabled}
+        />
+      )}
 
       <button
         type="button"
@@ -149,7 +158,7 @@ export function DateField({
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-30 mt-1">
+        <div role="dialog" aria-label="เลือกวันที่" className="absolute left-0 top-full z-30 mt-1">
           <CalendarMonth
             viewYear={view.year}
             viewMonth0={view.month0}
