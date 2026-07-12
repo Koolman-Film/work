@@ -52,7 +52,7 @@ function toBreakdown(p: PaySelectResult): PayrollBreakdown {
 }
 
 export async function loadReconciliation(month: string): Promise<ReconciliationView> {
-  const [current, roster, priorFrozen, adjustments] = await Promise.all([
+  const [current, roster, latestFrozenMonths, adjustments] = await Promise.all([
     prisma.payroll.findMany({
       where: { month },
       select: {
@@ -79,10 +79,17 @@ export async function loadReconciliation(month: string): Promise<ReconciliationV
         branch: { select: { name: true } },
       },
     }),
-    prisma.payroll.findMany({
+    // Baseline = each employee's most-recent FROZEN month before `month`.
+    // groupBy → one (employeeId, max month) row per employee, bounded by
+    // headcount regardless of how many years of history exist (vs. scanning
+    // every frozen row). `@@unique([employeeId, month])` guarantees the row at
+    // that (employeeId, month) IS the frozen one, so the follow-up fetch below
+    // is exact. `_max(month)` skips gaps, and the status filter keeps a newer
+    // Draft month from ever winning.
+    prisma.payroll.groupBy({
+      by: ['employeeId'],
       where: { month: { lt: month }, status: { in: ['Published', 'Locked'] } },
-      orderBy: { month: 'desc' },
-      select: { employeeId: true, month: true, ...PAY_SELECT },
+      _max: { month: true },
     }),
     prisma.payrollAdjustment.findMany({
       where: {
@@ -94,12 +101,20 @@ export async function loadReconciliation(month: string): Promise<ReconciliationV
     }),
   ]);
 
-  // Baseline = newest frozen prior row per employee (priorFrozen is month-desc).
+  // Fetch the breakdown for exactly the (employeeId, latest-frozen-month) pairs.
+  const baselinePairs = latestFrozenMonths
+    .filter((g): g is typeof g & { _max: { month: string } } => g._max.month !== null)
+    .map((g) => ({ employeeId: g.employeeId, month: g._max.month }));
+  const priorFrozen = baselinePairs.length
+    ? await prisma.payroll.findMany({
+        where: { status: { in: ['Published', 'Locked'] }, OR: baselinePairs },
+        select: { employeeId: true, month: true, ...PAY_SELECT },
+      })
+    : [];
+
   const baselineByEmp = new Map<string, PayrollBreakdown & { month: string }>();
   for (const p of priorFrozen) {
-    if (!baselineByEmp.has(p.employeeId)) {
-      baselineByEmp.set(p.employeeId, { ...toBreakdown(p), month: p.month });
-    }
+    baselineByEmp.set(p.employeeId, { ...toBreakdown(p), month: p.month });
   }
 
   const adjByEmp = new Map<string, ReconRow['adjustments']>();

@@ -61,6 +61,19 @@ describe('loadReconciliation', () => {
     expect(rowE?.flags.some((f) => f.kind === 'net-swing')).toBe(true);
   });
 
+  it('picks the NEWEST frozen month when several frozen prior months exist', async () => {
+    const b = await prisma.branch.create({ data: { name: 'HQ' } });
+    const e = await emp(b.id, 'ฉ');
+    await pay(e.id, '2026-03', 'Locked', { netPay: 15000 });
+    await pay(e.id, '2026-04', 'Published', { netPay: 18000 });
+    await pay(e.id, '2026-05', 'Locked', { netPay: 19000 }); // newest frozen → baseline
+    await pay(e.id, '2026-06', 'Draft', { netPay: 19000 });
+    const view = await loadReconciliation('2026-06');
+    const rowE = view.rows.find((r) => r.employeeId === e.id);
+    expect(rowE?.baseline?.month).toBe('2026-05');
+    expect(rowE?.baseline?.netPay).toBe(19000);
+  });
+
   it('flags missing-from-run for an active employee with a baseline but no current row', async () => {
     const b = await prisma.branch.create({ data: { name: 'HQ' } });
     const e = await emp(b.id, 'ข');
