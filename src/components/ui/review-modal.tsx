@@ -30,6 +30,10 @@ type Props = {
   onVoid?: (reason: string) => Promise<ActionResult>;
   /** Extra classes for the Dialog panel (e.g. `sm:max-w-2xl` for wide bodies). */
   panelClassName?: string;
+  /** When provided, called instead of `router.refresh()` on a successful
+   *  approve/reject/void — lets callers (e.g. an optimistic list) handle the
+   *  post-action update themselves. Omit to keep the default refresh. */
+  onActioned?: () => void;
 };
 
 type Mode = 'review' | 'confirm-approve' | 'void';
@@ -47,6 +51,7 @@ export function ReviewModal({
   onReject,
   onVoid,
   panelClassName,
+  onActioned,
 }: Props) {
   const router = useRouter();
   const noteId = useId();
@@ -91,7 +96,11 @@ export function ReviewModal({
       const r = await action();
       if (r.ok) {
         close();
-        router.refresh();
+        if (onActioned) {
+          onActioned();
+        } else {
+          router.refresh();
+        }
       } else {
         setError(r.message);
       }

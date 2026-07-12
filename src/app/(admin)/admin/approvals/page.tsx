@@ -54,11 +54,7 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Se
         <p className="mb-3 text-xs text-ink-4">แสดงรายการล่าสุดบางส่วน — ใช้ตัวกรองเพื่อจำกัดผลลัพธ์</p>
       )}
 
-      {cards.length === 0 ? (
-        <div className="surface p-8 text-center text-ink-4">ไม่มีรายการรออนุมัติ</div>
-      ) : (
-        <ApprovalsList cards={cards} canReview={canReview} />
-      )}
+      <ApprovalsList cards={cards} canReview={canReview} />
     </div>
   );
 }
