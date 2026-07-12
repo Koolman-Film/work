@@ -3,7 +3,6 @@
 import { ChevronDown, LogOut, Menu, Search, Sparkles, UserCog } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
-import { LanguageSwitcher } from '@/components/language-switcher';
 import { useProductUpdates } from '@/lib/product-updates/store';
 import { cn } from '@/lib/utils';
 import { NotificationBell } from './notification-bell';
@@ -125,12 +124,8 @@ function UserMenu({ userLabel }: { userLabel: string }) {
             <UserCog size={16} aria-hidden="true" />
             <span>โปรไฟล์ของฉัน</span>
           </Link>
-          {/* Language picker — its dropdown change submits a Server Action
-              which revalidates the layout, so we don't need to close the
-              parent popover manually. */}
-          <div className="border-t border-gray-100">
-            <LanguageSwitcher variant="topbar" />
-          </div>
+          {/* No language picker here — the admin UI is Thai-only. Users change
+              their employee-app language from the LIFF language modal. */}
           <button
             type="button"
             role="menuitem"
