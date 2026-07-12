@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
+import { DateField } from '@/components/ui/date-field';
 import { Input } from '@/components/ui/input';
 import { PageHeader } from '@/components/ui/page-header';
 import {
@@ -199,7 +200,7 @@ export default async function OvertimePage({
                 </option>
               ))}
             </select>
-            <Input name="date" type="date" required className="w-auto" />
+            <DateField name="date" required placeholder="เลือกวันที่" />
             <Input
               name="minutes"
               type="number"

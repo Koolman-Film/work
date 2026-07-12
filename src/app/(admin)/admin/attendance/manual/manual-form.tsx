@@ -15,6 +15,7 @@
 import { useRouter } from 'next/navigation';
 import { useMemo, useState, useTransition } from 'react';
 import { Button } from '@/components/ui/button';
+import { DateField } from '@/components/ui/date-field';
 import { FormField } from '@/components/ui/form-field';
 import { Input } from '@/components/ui/input';
 import {
@@ -109,14 +110,13 @@ export function ManualAttendanceForm({ employees }: Props) {
       </FormField>
 
       <FormField label="วันที่" htmlFor="date" required>
-        <Input
+        <DateField
           id="date"
           name="date"
-          type="date"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-          max={today}
           required
+          value={date}
+          onChange={(iso) => setDate(iso ?? '')}
+          max={today}
         />
       </FormField>
 

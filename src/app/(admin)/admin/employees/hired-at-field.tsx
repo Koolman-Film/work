@@ -10,7 +10,7 @@
  */
 
 import { useState } from 'react';
-import { Input } from '@/components/ui/input';
+import { DateField } from '@/components/ui/date-field';
 import { formatTenureThai, tenureBreakdown } from '@/lib/employee/tenure';
 
 export function HiredAtField({
@@ -25,14 +25,12 @@ export function HiredAtField({
 
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-      <Input
+      <DateField
         id="hiredAt"
         name="hiredAt"
-        type="date"
         required
         value={value}
-        onChange={(e) => setValue(e.target.value)}
-        className="max-w-xs"
+        onChange={(iso) => setValue(iso ?? '')}
       />
       {value && (
         <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md bg-primary-50 px-2.5 py-1.5 text-sm">
