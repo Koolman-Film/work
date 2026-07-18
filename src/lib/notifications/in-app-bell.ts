@@ -59,10 +59,12 @@ export type AdminBellEvent =
       /** First few names for display; full list lives on /admin/attendance/live. */
       sampleEmployeeNames: string[];
       /**
-       * Employees with no WorkSchedule assigned at all (Task 2's shared
-       * query, scope 'all'). Optional: notifications already stored before
-       * this field existed don't have it, and notification-bell.tsx must
-       * still render those old rows without it.
+       * How many of THIS notification's `countNotCheckedIn` employees have no
+       * WorkSchedule assigned at all — the intersection of `notCheckedIn` with
+       * the shared `employeesWithoutSchedule('all')` query, not an org-wide
+       * total. Always ≤ countNotCheckedIn. Optional: notifications already
+       * stored before this field existed don't have it, and
+       * notification-bell.tsx must still render those old rows without it.
        */
       countWithoutSchedule?: number;
     }

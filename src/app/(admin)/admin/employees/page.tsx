@@ -15,6 +15,14 @@ import { buildPageMeta, pageArgs, parsePageParam } from '@/lib/pagination';
 import { signAttendancePhotoUrls } from '@/lib/storage/signed-urls';
 import { EmployeeFilters } from './employee-filters';
 
+/**
+ * Max names shown inline in the "missing schedule" banner before collapsing
+ * the rest into "และอีก N คน". Keeps the banner from growing unboundedly on
+ * a branch with many unscheduled employees while still letting an admin jump
+ * straight to the common case (a handful of stragglers) without paging.
+ */
+const MISSING_SCHEDULE_NAMES_CAP = 8;
+
 /** Thai suffix for the salary-type enum, shown after the base salary. */
 const SALARY_TYPE_TH: Record<string, string> = {
   Monthly: 'เดือน',
@@ -147,6 +155,7 @@ export default async function EmployeeListPage({ searchParams }: { searchParams:
   ]);
 
   const missingIds = new Set(missing.map((m) => m.id));
+  const missingScheduleShown = missing.slice(0, MISSING_SCHEDULE_NAMES_CAP);
   const meta = buildPageMeta(total, requestedPage);
 
   // Preserve the active filters when paging; new filters reset to page 1
@@ -251,13 +260,32 @@ export default async function EmployeeListPage({ searchParams }: { searchParams:
 
       {missing.length > 0 && (
         <div className="mb-4">
-          <p
+          <div
             role="status"
             className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
           >
-            พนักงาน {missing.length} คนยังไม่ได้ตั้งตารางงาน — ระบบจะนับว่าทำงาน จันทร์–เสาร์
-            และอาจแจ้งว่ายังไม่เช็คอินผิดวัน
-          </p>
+            <p>
+              พนักงาน {missing.length} คนยังไม่ได้ตั้งตารางงาน — ระบบจะนับว่าทำงาน จันทร์–เสาร์
+              และอาจแจ้งว่ายังไม่เช็คอินผิดวัน
+            </p>
+            <p className="mt-1.5 leading-relaxed">
+              {missingScheduleShown.map((m, i) => (
+                <span key={m.id}>
+                  <Link
+                    href={`/admin/employees/${m.id}/edit`}
+                    className="font-medium underline decoration-amber-400 underline-offset-2 hover:text-amber-950"
+                  >
+                    {m.name}
+                  </Link>
+                  <span className="text-amber-700"> ({m.branchName})</span>
+                  {i < missingScheduleShown.length - 1 ? ', ' : ''}
+                </span>
+              ))}
+              {missing.length > missingScheduleShown.length && (
+                <span> และอีก {missing.length - missingScheduleShown.length} คน</span>
+              )}
+            </p>
+          </div>
         </div>
       )}
 
