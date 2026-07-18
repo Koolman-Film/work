@@ -63,6 +63,7 @@ export type CreateManualResult =
         | 'bad-date'
         | 'future-date'
         | 'bad-time'
+        | 'bad-note'
         | 'missing-exempt-reason'
         | 'already-checked-in'
         | 'duplicate'
@@ -155,7 +156,7 @@ export async function createManualAttendance(
 
   const note = input.note?.trim() || null;
   if (note && note.length > MAX_NOTE) {
-    return { ok: false, code: 'bad-date', message: `หมายเหตุยาวเกิน ${MAX_NOTE} ตัวอักษร` };
+    return { ok: false, code: 'bad-note', message: `หมายเหตุยาวเกิน ${MAX_NOTE} ตัวอักษร` };
   }
 
   // ── Resolve the late policy exactly as check-in.ts does ────────────
@@ -192,17 +193,27 @@ export async function createManualAttendance(
 
   // ── Duplicate guards ───────────────────────────────────────────────
   // A pre-existing CheckIn means the employee already checked in (LIFF or
-  // an earlier manual entry) — never stack a second one on top.
-  if (preview.rows.some((r) => r.type === 'CheckIn')) {
-    const existingCheckIn = await prisma.attendance.findFirst({
-      where: { employeeId: emp.id, date, type: 'CheckIn', deletedAt: null },
-      select: { id: true },
-    });
-    if (existingCheckIn) {
+  // an earlier manual entry). We look this up unconditionally — not only
+  // when this write would itself insert a CheckIn — because recording
+  // `kind: 'absent'` on a day that already has a CheckIn is just as
+  // contradictory (worked AND didn't show up) and must be rejected too.
+  const existingCheckIn = await prisma.attendance.findFirst({
+    where: { employeeId: emp.id, date, type: 'CheckIn', deletedAt: null },
+    select: { id: true },
+  });
+  if (existingCheckIn) {
+    if (preview.rows.some((r) => r.type === 'CheckIn')) {
       return {
         ok: false,
         code: 'already-checked-in',
         message: 'พนักงานคนนี้มีการเช็คอินของวันนี้อยู่แล้ว',
+      };
+    }
+    if (input.kind === 'absent') {
+      return {
+        ok: false,
+        code: 'already-checked-in',
+        message: 'พนักงานคนนี้มีการเช็คอินของวันนี้อยู่แล้ว จึงบันทึกเป็นขาดงานไม่ได้',
       };
     }
   }
@@ -235,30 +246,42 @@ export async function createManualAttendance(
   const userAgent = headerList.get('user-agent') ?? undefined;
 
   try {
-    const created = await prisma.$transaction(async (tx) =>
-      Promise.all(
-        preview.rows.map((row) =>
-          tx.attendance.create({
-            data: {
-              employeeId: emp.id,
-              date,
-              type: row.type,
-              source: 'Manual',
-              durationMinutes: row.durationMinutes,
-              // Times live on the CheckIn row only; derived Late/EarlyLeave
-              // rows are the deduction unit and carry no clock evidence,
-              // matching how check-in.ts writes its derived Late row.
-              clockInAt: row.type === 'CheckIn' ? clockInAt : null,
-              clockOutAt: row.type === 'CheckIn' ? clockOutAt : null,
-              createdById: user.id,
-            },
-            select: { id: true, type: true },
-          }),
-        ),
-      ),
-    );
+    // Sequential, not Promise.all: an interactive transaction holds a single
+    // logical connection, so concurrent writes against one `tx` are a Prisma
+    // anti-pattern (non-deterministic ordering, spurious errors behind
+    // poolers). Every other transactional write in this codebase — see
+    // check-in.ts and void.ts — awaits sequentially inside the transaction.
+    const created: { id: string; type: string }[] = [];
+    await prisma.$transaction(async (tx) => {
+      for (const row of preview.rows) {
+        const createdRow = await tx.attendance.create({
+          data: {
+            employeeId: emp.id,
+            date,
+            type: row.type,
+            source: 'Manual',
+            durationMinutes: row.durationMinutes,
+            // Times live on the CheckIn row only; derived Late/EarlyLeave
+            // rows are the deduction unit and carry no clock evidence,
+            // matching how check-in.ts writes its derived Late row.
+            clockInAt: row.type === 'CheckIn' ? clockInAt : null,
+            clockOutAt: row.type === 'CheckIn' ? clockOutAt : null,
+            createdById: user.id,
+          },
+          select: { id: true, type: true },
+        });
+        created.push(createdRow);
+      }
+    });
+
+    // The CheckIn row (when present) is always the first row written — see
+    // computeManualPreview — so derived Late/EarlyLeave rows can reference it
+    // in their own audit entry, mirroring how check-in.ts's derived Late row
+    // carries `derivedFromCheckInId`.
+    const checkInId = created.find((r) => r.type === 'CheckIn')?.id ?? null;
 
     for (const row of created) {
+      const isDerived = row.type === 'Late' || row.type === 'EarlyLeave';
       auditLog({
         actorId: user.id,
         action: 'attendance.manual-create',
@@ -275,6 +298,7 @@ export async function createManualAttendance(
           exemptLate: !!input.exemptLate,
           exemptReason: input.exemptReason?.trim() || null,
           note,
+          ...(isDerived ? { derivedFromCheckInId: checkInId } : {}),
         },
         metadata: { ip, userAgent, source: 'admin-manual' },
       });
