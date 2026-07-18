@@ -292,6 +292,11 @@ function RosterChip({ person }: { person: RosterEmployee }) {
           {person.employeeNickname && (
             <span className="text-ink-3"> ({person.employeeNickname})</span>
           )}
+          {!person.hasSchedule && (
+            <span className="ml-2 whitespace-nowrap rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-800">
+              ไม่มีตารางงาน
+            </span>
+          )}
         </p>
         <p className="text-[10px] text-ink-4">ยังไม่เช็คอิน</p>
       </div>

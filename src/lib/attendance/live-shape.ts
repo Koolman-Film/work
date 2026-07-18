@@ -40,6 +40,8 @@ export type RosterEmployee = EmployeeChip & {
   /** True if today is a working day for this employee (their WorkSchedule, or
    *  the company default). Off-schedule employees aren't "ยังไม่เช็คอิน". */
   scheduledToday: boolean;
+  /** false = ไม่ได้ผูก WorkSchedule → ถูกนับเป็น จ–ส โดยปริยาย */
+  hasSchedule: boolean;
 };
 
 /** An on-leave member, with the leave type + range for the chip subtitle. */

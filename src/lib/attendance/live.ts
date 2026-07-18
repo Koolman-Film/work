@@ -142,6 +142,7 @@ export async function getTodayAttendance(): Promise<LiveBoardData> {
       todayDow,
       hasHoliday,
     ),
+    hasSchedule: (e.workSchedule?.days.length ?? 0) > 0,
   }));
 
   // "Busy" = anyone with a CheckIn (the displayed rows) or an OnLeave today.
