@@ -257,9 +257,31 @@ export default async function AdminHomePage() {
 
       {showMergeCard && <MergeNudge />}
 
+      {/* Full-width, OUTSIDE the KPI grid on purpose. Nested inside the
+          hero's grid column it overflowed that column's box (KpiHero is
+          h-full) and the neighbouring stat grid painted straight over it —
+          the warning was in the DOM but invisible on screen. It also reads
+          better here: it qualifies the whole "ยังไม่มา" figure, not just
+          one card, and matches where /admin/employees puts the same alert. */}
+      {missingSchedule.length > 0 && (
+        <p
+          role="status"
+          className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900"
+        >
+          <span className="font-medium">{missingSchedule.length} คน</span> ยังไม่ได้ตั้งตารางงาน
+          อาจทำให้ตัวเลข "ยังไม่มา" คลาดเคลื่อน{' '}
+          <Link
+            href="/admin/employees"
+            className="font-medium underline decoration-amber-400 underline-offset-2 hover:text-amber-950"
+          >
+            ดูรายชื่อ →
+          </Link>
+        </p>
+      )}
+
       {/* Attendance hero + pending-count stats */}
       <div className="grid gap-4 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-2">
+        <div className="lg:col-span-2">
           <KpiHero
             checkedIn={checkedInTodayCount}
             notCheckedIn={notCheckedInCount}
@@ -270,21 +292,6 @@ export default async function AdminHomePage() {
               canViewLiveBoard ? '/admin/attendance/live?filter=notcheckedin' : undefined
             }
           />
-          {missingSchedule.length > 0 && (
-            <p
-              role="status"
-              className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900"
-            >
-              <span className="font-medium">{missingSchedule.length} คน</span> ยังไม่ได้ตั้งตารางงาน
-              อาจทำให้ตัวเลข "ยังไม่มา" คลาดเคลื่อน{' '}
-              <Link
-                href="/admin/employees"
-                className="font-medium underline decoration-amber-400 underline-offset-2 hover:text-amber-950"
-              >
-                ดูรายชื่อ →
-              </Link>
-            </p>
-          )}
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
           <Link
