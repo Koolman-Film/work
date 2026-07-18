@@ -322,20 +322,28 @@ export type MarkPaidResult =
   | { ok: false; code: 'forbidden' | 'not-found' | 'not-approved' | 'db-error'; message: string };
 
 /**
- * Two-step payment, step 2: admin transferred the money and attaches the
- * slip. Requires status=Approved (slip before approval makes no sense;
- * the approve flow's optional receiptUrl still exists for the legacy
- * one-shot web path). paidAt is set ONCE; re-upload replaces the image only.
+ * Two-step payment, step 2: admin marks the advance as paid, optionally
+ * attaching the transfer slip. Requires status=Approved (slip before
+ * approval makes no sense; the approve flow's optional receiptUrl still
+ * exists for the legacy one-shot web path). paidAt is set ONCE, the first
+ * time this is called for the advance — it no longer waits on a slip; a
+ * later (or first-ever) slip upload never moves it.
  */
 export async function markAdvancePaid(input: {
   cashAdvanceId: string;
-  receiptKey: string;
+  /**
+   * Optional — the customer asked for the slip to be evidence, not a gate
+   * ("แนบสลิปโอนเงิน (ไม่บังคับ)"). Money can be recorded as sent first and
+   * the slip attached later, or never.
+   */
+  receiptKey?: string | null;
 }): Promise<MarkPaidResult> {
   const { user, authUserId } = await requirePermission('advance.approve');
   const permitted = await getPermittedBranches(user, 'advance.approve');
 
-  const key = input.receiptKey.trim();
-  if (!/^https?:\/\//i.test(key) && !key.startsWith(`${authUserId}/advance-receipts/`)) {
+  const key = input.receiptKey?.trim() || null;
+  // Validate the path only when a slip is actually supplied.
+  if (key && !/^https?:\/\//i.test(key) && !key.startsWith(`${authUserId}/advance-receipts/`)) {
     return { ok: false, code: 'forbidden', message: 'ลิงก์สลิปไม่ถูกต้อง' };
   }
 
@@ -390,7 +398,12 @@ export async function markAdvancePaid(input: {
       const firstAttach = row.paidAt === null;
       await tx.cashAdvance.update({
         where: { id: row.id },
-        data: { receiptUrl: key, ...(firstAttach ? { paidAt: new Date() } : {}) },
+        data: {
+          // paidAt marks "money sent" on its own now — it no longer waits
+          // for a slip. Set once; a later slip upload never moves it.
+          ...(firstAttach ? { paidAt: new Date() } : {}),
+          ...(key ? { receiptUrl: key } : {}),
+        },
       });
 
       await auditLogTx(tx, {
@@ -399,7 +412,10 @@ export async function markAdvancePaid(input: {
         entityType: 'CashAdvance',
         entityId: row.id,
         before: { receiptUrl: row.receiptUrl, paidAt: row.paidAt?.toISOString() ?? null },
-        after: { receiptUrl: key, paidAt: firstAttach ? 'now' : row.paidAt?.toISOString() },
+        after: {
+          receiptUrl: key ?? row.receiptUrl,
+          paidAt: firstAttach ? 'now' : row.paidAt?.toISOString(),
+        },
         metadata: { ip, userAgent, source: 'liff-admin' },
       });
 
