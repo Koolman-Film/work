@@ -72,6 +72,9 @@ export default async function LiffLeaveListPage({
         leaveType: { select: { name: true, nameByLocale: true } },
         startDate: true,
         endDate: true,
+        unit: true,
+        startTime: true,
+        endTime: true,
         reason: true,
         status: true,
         createdAt: true,
@@ -128,6 +131,14 @@ export default async function LiffLeaveListPage({
                           r.leaveType.name,
                           r.leaveType.nameByLocale,
                           locale as Locale,
+                        )}
+                        {r.unit !== 'FullDay' && (
+                          <span className="font-normal text-gray-500">
+                            {' · '}
+                            {r.unit === 'Hourly' && r.startTime && r.endTime
+                              ? `${r.startTime}–${r.endTime}`
+                              : t(`new.unit.${r.unit}` as Parameters<typeof t>[0])}
+                          </span>
                         )}
                       </p>
                       <p className="mt-1 text-xs text-gray-600">
