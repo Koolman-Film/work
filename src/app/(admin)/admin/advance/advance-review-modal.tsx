@@ -31,14 +31,23 @@ export type AdvanceRowVM = {
   amount: string;
   submitted: string;
   decidedAt: string | null;
+  /** Approved and markAdvancePaid has recorded paidAt — distinct from "Approved but awaiting payout". */
+  paid: boolean;
   receiptUrl: string | null;
   advanceGuard: AdvanceGuardVM | null;
+  bankName: string | null;
+  bankAccountNumber: string | null;
+  bankAccountName: string | null;
 };
 
 function Badge({ row }: { row: AdvanceRowVM }) {
+  // Approved splits into "awaiting payout" / "paid" using paidAt — markAdvancePaid
+  // is only ever called from the LIFF admin screen, but the approver should still
+  // see which state a decided request is in.
+  const label = row.status === 'Approved' ? (row.paid ? 'จ่ายเงินแล้ว' : 'รอจ่ายเงิน') : row.statusLabel;
   return (
     <StatusBadge status={row.statusKey}>
-      {STATUS_ICON[row.statusKey] ?? ''} {row.statusLabel}
+      {STATUS_ICON[row.statusKey] ?? ''} {label}
     </StatusBadge>
   );
 }
@@ -167,6 +176,34 @@ export function AdvanceReviewModal({
               {row.advanceGuard.overCap && ' — คำขอนี้เกินวงเงิน ไม่สามารถอนุมัติได้'}
             </p>
           )}
+
+          {/* Payout destination — shown before the receipt so the approver can
+              confirm the employee's bank data is complete before approving. */}
+          <section className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+            <p className="text-xs font-medium uppercase tracking-wide text-ink-3">โอนเข้าบัญชี</p>
+            {row.bankAccountNumber ? (
+              <dl className="mt-2 space-y-1 text-sm">
+                <div className="flex justify-between gap-4">
+                  <dt className="text-ink-3">ธนาคาร</dt>
+                  <dd className="font-medium text-ink-1">{row.bankName ?? '—'}</dd>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <dt className="text-ink-3">เลขบัญชี</dt>
+                  <dd className="font-medium tabular-nums text-ink-1">{row.bankAccountNumber}</dd>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <dt className="text-ink-3">ชื่อบัญชี</dt>
+                  <dd className="font-medium text-ink-1">{row.bankAccountName ?? '—'}</dd>
+                </div>
+              </dl>
+            ) : (
+              // Never render an empty block: the approver must be able to tell
+              // "no data entered" apart from "the screen is broken".
+              <p className="mt-2 rounded-lg bg-amber-50 p-2 text-xs text-amber-800">
+                ยังไม่ได้กรอกข้อมูลบัญชีธนาคารของพนักงานคนนี้ — ต้องกรอกก่อนโอน
+              </p>
+            )}
+          </section>
 
           {isPending ? (
             <div>

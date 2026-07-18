@@ -655,7 +655,13 @@
       "slipAlt": "Transfer slip",
       "noSlipFile": "Slip file not found",
       "reattachHeading": "Re-attach slip",
-      "reattachButton": "Re-attach slip"
+      "reattachButton": "Re-attach slip",
+      "payoutAccount": "Payout account",
+      "payoutBank": "Bank",
+      "payoutAccountNo": "Account number",
+      "payoutAccountName": "Account name",
+      "payoutAccountMissing": "This employee hasn't entered bank account details yet — enter them before transferring.",
+      "markPaidButton": "Mark as paid (no slip)"
     },
     "advanceActions": {
       "approvedBanner": "Approved ✓ — after transferring, remember to attach the slip",
