@@ -195,7 +195,8 @@
       "noBranchInRange": "Outside the branch area (geofence)",
       "gpsTooImprecise": "GPS signal not accurate enough — try an open area",
       "impossibleTravel": "Distance and time don't match — needs review",
-      "unknown": "Unknown reason"
+      "unknown": "Unknown reason",
+      "selfieFallback": "Selfie was not taken with the live camera — an admin will review it"
     }
   },
   "summary": {
