@@ -456,6 +456,14 @@ export function EmployeeForm({
                     {/* ตอนแก้ไข ต้องคง "ไม่ระบุ" ไว้เสมอ ไม่งั้นการบันทึกฟิลด์อื่น
                         จะเปลี่ยนตารางงานของพนักงานเดิมโดยที่แอดมินไม่ตั้งใจ */}
                     {!isCreate && <option value="">— ไม่ระบุ —</option>}
+                    {/* สร้างใหม่แต่ไม่มีตารางงานให้ prefill (บริษัทใหม่ที่ยังไม่มี
+                        พนักงานปกติเลย) — ต้องมี placeholder ที่เลือกไม่ได้ ไม่งั้น
+                        เบราว์เซอร์จะเลือกตารางแรกตามตัวอักษรให้เองโดยแอดมินไม่ได้ตั้งใจ */}
+                    {isCreate && defaultWorkScheduleId == null && (
+                      <option value="" disabled>
+                        — เลือกตารางงาน —
+                      </option>
+                    )}
                     {options.workSchedules.map((w) => (
                       <option key={w.id} value={w.id}>
                         {w.name}

@@ -250,6 +250,70 @@ describe('createEmployee — branch placement (subset)', () => {
   });
 });
 
+// ── createEmployee — work-schedule create-time gate (Task 4) ──────────────────
+//
+// Proves createEmployee actually calls validateWorkScheduleRequiredForCreate
+// (employee-schema.test.ts only tests the validator in isolation) so a future
+// refactor can't silently drop the wiring.
+
+describe('createEmployee — work-schedule required gate', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    requirePermission.mockResolvedValue({ user: { id: 'actor' } });
+    // Global actor — isolates this suite from branch-placement gating, which
+    // is already covered above.
+    getUserAssignments.mockResolvedValue([
+      {
+        branchId: null,
+        role: { permissions: ['employee.create'], isSuperadmin: false, archivedAt: null },
+      },
+    ]);
+    transactionFn.mockImplementation(async (fn: (tx: unknown) => unknown) => fn(makeTxStub()));
+    userCreate.mockResolvedValue({ id: 'new-user' });
+    employeeCreate.mockResolvedValue({ id: 'new-emp' });
+    roleDefFindUnique.mockResolvedValue({ id: 'role-staff' });
+    userRoleAssignmentCreateMany.mockResolvedValue({});
+  });
+
+  it('rejects with the Thai gate message when workScheduleId is blank; no employee created', async () => {
+    const fd = createFd('00000000-0000-0000-0000-000000000001', [
+      '00000000-0000-0000-0000-000000000001',
+    ]);
+    fd.set('workScheduleId', '');
+
+    let thrown: unknown;
+    try {
+      await createEmployee(fd);
+    } catch (e) {
+      thrown = e;
+    }
+
+    expect(thrown).toBeInstanceOf(Error);
+    const message = (thrown as Error).message;
+    expect(message).toMatch(/^REDIRECT:/);
+    const url = new URL(message.slice('REDIRECT:'.length), 'http://localhost');
+    expect(url.searchParams.get('error')).toBe('กรุณาเลือกตารางงาน');
+    expect(employeeCreate).not.toHaveBeenCalled();
+  });
+
+  it('passes the gate and reaches employee.create when workScheduleId is a valid id', async () => {
+    const fd = createFd('00000000-0000-0000-0000-000000000001', [
+      '00000000-0000-0000-0000-000000000001',
+    ]);
+    fd.set('workScheduleId', '00000000-0000-0000-0000-0000000000aa');
+
+    await createEmployee(fd).catch(() => {
+      // expected REDIRECT after success
+    });
+
+    expect(employeeCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ workScheduleId: '00000000-0000-0000-0000-0000000000aa' }),
+      }),
+    );
+  });
+});
+
 // ── updateEmployee — branch reassignment is global-only ───────────────────────
 
 /** Reuse createFd (all required fields) for update submissions too. */
