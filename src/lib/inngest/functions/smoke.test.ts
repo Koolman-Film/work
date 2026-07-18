@@ -31,6 +31,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 // Stub prisma module BEFORE importing the handlers. Each test sets
 // per-call return values via `mockedPrisma.X.Y.mockResolvedValue(...)`.
 
+// attendance-late-check.ts now imports @/lib/employee/no-schedule, which does
+// `import 'server-only'` — that throws under the default vitest config (no
+// react-server condition / alias). Mock it to a no-op so this stays a plain
+// unit test (same fix as no-schedule.test.ts).
+vi.mock('server-only', () => ({}));
+
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
     attendance: {
@@ -277,10 +283,12 @@ describe('attendance-late-check', () => {
   it('notifies when some active employees have not checked in or taken leave', async () => {
     vi.setSystemTime(new Date('2026-03-06T05:00:00Z'));
     mockedPrisma.holiday.findFirst.mockResolvedValue(null);
-    mockedPrisma.employee.findMany.mockResolvedValue([
-      { id: 'e1', firstName: 'Alice', lastName: 'A', nickname: 'Ali' },
-      { id: 'e2', firstName: 'Bob', lastName: 'B', nickname: null },
-    ]);
+    mockedPrisma.employee.findMany
+      .mockResolvedValueOnce([
+        { id: 'e1', firstName: 'Alice', lastName: 'A', nickname: 'Ali' },
+        { id: 'e2', firstName: 'Bob', lastName: 'B', nickname: null },
+      ]) // active-employees query
+      .mockResolvedValueOnce([]); // employeesWithoutSchedule's own findMany call
     mockedPrisma.attendance.findMany
       .mockResolvedValueOnce([]) // checked in (none)
       .mockResolvedValueOnce([]); // on leave (none)
@@ -289,11 +297,13 @@ describe('attendance-late-check', () => {
       notified: boolean;
       countNotCheckedIn: number;
       activeEmployeeCount: number;
+      countWithoutSchedule: number;
     };
 
     expect(result.notified).toBe(true);
     expect(result.countNotCheckedIn).toBe(2);
     expect(result.activeEmployeeCount).toBe(2);
+    expect(result.countWithoutSchedule).toBe(0);
   });
 });
 

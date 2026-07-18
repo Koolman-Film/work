@@ -239,9 +239,14 @@ function renderNotification(n: BellNotification): RenderedKind {
       const samples = Array.isArray(payload.sampleEmployeeNames)
         ? (payload.sampleEmployeeNames as string[]).slice(0, 3).join(', ')
         : '';
+      // Older stored notifications predate this field — Number(undefined) is
+      // NaN, so `|| 0` keeps this a safe no-op for them instead of rendering "NaN".
+      const countWithoutSchedule = Number(payload.countWithoutSchedule) || 0;
+      const trailingNote =
+        countWithoutSchedule > 0 ? ` (${countWithoutSchedule} คนยังไม่ได้ตั้งตารางงาน)` : '';
       return {
         emoji: '⏰',
-        title: `${count} พนักงานยังไม่เช็คอินวันนี้`,
+        title: `${count} พนักงานยังไม่เช็คอินวันนี้${trailingNote}`,
         subtitle: samples,
         href: '/admin/attendance/live',
       };

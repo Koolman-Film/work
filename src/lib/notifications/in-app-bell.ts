@@ -58,6 +58,13 @@ export type AdminBellEvent =
       countNotCheckedIn: number;
       /** First few names for display; full list lives on /admin/attendance/live. */
       sampleEmployeeNames: string[];
+      /**
+       * Employees with no WorkSchedule assigned at all (Task 2's shared
+       * query, scope 'all'). Optional: notifications already stored before
+       * this field existed don't have it, and notification-bell.tsx must
+       * still render those old rows without it.
+       */
+      countWithoutSchedule?: number;
     }
   | {
       // Per-employee daily ping from probation-reminder cron. Volume is

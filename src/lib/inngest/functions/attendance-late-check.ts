@@ -19,6 +19,7 @@
 
 import { isScheduledWorkday } from '@/lib/attendance/schedule';
 import { prisma } from '@/lib/db/prisma';
+import { employeesWithoutSchedule } from '@/lib/employee/no-schedule';
 import { notifyAdminsInApp } from '@/lib/notifications/in-app-bell';
 import { inngest } from '../client';
 
@@ -114,6 +115,13 @@ export const attendanceLateCheck = inngest.createFunction(
       return { skipped: true, reason: 'all-checked-in' };
     }
 
+    // Employees with no WorkSchedule assigned at all — Task 2's shared query.
+    // 'all' because this cron has no admin/branch context to scope by.
+    const countWithoutSchedule = await step.run(
+      'count-without-schedule',
+      async () => (await employeesWithoutSchedule('all')).length,
+    );
+
     // Summary notification → admin bell. Names truncated to first 5 for
     // the snippet; full list lives on /admin/attendance/live.
     await step.run('notify-admins', async () => {
@@ -124,6 +132,7 @@ export const attendanceLateCheck = inngest.createFunction(
         sampleEmployeeNames: notCheckedIn
           .slice(0, 5)
           .map((e) => (e.nickname?.trim() || e.firstName).trim()),
+        countWithoutSchedule,
       });
     });
 
@@ -131,6 +140,7 @@ export const attendanceLateCheck = inngest.createFunction(
       notified: true,
       countNotCheckedIn: notCheckedIn.length,
       activeEmployeeCount: activeEmployees.length,
+      countWithoutSchedule,
     };
   },
 );
