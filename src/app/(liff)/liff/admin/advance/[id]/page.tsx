@@ -158,35 +158,40 @@ export default async function LiffAdminAdvanceDetailPage({ params }: { params: P
 
       {row.status === 'Pending' && <AdvanceReviewActions cashAdvanceId={row.id} />}
 
-      <section className="mt-3 rounded-xl border border-gray-200 bg-white p-4">
-        <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">
-          {t('payoutAccount')}
-        </h2>
-        {row.employee.bankAccountNumber ? (
-          <dl className="mt-2 space-y-1 text-sm">
-            <div className="flex justify-between gap-4">
-              <dt className="text-gray-500">{t('payoutBank')}</dt>
-              <dd className="font-medium">
-                {row.employee.bank?.nameTh ?? row.employee.bank?.shortName ?? '—'}
-              </dd>
-            </div>
-            <div className="flex justify-between gap-4">
-              <dt className="text-gray-500">{t('payoutAccountNo')}</dt>
-              <dd className="font-medium tabular-nums">{row.employee.bankAccountNumber}</dd>
-            </div>
-            <div className="flex justify-between gap-4">
-              <dt className="text-gray-500">{t('payoutAccountName')}</dt>
-              <dd className="font-medium">{row.employee.bankAccountName ?? '—'}</dd>
-            </div>
-          </dl>
-        ) : (
-          // Never render an empty block: the payer must be able to tell
-          // "no data entered" apart from "the screen is broken".
-          <p className="mt-2 rounded-lg bg-amber-50 p-2 text-xs text-amber-800">
-            {t('payoutAccountMissing')}
-          </p>
-        )}
-      </section>
+      {/* Approved onward only. On a still-Pending request a "โอนเข้าบัญชี"
+          heading with an account number reads as an instruction to transfer
+          now, before anyone has approved it. */}
+      {(awaitingSlip || paid) && (
+        <section className="mt-3 rounded-xl border border-gray-200 bg-white p-4">
+          <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">
+            {t('payoutAccount')}
+          </h2>
+          {row.employee.bankAccountNumber ? (
+            <dl className="mt-2 space-y-1 text-sm">
+              <div className="flex justify-between gap-4">
+                <dt className="text-gray-500">{t('payoutBank')}</dt>
+                <dd className="font-medium">
+                  {row.employee.bank?.nameTh ?? row.employee.bank?.shortName ?? '—'}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt className="text-gray-500">{t('payoutAccountNo')}</dt>
+                <dd className="font-medium tabular-nums">{row.employee.bankAccountNumber}</dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt className="text-gray-500">{t('payoutAccountName')}</dt>
+                <dd className="font-medium">{row.employee.bankAccountName ?? '—'}</dd>
+              </div>
+            </dl>
+          ) : (
+            // Never render an empty block: the payer must be able to tell
+            // "no data entered" apart from "the screen is broken".
+            <p className="mt-2 rounded-lg bg-amber-50 p-2 text-xs text-amber-800">
+              {t('payoutAccountMissing')}
+            </p>
+          )}
+        </section>
+      )}
 
       {awaitingSlip && (
         <>
