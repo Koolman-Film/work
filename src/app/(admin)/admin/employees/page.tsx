@@ -10,6 +10,7 @@ import { StatusBadge, type StatusKey } from '@/components/ui/status-badge';
 import { employeeBranchScope, getPermittedBranches } from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
+import { employeesWithoutSchedule } from '@/lib/employee/no-schedule';
 import { buildPageMeta, pageArgs, parsePageParam } from '@/lib/pagination';
 import { signAttendancePhotoUrls } from '@/lib/storage/signed-urls';
 import { EmployeeFilters } from './employee-filters';
@@ -113,7 +114,7 @@ export default async function EmployeeListPage({ searchParams }: { searchParams:
 
   // Single round-trip for the page of data, its total (for the pager), and the
   // dropdown options.
-  const [employees, total, branches, departments] = await Promise.all([
+  const [employees, total, branches, departments, missing] = await Promise.all([
     prisma.employee.findMany({
       where,
       orderBy: [{ status: 'asc' }, { firstName: 'asc' }],
@@ -142,8 +143,10 @@ export default async function EmployeeListPage({ searchParams }: { searchParams:
       orderBy: { name: 'asc' },
       select: { id: true, name: true },
     }),
+    employeesWithoutSchedule(permitted),
   ]);
 
+  const missingIds = new Set(missing.map((m) => m.id));
   const meta = buildPageMeta(total, requestedPage);
 
   // Preserve the active filters when paging; new filters reset to page 1
@@ -178,6 +181,11 @@ export default async function EmployeeListPage({ searchParams }: { searchParams:
             <div>
               <div className="font-medium text-ink-1">
                 {e.firstName} {e.lastName}
+                {missingIds.has(e.id) && (
+                  <span className="ml-2 whitespace-nowrap rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-800">
+                    ไม่มีตารางงาน
+                  </span>
+                )}
               </div>
               {e.nickname && <div className="text-xs text-ink-3">({e.nickname})</div>}
             </div>
@@ -240,6 +248,18 @@ export default async function EmployeeListPage({ searchParams }: { searchParams:
           matchedCount={meta.total}
         />
       </div>
+
+      {missing.length > 0 && (
+        <div className="mb-4">
+          <p
+            role="status"
+            className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+          >
+            พนักงาน {missing.length} คนยังไม่ได้ตั้งตารางงาน — ระบบจะนับว่าทำงาน จันทร์–เสาร์
+            และอาจแจ้งว่ายังไม่เช็คอินผิดวัน
+          </p>
+        </div>
+      )}
 
       <ResponsiveTable
         columns={columns}
