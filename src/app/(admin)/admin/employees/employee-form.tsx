@@ -55,6 +55,8 @@ type Props =
       belowForm?: React.ReactNode;
       employeeId?: string;
       branchReadOnly?: boolean;
+      /** Most-used WorkSchedule among active employees — prefilled for create only. */
+      defaultWorkScheduleId: string | null;
     }
   | {
       mode: 'edit';
@@ -67,6 +69,8 @@ type Props =
       belowForm?: React.ReactNode;
       employeeId?: string;
       branchReadOnly?: boolean;
+      /** Unused in edit mode — never preselect a schedule for an existing employee. */
+      defaultWorkScheduleId: string | null;
     };
 
 const selectClasses = cn(
@@ -95,8 +99,10 @@ export function EmployeeForm({
   belowForm,
   employeeId,
   branchReadOnly = false,
+  defaultWorkScheduleId,
 }: Props) {
   const isEdit = mode === 'edit';
+  const isCreate = initial == null;
   // Bangkok "today" — the reference date for the live อายุงาน badge. Computed
   // on the server so SSR and client hydration agree (HiredAtField is a client
   // island that recomputes tenure as the date is edited).
@@ -428,14 +434,28 @@ export function EmployeeForm({
                   </FormField>
                 </div>
 
-                <FormField label="ตารางงาน" htmlFor="workScheduleId" hint="ใช้ตรวจสายและคำนวณ OT">
+                <FormField
+                  label="ตารางงาน"
+                  htmlFor="workScheduleId"
+                  required={isCreate}
+                  hint={
+                    isCreate
+                      ? 'ใช้ตรวจสายและคำนวณ OT'
+                      : 'ใช้ตรวจสายและคำนวณ OT — ถ้าเว้นว่าง ระบบจะนับว่าทำงาน จันทร์–เสาร์'
+                  }
+                >
                   <select
                     id="workScheduleId"
                     name="workScheduleId"
-                    defaultValue={initial?.workScheduleId ?? ''}
+                    required={isCreate}
+                    defaultValue={
+                      initial ? (initial.workScheduleId ?? '') : (defaultWorkScheduleId ?? '')
+                    }
                     className={cn(selectClasses, 'max-w-md')}
                   >
-                    <option value="">— ไม่ระบุ —</option>
+                    {/* ตอนแก้ไข ต้องคง "ไม่ระบุ" ไว้เสมอ ไม่งั้นการบันทึกฟิลด์อื่น
+                        จะเปลี่ยนตารางงานของพนักงานเดิมโดยที่แอดมินไม่ตั้งใจ */}
+                    {!isCreate && <option value="">— ไม่ระบุ —</option>}
                     {options.workSchedules.map((w) => (
                       <option key={w.id} value={w.id}>
                         {w.name}

@@ -112,7 +112,9 @@ function createFd(branchId: string, assigned: string[]): FormData {
   // optional relational fields — leave blank (→ null)
   f.set('departmentId', '');
   f.set('accountingGroupId', '');
-  f.set('workScheduleId', '');
+  // create-mode requires a WorkSchedule (Task 4) — this suite tests branch
+  // placement, not that gate, so always supply a valid GUID here.
+  f.set('workScheduleId', '00000000-0000-0000-0000-0000000000aa');
   // required enum + numeric fields
   f.set('salaryType', 'Monthly');
   f.set('baseSalary', '10000');
