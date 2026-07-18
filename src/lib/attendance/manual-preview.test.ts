@@ -111,4 +111,50 @@ describe('computeManualPreview — clock-out', () => {
     const r = worked({ clockIn: '09:45', clockOut: '16:00', recordEarlyLeave: true });
     expect(types(r)).toEqual(['CheckIn', 'Late', 'EarlyLeave']);
   });
+
+  it('off day suppresses early-leave and OT entirely, even when opted in', () => {
+    // Volunteered on a holiday 09:00–14:00 against a 09:00–18:00 schedule:
+    // no Late (already covered above), and no EarlyLeave/OT signal either —
+    // the schedule doesn't apply on a day the employee wasn't required to
+    // work, so "left early" / "worked OT" are both meaningless here.
+    const r = worked({
+      clockIn: '09:00',
+      clockOut: '14:00',
+      isOffDay: true,
+      recordEarlyLeave: true,
+    });
+    expect(types(r)).toEqual(['CheckIn']);
+    expect(r.earlyLeaveMinutes).toBe(0);
+    expect(r.otMinutes).toBe(0);
+    expect(r.warnings.some((w) => w.includes('ออกก่อนเวลา'))).toBe(false);
+    expect(r.warnings.some((w) => w.includes('OT'))).toBe(false);
+  });
+
+  it('off day also suppresses the OT warning when clocking out later than the schedule', () => {
+    const r = worked({ clockIn: '09:00', clockOut: '19:00', isOffDay: true });
+    expect(types(r)).toEqual(['CheckIn']);
+    expect(r.otMinutes).toBe(0);
+    expect(r.warnings).toEqual([]);
+  });
+});
+
+describe('computeManualPreview — OT threshold', () => {
+  it('below the configured threshold: otMinutes is still reported but no OT warning is shown', () => {
+    const r = worked({ clockOut: '18:10', otThresholdMinutes: 30 });
+    expect(r.otMinutes).toBe(10);
+    expect(r.warnings.some((w) => w.includes('OT'))).toBe(false);
+  });
+
+  it('at/above the configured threshold: the OT warning is shown', () => {
+    const r = worked({ clockOut: '18:30', otThresholdMinutes: 30 });
+    expect(r.otMinutes).toBe(30);
+    expect(r.warnings.some((w) => w.includes('OT'))).toBe(true);
+  });
+
+  it('defaults the threshold to 30 minutes when not provided, matching getOtCandidates', () => {
+    const under = worked({ clockOut: '18:10' });
+    expect(under.warnings.some((w) => w.includes('OT'))).toBe(false);
+    const over = worked({ clockOut: '18:31' });
+    expect(over.warnings.some((w) => w.includes('OT'))).toBe(true);
+  });
 });

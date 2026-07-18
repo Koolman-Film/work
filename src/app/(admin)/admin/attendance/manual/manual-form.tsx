@@ -38,11 +38,19 @@ type Props = {
   companyPolicy: { workStartTime: string | null; lateGraceMinutes: number | null };
   rates: { absentPerDay: string; earlyLeave: string };
   holidayYmds: string[];
+  /** `PayrollConfig.otThresholdMinutes` (already defaulted by the server). */
+  otThresholdMinutes: number;
 };
 
 const baht = (v: string) => `฿${Number(v).toLocaleString()}`;
 
-export function ManualAttendanceForm({ employees, companyPolicy, rates, holidayYmds }: Props) {
+export function ManualAttendanceForm({
+  employees,
+  companyPolicy,
+  rates,
+  holidayYmds,
+  otThresholdMinutes,
+}: Props) {
   const router = useRouter();
 
   const today = useMemo(
@@ -98,6 +106,7 @@ export function ManualAttendanceForm({ employees, companyPolicy, rates, holidayY
       isOffDay: hasSchedule ? hasHoliday : isClosedDay(dateObj, hasHoliday),
       exemptLate,
       recordEarlyLeave,
+      otThresholdMinutes,
     });
   }, [
     kind,
@@ -109,6 +118,7 @@ export function ManualAttendanceForm({ employees, companyPolicy, rates, holidayY
     holidayYmds,
     exemptLate,
     recordEarlyLeave,
+    otThresholdMinutes,
   ]);
 
   const showEarlyLeaveOptIn = (preview?.earlyLeaveMinutes ?? 0) > 0;

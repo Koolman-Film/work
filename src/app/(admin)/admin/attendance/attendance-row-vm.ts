@@ -2,6 +2,7 @@ import 'server-only';
 
 import type { Prisma } from '@prisma/client';
 import { haversineMeters } from '@/lib/attendance/haversine';
+import { TYPE_LABELS } from '@/lib/attendance/type-labels';
 
 /**
  * Server-side view-model for one row of the /admin/attendance records table
@@ -10,14 +11,7 @@ import { haversineMeters } from '@/lib/attendance/haversine';
  * serializable VM (preformatted Thai strings, plain numbers) for the client.
  */
 
-export const TYPE_LABELS: Record<string, { label: string; cls: string }> = {
-  CheckIn: { label: 'เช็คอิน', cls: 'bg-green-100 text-green-800' },
-  CheckOut: { label: 'เช็คเอาท์', cls: 'bg-blue-100 text-blue-800' },
-  Late: { label: 'มาสาย', cls: 'bg-amber-100 text-amber-800' },
-  EarlyLeave: { label: 'ออกก่อน', cls: 'bg-amber-100 text-amber-800' },
-  Absent: { label: 'ขาดงาน', cls: 'bg-red-100 text-red-800' },
-  OnLeave: { label: 'ลา', cls: 'bg-primary-100 text-primary-800' },
-};
+export { TYPE_LABELS };
 
 export const SOURCE_LABELS: Record<string, string> = {
   Liff: 'LINE',

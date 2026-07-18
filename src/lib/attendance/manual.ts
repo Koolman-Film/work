@@ -34,6 +34,7 @@ import { prisma } from '@/lib/db/prisma';
 import { isClosedDay } from './date';
 import { latePolicyFrom, resolveLatePolicy } from './late-policy';
 import { bangkokDateTime, computeManualPreview } from './manual-preview';
+import { TYPE_LABELS } from './type-labels';
 
 export type CreateManualInput = {
   employeeId: string;
@@ -165,7 +166,9 @@ export async function createManualAttendance(
   const hasSchedule = !!scheduleDays && scheduleDays.length > 0;
 
   const [payrollCfg, holiday] = await Promise.all([
-    prisma.payrollConfig.findFirst({ select: { workStartTime: true, lateGraceMinutes: true } }),
+    prisma.payrollConfig.findFirst({
+      select: { workStartTime: true, lateGraceMinutes: true, otThresholdMinutes: true },
+    }),
     prisma.holiday.findFirst({ where: { date, archivedAt: null }, select: { id: true } }),
   ]);
   const hasHoliday = holiday != null;
@@ -189,6 +192,9 @@ export async function createManualAttendance(
     isOffDay,
     exemptLate: input.exemptLate,
     recordEarlyLeave: input.recordEarlyLeave,
+    // Same fallback as getOtCandidates (src/lib/overtime/candidates.ts) when
+    // the PayrollConfig row is missing.
+    otThresholdMinutes: payrollCfg?.otThresholdMinutes ?? 30,
   });
 
   // ── Duplicate guards ───────────────────────────────────────────────
@@ -228,10 +234,11 @@ export async function createManualAttendance(
     select: { type: true },
   });
   if (existingSame) {
+    const typeLabel = TYPE_LABELS[existingSame.type]?.label ?? existingSame.type;
     return {
       ok: false,
       code: 'duplicate',
-      message: `มีรายการ "${existingSame.type}" ของพนักงานคนนี้ในวันนี้แล้ว`,
+      message: `มีรายการ "${typeLabel}" ของพนักงานคนนี้ในวันนี้แล้ว`,
     };
   }
 

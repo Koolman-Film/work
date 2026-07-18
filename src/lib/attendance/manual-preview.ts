@@ -33,13 +33,29 @@ export type ManualPreviewInput = {
   latePolicy: LatePolicy | null;
   /** HH:MM scheduled end of day; null when the employee has no schedule. */
   scheduledEndTime?: string | null;
-  /** Public holiday — cancels lateness, mirroring check-in.ts. */
+  /**
+   * Public holiday — cancels lateness, mirroring check-in.ts. Also cancels
+   * early-leave and OT: both are measured against `scheduledEndTime`, and a
+   * schedule that doesn't apply today can't be left "early" or worked past
+   * ("OT" over a non-workday).
+   */
   isOffDay: boolean;
   /** Admin chose to waive the late deduction for this entry. */
   exemptLate?: boolean;
   /** Admin explicitly opted in to recording an EarlyLeave row. */
   recordEarlyLeave?: boolean;
+  /**
+   * `PayrollConfig.otThresholdMinutes` — the same threshold
+   * `getOtCandidates` (src/lib/overtime/candidates.ts) filters on. Below
+   * this, the OT tab will never pick the entry up, so the warning must stay
+   * silent about it. Optional; defaults to 30, matching
+   * `getOtCandidates`'s own `cfg?.otThresholdMinutes ?? 30` fallback.
+   */
+  otThresholdMinutes?: number;
 };
+
+/** Matches `getOtCandidates`'s fallback when `PayrollConfig` has no row. */
+const DEFAULT_OT_THRESHOLD_MINUTES = 30;
 
 export type PreviewRow = {
   type: 'CheckIn' | 'Absent' | 'Late' | 'EarlyLeave';
@@ -104,12 +120,17 @@ export function computeManualPreview(input: ManualPreviewInput): ManualPreviewRe
   }
 
   // ── Clock-out: early leave (opt-in) and OT signal ──────────────────
+  // Both are measured against `scheduledEndTime`, which doesn't apply on an
+  // off day (holiday) — so skip this block entirely when isOffDay, exactly
+  // like lateness above. Otherwise an employee who volunteers on a holiday
+  // gets offered an "early leave" deduction against a schedule that was
+  // never in effect that day.
   let earlyLeaveMinutes = 0;
   let otMinutes = 0;
   const endMin = input.scheduledEndTime ? hhmmToMinutes(input.scheduledEndTime) : null;
   const outMin = input.clockOut ? hhmmToMinutes(input.clockOut) : null;
 
-  if (endMin != null && outMin != null) {
+  if (!input.isOffDay && endMin != null && outMin != null) {
     const diff = outMin - endMin;
     if (diff < 0) {
       earlyLeaveMinutes = -diff;
@@ -123,9 +144,12 @@ export function computeManualPreview(input: ManualPreviewInput): ManualPreviewRe
       }
     } else if (diff > 0) {
       otMinutes = diff;
-      warnings.push(
-        `เกินเวลาเลิกงาน ${otMinutes} นาที — จะขึ้นเป็นผู้เข้าข่าย OT ที่แท็บ OT (ยังไม่จ่ายจนกว่าจะอนุมัติ)`,
-      );
+      const otThreshold = input.otThresholdMinutes ?? DEFAULT_OT_THRESHOLD_MINUTES;
+      if (otMinutes >= otThreshold) {
+        warnings.push(
+          `เกินเวลาเลิกงาน ${otMinutes} นาที — จะขึ้นเป็นผู้เข้าข่าย OT ที่แท็บ OT (ยังไม่จ่ายจนกว่าจะอนุมัติ)`,
+        );
+      }
     }
   }
 
