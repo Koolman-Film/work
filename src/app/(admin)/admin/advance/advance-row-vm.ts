@@ -115,11 +115,16 @@ export function buildAdvanceRowVM(
   deps: { receiptUrl: string | null; advanceGuard: AdvanceGuardVM | null },
 ): AdvanceRowVM {
   const info = ADVANCE_STATUS_INFO[r.status] ?? { label: r.status, key: 'neutral' as StatusKey };
+  const paid = r.paidAt !== null;
+  // "Approved" is two user-facing states, per the customer's two-step payment
+  // request: อนุมัติ → รอจ่ายเงิน, then จ่ายเงินแล้ว. Resolved here ONCE so the
+  // inbox list and the review modal cannot label the same row differently.
+  const statusLabel = r.status === 'Approved' ? (paid ? 'จ่ายเงินแล้ว' : 'รอจ่ายเงิน') : info.label;
   return {
     id: r.id,
     status: r.status,
     statusKey: info.key,
-    statusLabel: info.label,
+    statusLabel,
     name: `${r.employee.firstName} ${r.employee.lastName}`,
     nickname: r.employee.nickname,
     branch: r.employee.branch.name,
@@ -127,7 +132,7 @@ export function buildAdvanceRowVM(
     amount: formatAdvanceMoney(r.amount),
     submitted: formatAdvanceDateTime(r.requestedAt),
     decidedAt: r.approvedAt ? formatAdvanceDateTime(r.approvedAt) : null,
-    paid: r.paidAt !== null,
+    paid,
     receiptUrl: deps.receiptUrl,
     advanceGuard: deps.advanceGuard,
     bankName: r.employee.bank?.nameTh ?? r.employee.bank?.shortName ?? null,

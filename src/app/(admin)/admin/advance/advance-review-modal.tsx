@@ -41,13 +41,12 @@ export type AdvanceRowVM = {
 };
 
 function Badge({ row }: { row: AdvanceRowVM }) {
-  // Approved splits into "awaiting payout" / "paid" using paidAt — markAdvancePaid
-  // is only ever called from the LIFF admin screen, but the approver should still
-  // see which state a decided request is in.
-  const label = row.status === 'Approved' ? (row.paid ? 'จ่ายเงินแล้ว' : 'รอจ่ายเงิน') : row.statusLabel;
+  // `statusLabel` already resolves Approved into รอจ่ายเงิน / จ่ายเงินแล้ว in
+  // buildAdvanceRowVM — deliberately not recomputed here, so this badge and the
+  // inbox list can never disagree about the same row.
   return (
     <StatusBadge status={row.statusKey}>
-      {STATUS_ICON[row.statusKey] ?? ''} {label}
+      {STATUS_ICON[row.statusKey] ?? ''} {row.statusLabel}
     </StatusBadge>
   );
 }
