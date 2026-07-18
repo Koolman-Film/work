@@ -241,9 +241,12 @@ function renderNotification(n: BellNotification): RenderedKind {
         : '';
       // Older stored notifications predate this field — Number(undefined) is
       // NaN, so `|| 0` keeps this a safe no-op for them instead of rendering "NaN".
+      // This is a subset of `count` (intersection of not-checked-in ×
+      // no-schedule), so the wording reads as "N of these", never an
+      // independent, possibly-larger figure.
       const countWithoutSchedule = Number(payload.countWithoutSchedule) || 0;
       const trailingNote =
-        countWithoutSchedule > 0 ? ` (${countWithoutSchedule} คนยังไม่ได้ตั้งตารางงาน)` : '';
+        countWithoutSchedule > 0 ? ` (ในจำนวนนี้ ${countWithoutSchedule} คนยังไม่ได้ตั้งตารางงาน)` : '';
       return {
         emoji: '⏰',
         title: `${count} พนักงานยังไม่เช็คอินวันนี้${trailingNote}`,

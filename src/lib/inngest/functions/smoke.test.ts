@@ -305,6 +305,40 @@ describe('attendance-late-check', () => {
     expect(result.activeEmployeeCount).toBe(2);
     expect(result.countWithoutSchedule).toBe(0);
   });
+
+  it('countWithoutSchedule is the intersection of notCheckedIn × employeesWithoutSchedule, not the org-wide total', async () => {
+    vi.setSystemTime(new Date('2026-03-06T05:00:00Z'));
+    mockedPrisma.holiday.findFirst.mockResolvedValue(null);
+    mockedPrisma.employee.findMany
+      .mockResolvedValueOnce([
+        { id: 'e1', firstName: 'Alice', lastName: 'A', nickname: null },
+        { id: 'e2', firstName: 'Bob', lastName: 'B', nickname: null },
+        { id: 'e3', firstName: 'Carol', lastName: 'C', nickname: null },
+      ]) // active-employees query
+      .mockResolvedValueOnce([
+        // Raw rows for employeesWithoutSchedule('all')'s own findMany call —
+        // org-wide no-schedule list, larger than and only partially
+        // overlapping notCheckedIn.
+        { id: 'e1', firstName: 'Alice', lastName: 'A', nickname: null, branch: { name: 'สาขา A' } },
+        { id: 'e3', firstName: 'Carol', lastName: 'C', nickname: null, branch: { name: 'สาขา A' } },
+        { id: 'e9', firstName: 'Zed', lastName: 'Z', nickname: null, branch: { name: 'สาขา B' } }, // not active-today at all
+      ]);
+    mockedPrisma.attendance.findMany
+      .mockResolvedValueOnce([{ employeeId: 'e3' }]) // e3 already checked in
+      .mockResolvedValueOnce([]); // no one on leave
+
+    const result = (await runHandler()) as {
+      countNotCheckedIn: number;
+      countWithoutSchedule: number;
+    };
+
+    // notCheckedIn = [e1, e2] (e3 is excluded — already checked in). Of those,
+    // only e1 has no schedule: e3 lacks one too but isn't in notCheckedIn, and
+    // e9 lacks one but isn't an active/not-checked-in employee today at all.
+    expect(result.countNotCheckedIn).toBe(2);
+    expect(result.countWithoutSchedule).toBe(1);
+    expect(result.countWithoutSchedule).toBeLessThanOrEqual(result.countNotCheckedIn);
+  });
 });
 
 describe('probation-reminder', () => {
