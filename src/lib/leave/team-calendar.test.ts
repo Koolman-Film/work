@@ -114,6 +114,11 @@ describe('indexEntriesByDate', () => {
     leaveTypeName: 'ลาพักร้อน',
     status: 'Approved',
     isMine: false,
+    // These tests cover date-indexing, not partial-day rendering — a plain
+    // full-day entry keeps them focused.
+    unit: 'FullDay',
+    startTime: null,
+    endTime: null,
   };
 
   it('expands a single-day leave to one date key', () => {

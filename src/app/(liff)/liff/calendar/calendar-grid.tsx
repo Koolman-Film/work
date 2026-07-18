@@ -189,6 +189,7 @@ export function CalendarGrid({
   busyId = null,
 }: Props) {
   const t = useTranslations('calendar');
+  const tl = useTranslations('leave');
 
   // Weekday labels derived from Intl — locale-aware, no hardcoded Thai strings.
   const weekdayLabels = useMemo(() => buildWeekdayLabels(locale), [locale]);
@@ -452,6 +453,14 @@ export function CalendarGrid({
                     </div>
                     <p className="mt-0.5 text-xs text-gray-600">
                       {e.leaveTypeName}
+                      {e.unit !== 'FullDay' && (
+                        <span className="text-gray-500">
+                          {' · '}
+                          {e.unit === 'Hourly' && e.startTime && e.endTime
+                            ? `${e.startTime}–${e.endTime}`
+                            : tl(`new.unit.${e.unit}`)}
+                        </span>
+                      )}
                       {e.startDate !== e.endDate && (
                         <span className="text-gray-400">
                           {' '}

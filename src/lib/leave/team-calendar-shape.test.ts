@@ -24,6 +24,10 @@ const entry = (id: string, startDate: string, endDate: string): TeamCalendarEntr
   startDate,
   endDate,
   isMine: false,
+  // These tests cover date-range indexing, not partial-day rendering.
+  unit: 'FullDay',
+  startTime: null,
+  endTime: null,
 });
 
 describe('ymd', () => {

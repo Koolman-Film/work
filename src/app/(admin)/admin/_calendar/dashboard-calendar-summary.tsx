@@ -36,6 +36,24 @@ function fmtRange(start: string, end: string): string {
   return start === end ? fmtDay(start) : `${fmtDay(start)}–${fmtDay(end)}`;
 }
 
+/** ส่วนต่อท้ายบอกว่าเป็นลาบางส่วนของวัน — เต็มวันไม่ต้องแสดงอะไร */
+function partialSuffixTh(
+  unit: 'FullDay' | 'HalfMorning' | 'HalfAfternoon' | 'Hourly',
+  startTime: string | null,
+  endTime: string | null,
+): string {
+  switch (unit) {
+    case 'FullDay':
+      return '';
+    case 'HalfMorning':
+      return ' · ครึ่งเช้า';
+    case 'HalfAfternoon':
+      return ' · ครึ่งบ่าย';
+    case 'Hourly':
+      return startTime && endTime ? ` · ${startTime}–${endTime}` : ' · รายชั่วโมง';
+  }
+}
+
 export function DashboardCalendarSummary({
   data,
   todayYmd,
@@ -62,7 +80,7 @@ export function DashboardCalendarSummary({
       sortDate: e.startDate < todayYmd ? todayYmd : e.startDate,
       dateLabel: fmtRange(e.startDate, e.endDate),
       kind: 'leave',
-      text: `${e.shortLabel} · ${e.leaveTypeName}`,
+      text: `${e.shortLabel} · ${e.leaveTypeName}${partialSuffixTh(e.unit, e.startTime, e.endTime)}`,
     }));
 
   const items = [...holidayItems, ...leaveItems]
