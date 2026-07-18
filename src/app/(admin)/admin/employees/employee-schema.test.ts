@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { readForm } from './employee-schema';
+import { readForm, validateWorkScheduleRequiredForCreate } from './employee-schema';
 
 const BRANCH_ID = '11111111-1111-1111-1111-111111111111';
 const BANK_ID = '22222222-2222-2222-2222-222222222222';
@@ -79,5 +79,23 @@ describe('readForm — new profile fields', () => {
   it('rejects an invalid national ID (bad check digit)', () => {
     const r = readForm(buildForm({ nationalId: '1234567890123' }));
     expect(r.success).toBe(false);
+  });
+});
+
+describe('readForm — workScheduleId stays nullable (edit mode must accept null)', () => {
+  it('parses a blank workScheduleId as null', () => {
+    const r = readForm(buildForm({ workScheduleId: '' }));
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.workScheduleId).toBeNull();
+  });
+});
+
+describe('validateWorkScheduleRequiredForCreate — create-only gate', () => {
+  it('rejects a null workScheduleId with the Thai message', () => {
+    expect(validateWorkScheduleRequiredForCreate(null)).toBe('กรุณาเลือกตารางงาน');
+  });
+
+  it('accepts a non-null workScheduleId', () => {
+    expect(validateWorkScheduleRequiredForCreate(BRANCH_ID)).toBeNull();
   });
 });

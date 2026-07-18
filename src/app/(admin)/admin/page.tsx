@@ -28,6 +28,7 @@ import { ADMIN_LINE_LINK_ENABLED } from '@/lib/auth/admin-line-feature';
 import { permittedBranchesFromAssignments } from '@/lib/auth/branch-scope';
 import { canDo, getUserAssignments } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
+import { employeesWithoutSchedule } from '@/lib/employee/no-schedule';
 import { getOrgCalendarData } from '@/lib/leave/team-calendar';
 import { currentMonthYM, parseMonth } from '@/lib/leave/team-calendar-shape';
 import { DashboardCalendarSummary } from './_calendar/dashboard-calendar-summary';
@@ -102,12 +103,16 @@ export default async function AdminHomePage() {
   if (!calMonth) throw new Error('Could not parse current month — date system broken?');
   const assignments = await getUserAssignments(user.id);
   const calPermitted = permittedBranchesFromAssignments(assignments, 'dashboard.read');
+  // Same scope as the roster read inside `loadDashboardStats` (attendance.read)
+  // — the "ยังไม่มา" KPI below is built from that same roster, so the warning
+  // about unscheduled employees must be scoped identically to stay consistent.
+  const attPermitted = permittedBranchesFromAssignments(assignments, 'attendance.read');
 
   // Branch-scoped widget reads (extracted to `_load-dashboard-stats` so they are
   // testable end-to-end) run in parallel with the self-user, holiday, and
   // calendar lookups. `me` decides the "link your employee account" card;
   // `todayHoliday` and the calendar are not employee-linked branch reads.
-  const [stats, me, todayHoliday, initialCalendar] = await Promise.all([
+  const [stats, me, todayHoliday, initialCalendar, missingSchedule] = await Promise.all([
     loadDashboardStats({ assignments, today }),
     prisma.user.findUnique({
       where: { id: user.id },
@@ -122,6 +127,10 @@ export default async function AdminHomePage() {
       monthEnd: calMonth.end,
       permitted: calPermitted,
     }),
+    // Same shared query as the employees list + live board — the ONLY source
+    // of truth for "who lacks a schedule". Reused here (not re-derived) so
+    // this dashboard's warning can never disagree with those other surfaces.
+    employeesWithoutSchedule(attPermitted),
   ]);
   const {
     pendingLeaveCount,
@@ -247,6 +256,28 @@ export default async function AdminHomePage() {
       />
 
       {showMergeCard && <MergeNudge />}
+
+      {/* Full-width, OUTSIDE the KPI grid on purpose. Nested inside the
+          hero's grid column it overflowed that column's box (KpiHero is
+          h-full) and the neighbouring stat grid painted straight over it —
+          the warning was in the DOM but invisible on screen. It also reads
+          better here: it qualifies the whole "ยังไม่มา" figure, not just
+          one card, and matches where /admin/employees puts the same alert. */}
+      {missingSchedule.length > 0 && (
+        <p
+          role="status"
+          className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900"
+        >
+          <span className="font-medium">{missingSchedule.length} คน</span> ยังไม่ได้ตั้งตารางงาน
+          อาจทำให้ตัวเลข "ยังไม่มา" คลาดเคลื่อน{' '}
+          <Link
+            href="/admin/employees"
+            className="font-medium underline decoration-amber-400 underline-offset-2 hover:text-amber-950"
+          >
+            ดูรายชื่อ →
+          </Link>
+        </p>
+      )}
 
       {/* Attendance hero + pending-count stats */}
       <div className="grid gap-4 lg:grid-cols-3">

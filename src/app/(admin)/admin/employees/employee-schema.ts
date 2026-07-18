@@ -130,6 +130,20 @@ export const EmployeeSchema = z.object({
 
 export type EmployeeInput = z.infer<typeof EmployeeSchema>;
 
+/**
+ * Create-only requirement: a brand-new employee must have a WorkSchedule so
+ * they aren't silently defaulted to "works Mon–Sat" (see
+ * src/lib/employee/no-schedule.ts). Edit mode must still accept a null
+ * workScheduleId (an existing employee may legitimately have none yet), so
+ * this check is NOT part of `EmployeeSchema` itself — it is called only from
+ * the create-employee server action, after `readForm` has already parsed.
+ */
+export function validateWorkScheduleRequiredForCreate(
+  workScheduleId: string | null,
+): string | null {
+  return workScheduleId == null ? 'กรุณาเลือกตารางงาน' : null;
+}
+
 /** Read a string field; returns the value or empty string when absent. */
 function str(formData: FormData, key: string): string {
   return String(formData.get(key) ?? '');

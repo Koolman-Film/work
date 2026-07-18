@@ -10,9 +10,18 @@ import { StatusBadge, type StatusKey } from '@/components/ui/status-badge';
 import { employeeBranchScope, getPermittedBranches } from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
+import { employeesWithoutSchedule } from '@/lib/employee/no-schedule';
 import { buildPageMeta, pageArgs, parsePageParam } from '@/lib/pagination';
 import { signAttendancePhotoUrls } from '@/lib/storage/signed-urls';
 import { EmployeeFilters } from './employee-filters';
+
+/**
+ * Max names shown inline in the "missing schedule" banner before collapsing
+ * the rest into "และอีก N คน". Keeps the banner from growing unboundedly on
+ * a branch with many unscheduled employees while still letting an admin jump
+ * straight to the common case (a handful of stragglers) without paging.
+ */
+const MISSING_SCHEDULE_NAMES_CAP = 8;
 
 /** Thai suffix for the salary-type enum, shown after the base salary. */
 const SALARY_TYPE_TH: Record<string, string> = {
@@ -113,7 +122,7 @@ export default async function EmployeeListPage({ searchParams }: { searchParams:
 
   // Single round-trip for the page of data, its total (for the pager), and the
   // dropdown options.
-  const [employees, total, branches, departments] = await Promise.all([
+  const [employees, total, branches, departments, missing] = await Promise.all([
     prisma.employee.findMany({
       where,
       orderBy: [{ status: 'asc' }, { firstName: 'asc' }],
@@ -142,8 +151,11 @@ export default async function EmployeeListPage({ searchParams }: { searchParams:
       orderBy: { name: 'asc' },
       select: { id: true, name: true },
     }),
+    employeesWithoutSchedule(permitted),
   ]);
 
+  const missingIds = new Set(missing.map((m) => m.id));
+  const missingScheduleShown = missing.slice(0, MISSING_SCHEDULE_NAMES_CAP);
   const meta = buildPageMeta(total, requestedPage);
 
   // Preserve the active filters when paging; new filters reset to page 1
@@ -178,6 +190,11 @@ export default async function EmployeeListPage({ searchParams }: { searchParams:
             <div>
               <div className="font-medium text-ink-1">
                 {e.firstName} {e.lastName}
+                {missingIds.has(e.id) && (
+                  <span className="ml-2 whitespace-nowrap rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-800">
+                    ไม่มีตารางงาน
+                  </span>
+                )}
               </div>
               {e.nickname && <div className="text-xs text-ink-3">({e.nickname})</div>}
             </div>
@@ -240,6 +257,37 @@ export default async function EmployeeListPage({ searchParams }: { searchParams:
           matchedCount={meta.total}
         />
       </div>
+
+      {missing.length > 0 && (
+        <div className="mb-4">
+          <div
+            role="status"
+            className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+          >
+            <p>
+              พนักงาน {missing.length} คนยังไม่ได้ตั้งตารางงาน — ระบบจะนับว่าทำงาน จันทร์–เสาร์
+              และอาจแจ้งว่ายังไม่เช็คอินผิดวัน
+            </p>
+            <p className="mt-1.5 leading-relaxed">
+              {missingScheduleShown.map((m, i) => (
+                <span key={m.id}>
+                  <Link
+                    href={`/admin/employees/${m.id}/edit`}
+                    className="font-medium underline decoration-amber-400 underline-offset-2 hover:text-amber-950"
+                  >
+                    {m.name}
+                  </Link>
+                  <span className="text-amber-700"> ({m.branchName})</span>
+                  {i < missingScheduleShown.length - 1 ? ', ' : ''}
+                </span>
+              ))}
+              {missing.length > missingScheduleShown.length && (
+                <span> และอีก {missing.length - missingScheduleShown.length} คน</span>
+              )}
+            </p>
+          </div>
+        </div>
+      )}
 
       <ResponsiveTable
         columns={columns}

@@ -19,6 +19,7 @@
 
 import { isScheduledWorkday } from '@/lib/attendance/schedule';
 import { prisma } from '@/lib/db/prisma';
+import { employeesWithoutSchedule } from '@/lib/employee/no-schedule';
 import { notifyAdminsInApp } from '@/lib/notifications/in-app-bell';
 import { inngest } from '../client';
 
@@ -114,6 +115,20 @@ export const attendanceLateCheck = inngest.createFunction(
       return { skipped: true, reason: 'all-checked-in' };
     }
 
+    // How many of the employees in `notCheckedIn` (not the whole org) have no
+    // WorkSchedule at all. `employeesWithoutSchedule` — the shared query and
+    // the ONLY source of truth for "who lacks a schedule" — is called with
+    // 'all' because this cron has no admin/branch context to scope by, but we
+    // then intersect its result with `notCheckedIn` by employee id. That
+    // intersection is what makes the bell sentence ("N ยังไม่เช็คอิน (M คน
+    // ในจำนวนนี้ยังไม่ได้ตั้งตารางงาน)") true by construction: M can never
+    // exceed N, and an empty `notCheckedIn` (the early-return above) always
+    // yields an empty intersection, so returning early loses nothing.
+    const countWithoutSchedule = await step.run('count-without-schedule', async () => {
+      const withoutScheduleIds = new Set((await employeesWithoutSchedule('all')).map((e) => e.id));
+      return notCheckedIn.filter((e) => withoutScheduleIds.has(e.id)).length;
+    });
+
     // Summary notification → admin bell. Names truncated to first 5 for
     // the snippet; full list lives on /admin/attendance/live.
     await step.run('notify-admins', async () => {
@@ -124,6 +139,7 @@ export const attendanceLateCheck = inngest.createFunction(
         sampleEmployeeNames: notCheckedIn
           .slice(0, 5)
           .map((e) => (e.nickname?.trim() || e.firstName).trim()),
+        countWithoutSchedule,
       });
     });
 
@@ -131,6 +147,7 @@ export const attendanceLateCheck = inngest.createFunction(
       notified: true,
       countNotCheckedIn: notCheckedIn.length,
       activeEmployeeCount: activeEmployees.length,
+      countWithoutSchedule,
     };
   },
 );

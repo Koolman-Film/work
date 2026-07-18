@@ -4,6 +4,7 @@ import { Card, CardBody } from '@/components/ui/card';
 import { PageHeader } from '@/components/ui/page-header';
 import { getPermittedBranches } from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
+import { prisma } from '@/lib/db/prisma';
 import { loadEmployeeFormOptions } from '../_load-options';
 import { createEmployee } from '../actions';
 import { EmployeeForm } from '../employee-form';
@@ -40,6 +41,18 @@ export default async function NewEmployeePage({ searchParams }: { searchParams: 
     );
   }
 
+  // Prefill the schedule picker with the schedule most active employees are
+  // already on — new hires overwhelmingly join an existing shift pattern, and
+  // this saves the admin a click while still leaving the field editable.
+  const scheduleUsage = await prisma.employee.groupBy({
+    by: ['workScheduleId'],
+    where: { archivedAt: null, status: { not: 'Archived' }, workScheduleId: { not: null } },
+    _count: { _all: true },
+    orderBy: { _count: { workScheduleId: 'desc' } },
+    take: 1,
+  });
+  const defaultWorkScheduleId = scheduleUsage[0]?.workScheduleId ?? null;
+
   return (
     <div className="px-4 py-6 sm:px-6 lg:px-8">
       <PageHeader breadcrumb="พนักงาน" title="เพิ่มพนักงาน" />
@@ -48,6 +61,7 @@ export default async function NewEmployeePage({ searchParams }: { searchParams: 
         action={createEmployee}
         options={options}
         error={error ? decodeURIComponent(error) : null}
+        defaultWorkScheduleId={defaultWorkScheduleId}
       />
     </div>
   );
