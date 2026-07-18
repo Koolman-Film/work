@@ -117,12 +117,13 @@ endTime: true` ใน select ของ leave **ที่เดียว** คื
 | unit | ไทย (แอดมิน) | LIFF |
 |---|---|---|
 | `FullDay` | *(ไม่แสดงอะไร)* | *(ไม่แสดงอะไร)* |
-| `HalfMorning` | ครึ่งเช้า | `t('leave.halfMorning')` |
-| `HalfAfternoon` | ครึ่งบ่าย | `t('leave.halfAfternoon')` |
+| `HalfMorning` | ครึ่งเช้า | `t('new.unit.HalfMorning')` |
+| `HalfAfternoon` | ครึ่งบ่าย | `t('new.unit.HalfAfternoon')` |
 | `Hourly` | `09:00–11:00` | เวลาเหมือนกัน (ตัวเลขไม่ต้องแปล) |
 
-ต้องเพิ่ม key `halfMorning` / `halfAfternoon` ใน `messages/th.json` และ
-`messages/en.json` (ภาษาอื่น fallback ตามกลไกเดิม)
+**ไม่ต้องเพิ่ม i18n key ใหม่** — `leave.new.unit.{FullDay,HalfMorning,
+HalfAfternoon,Hourly}` มีอยู่แล้วและแปลไว้แล้ว (ใช้ในฟอร์มยื่นใบลา) เรียกใช้
+ซ้ำได้ทันที ภาษาที่แปลไม่ครบจะ fallback ตามกลไกเดิม
 
 จุดที่ต้องแก้การแสดงผล:
 - `src/app/(liff)/liff/calendar/calendar-grid.tsx` — แผงรายละเอียดของวัน
