@@ -3,13 +3,14 @@
 /**
  * Manual attendance entry form.
  *
- * Conditional fields: `durationMinutes` is only relevant for Late +
- * EarlyLeave (admin specifies "how many minutes late/early"). For Absent
- * it's meaningless and hidden — preventing the admin from accidentally
- * filling in a number that gets ignored server-side.
+ * Structured as "did they work?" rather than "which anomaly was it?",
+ * because CheckIn and Late are separate rows that legitimately co-occur —
+ * the old three mutually-exclusive buttons had no way to say "worked, but
+ * couldn't tap the phone", which pushed admins toward ขาดงาน and deducted
+ * pay from people who had worked a full day.
  *
- * After successful submit we redirect to /admin so the dashboard's
- * "เช็คอินวันนี้" count refreshes, plus a 1s success toast on the way.
+ * The live preview panel calls `computeManualPreview` — the exact function
+ * the server action uses — so what the admin is shown is what gets saved.
  */
 
 import { useRouter } from 'next/navigation';
@@ -18,32 +19,40 @@ import { Button } from '@/components/ui/button';
 import { DateField } from '@/components/ui/date-field';
 import { FormField } from '@/components/ui/form-field';
 import { Input } from '@/components/ui/input';
-import {
-  type CreateManualResult,
-  createManualAttendance,
-  type ManualAttendanceType,
-} from '@/lib/attendance/manual';
+import { isClosedDay } from '@/lib/attendance/date';
+import { latePolicyFrom, resolveLatePolicy } from '@/lib/attendance/late-policy';
+import { type CreateManualResult, createManualAttendance } from '@/lib/attendance/manual';
+import { computeManualPreview } from '@/lib/attendance/manual-preview';
 
-type EmployeeOption = { id: string; label: string };
+type ScheduleDay = { dayOfWeek: number; startTime: string; endTime: string };
 
-type Props = { employees: EmployeeOption[] };
-
-const TYPE_LABELS: Record<ManualAttendanceType, string> = {
-  Absent: 'ขาดงาน',
-  Late: 'มาสาย',
-  EarlyLeave: 'ออกก่อนเวลา',
+type EmployeeOption = {
+  id: string;
+  label: string;
+  lateToleranceMin: number | null;
+  scheduleDays: ScheduleDay[] | null;
 };
 
-const TYPE_HINTS: Record<ManualAttendanceType, string> = {
-  Absent: 'ไม่มาทำงานทั้งวัน',
-  Late: 'มาทำงานแต่หลังเวลาที่กำหนด',
-  EarlyLeave: 'มาทำงานแต่ออกก่อนเวลาที่กำหนด',
+type Props = {
+  employees: EmployeeOption[];
+  companyPolicy: { workStartTime: string | null; lateGraceMinutes: number | null };
+  rates: { absentPerDay: string; earlyLeave: string };
+  holidayYmds: string[];
+  /** `PayrollConfig.otThresholdMinutes` (already defaulted by the server). */
+  otThresholdMinutes: number;
 };
 
-export function ManualAttendanceForm({ employees }: Props) {
+const baht = (v: string) => `฿${Number(v).toLocaleString()}`;
+
+export function ManualAttendanceForm({
+  employees,
+  companyPolicy,
+  rates,
+  holidayYmds,
+  otThresholdMinutes,
+}: Props) {
   const router = useRouter();
 
-  // Today as YYYY-MM-DD in Bangkok time — same trick as the server uses.
   const today = useMemo(
     () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' }),
     [],
@@ -51,14 +60,69 @@ export function ManualAttendanceForm({ employees }: Props) {
 
   const [employeeId, setEmployeeId] = useState('');
   const [date, setDate] = useState(today);
-  const [type, setType] = useState<ManualAttendanceType>('Absent');
-  const [durationMinutes, setDurationMinutes] = useState('');
+  const [kind, setKind] = useState<'worked' | 'absent'>('worked');
+  const [clockIn, setClockIn] = useState('');
+  const [clockOut, setClockOut] = useState('');
+  const [exemptLate, setExemptLate] = useState(false);
+  const [exemptReason, setExemptReason] = useState('');
+  const [recordEarlyLeave, setRecordEarlyLeave] = useState(false);
   const [note, setNote] = useState('');
 
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  const showDuration = type === 'Late' || type === 'EarlyLeave';
+  const employee = employees.find((e) => e.id === employeeId) ?? null;
+
+  // Resolve the same way the server does, then preview with the same fn.
+  const preview = useMemo(() => {
+    if (kind === 'absent') {
+      return computeManualPreview({ kind: 'absent', date, latePolicy: null, isOffDay: false });
+    }
+    if (!clockIn) return null;
+
+    const dateObj = new Date(`${date}T00:00:00.000Z`);
+    const dow = dateObj.getUTCDay();
+    const scheduleDays = employee?.scheduleDays ?? null;
+    const hasSchedule = !!scheduleDays && scheduleDays.length > 0;
+    const hasHoliday = holidayYmds.includes(date);
+    const latePolicy = resolveLatePolicy(
+      scheduleDays,
+      employee?.lateToleranceMin ?? null,
+      dow,
+      latePolicyFrom({
+        workStartTime: companyPolicy.workStartTime,
+        lateGraceMinutes: companyPolicy.lateGraceMinutes,
+      }),
+    );
+    return computeManualPreview({
+      kind: 'worked',
+      date,
+      clockIn,
+      clockOut: clockOut || null,
+      latePolicy,
+      scheduledEndTime: scheduleDays?.find((d) => d.dayOfWeek === dow)?.endTime ?? null,
+      // Must mirror the server's rule exactly (src/lib/attendance/manual.ts):
+      // Sunday only counts as an off day for employees with no WorkSchedule.
+      isOffDay: hasSchedule ? hasHoliday : isClosedDay(dateObj, hasHoliday),
+      exemptLate,
+      recordEarlyLeave,
+      otThresholdMinutes,
+    });
+  }, [
+    kind,
+    date,
+    clockIn,
+    clockOut,
+    employee,
+    companyPolicy,
+    holidayYmds,
+    exemptLate,
+    recordEarlyLeave,
+    otThresholdMinutes,
+  ]);
+
+  const showEarlyLeaveOptIn = (preview?.earlyLeaveMinutes ?? 0) > 0;
+  const showExemptOptIn = (preview?.lateMinutes ?? 0) > 0;
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -68,19 +132,25 @@ export function ManualAttendanceForm({ employees }: Props) {
       setError('กรุณาเลือกพนักงาน');
       return;
     }
+    if (kind === 'worked' && !clockIn) {
+      setError('กรุณากรอกเวลาเข้างาน');
+      return;
+    }
 
     startTransition(async () => {
       const result: CreateManualResult = await createManualAttendance({
         employeeId,
         date,
-        type,
-        durationMinutes: showDuration ? Number(durationMinutes) : null,
+        kind,
+        clockIn: kind === 'worked' ? clockIn : null,
+        clockOut: kind === 'worked' && clockOut ? clockOut : null,
+        exemptLate: showExemptOptIn ? exemptLate : false,
+        exemptReason: showExemptOptIn && exemptLate ? exemptReason : null,
+        recordEarlyLeave: showEarlyLeaveOptIn ? recordEarlyLeave : false,
         note,
       });
 
       if (result.ok) {
-        // Redirect back to admin home; toast handled by alert API to keep this
-        // form file tiny. The dashboard counts refresh via revalidatePath.
         router.push('/admin');
         router.refresh();
       } else {
@@ -120,51 +190,130 @@ export function ManualAttendanceForm({ employees }: Props) {
         />
       </FormField>
 
-      <FormField label="ประเภท" htmlFor="type" required hint={TYPE_HINTS[type]}>
-        <div className="grid grid-cols-3 gap-2">
-          {(Object.keys(TYPE_LABELS) as ManualAttendanceType[]).map((t) => (
+      <fieldset className="m-0 min-w-0 space-y-1.5 border-0 p-0">
+        {/* px-0 strips the UA's default 2px legend padding so this label
+            lines up with the plain <label>s on the fields above. */}
+        <legend className="block px-0 text-sm font-medium text-gray-700">
+          วันนั้นมาทำงานหรือไม่
+          <span className="ml-0.5 text-red-500">*</span>
+        </legend>
+        <div className="grid grid-cols-2 gap-2">
+          {(
+            [
+              ['worked', 'มาทำงาน'],
+              ['absent', 'ไม่มา (ขาดงาน)'],
+            ] as const
+          ).map(([value, label]) => (
             <label
-              key={t}
+              key={value}
               className={`flex cursor-pointer items-center justify-center rounded-md border px-3 py-2 text-sm font-medium transition ${
-                type === t
+                kind === value
                   ? 'border-primary-500 bg-primary-50 text-primary-700'
                   : 'border-gray-200 bg-white text-gray-700 hover:border-primary-200'
               }`}
             >
               <input
                 type="radio"
-                name="type"
-                value={t}
-                checked={type === t}
-                onChange={() => setType(t)}
+                name="kind"
+                value={value}
+                checked={kind === value}
+                onChange={() => setKind(value)}
                 className="sr-only"
               />
-              {TYPE_LABELS[t]}
+              {label}
             </label>
           ))}
         </div>
-      </FormField>
+      </fieldset>
 
-      {showDuration && (
-        <FormField
-          label="จำนวนนาที"
-          htmlFor="durationMinutes"
-          required
-          hint={type === 'Late' ? 'จำนวนนาทีที่มาสาย' : 'จำนวนนาทีที่ออกก่อนเวลา'}
-        >
-          <Input
-            id="durationMinutes"
-            name="durationMinutes"
-            type="number"
-            min={1}
-            max={1440}
-            value={durationMinutes}
-            onChange={(e) => setDurationMinutes(e.target.value)}
-            placeholder="เช่น 30"
-            inputMode="numeric"
-            required
+      {kind === 'worked' ? (
+        <div className="grid grid-cols-2 gap-3">
+          <FormField label="เวลาเข้างาน" htmlFor="clockIn" required>
+            <Input
+              id="clockIn"
+              name="clockIn"
+              type="time"
+              value={clockIn}
+              onChange={(e) => setClockIn(e.target.value)}
+              required
+            />
+          </FormField>
+          <FormField label="เวลาออกงาน" htmlFor="clockOut" hint="ถ้ายังไม่ออก เว้นว่างได้">
+            <Input
+              id="clockOut"
+              name="clockOut"
+              type="time"
+              value={clockOut}
+              onChange={(e) => setClockOut(e.target.value)}
+            />
+          </FormField>
+        </div>
+      ) : (
+        <p className="rounded-md bg-gray-50 px-3 py-2 text-sm text-ink-3">
+          ถ้าเป็นการลาที่ได้รับอนุมัติ ให้บันทึกผ่านหน้าคำขอลาแทน — ระบบจะสร้างรายการให้เอง
+        </p>
+      )}
+
+      {preview && preview.warnings.length > 0 && (
+        <div className="space-y-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-3">
+          {preview.warnings.map((w) => (
+            <p key={w} className="text-sm text-amber-900">
+              {w}
+            </p>
+          ))}
+          <p className="pt-1 text-sm font-medium text-ink-1">
+            จะบันทึก:{' '}
+            {preview.rows
+              .map((r) =>
+                r.type === 'CheckIn'
+                  ? `มาทำงาน${clockIn ? ` ${clockIn}` : ''}${clockOut ? `–${clockOut}` : ''}`
+                  : r.type === 'Late'
+                    ? `มาสาย ${r.durationMinutes} นาที`
+                    : r.type === 'EarlyLeave'
+                      ? `ออกก่อนเวลา ${r.durationMinutes} นาที (${baht(rates.earlyLeave)})`
+                      : `ขาดงาน (${baht(rates.absentPerDay)})`,
+              )
+              .join(' + ')}
+          </p>
+        </div>
+      )}
+
+      {showExemptOptIn && (
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 text-sm text-ink-1">
+            <input
+              type="checkbox"
+              checked={exemptLate}
+              onChange={(e) => setExemptLate(e.target.checked)}
+              className="rounded border-gray-300"
+            />
+            ยกเว้นการหักมาสายครั้งนี้
+          </label>
+          {exemptLate && (
+            <FormField label="เหตุผลที่ยกเว้น" htmlFor="exemptReason" required>
+              <Input
+                id="exemptReason"
+                name="exemptReason"
+                value={exemptReason}
+                onChange={(e) => setExemptReason(e.target.value)}
+                placeholder="เช่น รถติดเพราะน้ำท่วม"
+                required
+              />
+            </FormField>
+          )}
+        </div>
+      )}
+
+      {showEarlyLeaveOptIn && (
+        <label className="flex items-center gap-2 text-sm text-ink-1">
+          <input
+            type="checkbox"
+            checked={recordEarlyLeave}
+            onChange={(e) => setRecordEarlyLeave(e.target.checked)}
+            className="rounded border-gray-300"
           />
-        </FormField>
+          บันทึกเป็น "ออกก่อนเวลา" ด้วย (หัก {baht(rates.earlyLeave)})
+        </label>
       )}
 
       <FormField label="หมายเหตุ" htmlFor="note" hint="เหตุผลที่ต้องบันทึกด้วยตนเอง (ถ้ามี)">
@@ -176,7 +325,7 @@ export function ManualAttendanceForm({ employees }: Props) {
           rows={3}
           maxLength={500}
           className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-          placeholder="เช่น พนักงานป่วย — ไม่ได้แจ้งล่วงหน้า"
+          placeholder="เช่น โทรศัพท์พนักงานเสีย — ยืนยันกับหัวหน้าสาขาแล้ว"
         />
       </FormField>
 
