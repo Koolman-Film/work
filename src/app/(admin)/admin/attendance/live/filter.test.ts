@@ -32,6 +32,7 @@ const data: LiveBoardData = {
       photoUrl: null,
       branchName: 'สาขา 1',
       scheduledToday: true,
+      hasSchedule: true,
     },
   ],
   onLeave: [

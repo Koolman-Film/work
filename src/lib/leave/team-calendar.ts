@@ -95,6 +95,9 @@ async function loadEntriesAndHolidays(args: {
         startDate: true,
         endDate: true,
         status: true,
+        unit: true,
+        startTime: true,
+        endTime: true,
         leaveType: { select: { name: true, nameByLocale: true } },
       },
       // Chronological within a day so the detail panel reads top-to-bottom.
@@ -120,6 +123,9 @@ async function loadEntriesAndHolidays(args: {
         status: l.status as 'Pending' | 'Approved',
         startDate: ymd(l.startDate),
         endDate: ymd(l.endDate),
+        unit: l.unit,
+        startTime: l.startTime,
+        endTime: l.endTime,
         isMine: viewerEmployeeId !== null && l.employeeId === viewerEmployeeId,
       };
     })

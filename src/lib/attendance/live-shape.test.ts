@@ -8,6 +8,7 @@ const r = (id: string, scheduledToday = true): RosterEmployee => ({
   photoUrl: null,
   branchName: 'สาขา 1',
   scheduledToday,
+  hasSchedule: true,
 });
 
 const roster: RosterEmployee[] = [r('e1'), r('e2'), r('e3')];

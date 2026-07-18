@@ -16,7 +16,7 @@ import { maskBankAccountNumber } from '@/lib/employee/bank';
 import { syncRichMenuForUser, unlinkAdminRichMenu } from '@/lib/line/rich-menu';
 import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 import { maskNationalId } from '@/lib/tax/national-id';
-import { readForm } from './employee-schema';
+import { readForm, validateWorkScheduleRequiredForCreate } from './employee-schema';
 
 /**
  * Employee CRUD Server Actions.
@@ -48,6 +48,12 @@ export async function createEmployee(formData: FormData) {
   }
 
   const data = parsed.data;
+
+  const workScheduleError = validateWorkScheduleRequiredForCreate(data.workScheduleId);
+  if (workScheduleError) {
+    redirect(`/admin/employees/new?error=${encodeURIComponent(workScheduleError)}`);
+  }
+
   const assignedBranchIds = normalizeAssigned(data.branchId, data.assignedBranchIds);
 
   // Branch-placement gate: a scoped admin may only create employees in their

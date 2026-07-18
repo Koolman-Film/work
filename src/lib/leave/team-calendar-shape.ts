@@ -27,6 +27,14 @@ export type TeamCalendarEntry = {
   endDate: string;
   /** True when this is the viewer's own request. Used to highlight. */
   isMine: boolean;
+  /**
+   * หน่วยการลา — ใช้แยกครึ่งวัน/รายชั่วโมงออกจากเต็มวันบนหน้าจอ
+   * ส่งเป็นค่าดิบเพราะ LIFF ต้องแปล 6 ภาษา ส่วนแอดมินเป็นไทยล้วน
+   */
+  unit: 'FullDay' | 'HalfMorning' | 'HalfAfternoon' | 'Hourly';
+  /** HH:MM — มีค่าเมื่อ unit==='Hourly' เท่านั้น */
+  startTime: string | null;
+  endTime: string | null;
 };
 
 export type TeamCalendarHoliday = {

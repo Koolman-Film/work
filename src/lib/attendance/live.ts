@@ -80,6 +80,7 @@ export async function getTodayAttendance(): Promise<LiveBoardData> {
         nickname: true,
         photoKey: true,
         branch: { select: { name: true } },
+        workScheduleId: true,
         workSchedule: { select: { days: { select: { dayOfWeek: true } } } },
       },
     }),
@@ -142,6 +143,13 @@ export async function getTodayAttendance(): Promise<LiveBoardData> {
       todayDow,
       hasHoliday,
     ),
+    // Same fact as the canonical `employeesWithoutSchedule` query
+    // (src/lib/employee/no-schedule.ts): missing-schedule is defined by
+    // workScheduleId nullability, not by the day-list being empty. A
+    // WorkSchedule row with zero days is prevented at the app level today,
+    // but nothing in the DB enforces that — deriving from the scalar keeps
+    // this badge from ever disagreeing with the employees-list banner.
+    hasSchedule: e.workScheduleId !== null,
   }));
 
   // "Busy" = anyone with a CheckIn (the displayed rows) or an OnLeave today.

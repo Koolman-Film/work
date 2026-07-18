@@ -125,6 +125,7 @@ export default async function EditEmployeePage({
         error={error ? decodeURIComponent(error) : null}
         employeeId={id}
         branchReadOnly={branchReadOnly}
+        defaultWorkScheduleId={null}
         initial={{
           firstName: emp.firstName,
           lastName: emp.lastName,
