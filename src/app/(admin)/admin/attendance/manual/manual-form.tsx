@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { DateField } from '@/components/ui/date-field';
 import { FormField } from '@/components/ui/form-field';
 import { Input } from '@/components/ui/input';
+import { isClosedDay } from '@/lib/attendance/date';
 import { latePolicyFrom, resolveLatePolicy } from '@/lib/attendance/late-policy';
 import { type CreateManualResult, createManualAttendance } from '@/lib/attendance/manual';
 import { computeManualPreview } from '@/lib/attendance/manual-preview';
@@ -71,8 +72,11 @@ export function ManualAttendanceForm({ employees, companyPolicy, rates, holidayY
     }
     if (!clockIn) return null;
 
-    const dow = new Date(`${date}T00:00:00.000Z`).getUTCDay();
+    const dateObj = new Date(`${date}T00:00:00.000Z`);
+    const dow = dateObj.getUTCDay();
     const scheduleDays = employee?.scheduleDays ?? null;
+    const hasSchedule = !!scheduleDays && scheduleDays.length > 0;
+    const hasHoliday = holidayYmds.includes(date);
     const latePolicy = resolveLatePolicy(
       scheduleDays,
       employee?.lateToleranceMin ?? null,
@@ -89,7 +93,9 @@ export function ManualAttendanceForm({ employees, companyPolicy, rates, holidayY
       clockOut: clockOut || null,
       latePolicy,
       scheduledEndTime: scheduleDays?.find((d) => d.dayOfWeek === dow)?.endTime ?? null,
-      isOffDay: holidayYmds.includes(date),
+      // Must mirror the server's rule exactly (src/lib/attendance/manual.ts):
+      // Sunday only counts as an off day for employees with no WorkSchedule.
+      isOffDay: hasSchedule ? hasHoliday : isClosedDay(dateObj, hasHoliday),
       exemptLate,
       recordEarlyLeave,
     });
@@ -129,7 +135,7 @@ export function ManualAttendanceForm({ employees, companyPolicy, rates, holidayY
         clockIn: kind === 'worked' ? clockIn : null,
         clockOut: kind === 'worked' && clockOut ? clockOut : null,
         exemptLate: showExemptOptIn ? exemptLate : false,
-        exemptReason: exemptLate ? exemptReason : null,
+        exemptReason: showExemptOptIn && exemptLate ? exemptReason : null,
         recordEarlyLeave: showEarlyLeaveOptIn ? recordEarlyLeave : false,
         note,
       });
@@ -174,7 +180,11 @@ export function ManualAttendanceForm({ employees, companyPolicy, rates, holidayY
         />
       </FormField>
 
-      <FormField label="วันนั้นมาทำงานหรือไม่" htmlFor="kind" required>
+      <fieldset className="m-0 min-w-0 space-y-1.5 border-0 p-0">
+        <legend className="block text-sm font-medium text-gray-700">
+          วันนั้นมาทำงานหรือไม่
+          <span className="ml-0.5 text-red-500">*</span>
+        </legend>
         <div className="grid grid-cols-2 gap-2">
           {(
             [
@@ -202,7 +212,7 @@ export function ManualAttendanceForm({ employees, companyPolicy, rates, holidayY
             </label>
           ))}
         </div>
-      </FormField>
+      </fieldset>
 
       {kind === 'worked' ? (
         <div className="grid grid-cols-2 gap-3">
