@@ -1,24 +1,27 @@
 'use server';
 
 /**
- * `createManualAttendance` — admin records an Attendance row directly,
- * bypassing the LIFF check-in flow.
+ * `createManualAttendance` — admin records attendance directly for the
+ * cases where the LIFF check-in couldn't happen (broken phone, dead
+ * battery, no signal) or the employee didn't show up at all.
  *
- * Used for the cases where an employee couldn't tap their phone:
- *   - **Absent** — didn't show up (sick, no-show)
- *   - **Late** — arrived after schedule + tolerance but didn't check in
- *   - **EarlyLeave** — left early without checking out
+ * Two shapes:
+ *   - `kind: 'worked'` — employee DID work. Records a `CheckIn` row with
+ *     the admin-supplied times, plus a derived `Late` row using the same
+ *     policy as the LIFF path, so the outcome matches "what would have
+ *     happened if the phone worked".
+ *   - `kind: 'absent'` — didn't show up. Records a single `Absent` row.
  *
- * Deliberately NOT supported here:
- *   - `CheckIn` / `CheckOut` — bypassing GPS verification by faking
- *     a check-in defeats the purpose of geofence enforcement
- *   - `OnLeave` — auto-created by `approveLeaveRequest` per range; manual
- *     entry would create duplicates the working-days calculator can't
- *     reconcile
+ * `EarlyLeave` is opt-in only — nothing else in the system derives those
+ * rows, so deriving them here would make manual entry stricter than LIFF.
  *
- * Idempotency: the schema doesn't have a UNIQUE on `(employeeId, date,
- * type)`, but we enforce it here to prevent admins double-clicking the
- * submit button into two identical rows.
+ * `OnLeave` is still not accepted: leave approval creates those rows per
+ * range, and hand-entry would duplicate what the working-days calculator
+ * reads.
+ *
+ * Geofence integrity: manual rows carry `source='Manual'`, the admin's
+ * `createdById`, and null GPS columns — structurally distinguishable from
+ * a GPS-verified LIFF row. The LIFF path's geofence is untouched.
  */
 
 import { revalidatePath } from 'next/cache';
@@ -28,22 +31,29 @@ import { auditLog } from '@/lib/audit/log';
 import { canActOnEmployeeBranches, getPermittedBranches } from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
-
-export type ManualAttendanceType = 'Absent' | 'Late' | 'EarlyLeave';
+import { isClosedDay } from './date';
+import { latePolicyFrom, resolveLatePolicy } from './late-policy';
+import { bangkokDateTime, computeManualPreview } from './manual-preview';
 
 export type CreateManualInput = {
   employeeId: string;
-  /** YYYY-MM-DD from <input type=date>; treated as Bangkok-local calendar day. */
+  /** YYYY-MM-DD — treated as a Bangkok-local calendar day. */
   date: string;
-  type: ManualAttendanceType;
-  /** Required for Late + EarlyLeave; ignored for Absent. */
-  durationMinutes?: number | null;
+  kind: 'worked' | 'absent';
+  /** HH:MM — required when kind==='worked'. */
+  clockIn?: string | null;
+  /** HH:MM — optional. */
+  clockOut?: string | null;
+  exemptLate?: boolean;
+  /** Why the late deduction was waived — required when exemptLate. */
+  exemptReason?: string | null;
+  recordEarlyLeave?: boolean;
   /** Free-form note explaining why this manual entry exists. ≤500 chars. */
   note?: string | null;
 };
 
 export type CreateManualResult =
-  | { ok: true; id: string }
+  | { ok: true; ids: string[] }
   | {
       ok: false;
       code:
@@ -52,21 +62,21 @@ export type CreateManualResult =
         | 'employee-archived'
         | 'bad-date'
         | 'future-date'
-        | 'bad-duration'
+        | 'bad-time'
+        | 'missing-exempt-reason'
+        | 'already-checked-in'
         | 'duplicate'
         | 'db-error';
       message: string;
     };
 
 const MAX_NOTE = 500;
-const MAX_DURATION_MIN = 1440; // 24 hours — sanity cap
 
 /** Parse YYYY-MM-DD as UTC-midnight Date (matches @db.Date semantics). */
 function parseInputDate(raw: string): Date | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return null;
   const d = new Date(`${raw}T00:00:00.000Z`);
   if (Number.isNaN(d.getTime())) return null;
-  // Round-trip check (catches Feb 30 etc.)
   if (d.toISOString().slice(0, 10) !== raw) return null;
   return d;
 }
@@ -80,10 +90,21 @@ function bangkokTodayUtc(): Date {
 export async function createManualAttendance(
   input: CreateManualInput,
 ): Promise<CreateManualResult> {
-  // Load the target employee first so we can branch-gate (mirrors void.ts).
   const emp = await prisma.employee.findUnique({
     where: { id: input.employeeId },
-    select: { id: true, archivedAt: true, status: true, branchId: true, assignedBranchIds: true },
+    select: {
+      id: true,
+      archivedAt: true,
+      status: true,
+      branchId: true,
+      assignedBranchIds: true,
+      workSchedule: {
+        select: {
+          lateToleranceMin: true,
+          days: { select: { dayOfWeek: true, startTime: true, endTime: true } },
+        },
+      },
+    },
   });
   if (!emp) {
     return { ok: false, code: 'employee-not-found', message: 'ไม่พบพนักงาน' };
@@ -94,63 +115,117 @@ export async function createManualAttendance(
   if (!canActOnEmployeeBranches(permitted, [emp.branchId, ...emp.assignedBranchIds])) notFound();
 
   if (emp.archivedAt || emp.status === 'Archived') {
-    return {
-      ok: false,
-      code: 'employee-archived',
-      message: 'พนักงานคนนี้พ้นสภาพแล้ว',
-    };
+    return { ok: false, code: 'employee-archived', message: 'พนักงานคนนี้พ้นสภาพแล้ว' };
   }
 
-  // Validate date
   const date = parseInputDate(input.date);
   if (!date) {
     return { ok: false, code: 'bad-date', message: 'รูปแบบวันที่ไม่ถูกต้อง' };
   }
-  const today = bangkokTodayUtc();
-  if (date.getTime() > today.getTime()) {
-    return { ok: false, code: 'future-date', message: 'ไม่สามารถบันทึกย้อนล่วงหน้าได้' };
+  if (date.getTime() > bangkokTodayUtc().getTime()) {
+    return { ok: false, code: 'future-date', message: 'ไม่สามารถบันทึกล่วงหน้าได้' };
   }
 
-  // Validate duration — required for Late/EarlyLeave, ignored for Absent
-  let durationMinutes: number | null = null;
-  if (input.type === 'Late' || input.type === 'EarlyLeave') {
-    const d = Number(input.durationMinutes);
-    if (!Number.isFinite(d) || d <= 0 || d > MAX_DURATION_MIN) {
-      return {
-        ok: false,
-        code: 'bad-duration',
-        message: `กรุณากรอกจำนวนนาที (1-${MAX_DURATION_MIN})`,
-      };
+  // ── Time validation (worked only) ──────────────────────────────────
+  if (input.kind === 'worked') {
+    if (!input.clockIn || !bangkokDateTime(input.date, input.clockIn)) {
+      return { ok: false, code: 'bad-time', message: 'กรุณากรอกเวลาเข้างานให้ถูกต้อง (HH:MM)' };
     }
-    durationMinutes = Math.round(d);
+    if (input.clockOut) {
+      if (!bangkokDateTime(input.date, input.clockOut)) {
+        return { ok: false, code: 'bad-time', message: 'รูปแบบเวลาออกงานไม่ถูกต้อง (HH:MM)' };
+      }
+      if (input.clockOut <= input.clockIn) {
+        return {
+          ok: false,
+          code: 'bad-time',
+          message: 'เวลาออกงานต้องหลังเวลาเข้างาน',
+        };
+      }
+    }
   }
 
-  // Validate note length
-  const note = input.note?.trim() || null;
-  if (note && note.length > MAX_NOTE) {
+  if (input.exemptLate && !input.exemptReason?.trim()) {
     return {
       ok: false,
-      code: 'bad-duration', // re-using closest existing code; not adding a new one for a length-only error
-      message: `หมายเหตุยาวเกิน ${MAX_NOTE} ตัวอักษร`,
+      code: 'missing-exempt-reason',
+      message: 'กรุณาระบุเหตุผลที่ยกเว้นการหักมาสาย',
     };
   }
 
-  // Idempotency — block duplicate (employee, date, type) which would
-  // happen on double-click. The schema doesn't enforce this at the DB
-  // level intentionally (admins may legitimately enter multiple rows
-  // for different reasons), but for the same form submission it's
-  // almost certainly user error.
-  const existing = await prisma.attendance.findFirst({
-    where: { employeeId: emp.id, date, type: input.type },
-    select: { id: true },
+  const note = input.note?.trim() || null;
+  if (note && note.length > MAX_NOTE) {
+    return { ok: false, code: 'bad-date', message: `หมายเหตุยาวเกิน ${MAX_NOTE} ตัวอักษร` };
+  }
+
+  // ── Resolve the late policy exactly as check-in.ts does ────────────
+  const dow = date.getUTCDay();
+  const scheduleDays = emp.workSchedule?.days ?? null;
+  const hasSchedule = !!scheduleDays && scheduleDays.length > 0;
+
+  const [payrollCfg, holiday] = await Promise.all([
+    prisma.payrollConfig.findFirst({ select: { workStartTime: true, lateGraceMinutes: true } }),
+    prisma.holiday.findFirst({ where: { date, archivedAt: null }, select: { id: true } }),
+  ]);
+  const hasHoliday = holiday != null;
+
+  const latePolicy = resolveLatePolicy(
+    scheduleDays,
+    emp.workSchedule?.lateToleranceMin ?? null,
+    dow,
+    latePolicyFrom(payrollCfg),
+  );
+  const isOffDay = hasSchedule ? hasHoliday : isClosedDay(date, hasHoliday);
+  const scheduledEndTime = scheduleDays?.find((d) => d.dayOfWeek === dow)?.endTime ?? null;
+
+  const preview = computeManualPreview({
+    kind: input.kind,
+    date: input.date,
+    clockIn: input.clockIn,
+    clockOut: input.clockOut,
+    latePolicy,
+    scheduledEndTime,
+    isOffDay,
+    exemptLate: input.exemptLate,
+    recordEarlyLeave: input.recordEarlyLeave,
   });
-  if (existing) {
+
+  // ── Duplicate guards ───────────────────────────────────────────────
+  // A pre-existing CheckIn means the employee already checked in (LIFF or
+  // an earlier manual entry) — never stack a second one on top.
+  if (preview.rows.some((r) => r.type === 'CheckIn')) {
+    const existingCheckIn = await prisma.attendance.findFirst({
+      where: { employeeId: emp.id, date, type: 'CheckIn', deletedAt: null },
+      select: { id: true },
+    });
+    if (existingCheckIn) {
+      return {
+        ok: false,
+        code: 'already-checked-in',
+        message: 'พนักงานคนนี้มีการเช็คอินของวันนี้อยู่แล้ว',
+      };
+    }
+  }
+
+  const existingSame = await prisma.attendance.findFirst({
+    where: {
+      employeeId: emp.id,
+      date,
+      type: { in: preview.rows.map((r) => r.type) },
+      deletedAt: null,
+    },
+    select: { type: true },
+  });
+  if (existingSame) {
     return {
       ok: false,
       code: 'duplicate',
-      message: `มีรายการ "${input.type}" ของพนักงานคนนี้ในวันนี้แล้ว`,
+      message: `มีรายการ "${existingSame.type}" ของพนักงานคนนี้ในวันนี้แล้ว`,
     };
   }
+
+  const clockInAt = input.clockIn ? bangkokDateTime(input.date, input.clockIn) : null;
+  const clockOutAt = input.clockOut ? bangkokDateTime(input.date, input.clockOut) : null;
 
   const headerList = await headers();
   const ip =
@@ -160,50 +235,56 @@ export async function createManualAttendance(
   const userAgent = headerList.get('user-agent') ?? undefined;
 
   try {
-    const created = await prisma.attendance.create({
-      data: {
-        employeeId: emp.id,
-        date,
-        type: input.type,
-        source: 'Manual',
-        durationMinutes,
-        createdById: user.id,
-        // Note: the admin's "why I had to manually enter this" note is
-        // captured in the audit log below, NOT on the Attendance row.
-        // The schema's `disputeReason` is reserved for actual dispute
-        // semantics; reusing it for Manual notes would mean every UI
-        // showing "dispute reason" had to also handle "is this actually
-        // a manual note?" — bad coupling.
-        // If we later need an Attendance.note column, that's a Phase-2
-        // migration with a clear name.
-      },
-      select: { id: true },
-    });
+    const created = await prisma.$transaction(async (tx) =>
+      Promise.all(
+        preview.rows.map((row) =>
+          tx.attendance.create({
+            data: {
+              employeeId: emp.id,
+              date,
+              type: row.type,
+              source: 'Manual',
+              durationMinutes: row.durationMinutes,
+              // Times live on the CheckIn row only; derived Late/EarlyLeave
+              // rows are the deduction unit and carry no clock evidence,
+              // matching how check-in.ts writes its derived Late row.
+              clockInAt: row.type === 'CheckIn' ? clockInAt : null,
+              clockOutAt: row.type === 'CheckIn' ? clockOutAt : null,
+              createdById: user.id,
+            },
+            select: { id: true, type: true },
+          }),
+        ),
+      ),
+    );
 
-    auditLog({
-      actorId: user.id,
-      action: 'attendance.manual-create',
-      entityType: 'Attendance',
-      entityId: created.id,
-      after: {
-        employeeId: emp.id,
-        date: input.date,
-        type: input.type,
-        durationMinutes,
-        note,
-      },
-      metadata: { ip, userAgent, source: 'admin-manual' },
-    });
+    for (const row of created) {
+      auditLog({
+        actorId: user.id,
+        action: 'attendance.manual-create',
+        entityType: 'Attendance',
+        entityId: row.id,
+        after: {
+          employeeId: emp.id,
+          date: input.date,
+          kind: input.kind,
+          type: row.type,
+          clockIn: input.clockIn ?? null,
+          clockOut: input.clockOut ?? null,
+          lateMinutes: preview.lateMinutes,
+          exemptLate: !!input.exemptLate,
+          exemptReason: input.exemptReason?.trim() || null,
+          note,
+        },
+        metadata: { ip, userAgent, source: 'admin-manual' },
+      });
+    }
 
     revalidatePath('/admin');
     revalidatePath('/admin/attendance');
-    return { ok: true, id: created.id };
+    return { ok: true, ids: created.map((c) => c.id) };
   } catch (err) {
     console.error('[createManualAttendance] db error', err);
-    return {
-      ok: false,
-      code: 'db-error',
-      message: 'ระบบขัดข้อง กรุณาลองใหม่อีกครั้ง',
-    };
+    return { ok: false, code: 'db-error', message: 'ระบบขัดข้อง กรุณาลองใหม่อีกครั้ง' };
   }
 }

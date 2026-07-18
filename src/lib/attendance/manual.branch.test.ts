@@ -40,6 +40,8 @@ vi.mock('@/lib/auth/check-permission', () => ({
 const employeeFindUnique = vi.fn();
 const attendanceFindFirst = vi.fn();
 const attendanceCreate = vi.fn();
+const payrollConfigFindFirst = vi.fn();
+const holidayFindFirst = vi.fn();
 
 vi.mock('@/lib/db/prisma', () => ({
   prismaRaw: {},
@@ -47,10 +49,22 @@ vi.mock('@/lib/db/prisma', () => ({
     employee: {
       findUnique: (...a: unknown[]) => employeeFindUnique(...a),
     },
+    payrollConfig: {
+      findFirst: (...a: unknown[]) => payrollConfigFindFirst(...a),
+    },
+    holiday: {
+      findFirst: (...a: unknown[]) => holidayFindFirst(...a),
+    },
     attendance: {
       findFirst: (...a: unknown[]) => attendanceFindFirst(...a),
       create: (...a: unknown[]) => attendanceCreate(...a),
     },
+    $transaction: (cb: (tx: unknown) => unknown) =>
+      cb({
+        attendance: {
+          create: (...a: unknown[]) => attendanceCreate(...a),
+        },
+      }),
   },
 }));
 
@@ -85,11 +99,11 @@ function globalActorAssignments() {
   ];
 }
 
-/** Valid input that passes all validation (past date, Absent type). */
+/** Valid input that passes all validation (past date, absent kind). */
 const validInput: CreateManualInput = {
   employeeId: 'emp-1',
   date: '2025-01-15',
-  type: 'Absent',
+  kind: 'absent',
 };
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -98,8 +112,10 @@ describe('createManualAttendance — branch-scope gate', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     requirePermission.mockResolvedValue({ user: { id: 'actor-id' } });
-    attendanceFindFirst.mockResolvedValue(null); // no duplicate
-    attendanceCreate.mockResolvedValue({ id: 'new-att-id' });
+    attendanceFindFirst.mockResolvedValue(null); // no duplicate / no existing check-in
+    attendanceCreate.mockResolvedValue({ id: 'new-att-id', type: 'Absent' });
+    payrollConfigFindFirst.mockResolvedValue(null);
+    holidayFindFirst.mockResolvedValue(null);
   });
 
   it('denies when scoped actor (branch A) targets employee whose home=B, assigned=[]', async () => {
@@ -111,6 +127,7 @@ describe('createManualAttendance — branch-scope gate', () => {
       status: 'Active',
       branchId: 'branch-B',
       assignedBranchIds: [],
+      workSchedule: null,
     });
 
     await expect(createManualAttendance(validInput)).rejects.toThrow('NOT_FOUND');
@@ -128,11 +145,12 @@ describe('createManualAttendance — branch-scope gate', () => {
       status: 'Active',
       branchId: 'branch-B',
       assignedBranchIds: ['branch-A'],
+      workSchedule: null,
     });
 
     const result = await createManualAttendance(validInput);
 
-    expect(result).toEqual({ ok: true, id: 'new-att-id' });
+    expect(result).toEqual({ ok: true, ids: ['new-att-id'] });
     expect(attendanceCreate).toHaveBeenCalledOnce();
   });
 
@@ -145,11 +163,12 @@ describe('createManualAttendance — branch-scope gate', () => {
       status: 'Active',
       branchId: 'branch-Z',
       assignedBranchIds: [],
+      workSchedule: null,
     });
 
     const result = await createManualAttendance(validInput);
 
-    expect(result).toEqual({ ok: true, id: 'new-att-id' });
+    expect(result).toEqual({ ok: true, ids: ['new-att-id'] });
     expect(attendanceCreate).toHaveBeenCalledOnce();
   });
 
@@ -177,6 +196,7 @@ describe('createManualAttendance — branch-scope gate', () => {
       status: 'Active',
       branchId: 'branch-C',
       assignedBranchIds: ['branch-D'], // neither is branch-A
+      workSchedule: null,
     });
 
     await expect(createManualAttendance(validInput)).rejects.toThrow('NOT_FOUND');
