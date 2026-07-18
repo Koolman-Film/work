@@ -15,11 +15,29 @@
 
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageHeader } from '@/components/ui/page-header';
+import { bangkokDateUtcMidnight } from '@/lib/attendance/date';
 import { employeeBranchScope, getPermittedBranches } from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { AttendanceTabs } from '../attendance-tabs';
 import { ManualAttendanceForm } from './manual-form';
+
+/** Today's Bangkok calendar date, at UTC midnight (matches @db.Date). */
+function holidayWindowEnd(): Date {
+  return bangkokDateUtcMidnight(new Date());
+}
+
+/**
+ * ~13 months before today. This form only ever accepts today or an earlier
+ * date (see the `future-date` check in `createManualAttendance`), so a
+ * holiday further back than one payroll year plus a small buffer can never
+ * be relevant to a submission — bounding the query here keeps the client
+ * payload from growing without limit as holidays accumulate across years.
+ */
+function holidayWindowStart(): Date {
+  const end = holidayWindowEnd();
+  return new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth() - 13, end.getUTCDate()));
+}
 
 export default async function ManualAttendancePage() {
   const { user } = await requirePermission('attendance.manual-create');
@@ -53,9 +71,17 @@ export default async function ManualAttendancePage() {
         lateGraceMinutes: true,
         absentDeductionPerDay: true,
         earlyLeaveDeduction: true,
+        otThresholdMinutes: true,
       },
     }),
-    prisma.holiday.findMany({ where: { archivedAt: null }, select: { date: true } }),
+    // This form only ever accepts today or an earlier date, so a lookback
+    // window covering the last ~13 months is all a submission could need —
+    // bounding it keeps the client payload from growing without limit as
+    // holidays accumulate across years.
+    prisma.holiday.findMany({
+      where: { archivedAt: null, date: { gte: holidayWindowStart(), lte: holidayWindowEnd() } },
+      select: { date: true },
+    }),
   ]);
 
   return (
@@ -95,6 +121,9 @@ export default async function ManualAttendancePage() {
                 earlyLeave: payrollCfg?.earlyLeaveDeduction?.toString() ?? '0',
               }}
               holidayYmds={holidays.map((h) => h.date.toISOString().slice(0, 10))}
+              // Same fallback as getOtCandidates (src/lib/overtime/candidates.ts)
+              // when the PayrollConfig row is missing.
+              otThresholdMinutes={payrollCfg?.otThresholdMinutes ?? 30}
             />
           </CardBody>
         </Card>

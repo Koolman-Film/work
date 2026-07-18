@@ -79,7 +79,7 @@ Run this BEFORE inviting real pilot employees. Tests every Phase-1 flow on a rea
 - [ ] **17. Disputed check-in handling** — IF possible, move ~200m away from branch + try to check in again (or use Chrome DevTools location spoof on a desktop to simulate). Should land on `/admin/attendance/disputed`:
   - admin sees the row with selfie thumbnail + map
   - click อนุมัติ to override → row disappears from disputed inbox
-- [ ] **18. Manual attendance entry** (browser) — `/admin/attendance/manual` → select test employee → date: today → type: "มาสาย" → duration: 30 → save → confirm appears in `/admin/attendance` with source="คีย์มือ"
+- [ ] **18. Manual attendance entry** (browser) — `/admin/attendance/manual` → select test employee → date: today → เลือก "มาทำงาน" → เวลาเข้า 09:45, เวลาออก 18:00 → สังเกตแผงเตือนที่ขึ้นว่าจะบันทึก "มาสาย 45 นาที" → save → confirm appears in `/admin/attendance` with source="คีย์มือ"
 - [ ] **19. Profile edit** (phone) — tap 👤 โปรไฟล์ → change phone number to "082-345-6789" → save → confirm "บันทึกแล้ว ✓" affirmation; refresh page → number persists
 
 ---
