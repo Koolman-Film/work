@@ -938,16 +938,41 @@ Reject form requires:
 ## F-N5: Manual attendance
 
 - **Used in:** S-N10
-- **Submit:** `createAttendance(data)`
+- **Submit:** `createManualAttendance(input)` (`src/lib/attendance/manual.ts`)
+
+Structured as "did they work?" (`kind: 'worked' | 'absent'`), not a flat list
+of anomaly types — `CheckIn` and `Late` are separate rows that legitimately
+co-occur, so a select-one-type field would force the admin into ขาดงาน just
+because the employee couldn't tap LINE. There is no `type` select, no free
+`duration` field, and no editable deduction amount — see rationale below.
 
 | Field | Type | Required | Validation |
 |---|---|---|---|
 | `employeeId` | combobox | Yes | active emp only |
 | `date` | date | Yes | ≤ today |
-| `type` | select | Yes | enum |
-| `duration` | text | Conditional | required for "ลา" types |
-| `deductionAmount` | number | Auto-filled | editable, override → DeductionMode='manual' |
-| `note` | textarea | If override | ≤500 chars |
+| `kind` | radio: `worked` \| `absent` | Yes | — |
+| `clockIn` | time | Yes when `kind==='worked'` | HH:MM, valid |
+| `clockOut` | time | No | HH:MM, valid, after `clockIn` |
+| `exemptLate` | checkbox | No | shown only when the resolved late minutes > 0 |
+| `exemptReason` | textarea | Yes when `exemptLate` | non-empty |
+| `recordEarlyLeave` | checkbox | No | shown only when clock-out is before the scheduled end |
+| `note` | textarea | No | ≤500 chars |
+
+`kind==='worked'` derives `CheckIn` (+ `Late` when the clock-in is later than
+the employee's scheduled/company start beyond grace — same policy as the LINE
+check-in path) automatically from `clockIn`/`clockOut`; there is no `type`
+select and no `duration` field to fill in. `EarlyLeave` is never derived — it
+is opt-in only via `recordEarlyLeave`, because no other path in the system
+ever creates that row automatically, and auto-deriving it here would make
+manual entry stricter than a working LINE check-in. There is no editable
+`deductionAmount`: `Absent`/`EarlyLeave` deduct at the fixed `PayrollConfig`
+per-unit rate, and `Late` is deliberately never priced in this form (it's
+tallied per pay period against the whole month's late count, so a single
+entry can't know its own ฿ amount in advance).
+
+Before submit, a live preview panel calls the same pure function the server
+action uses (`computeManualPreview`, `src/lib/attendance/manual-preview.ts`)
+so what the admin is shown can never disagree with what gets saved.
 
 ---
 
