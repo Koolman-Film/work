@@ -13,6 +13,7 @@ export const ADVANCE_SELECT = {
   status: true,
   requestedAt: true,
   approvedAt: true,
+  paidAt: true,
   receiptUrl: true,
   deletedAt: true,
   deleteReason: true,
@@ -23,6 +24,9 @@ export const ADVANCE_SELECT = {
       nickname: true,
       branch: { select: { name: true } },
       department: { select: { name: true } },
+      bankAccountNumber: true,
+      bankAccountName: true,
+      bank: { select: { nameTh: true, shortName: true } },
     },
   },
 } as const;
@@ -66,6 +70,7 @@ export type AdvanceRecord = {
   status: 'Pending' | 'Approved' | 'Rejected' | 'Cancelled';
   requestedAt: Date;
   approvedAt: Date | null;
+  paidAt: Date | null;
   receiptUrl: string | null;
   employee: {
     firstName: string;
@@ -73,6 +78,9 @@ export type AdvanceRecord = {
     nickname: string | null;
     branch: { name: string };
     department: { name: string } | null;
+    bankAccountNumber: string | null;
+    bankAccountName: string | null;
+    bank: { nameTh: string; shortName: string | null } | null;
   };
 };
 
@@ -119,7 +127,11 @@ export function buildAdvanceRowVM(
     amount: formatAdvanceMoney(r.amount),
     submitted: formatAdvanceDateTime(r.requestedAt),
     decidedAt: r.approvedAt ? formatAdvanceDateTime(r.approvedAt) : null,
+    paid: r.paidAt !== null,
     receiptUrl: deps.receiptUrl,
     advanceGuard: deps.advanceGuard,
+    bankName: r.employee.bank?.nameTh ?? r.employee.bank?.shortName ?? null,
+    bankAccountNumber: r.employee.bankAccountNumber,
+    bankAccountName: r.employee.bankAccountName,
   };
 }
