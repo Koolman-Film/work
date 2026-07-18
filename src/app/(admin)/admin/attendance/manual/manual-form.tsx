@@ -181,7 +181,9 @@ export function ManualAttendanceForm({ employees, companyPolicy, rates, holidayY
       </FormField>
 
       <fieldset className="m-0 min-w-0 space-y-1.5 border-0 p-0">
-        <legend className="block text-sm font-medium text-gray-700">
+        {/* px-0 strips the UA's default 2px legend padding so this label
+            lines up with the plain <label>s on the fields above. */}
+        <legend className="block px-0 text-sm font-medium text-gray-700">
           วันนั้นมาทำงานหรือไม่
           <span className="ml-0.5 text-red-500">*</span>
         </legend>
