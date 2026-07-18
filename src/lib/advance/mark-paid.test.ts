@@ -220,4 +220,18 @@ describe('markAdvancePaid', () => {
     expect(data.paidAt).toBeInstanceOf(Date);
     expect('receiptUrl' in data).toBe(false);
   });
+
+  // Guards the `.trim() || null` in markAdvancePaid: a form field that
+  // submits "" or spaces means "no slip", not "store an empty receiptUrl".
+  // Without this, swapping the trim for `?? null` would pass the suite.
+  it.each(['', '   '])('blank receiptKey (%j) behaves like no slip', async (blank) => {
+    txFindUnique.mockResolvedValue(approvedRow());
+
+    const r = await markAdvancePaid({ cashAdvanceId: 'ca-1', receiptKey: blank });
+
+    expect(r).toEqual({ ok: true });
+    const data = txUpdate.mock.calls[0]![0]!.data;
+    expect(data.paidAt).toBeInstanceOf(Date);
+    expect('receiptUrl' in data).toBe(false);
+  });
 });
