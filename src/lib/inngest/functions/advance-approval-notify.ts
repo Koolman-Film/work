@@ -19,6 +19,12 @@
  * markAdvancePaid consults the SAME settle-window helpers
  * (`paidPushNeeded`) to decide whether IT still needs to push — the two
  * sides must never drift, or the employee gets a duplicate or nothing.
+ *
+ * Runs sleep across a deploy: Inngest resumes this step function from
+ * durable state, matched by function id and step id. That only works if the
+ * function id (`advance-approval-notify`) and the step ids (`settle-window`,
+ * `read-latest`, `send`) stay unchanged across a deploy — renaming any of
+ * them strands in-flight approvals sleeping with no notification ever sent.
  */
 
 import { formatAmount } from '@/lib/advance/format-amount';
@@ -39,11 +45,21 @@ export const advanceApprovalNotify = inngest.createFunction(
 
     await step.sleep('settle-window', SETTLE_WINDOW_MS);
 
+    // `findUnique` is NOT covered by the soft-delete Prisma extension (it
+    // only wraps findFirst/findMany/count/aggregate — see
+    // soft-delete-extension.ts), so a voided advance would still come back
+    // here with status: 'Approved' (void only sets deletedAt, it never
+    // touches status). deletedAt is selected explicitly and threaded through
+    // pickApprovalKind rather than filtered in the `where` so the "voided
+    // meanwhile" decision lives in one testable place alongside the rest of
+    // the settle-window logic.
     const advance = await step.run('read-latest', () =>
       prisma.cashAdvance.findUnique({
         where: { id: cashAdvanceId },
         select: {
           status: true,
+          deletedAt: true,
+          approvedAt: true,
           paidAt: true,
           amount: true,
           employee: { select: { firstName: true } },
@@ -53,10 +69,12 @@ export const advanceApprovalNotify = inngest.createFunction(
     if (!advance) return { sent: false, reason: 'not-found' };
 
     // Inngest serializes step.run's return value to JSON (and back on
-    // replay), so `paidAt` arrives here as an ISO string, not a Date —
-    // rehydrate before handing it to pickApprovalKind.
+    // replay), so date fields arrive here as ISO strings, not Dates —
+    // rehydrate before handing them to pickApprovalKind.
+    const deletedAt = advance.deletedAt ? new Date(advance.deletedAt) : null;
+    const approvedAt = advance.approvedAt ? new Date(advance.approvedAt) : null;
     const paidAt = advance.paidAt ? new Date(advance.paidAt) : null;
-    const kind = pickApprovalKind({ status: advance.status, paidAt });
+    const kind = pickApprovalKind({ status: advance.status, deletedAt, approvedAt, paidAt });
     if (!kind) return { sent: false, reason: 'no-longer-approved' };
 
     await step.run('send', () =>

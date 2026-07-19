@@ -16,13 +16,44 @@
 
 export const SETTLE_WINDOW_MS = 15 * 60 * 1000;
 
-/** Which approval message to send once the window closes; null = send none. */
+/**
+ * Which approval message to send once the window closes; null = send none.
+ *
+ * `deletedAt` must be passed explicitly by the caller — `findUnique` is NOT
+ * covered by the soft-delete Prisma extension (it only wraps
+ * findFirst/findMany/count/aggregate, see soft-delete-extension.ts), so a
+ * voided advance still comes back from `findUnique` with `status: 'Approved'`
+ * (void only sets `deletedAt`, it never touches `status`). Do not assume the
+ * extension filtered this out — it didn't; that assumption is exactly what
+ * produced the bug this field guards against (an admin voids by mistake
+ * inside the settle window and the employee still gets "approved" pushed).
+ */
 export function pickApprovalKind(advance: {
   status: string;
+  deletedAt: Date | null;
+  approvedAt: Date | null;
   paidAt: Date | null;
 }): 'advance.approved' | 'advance.approved-and-paid' | null {
-  if (advance.status !== 'Approved') return null; // cancelled or voided meanwhile
-  return advance.paidAt ? 'advance.approved-and-paid' : 'advance.approved';
+  if (advance.deletedAt) return null; // voided meanwhile — see comment above
+  // Guard kept cheap even though it is currently unreachable: cancelCashAdvance
+  // (src/lib/advance/actions.ts) only ever cancels a Pending advance, and
+  // AdvanceStatus has no 'Paid' value, so a row that is already Approved has
+  // no code path back out of 'Approved' other than the void above. This does
+  // NOT protect against anything today — it protects against AdvanceStatus
+  // gaining a new value later without someone remembering to update this file.
+  if (advance.status !== 'Approved') return null;
+  if (!advance.paidAt) return 'advance.approved';
+  // Same predicate markAdvancePaid uses to decide whether IT still needs its
+  // own push, applied in reverse: if markAdvancePaid did NOT need one
+  // (payment landed inside the window), this notice must say "paid" or the
+  // employee never hears about it. If markAdvancePaid DID need one (payment
+  // landed on/after the window boundary), that push already covers it, so
+  // this notice stays plain "approved" to avoid a duplicate. Comparing the
+  // same two timestamps with the same predicate on both sides is what makes
+  // them complementary by construction — see paidPushNeeded below.
+  return paidPushNeeded({ approvedAt: advance.approvedAt, paidAt: advance.paidAt })
+    ? 'advance.approved'
+    : 'advance.approved-and-paid';
 }
 
 /**
