@@ -50,6 +50,8 @@
 
 import Decimal from 'decimal.js';
 
+import { dailyRateFor } from './day-rate';
+
 // ─── Input shapes ────────────────────────────────────────────────────────
 // Plain DTOs — NOT Prisma types. Callers translate at the boundary.
 
@@ -389,7 +391,11 @@ export function calcPayroll(input: CalcInput): PayrollDraft {
     severeThresholdMin: cfg.severeLateThresholdMin ?? 30,
   };
   const latePenalty = computeLatePenalty(lateRows, new Set(input.leaveDates ?? []), latePolicy);
-  const dayAmount = toDec(cfg.absentDeductionPerDay);
+  // One "day" is a day of THIS employee's pay, not a company-wide flat rate.
+  // The customer writes penalties as "หักเงินหรือสิทธิ 1 วัน"; the old flat
+  // ฿500 over-charged 32 of 46 people on production. Feeds absences, the
+  // N-strikes penalty, severe lateness, AND the slip breakdown — one place.
+  const dayAmount = dailyRateFor(input.employee, cfg.absentDeductionPerDay);
   // Tier-1 lates: the N-strikes rule charges a 1-day amount per completed group;
   // when the rule is off, fall back to the legacy flat per-late charge.
   const tier1LateMoney = latePolicy.threeStrikeEnabled

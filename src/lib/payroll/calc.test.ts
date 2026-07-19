@@ -101,8 +101,8 @@ describe('calcPayroll — V1 fixtures', () => {
   });
 
   // CASE 4: 3 absent days.
-  // Deduct = 3 × 500 = 1500.
-  // Net = 30000 - 750 - 1500 = 27750.
+  // Day rate = baseSalary/30 = 30000/30 = 1000. Deduct = 3 × 1000 = 3000.
+  // Net = 30000 - 750 - 3000 = 26250.
   it('CASE 4 — three absent days', () => {
     const att: AttendanceForPayroll[] = [
       { date: '2026-05-04', type: 'Absent' },
@@ -110,9 +110,9 @@ describe('calcPayroll — V1 fixtures', () => {
       { date: '2026-05-15', type: 'Absent' },
     ];
     const out = calcPayroll(baseInput({ attendances: att }));
-    expect(out.deductAttendance.toString()).toBe('1500');
+    expect(out.deductAttendance.toString()).toBe('3000');
     expect(out.breakdown.absentCount).toBe(3);
-    expect(out.netPay.toString()).toBe('27750');
+    expect(out.netPay.toString()).toBe('26250');
   });
 
   // CASE 5: mix of late + early-leave.
@@ -170,7 +170,8 @@ describe('calcPayroll — V1 fixtures', () => {
   });
 
   // CASE 8: combined attendance + advance + debt, the worst case.
-  // 30000 - 750(sso) - (2*500+1*100=1100 att) - 4000(adv) - 1500(debt) = 22650.
+  // Day rate = 30000/30 = 1000. 30000 - 750(sso) - (2*1000+1*100=2100 att)
+  // - 4000(adv) - 1500(debt) = 21650.
   it('CASE 8 — combined deductions across all buckets', () => {
     const out = calcPayroll(
       baseInput({
@@ -184,10 +185,10 @@ describe('calcPayroll — V1 fixtures', () => {
       }),
     );
     expect(out.deductSso.toString()).toBe('750');
-    expect(out.deductAttendance.toString()).toBe('1100'); // 2*500 + 1*100
+    expect(out.deductAttendance.toString()).toBe('2100'); // 2*1000 + 1*100
     expect(out.deductAdvance.toString()).toBe('4000');
     expect(out.deductDebt.toString()).toBe('1500');
-    expect(out.netPay.toString()).toBe('22650');
+    expect(out.netPay.toString()).toBe('21650');
   });
 
   // Type-system guard: Daily/Hourly throw early.
@@ -390,7 +391,10 @@ describe('calcPayroll — late penalties wired through deductAttendance (C9)', (
     durationMinutes: m,
   });
 
-  it('3 ordinary lates → one absent-day amount (฿500), replacing the flat per-late', () => {
+  // emp's baseSalary is 20000 → day rate = 20000/30 = 666.666...,
+  // rounded to 2dp = 666.67. Not 3×100 flat, and not the old flat ฿500
+  // either — it's this employee's own day rate.
+  it('3 ordinary lates → one absent-day amount (own day rate), replacing the flat per-late', () => {
     const out = calcPayroll({
       employee: emp,
       attendances: [lateRow('2026-06-01', 10), lateRow('2026-06-02', 12), lateRow('2026-06-03', 8)],
@@ -405,7 +409,7 @@ describe('calcPayroll — late penalties wired through deductAttendance (C9)', (
       },
       month: '2026-06',
     });
-    expect(out.deductAttendance.toString()).toBe('500'); // not 3×100 flat
+    expect(out.deductAttendance.toString()).toBe('666.67');
   });
 
   it('severe late with no leave that day → one absent-day amount', () => {
@@ -424,7 +428,8 @@ describe('calcPayroll — late penalties wired through deductAttendance (C9)', (
       },
       month: '2026-06',
     });
-    expect(out.deductAttendance.toString()).toBe('500');
+    // 20000/30 = 666.67 (this employee's own day rate)
+    expect(out.deductAttendance.toString()).toBe('666.67');
   });
 
   it('falls back to the flat per-late charge when the policy fields are omitted', () => {
@@ -466,7 +471,9 @@ describe('CalcBreakdown sub-amounts', () => {
     ];
     const d = calcPayroll({ ...base, attendances: atts });
     const b = d.breakdown.attendance;
-    expect(b.absent.money.toString()).toBe('500'); // 1 × 500
+    // base's baseSalary is 20000 → day rate = 20000/30 = 666.67 (own day rate,
+    // not the old flat ฿500).
+    expect(b.absent.money.toString()).toBe('666.67'); // 1 × 666.67
     expect(b.lateTier1.mode).toBe('flat');
     expect(b.lateTier1.money.toString()).toBe('100'); // 1 × 100
     expect(b.earlyLeave.money.toString()).toBe('100'); // 1 × 100
@@ -493,6 +500,41 @@ describe('CalcBreakdown sub-amounts', () => {
     expect(t1.count).toBe(4);
     expect(t1.threeStrikeCount).toBe(3);
     expect(t1.days).toBe(1); // floor(4/3)
-    expect(t1.money.toString()).toBe('500'); // 1 day × 500
+    // base's baseSalary is 20000 → day rate = 20000/30 = 666.67
+    expect(t1.money.toString()).toBe('666.67'); // 1 day × 666.67
+  });
+});
+
+describe('calcPayroll — a day off costs a day of YOUR pay', () => {
+  const absent = [{ date: '2026-05-04', type: 'Absent' as const }];
+
+  it('two salaries, same absence, different deduction', () => {
+    const low = calcPayroll(
+      baseInput({
+        employee: { id: 'e', salaryType: 'Monthly', baseSalary: '10000', hasSso: false },
+        attendances: absent,
+      }),
+    );
+    const high = calcPayroll(
+      baseInput({
+        employee: { id: 'e', salaryType: 'Monthly', baseSalary: '60000', hasSso: false },
+        attendances: absent,
+      }),
+    );
+
+    expect(low.deductAttendance.toString()).not.toBe(high.deductAttendance.toString());
+    // 10000/30 = 333.33…, 60000/30 = 2000
+    expect(low.deductAttendance.toDecimalPlaces(2).toString()).toBe('333.33');
+    expect(high.deductAttendance.toString()).toBe('2000');
+  });
+
+  it('the slip breakdown shows the same per-day figure it charged', () => {
+    const out = calcPayroll(
+      baseInput({
+        employee: { id: 'e', salaryType: 'Monthly', baseSalary: '30000', hasSso: false },
+        attendances: absent,
+      }),
+    );
+    expect(out.breakdown.attendance.absent.perDay.toString()).toBe('1000');
   });
 });
