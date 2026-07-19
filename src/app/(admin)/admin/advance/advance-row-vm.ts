@@ -112,7 +112,7 @@ export async function advanceGuardVM(
  */
 export function buildAdvanceRowVM(
   r: AdvanceRecord,
-  deps: { receiptUrl: string | null; advanceGuard: AdvanceGuardVM | null },
+  deps: { receiptUrl: string | null; advanceGuard: AdvanceGuardVM | null; canSeePayout: boolean },
 ): AdvanceRowVM {
   const info = ADVANCE_STATUS_INFO[r.status] ?? { label: r.status, key: 'neutral' as StatusKey };
   const paid = r.paidAt !== null;
@@ -132,11 +132,11 @@ export function buildAdvanceRowVM(
     amount: formatAdvanceMoney(r.amount),
     submitted: formatAdvanceDateTime(r.requestedAt),
     decidedAt: r.approvedAt ? formatAdvanceDateTime(r.approvedAt) : null,
-    paid,
     receiptUrl: deps.receiptUrl,
     advanceGuard: deps.advanceGuard,
     bankName: r.employee.bank?.nameTh ?? r.employee.bank?.shortName ?? null,
     bankAccountNumber: r.employee.bankAccountNumber,
     bankAccountName: r.employee.bankAccountName,
+    canSeePayout: deps.canSeePayout,
   };
 }

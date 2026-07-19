@@ -316,7 +316,12 @@ export async function submitCheckIn(input: SubmitCheckInInput): Promise<SubmitCh
         entityType: 'Attendance',
         entityId: created.id,
         after: {
-          status: verdict.status,
+          // Resolved status/reason (GPS + selfie provenance merged) — matches
+          // what's actually stored on the Attendance row. Auditing
+          // `verdict.status` here would show `Confirmed` for a check-in the
+          // row itself records as `Disputed` when only the selfie flag fired.
+          status: checkInStatus,
+          disputeReason,
           branchId: verdict.branchId,
           distanceMeters:
             verdict.status === 'Confirmed' || verdict.status === 'Disputed'
@@ -324,6 +329,12 @@ export async function submitCheckIn(input: SubmitCheckInInput): Promise<SubmitCh
               : null,
           accuracy: input.accuracy,
           selfieKey: selfieKey ?? null,
+          // How the selfie was captured (live camera vs. camera-failure
+          // fallback) — the only record of fallback usage anywhere in the
+          // system. This is the evidence the "flag, don't remove" decision
+          // (see docs/superpowers/specs/2026-07-18-...-design.md) needs to
+          // eventually judge whether the fallback is safe to remove.
+          selfieCapture: input.selfieCapture ?? null,
         },
         metadata: { ip, userAgent, source: 'liff' },
       });
@@ -375,7 +386,13 @@ export async function submitCheckIn(input: SubmitCheckInInput): Promise<SubmitCh
   // Disputed check-ins fan out an in-app bell to admins so they know to
   // open /admin/attendance/disputed. Confirmed check-ins are silent —
   // the live board already shows them, no need for a bell ping.
-  if (verdict.status === 'Disputed' && attendanceBox.id) {
+  //
+  // Gate on the RESOLVED status (`checkInStatus`), not the GPS-only
+  // `verdict.status` — a check-in flagged purely by selfie provenance
+  // (GPS was fine) still needs a human to look at it, same as a GPS
+  // dispute. `disputeReason` is likewise the resolved reason, so a
+  // selfie-only flag reports the selfie reason instead of 'unknown'.
+  if (checkInStatus === 'Disputed' && attendanceBox.id) {
     void notifyAdminsInApp({
       kind: 'attendance.disputed',
       attendanceId: attendanceBox.id,
