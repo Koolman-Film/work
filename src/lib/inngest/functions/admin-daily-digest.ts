@@ -42,7 +42,15 @@ export const adminDailyDigest = inngest.createFunction(
   {
     id: 'admin-daily-digest',
     retries: 2,
-    triggers: [{ cron: 'TZ=Asia/Bangkok 30 9 * * *' }],
+    // 08:00 Bangkok, chosen from the audit log rather than guessed. Admin
+    // decisions cluster hard at 08:00–09:59 (144 of 307 — 47%), with 67 in
+    // the 08:00 hour alone, and all four active admins share that window
+    // (earliest actions 06:00–08:00, no afternoon-only shift). An earlier
+    // draft fired at 09:30 and would have landed mid-sweep, reporting work
+    // the admin had already cleared. A to-do list is worth most before the
+    // work starts, so this fires as they open the app — early enough to
+    // include overnight and pre-dawn submissions (~30 land 00:00–07:59).
+    triggers: [{ cron: 'TZ=Asia/Bangkok 0 8 * * *' }],
   },
   async ({ step, logger }) => {
     const adminIds = await step.run('list-admins', () => linePushAdminIds());
