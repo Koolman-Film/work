@@ -87,6 +87,16 @@ export type AdminBellEvent =
       /** MM-DD of the birthday. */
       birthday: string;
       daysUntil: 0 | 1;
+    }
+  | {
+      // Fired by line-push.ts when the monthly LINE quota guard declines a
+      // send. At most one of these per Bangkok calendar day — line-push.ts
+      // checks for an existing row of this kind today before calling
+      // notifyAdminsInApp, so a whole day of skipped pushes only pings the
+      // bell once instead of once per message.
+      kind: 'system.line-quota-low';
+      /** Notification.id of the LINE push that was skipped. */
+      notificationId: string;
     };
 
 /**
