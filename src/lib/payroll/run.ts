@@ -238,6 +238,7 @@ async function gatherAndCalc(db: Tx | typeof prisma, month: string, employeeId?:
           lateThreeStrikeCount: config.lateThreeStrikeCount,
           severeLateEnabled: config.severeLateEnabled,
           severeLateThresholdMin: config.severeLateThresholdMin,
+          workingDaysPerMonth: config.workingDaysPerMonth,
         },
         month,
       });

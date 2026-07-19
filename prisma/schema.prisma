@@ -781,7 +781,10 @@ model PayrollConfig {
   /// Day of month payroll cut-off — e.g., 25 means "calculate for the
   /// 26th of prior month through the 25th of this month".
   cutoffDay              Int     @default(25)
-  /// Flat deduction per "Absent" day. Phase-2 polish may auto-derive from baseSalary/30.
+  /// Fallback per-day deduction for Hourly (and zero/invalid-salary) employees
+  /// only — Monthly uses baseSalary/workingDaysPerMonth and Daily uses
+  /// baseSalary directly (see dailyRateFor in src/lib/payroll/day-rate.ts).
+  /// Has no effect on any Monthly employee.
   absentDeductionPerDay  Decimal @db.Decimal(12, 2)
   /// Flat deduction per "Late" attendance row (count-based, ignores duration).
   lateDeduction          Decimal @db.Decimal(12, 2)
@@ -794,7 +797,9 @@ model PayrollConfig {
   /// Minutes after workStartTime before a check-in is flagged "Late".
   lateGraceMinutes       Int     @default(15)
   /// Late-penalty policy (C9) — money-based, each rule independently
-  /// toggleable; the "1 day" penalty reuses `absentDeductionPerDay`.
+  /// toggleable; the "1 day" penalty is the employee's own daily rate
+  /// (dailyRateFor), which reuses `absentDeductionPerDay` only as the
+  /// Hourly/zero-salary fallback — not for Monthly/Daily employees.
   /// "N lates in a pay period = 1 day deducted" (replaces the flat
   /// `lateDeduction` per-late charge when enabled).
   lateThreeStrikeEnabled Boolean @default(true)

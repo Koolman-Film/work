@@ -101,8 +101,8 @@ describe('calcPayroll — V1 fixtures', () => {
   });
 
   // CASE 4: 3 absent days.
-  // Deduct = 3 × 500 = 1500.
-  // Net = 30000 - 750 - 1500 = 27750.
+  // Day rate = baseSalary/30 = 30000/30 = 1000. Deduct = 3 × 1000 = 3000.
+  // Net = 30000 - 750 - 3000 = 26250.
   it('CASE 4 — three absent days', () => {
     const att: AttendanceForPayroll[] = [
       { date: '2026-05-04', type: 'Absent' },
@@ -110,9 +110,9 @@ describe('calcPayroll — V1 fixtures', () => {
       { date: '2026-05-15', type: 'Absent' },
     ];
     const out = calcPayroll(baseInput({ attendances: att }));
-    expect(out.deductAttendance.toString()).toBe('1500');
+    expect(out.deductAttendance.toString()).toBe('3000');
     expect(out.breakdown.absentCount).toBe(3);
-    expect(out.netPay.toString()).toBe('27750');
+    expect(out.netPay.toString()).toBe('26250');
   });
 
   // CASE 5: mix of late + early-leave.
@@ -170,7 +170,8 @@ describe('calcPayroll — V1 fixtures', () => {
   });
 
   // CASE 8: combined attendance + advance + debt, the worst case.
-  // 30000 - 750(sso) - (2*500+1*100=1100 att) - 4000(adv) - 1500(debt) = 22650.
+  // Day rate = 30000/30 = 1000. 30000 - 750(sso) - (2*1000+1*100=2100 att)
+  // - 4000(adv) - 1500(debt) = 21650.
   it('CASE 8 — combined deductions across all buckets', () => {
     const out = calcPayroll(
       baseInput({
@@ -184,10 +185,10 @@ describe('calcPayroll — V1 fixtures', () => {
       }),
     );
     expect(out.deductSso.toString()).toBe('750');
-    expect(out.deductAttendance.toString()).toBe('1100'); // 2*500 + 1*100
+    expect(out.deductAttendance.toString()).toBe('2100'); // 2*1000 + 1*100
     expect(out.deductAdvance.toString()).toBe('4000');
     expect(out.deductDebt.toString()).toBe('1500');
-    expect(out.netPay.toString()).toBe('22650');
+    expect(out.netPay.toString()).toBe('21650');
   });
 
   // Type-system guard: Daily/Hourly throw early.
@@ -390,7 +391,10 @@ describe('calcPayroll — late penalties wired through deductAttendance (C9)', (
     durationMinutes: m,
   });
 
-  it('3 ordinary lates → one absent-day amount (฿500), replacing the flat per-late', () => {
+  // emp's baseSalary is 20000 → day rate = 20000/30 = 666.666...,
+  // rounded to 2dp = 666.67. Not 3×100 flat, and not the old flat ฿500
+  // either — it's this employee's own day rate.
+  it('3 ordinary lates → one absent-day amount (own day rate), replacing the flat per-late', () => {
     const out = calcPayroll({
       employee: emp,
       attendances: [lateRow('2026-06-01', 10), lateRow('2026-06-02', 12), lateRow('2026-06-03', 8)],
@@ -405,7 +409,7 @@ describe('calcPayroll — late penalties wired through deductAttendance (C9)', (
       },
       month: '2026-06',
     });
-    expect(out.deductAttendance.toString()).toBe('500'); // not 3×100 flat
+    expect(out.deductAttendance.toString()).toBe('666.67');
   });
 
   it('severe late with no leave that day → one absent-day amount', () => {
@@ -424,7 +428,8 @@ describe('calcPayroll — late penalties wired through deductAttendance (C9)', (
       },
       month: '2026-06',
     });
-    expect(out.deductAttendance.toString()).toBe('500');
+    // 20000/30 = 666.67 (this employee's own day rate)
+    expect(out.deductAttendance.toString()).toBe('666.67');
   });
 
   it('falls back to the flat per-late charge when the policy fields are omitted', () => {
@@ -458,7 +463,19 @@ describe('CalcBreakdown sub-amounts', () => {
     expect(d.breakdown.sso.applied.toString()).toBe(d.deductSso.toString());
   });
 
-  it('attendance sub-amounts reconcile to deductAttendance (flat lateness)', () => {
+  // NOTE on the two tests below: `deductAttendance` (calc.ts) sums the
+  // UN-rounded parts and rounds ONCE at the end. Each breakdown sub-amount
+  // (b.absent.money, b.lateTier1.money, ...) is rounded to 2dp
+  // INDEPENDENTLY, purely for display. That's deliberate, not a bug —
+  // single-rounding is what makes e.g. 3 absences at ฿666.666...  total
+  // exactly ฿2,000.00 instead of ฿2,000.01 (3 × ฿666.67 rounded parts). The
+  // cost is that the sum of the displayed parts can be off from the
+  // displayed total by up to a satang (฿0.01) — a display-only residue,
+  // never a billing error, since `deductAttendance` is the only amount ever
+  // charged. Do NOT "fix" this by rounding each part before summing (that
+  // would reintroduce the very rounding drift single-rounding avoids).
+
+  it('attendance sub-amounts happen to reconcile exactly when only one part is non-zero-remainder (flat lateness)', () => {
     const atts: AttendanceForPayroll[] = [
       { date: new Date('2026-06-02'), type: 'Absent', durationMinutes: null },
       { date: new Date('2026-06-03'), type: 'Late', durationMinutes: 10 },
@@ -466,7 +483,9 @@ describe('CalcBreakdown sub-amounts', () => {
     ];
     const d = calcPayroll({ ...base, attendances: atts });
     const b = d.breakdown.attendance;
-    expect(b.absent.money.toString()).toBe('500'); // 1 × 500
+    // base's baseSalary is 20000 → day rate = 20000/30 = 666.67 (own day rate,
+    // not the old flat ฿500).
+    expect(b.absent.money.toString()).toBe('666.67'); // 1 × 666.67
     expect(b.lateTier1.mode).toBe('flat');
     expect(b.lateTier1.money.toString()).toBe('100'); // 1 × 100
     expect(b.earlyLeave.money.toString()).toBe('100'); // 1 × 100
@@ -474,7 +493,39 @@ describe('CalcBreakdown sub-amounts', () => {
       .plus(b.lateTier1.money)
       .plus(b.lateSevere.money)
       .plus(b.earlyLeave.money);
+    // Here the parts happen to match the total exactly (only one part carries
+    // a fractional day-rate; the flat lates round to whole baht already) —
+    // this is a special case, not the general rule. See the next test.
     expect(sum.toString()).toBe(d.deductAttendance.toString());
+  });
+
+  it('attendance sub-amounts do NOT reconcile exactly when two fractional parts round independently (absent + severe late)', () => {
+    const atts: AttendanceForPayroll[] = [
+      { date: new Date('2026-06-02'), type: 'Absent', durationMinutes: null },
+      { date: new Date('2026-06-10'), type: 'Late', durationMinutes: 45 }, // > 30min severe threshold
+    ];
+    const d = calcPayroll({
+      ...base,
+      attendances: atts,
+      config: { ...DEFAULT_CONFIG, severeLateEnabled: true, severeLateThresholdMin: 30 },
+    });
+    const b = d.breakdown.attendance;
+    // Both the absent day and the severe-late day price at this employee's
+    // own day rate: 20000/30 = 666.666... Each is rounded to 2dp on its own
+    // for display, so each shows as 666.67.
+    expect(b.absent.money.toString()).toBe('666.67');
+    expect(b.lateSevere.money.toString()).toBe('666.67');
+    const partsSum = b.absent.money
+      .plus(b.lateTier1.money)
+      .plus(b.lateSevere.money)
+      .plus(b.earlyLeave.money);
+    expect(partsSum.toString()).toBe('1333.34'); // 666.67 + 666.67, each rounded first
+    // The actual charge rounds the two UN-rounded 666.666...'s together once:
+    // 666.666... + 666.666... = 1333.333... → 1333.33.
+    expect(d.deductAttendance.toString()).toBe('1333.33');
+    // Parts and total disagree, but only by the single-satang display
+    // residue that single-rounding accepts on purpose — never more.
+    expect(partsSum.minus(d.deductAttendance).abs().lessThanOrEqualTo('0.01')).toBe(true);
   });
 
   it('threeStrike mode: 3 tier-1 lates → 1 day, remainder carries no charge', () => {
@@ -493,6 +544,74 @@ describe('CalcBreakdown sub-amounts', () => {
     expect(t1.count).toBe(4);
     expect(t1.threeStrikeCount).toBe(3);
     expect(t1.days).toBe(1); // floor(4/3)
-    expect(t1.money.toString()).toBe('500'); // 1 day × 500
+    // base's baseSalary is 20000 → day rate = 20000/30 = 666.67
+    expect(t1.money.toString()).toBe('666.67'); // 1 day × 666.67
+  });
+});
+
+describe('calcPayroll — a day off costs a day of YOUR pay', () => {
+  const absent = [{ date: '2026-05-04', type: 'Absent' as const }];
+
+  it('two salaries, same absence, different deduction', () => {
+    const low = calcPayroll(
+      baseInput({
+        employee: { id: 'e', salaryType: 'Monthly', baseSalary: '10000', hasSso: false },
+        attendances: absent,
+      }),
+    );
+    const high = calcPayroll(
+      baseInput({
+        employee: { id: 'e', salaryType: 'Monthly', baseSalary: '60000', hasSso: false },
+        attendances: absent,
+      }),
+    );
+
+    expect(low.deductAttendance.toString()).not.toBe(high.deductAttendance.toString());
+    // 10000/30 = 333.33…, 60000/30 = 2000
+    expect(low.deductAttendance.toDecimalPlaces(2).toString()).toBe('333.33');
+    expect(high.deductAttendance.toString()).toBe('2000');
+  });
+
+  it('the slip breakdown shows the same per-day figure it charged', () => {
+    const out = calcPayroll(
+      baseInput({
+        employee: { id: 'e', salaryType: 'Monthly', baseSalary: '30000', hasSso: false },
+        attendances: absent,
+      }),
+    );
+    expect(out.breakdown.attendance.absent.perDay.toString()).toBe('1000');
+  });
+});
+
+describe('calcPayroll — config.workingDaysPerMonth threads through to the absence day rate', () => {
+  const absent = [{ date: '2026-05-04', type: 'Absent' as const }];
+
+  it('config.workingDaysPerMonth changes the absence deduction (not just leave/OT)', () => {
+    const emp = { id: 'e', salaryType: 'Monthly' as const, baseSalary: '20000', hasSso: false };
+    const defaultDivisor = calcPayroll(
+      baseInput({ employee: emp, attendances: absent }), // DEFAULT_CONFIG has no workingDaysPerMonth → falls back to 30
+    );
+    const configuredDivisor = calcPayroll(
+      baseInput({
+        employee: emp,
+        attendances: absent,
+        config: { ...DEFAULT_CONFIG, workingDaysPerMonth: 26 },
+      }),
+    );
+    // 20000/30 = 666.67 vs 20000/26 = 769.23 — same lost day, ฿102.56 apart,
+    // matching leave/over-quota.ts's answer for the same setting change.
+    expect(defaultDivisor.deductAttendance.toString()).toBe('666.67');
+    expect(configuredDivisor.deductAttendance.toString()).toBe('769.23');
+  });
+
+  it('a zero workingDaysPerMonth falls back to 30 rather than blowing up the deduction', () => {
+    const out = calcPayroll(
+      baseInput({
+        employee: { id: 'e', salaryType: 'Monthly', baseSalary: '20000', hasSso: false },
+        attendances: absent,
+        config: { ...DEFAULT_CONFIG, workingDaysPerMonth: 0 },
+      }),
+    );
+    expect(out.deductAttendance.toString()).toBe('666.67'); // not Infinity
   });
 });
