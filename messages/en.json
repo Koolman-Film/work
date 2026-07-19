@@ -115,6 +115,14 @@
     "adminDisputeSubmitted": {
       "header": "Attendance dispute",
       "alt": "📥 {name} has an attendance entry to review"
+    },
+    "adminDailyDigest": {
+      "header": "Today's pending summary",
+      "alt": "📋 You have pending items to review",
+      "subtitle": "Tap to review",
+      "leaveLine": "Leave requests {n}",
+      "advanceLine": "Advance requests {n}",
+      "attendanceLine": "To review {n}"
     }
   },
   "checkin": {

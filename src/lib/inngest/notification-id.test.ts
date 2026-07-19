@@ -20,4 +20,17 @@ describe('notificationEventId', () => {
     expect(resend).toBe('notif:payroll.published:p1:u1:r-abc');
     expect(resend).not.toBe(base);
   });
+
+  it('admin.daily-digest keys on the Bangkok calendar day, not the counts', () => {
+    const digest = { kind: 'admin.daily-digest' as const, leave: 1, advance: 2, attendance: 3 };
+    const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
+    expect(notificationEventId(digest, 'admin-1')).toBe(
+      `notif:admin.daily-digest:${today}:admin-1`,
+    );
+    // Different counts, same admin, same day → same id (retries dedupe).
+    const digestDifferentCounts = { ...digest, leave: 9 };
+    expect(notificationEventId(digestDifferentCounts, 'admin-1')).toBe(
+      notificationEventId(digest, 'admin-1'),
+    );
+  });
 });
