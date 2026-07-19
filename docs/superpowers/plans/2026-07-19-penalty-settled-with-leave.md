@@ -780,20 +780,47 @@ git commit -m "feat(leave): subtract penalty-settled minutes from remaining bala
 
 - [ ] **Step 1: Write the failing test**
 
-Append to `src/lib/payslip/document.test.ts`, following that file's existing fixture builders:
+Append to `src/lib/payslip/document.test.ts`, following that file's existing
+fixture builders. Assert on the specific rendered line, not on a stringified
+blob — a `JSON.stringify(...).toContain(...)` check passes when the text lands
+anywhere in the document, including the wrong section.
+
+If the file has no helper for reaching one attendance line, add a small local
+one rather than inlining the traversal in both tests:
 
 ```ts
-it('states that a penalty was paid with leave instead of showing nothing', () => {
+function findAttendanceLine(doc: PayslipDocument, key: string) {
+  const section = doc.sections.find((s) => s.key === 'attendance');
+  const line = section?.lines.find((l) => l.key === key);
+  if (!line) throw new Error(`no attendance line "${key}" in the document`);
+  return line;
+}
+```
+
+Adjust the property names above to the document shape actually used in
+`src/lib/payslip/document.ts` — read it before writing the test.
+
+```ts
+it('names the leave type on the settled penalty line', () => {
   const doc = buildPayslipDocument(
     payslipInputWith({
       absentCount: 1,
       absentMoney: '0',
       settledDays: { Absent: 1, LateThreeStrike: 0, SevereLate: 0 },
-      settledLeaveTypeName: 'ลาพักร้อน',
+      settledLeaveTypeNames: { Absent: 'ลาพักร้อน' },
     }),
   );
-  const attendance = doc.sections.find((s) => s.key === 'attendance');
-  expect(JSON.stringify(attendance)).toContain('ลาพักร้อน');
+  const absentLine = findAttendanceLine(doc, 'absent');
+  expect(absentLine.label).toContain('หักจากสิทธิลาพักร้อน 1 วัน');
+  expect(absentLine.amount).toBe('0');
+});
+
+it('leaves the penalty line untouched when nothing was settled', () => {
+  const doc = buildPayslipDocument(
+    payslipInputWith({ absentCount: 1, absentMoney: '1000' }),
+  );
+  const absentLine = findAttendanceLine(doc, 'absent');
+  expect(absentLine.label).not.toContain('หักจากสิทธิ');
 });
 ```
 
