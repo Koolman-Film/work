@@ -156,9 +156,13 @@ export default async function LiffSummaryPage({
         }}
       />
 
-      {/* Attendance this month */}
+      {/* Attendance — counts are aggregated over period.from–period.to, so
+          the heading must agree with whichever mode produced that window
+          (see period.month === null check elsewhere on this page). */}
       <section className={cardCls}>
-        <h2 className="text-sm font-semibold text-gray-900">{t('attendance.title')}</h2>
+        <h2 className="text-sm font-semibold text-gray-900">
+          {period.month !== null ? t('attendance.title') : t('attendance.titleRange')}
+        </h2>
         <dl className="mt-3 grid grid-cols-3 gap-3 text-center">
           {(
             [

@@ -70,44 +70,51 @@ export function DisputedClient({ rows, total }: { rows: DisputedVM[]; total: num
 
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-[300px_1fr]">
-      {/* Master list */}
-      <ul className="space-y-1.5">
-        {rows.map((r) => {
-          const on = r.id === selectedId;
-          return (
-            <li key={r.id}>
-              <button
-                type="button"
-                onClick={() => select(r.id)}
-                aria-current={on ? 'true' : undefined}
-                className={`block w-full rounded-lg border px-3 py-2.5 text-left transition ${
-                  on
-                    ? 'border-primary-200 bg-primary-50 ring-1 ring-primary-200'
-                    : 'border-gray-200 bg-white hover:bg-gray-50'
-                }`}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="truncate text-sm font-medium text-ink-1">
-                    {r.name}
-                    {r.nickname && <span className="text-ink-3"> ({r.nickname})</span>}
-                  </span>
-                  <span className="text-ink-4">›</span>
-                </div>
-                <p className="mt-0.5 text-[11px] text-ink-3">
-                  เช็คอิน {r.clockInLabel}
-                  {r.gpsRelated && r.distanceMeters != null && ` · นอก ${r.distanceMeters} ม.`}
-                </p>
-                <p className="mt-0.5 line-clamp-1 text-[11px] text-ink-4">{r.reason}</p>
-              </button>
-            </li>
-          );
-        })}
-      </ul>
-      {total > rows.length && (
-        <p className="px-1 text-[11px] text-ink-4">
-          แสดง {rows.length} จาก {total} รายการ
-        </p>
-      )}
+      {/* Master list — the <ul> and the truncation note below must stay
+          inside one wrapper <div>. This grid is `lg:grid-cols-[300px_1fr]`
+          with auto-placement: with two direct children (list, note) instead
+          of one, the note lands in row 1 col 2 and pushes the detail panel
+          into row 2 col 1 — the narrow 300px column — crushing the map,
+          selfie, and detail <dl> for the whole rest of the queue. */}
+      <div>
+        <ul className="space-y-1.5">
+          {rows.map((r) => {
+            const on = r.id === selectedId;
+            return (
+              <li key={r.id}>
+                <button
+                  type="button"
+                  onClick={() => select(r.id)}
+                  aria-current={on ? 'true' : undefined}
+                  className={`block w-full rounded-lg border px-3 py-2.5 text-left transition ${
+                    on
+                      ? 'border-primary-200 bg-primary-50 ring-1 ring-primary-200'
+                      : 'border-gray-200 bg-white hover:bg-gray-50'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="truncate text-sm font-medium text-ink-1">
+                      {r.name}
+                      {r.nickname && <span className="text-ink-3"> ({r.nickname})</span>}
+                    </span>
+                    <span className="text-ink-4">›</span>
+                  </div>
+                  <p className="mt-0.5 text-[11px] text-ink-3">
+                    เช็คอิน {r.clockInLabel}
+                    {r.gpsRelated && r.distanceMeters != null && ` · นอก ${r.distanceMeters} ม.`}
+                  </p>
+                  <p className="mt-0.5 line-clamp-1 text-[11px] text-ink-4">{r.reason}</p>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+        {total > rows.length && (
+          <p className="mt-2 px-1 text-[11px] text-ink-4">
+            แสดง {rows.length} จาก {total} รายการ
+          </p>
+        )}
+      </div>
 
       {/* Detail */}
       {selected ? (
