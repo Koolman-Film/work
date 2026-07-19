@@ -200,6 +200,9 @@ export function buildFlexMessage(
       });
       break;
 
+    // No producer as of the dispute-review push reduction (see the
+    // 'attendance.dispute-approved' comment in inngest/events.ts) — kept for
+    // one deploy cycle so in-flight approvals still render, then deletable.
     case 'attendance.dispute-approved':
       altText = t('disputeApproved.alt', { date: fmtDate(payload.date, locale) });
       bubble = approvedRejectedBubble({
