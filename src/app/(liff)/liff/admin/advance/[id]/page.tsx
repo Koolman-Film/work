@@ -230,14 +230,21 @@ export default async function LiffAdminAdvanceDetailPage({ params }: { params: P
                 {/* biome-ignore lint/performance/noImgElement: signed URL, short TTL — next/image can't optimize it */}
                 <img src={resolvedReceiptUrl} alt={t('slipAlt')} className="w-full" />
               </a>
-            ) : (
+            ) : row.receiptUrl ? (
+              // A slip key IS on record but failed to resolve to a viewable
+              // URL — that's genuinely broken, distinct from "never attached".
               <p className="mt-2 text-sm text-gray-500">{t('noSlipFile')}</p>
+            ) : (
+              // Paid-with-no-slip is a normal, possibly permanent state (the
+              // slip is optional) — must read as "nothing here yet", not
+              // "the screen is broken".
+              <p className="mt-2 text-sm text-gray-500">{t('noSlipYet')}</p>
             )}
           </section>
           <SlipUploadBlock
             cashAdvanceId={row.id}
-            heading={t('reattachHeading')}
-            buttonLabel={t('reattachButton')}
+            heading={row.receiptUrl ? t('reattachHeading') : t('attachSlipHeading')}
+            buttonLabel={row.receiptUrl ? t('reattachButton') : t('attachSlipButton')}
           />
         </>
       )}

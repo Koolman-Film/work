@@ -1,6 +1,9 @@
 /**
- * /liff/admin/advance — "รอแนบสลิป": approved advances awaiting the
- * money transfer + slip attach (status=Approved, paidAt=null).
+ * /liff/admin/advance — approved advances that still need attention on the
+ * payment side: either the transfer hasn't happened yet (paidAt=null), or
+ * it has but the slip is still missing (receiptUrl=null). Two distinct
+ * states, one list — `awaitingSlipRowState` (in `_load.ts`) tells them
+ * apart per row.
  *
  * Single-purpose by design: PENDING advances are NOT listed here — the
  * inbox (/liff/admin/inbox) owns everything that needs a decision. A
@@ -12,10 +15,10 @@
 
 import Link from 'next/link';
 import { getLocale, getTranslations } from 'next-intl/server';
-import { getPermittedBranches, viaEmployeeBranchScope } from '@/lib/auth/branch-scope';
+import { getPermittedBranches } from '@/lib/auth/branch-scope';
 import { requireLiffAdmin } from '@/lib/auth/require-liff-admin';
-import { prisma } from '@/lib/db/prisma';
 import type { Locale } from '@/lib/i18n/config';
+import { awaitingSlipRowState, loadAwaitingSlipRows } from './_load';
 
 function formatBkk(d: Date, locale: Locale): string {
   return d.toLocaleString(locale, {
@@ -31,22 +34,7 @@ export default async function LiffAdminAwaitingSlipPage() {
   const { user } = await requireLiffAdmin();
   const permitted = await getPermittedBranches(user, 'advance.read');
 
-  const rows = await prisma.cashAdvance.findMany({
-    where: {
-      status: 'Approved',
-      paidAt: null,
-      deletedAt: null,
-      ...viaEmployeeBranchScope(permitted),
-    },
-    orderBy: { approvedAt: 'desc' },
-    take: 100,
-    select: {
-      id: true,
-      amount: true,
-      approvedAt: true,
-      employee: { select: { firstName: true, lastName: true, nickname: true } },
-    },
-  });
+  const rows = await loadAwaitingSlipRows(permitted);
 
   const [t, locale] = await Promise.all([
     getTranslations('liffAdmin.awaitingSlip'),
@@ -65,6 +53,13 @@ export default async function LiffAdminAwaitingSlipPage() {
         <ul className="space-y-2">
           {rows.map((r) => {
             const name = `${r.employee.firstName} ${r.employee.lastName}`.trim();
+            const state = awaitingSlipRowState(r);
+            const badgeText =
+              state === 'awaiting-payment' ? t('badgeAwaitingPayment') : t('badgeAwaitingSlip');
+            const badgeCls =
+              state === 'awaiting-payment'
+                ? 'bg-amber-100 text-amber-800'
+                : 'bg-blue-100 text-blue-800';
             return (
               <li key={r.id}>
                 <Link
@@ -88,8 +83,10 @@ export default async function LiffAdminAwaitingSlipPage() {
                         </p>
                       )}
                     </div>
-                    <span className="shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-800">
-                      {t('badge')}
+                    <span
+                      className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${badgeCls}`}
+                    >
+                      {badgeText}
                     </span>
                   </div>
                 </Link>
