@@ -43,10 +43,9 @@ export function PeriodPicker({ month, monthLabel, prev, next, from, to, todayYmd
       <div className="rounded-xl border border-gray-200 bg-white px-3 py-2.5">
         <div className="flex items-center justify-between">
           {/* next/link Link, not <a> — a soft transition so scrubbing
-           *  through months doesn't cost a full page reload. This also
-           *  makes the PeriodPicker `key` in page.tsx load-bearing: without
-           *  Link, each click *was* a hard reload anyway, which happened to
-           *  mask the stale-state issue that `key` fixes. */}
+           *  through months doesn't cost a full page reload. That's what
+           *  makes the PeriodPicker `key` in page.tsx load-bearing — see
+           *  page.tsx for why a soft transition needs it. */}
           <Link
             href={monthUrl(prev)}
             aria-label={labels.prevMonth}
@@ -92,14 +91,32 @@ export function PeriodPicker({ month, monthLabel, prev, next, from, to, todayYmd
         >
           {labels.applyRange}
         </button>
-        <Link
+        {month === null ? (
+          // Genuine custom-range mode (server-resolved, no month behind it):
+          // a real navigation back to month mode is required.
           // Deliberate default: if the pending range spans two months, this
-          // always lands on the range's START month, not the end.
-          href={monthUrl((month ?? range.from ?? todayYmd).slice(0, 7))}
-          className="rounded-md px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-100"
-        >
-          {labels.backToMonthly}
-        </Link>
+          // always lands on the range's START month, not the end. `range.from`
+          // is a plain string (onChange coerces a cleared field to ''), so
+          // `||` — not `??` — is what actually falls back to today.
+          <Link
+            href={monthUrl((range.from || todayYmd).slice(0, 7))}
+            className="rounded-md px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-100"
+          >
+            {labels.backToMonthly}
+          </Link>
+        ) : (
+          // A month is already being displayed (the user only toggled into
+          // custom-entry mode locally) — this is a mode switch, not a
+          // navigation. The URL never changed, so a Link back to the same
+          // month would be a no-op; flip local state instead.
+          <button
+            type="button"
+            onClick={() => setCustom(false)}
+            className="rounded-md px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-100"
+          >
+            {labels.backToMonthly}
+          </button>
+        )}
       </div>
     </div>
   );
