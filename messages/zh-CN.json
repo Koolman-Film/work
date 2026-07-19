@@ -44,6 +44,14 @@
     "adminDisputeSubmitted": {
       "header": "待审核的打卡记录",
       "alt": "📥 {name} 有待审核的打卡记录"
+    },
+    "adminDailyDigest": {
+      "header": "今日待处理事项汇总",
+      "alt": "📋 有待处理的事项",
+      "subtitle": "轻触查看",
+      "leaveLine": "请假申请 {n}",
+      "advanceLine": "预支申请 {n}",
+      "attendanceLine": "待审核 {n}"
     }
   },
   "pair": {

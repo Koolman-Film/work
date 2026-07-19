@@ -115,6 +115,14 @@
     "adminDisputeSubmitted": {
       "header": "รายการลงเวลารอตรวจสอบ",
       "alt": "📥 {name} มีรายการลงเวลารอตรวจสอบ"
+    },
+    "adminDailyDigest": {
+      "header": "สรุปงานค้างวันนี้",
+      "alt": "📋 มีงานค้างรอตรวจสอบ",
+      "subtitle": "แตะเพื่อตรวจสอบรายการ",
+      "leaveLine": "คำขอลา {n}",
+      "advanceLine": "คำขอเบิก {n}",
+      "attendanceLine": "ต้องตรวจสอบ {n}"
     }
   },
   "checkin": {

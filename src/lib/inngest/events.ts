@@ -27,7 +27,8 @@ export type NotificationKind =
   | 'advance.paid'
   | 'admin.leave-submitted'
   | 'admin.advance-submitted'
-  | 'admin.dispute-submitted';
+  | 'admin.dispute-submitted'
+  | 'admin.daily-digest';
 
 /**
  * Kind-specific payload shapes. Discriminated by `kind`.
@@ -120,6 +121,13 @@ export type NotificationPayload =
       /** YYYY-MM-DD */
       date: string;
       reason: string;
+    }
+  | {
+      kind: 'admin.daily-digest';
+      /** Pending counts scoped to this admin's branches. */
+      leave: number;
+      advance: number;
+      attendance: number;
     };
 
 export type NotificationSendEvent = {
