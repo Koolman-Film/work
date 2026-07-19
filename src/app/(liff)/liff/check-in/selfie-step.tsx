@@ -23,11 +23,14 @@
 
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import type { SelfieCapture } from '@/lib/attendance/selfie-provenance';
 
 type Props = {
   /** Called when the user confirms a captured image. Parent handles
-   *  the compress + upload pipeline. */
-  onConfirm: (file: File) => void;
+   *  the compress + upload pipeline. `capture` tells the server whether
+   *  this came from the live camera or the file-input fallback — see
+   *  selfie-provenance.ts on why that matters and how much to trust it. */
+  onConfirm: (file: File, capture: SelfieCapture) => void;
   /** Called when the user dismisses the modal without confirming. */
   onCancel: () => void;
 };
@@ -141,7 +144,7 @@ export function SelfieStep({ onConfirm, onCancel }: Props) {
 
   function confirm() {
     if (!captured) return;
-    onConfirm(captured);
+    onConfirm(captured, cameraFailed ? 'fallback' : 'live');
   }
 
   return (

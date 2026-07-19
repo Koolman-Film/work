@@ -94,5 +94,8 @@ export async function getAdvanceReviewRow(cashAdvanceId: string): Promise<Advanc
     resolveStoredImageUrl(row.receiptUrl),
     advanceGuardVM(row),
   ]);
-  return buildAdvanceRowVM(row, { receiptUrl, advanceGuard });
+  // This action is already gated on advance.approve above, so the payout
+  // block is always visible here (unlike the /admin/advance list, which is
+  // reachable via the weaker advance.read).
+  return buildAdvanceRowVM(row, { receiptUrl, advanceGuard, canSeePayout: true });
 }

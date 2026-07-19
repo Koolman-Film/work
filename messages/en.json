@@ -195,7 +195,8 @@
       "noBranchInRange": "Outside the branch area (geofence)",
       "gpsTooImprecise": "GPS signal not accurate enough — try an open area",
       "impossibleTravel": "Distance and time don't match — needs review",
-      "unknown": "Unknown reason"
+      "unknown": "Unknown reason",
+      "selfieFallback": "Selfie was not taken with the live camera — an admin will review it"
     }
   },
   "summary": {
@@ -585,7 +586,7 @@
     "tabs": {
       "summary": "Summary",
       "pending": "Pending",
-      "awaitingSlip": "Awaiting slip",
+      "awaitingSlip": "Advance payments",
       "reports": "Reports"
     },
     "session": {
@@ -615,10 +616,11 @@
       "tapToReview": "Tap to review"
     },
     "awaitingSlip": {
-      "intro": "Approved — after transferring, tap an item to attach the slip.",
-      "empty": "No items awaiting a slip 🎉",
+      "intro": "Approved — some still need a transfer, some have been transferred but are still missing a slip. Tap an item to act on it.",
+      "empty": "No items awaiting payment or a slip 🎉",
       "approvedAt": "Approved {datetime}",
-      "badge": "Awaiting slip"
+      "badgeAwaitingPayment": "Awaiting transfer",
+      "badgeAwaitingSlip": "Awaiting slip"
     },
     "reports": {
       "period": "Period {from} – {to}",
@@ -654,8 +656,15 @@
       "openExternalSlip": "Open slip (external link)",
       "slipAlt": "Transfer slip",
       "noSlipFile": "Slip file not found",
+      "noSlipYet": "No slip attached yet (optional)",
       "reattachHeading": "Re-attach slip",
-      "reattachButton": "Re-attach slip"
+      "reattachButton": "Re-attach slip",
+      "payoutAccount": "Payout account",
+      "payoutBank": "Bank",
+      "payoutAccountNo": "Account number",
+      "payoutAccountName": "Account name",
+      "payoutAccountMissing": "This employee hasn't entered bank account details yet — enter them before transferring.",
+      "markPaidButton": "Mark as paid (no slip)"
     },
     "advanceActions": {
       "approvedBanner": "Approved ✓ — after transferring, remember to attach the slip",

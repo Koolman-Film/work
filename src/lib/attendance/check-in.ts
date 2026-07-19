@@ -43,6 +43,11 @@ import { notifyAdminsInApp } from '@/lib/notifications/in-app-bell';
 import { bangkokDateUtcMidnight, isClosedDay } from './date';
 import { type CheckInPoint, disputeReasonText, evaluateCheckIn } from './evaluate';
 import { lateMinutesForCheckIn, latePolicyFrom, resolveLatePolicy } from './late-policy';
+import {
+  resolveCheckInStatus,
+  SELFIE_FALLBACK_REASON,
+  type SelfieCapture,
+} from './selfie-provenance';
 
 /** Display name for admin bell — prefer nickname. Mirrors leave/actions.ts. */
 function employeeDisplayName(e: Pick<Employee, 'firstName' | 'lastName' | 'nickname'>): string {
@@ -84,6 +89,8 @@ export type SubmitCheckInResult =
 export type SubmitCheckInInput = CheckInPoint & {
   /** Path within the `attendance-photos` bucket; null if no selfie required. */
   selfieKey?: string | null;
+  /** How the selfie was obtained — see selfie-provenance.ts on trust. */
+  selfieCapture?: SelfieCapture;
 };
 
 /** Compute YYYY-MM-DD in Asia/Bangkok regardless of server timezone. */
@@ -213,7 +220,13 @@ export async function submitCheckIn(input: SubmitCheckInInput): Promise<SubmitCh
     now,
   });
 
-  const disputeReason = verdict.status === 'Disputed' ? disputeReasonText(verdict.reason) : null;
+  const { status: checkInStatus, disputeReason } = resolveCheckInStatus(
+    verdict.status === 'Disputed'
+      ? { status: 'Disputed', reason: disputeReasonText(verdict.reason) }
+      : { status: 'Confirmed' },
+    input.selfieCapture,
+    selfieKey != null,
+  );
 
   const headerList = await headers();
   const ip =
@@ -282,7 +295,7 @@ export async function submitCheckIn(input: SubmitCheckInInput): Promise<SubmitCh
           checkInLat: new Prisma.Decimal(input.lat),
           checkInLng: new Prisma.Decimal(input.lng),
           checkInBranchId: verdict.branchId,
-          checkInStatus: verdict.status,
+          checkInStatus,
           disputeReason,
           // Storage path within attendance-photos bucket; the field is
           // named "Url" for historical reasons but we store the path
@@ -303,7 +316,12 @@ export async function submitCheckIn(input: SubmitCheckInInput): Promise<SubmitCh
         entityType: 'Attendance',
         entityId: created.id,
         after: {
-          status: verdict.status,
+          // Resolved status/reason (GPS + selfie provenance merged) — matches
+          // what's actually stored on the Attendance row. Auditing
+          // `verdict.status` here would show `Confirmed` for a check-in the
+          // row itself records as `Disputed` when only the selfie flag fired.
+          status: checkInStatus,
+          disputeReason,
           branchId: verdict.branchId,
           distanceMeters:
             verdict.status === 'Confirmed' || verdict.status === 'Disputed'
@@ -311,6 +329,12 @@ export async function submitCheckIn(input: SubmitCheckInInput): Promise<SubmitCh
               : null,
           accuracy: input.accuracy,
           selfieKey: selfieKey ?? null,
+          // How the selfie was captured (live camera vs. camera-failure
+          // fallback) — the only record of fallback usage anywhere in the
+          // system. This is the evidence the "flag, don't remove" decision
+          // (see docs/superpowers/specs/2026-07-18-...-design.md) needs to
+          // eventually judge whether the fallback is safe to remove.
+          selfieCapture: input.selfieCapture ?? null,
         },
         metadata: { ip, userAgent, source: 'liff' },
       });
@@ -362,7 +386,13 @@ export async function submitCheckIn(input: SubmitCheckInInput): Promise<SubmitCh
   // Disputed check-ins fan out an in-app bell to admins so they know to
   // open /admin/attendance/disputed. Confirmed check-ins are silent —
   // the live board already shows them, no need for a bell ping.
-  if (verdict.status === 'Disputed' && attendanceBox.id) {
+  //
+  // Gate on the RESOLVED status (`checkInStatus`), not the GPS-only
+  // `verdict.status` — a check-in flagged purely by selfie provenance
+  // (GPS was fine) still needs a human to look at it, same as a GPS
+  // dispute. `disputeReason` is likewise the resolved reason, so a
+  // selfie-only flag reports the selfie reason instead of 'unknown'.
+  if (checkInStatus === 'Disputed' && attendanceBox.id) {
     void notifyAdminsInApp({
       kind: 'attendance.disputed',
       attendanceId: attendanceBox.id,
@@ -382,14 +412,18 @@ export async function submitCheckIn(input: SubmitCheckInInput): Promise<SubmitCh
 
   const state = await getCheckInState();
   let message: string;
-  if (verdict.status === 'Confirmed') {
+  if (checkInStatus === 'Confirmed') {
     message = verdict.branchName
       ? t('success.checkedInAt', { branch: verdict.branchName })
       : t('success.checkedIn');
+  } else if (disputeReason === SELFIE_FALLBACK_REASON) {
+    // Flagged purely by selfie provenance — GPS itself was fine, so there's
+    // no GPS reason enum to translate here.
+    message = t('success.checkedInDisputed', { reason: t('disputeReason.selfieFallback') });
   } else {
-    // Disputed: translate the reason enum (the Thai `disputeReason` above stays
+    // Disputed by GPS: translate the reason enum (the Thai `disputeReason` above stays
     // the single source of truth for the stored row + admin inbox).
-    const r = verdict.reason;
+    const r = verdict.status === 'Disputed' ? verdict.reason : undefined;
     const reason =
       r === 'no-configured-branch'
         ? t('disputeReason.noConfiguredBranch')
@@ -403,7 +437,7 @@ export async function submitCheckIn(input: SubmitCheckInInput): Promise<SubmitCh
     message = t('success.checkedInDisputed', { reason });
   }
 
-  return { ok: true, state, outcome: verdict.status, message };
+  return { ok: true, state, outcome: checkInStatus, message };
 }
 
 export async function submitCheckOut(): Promise<SubmitCheckInResult> {

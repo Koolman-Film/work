@@ -614,9 +614,9 @@ model CashAdvance {
   approvedById        String?       @db.Uuid
   approvedAt          DateTime?
   receiptUrl          String?
-  /// Two-step payment: set the FIRST time a transfer slip is attached
-  /// after approval. receiptUrl + paidAt together mean "money sent".
-  /// Slip re-upload replaces receiptUrl but never overwrites paidAt.
+  /// `paidAt` alone means "money sent" — the transfer slip is optional
+  /// evidence the admin may attach before, after, or never. Set once;
+  /// re-uploading a slip replaces receiptUrl but never moves paidAt.
   paidAt              DateTime?
   /// Set by Phase 2 payroll publish; once true, this advance is consumed.
   isDeducted          Boolean       @default(false)
