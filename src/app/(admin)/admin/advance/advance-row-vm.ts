@@ -13,6 +13,7 @@ export const ADVANCE_SELECT = {
   status: true,
   requestedAt: true,
   approvedAt: true,
+  paidAt: true,
   receiptUrl: true,
   deletedAt: true,
   deleteReason: true,
@@ -23,6 +24,9 @@ export const ADVANCE_SELECT = {
       nickname: true,
       branch: { select: { name: true } },
       department: { select: { name: true } },
+      bankAccountNumber: true,
+      bankAccountName: true,
+      bank: { select: { nameTh: true, shortName: true } },
     },
   },
 } as const;
@@ -66,6 +70,7 @@ export type AdvanceRecord = {
   status: 'Pending' | 'Approved' | 'Rejected' | 'Cancelled';
   requestedAt: Date;
   approvedAt: Date | null;
+  paidAt: Date | null;
   receiptUrl: string | null;
   employee: {
     firstName: string;
@@ -73,6 +78,9 @@ export type AdvanceRecord = {
     nickname: string | null;
     branch: { name: string };
     department: { name: string } | null;
+    bankAccountNumber: string | null;
+    bankAccountName: string | null;
+    bank: { nameTh: string; shortName: string | null } | null;
   };
 };
 
@@ -104,14 +112,19 @@ export async function advanceGuardVM(
  */
 export function buildAdvanceRowVM(
   r: AdvanceRecord,
-  deps: { receiptUrl: string | null; advanceGuard: AdvanceGuardVM | null },
+  deps: { receiptUrl: string | null; advanceGuard: AdvanceGuardVM | null; canSeePayout: boolean },
 ): AdvanceRowVM {
   const info = ADVANCE_STATUS_INFO[r.status] ?? { label: r.status, key: 'neutral' as StatusKey };
+  const paid = r.paidAt !== null;
+  // "Approved" is two user-facing states, per the customer's two-step payment
+  // request: อนุมัติ → รอจ่ายเงิน, then จ่ายเงินแล้ว. Resolved here ONCE so the
+  // inbox list and the review modal cannot label the same row differently.
+  const statusLabel = r.status === 'Approved' ? (paid ? 'จ่ายเงินแล้ว' : 'รอจ่ายเงิน') : info.label;
   return {
     id: r.id,
     status: r.status,
     statusKey: info.key,
-    statusLabel: info.label,
+    statusLabel,
     name: `${r.employee.firstName} ${r.employee.lastName}`,
     nickname: r.employee.nickname,
     branch: r.employee.branch.name,
@@ -121,5 +134,9 @@ export function buildAdvanceRowVM(
     decidedAt: r.approvedAt ? formatAdvanceDateTime(r.approvedAt) : null,
     receiptUrl: deps.receiptUrl,
     advanceGuard: deps.advanceGuard,
+    bankName: r.employee.bank?.nameTh ?? r.employee.bank?.shortName ?? null,
+    bankAccountNumber: r.employee.bankAccountNumber,
+    bankAccountName: r.employee.bankAccountName,
+    canSeePayout: deps.canSeePayout,
   };
 }

@@ -35,6 +35,7 @@
 import { useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { type CheckInState, submitCheckIn, submitCheckOut } from '@/lib/attendance/check-in';
+import type { SelfieCapture } from '@/lib/attendance/selfie-provenance';
 import type { Locale } from '@/lib/i18n/config';
 import { formatTime } from '@/lib/i18n/format';
 import { compressToJpeg, uploadSelfie } from '@/lib/storage/upload-selfie';
@@ -114,9 +115,10 @@ export default function CheckInClient({
   /**
    * Core check-in pipeline (after any selfie capture is complete).
    * Either `selfieFile=null` (no selfie required) or a captured File
-   * (compress + upload before submitting).
+   * (compress + upload before submitting). `selfieCapture` is only
+   * meaningful when `selfieFile` is set.
    */
-  async function runCheckIn(selfieFile: File | null) {
+  async function runCheckIn(selfieFile: File | null, selfieCapture?: SelfieCapture) {
     try {
       let selfieKey: string | null = null;
 
@@ -145,6 +147,7 @@ export default function CheckInClient({
         lng: pos.coords.longitude,
         accuracy: pos.coords.accuracy,
         selfieKey,
+        selfieCapture,
       });
       if (result.ok) {
         setStateLocal(result.state);
@@ -192,10 +195,10 @@ export default function CheckInClient({
     }
   }
 
-  function onSelfieConfirmed(file: File) {
+  function onSelfieConfirmed(file: File, capture: SelfieCapture) {
     // Returning to idle visually + then running the pipeline. We don't
     // want the selfie overlay rendered while uploading / locating.
-    void runCheckIn(file);
+    void runCheckIn(file, capture);
   }
 
   function onSelfieCancelled() {

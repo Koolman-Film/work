@@ -15,7 +15,16 @@ const ADVANCE_DETAIL_SELECT = {
   receiptUrl: true,
   isDeducted: true,
   deletedAt: true,
-  employee: { select: { firstName: true, lastName: true, nickname: true } },
+  employee: {
+    select: {
+      firstName: true,
+      lastName: true,
+      nickname: true,
+      bankAccountNumber: true,
+      bankAccountName: true,
+      bank: { select: { nameTh: true, shortName: true } },
+    },
+  },
 } satisfies Prisma.CashAdvanceSelect;
 
 export type LiffAdvanceDetail = Prisma.CashAdvanceGetPayload<{

@@ -195,7 +195,8 @@
       "noBranchInRange": "อยู่นอกพื้นที่สาขา (geofence)",
       "gpsTooImprecise": "สัญญาณ GPS ไม่แม่นยำพอ — ลองออกที่โล่ง",
       "impossibleTravel": "ระยะทางและเวลาไม่สอดคล้องกัน — ต้องตรวจสอบ",
-      "unknown": "ไม่ทราบสาเหตุ"
+      "unknown": "ไม่ทราบสาเหตุ",
+      "selfieFallback": "รูปเซลฟี่ไม่ได้มาจากกล้องสด — แอดมินจะตรวจสอบ"
     }
   },
   "summary": {
@@ -585,7 +586,7 @@
     "tabs": {
       "summary": "สรุป",
       "pending": "งานรออนุมัติ",
-      "awaitingSlip": "รอแนบสลิป",
+      "awaitingSlip": "จ่ายเงินเบิก",
       "reports": "รายงาน"
     },
     "session": {
@@ -615,10 +616,11 @@
       "tapToReview": "แตะเพื่อตรวจสอบ"
     },
     "awaitingSlip": {
-      "intro": "อนุมัติแล้ว — โอนเงินแล้วแตะรายการเพื่อแนบสลิป",
-      "empty": "ไม่มีรายการรอแนบสลิป 🎉",
+      "intro": "อนุมัติแล้ว — บางรายการรอโอนเงิน บางรายการโอนแล้วแต่ยังไม่ได้แนบสลิป แตะรายการเพื่อดำเนินการ",
+      "empty": "ไม่มีรายการค้างจ่ายเงินหรือแนบสลิป 🎉",
       "approvedAt": "อนุมัติเมื่อ {datetime}",
-      "badge": "รอแนบสลิป"
+      "badgeAwaitingPayment": "รอโอนเงิน",
+      "badgeAwaitingSlip": "รอแนบสลิป"
     },
     "reports": {
       "period": "รอบ {from} – {to}",
@@ -654,8 +656,15 @@
       "openExternalSlip": "เปิดดูสลิป (ลิงก์ภายนอก)",
       "slipAlt": "สลิปการโอน",
       "noSlipFile": "ไม่พบไฟล์สลิป",
+      "noSlipYet": "ยังไม่ได้แนบสลิป (ไม่บังคับ)",
       "reattachHeading": "แนบสลิปใหม่",
-      "reattachButton": "แนบสลิปใหม่"
+      "reattachButton": "แนบสลิปใหม่",
+      "payoutAccount": "โอนเข้าบัญชี",
+      "payoutBank": "ธนาคาร",
+      "payoutAccountNo": "เลขบัญชี",
+      "payoutAccountName": "ชื่อบัญชี",
+      "payoutAccountMissing": "ยังไม่ได้กรอกข้อมูลบัญชีธนาคารของพนักงานคนนี้ — ต้องกรอกก่อนโอน",
+      "markPaidButton": "บันทึกว่าจ่ายแล้ว (ไม่แนบสลิป)"
     },
     "advanceActions": {
       "approvedBanner": "อนุมัติเรียบร้อยแล้ว ✓ — โอนเงินแล้วอย่าลืมแนบสลิป",

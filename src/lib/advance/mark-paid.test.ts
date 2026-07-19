@@ -187,4 +187,51 @@ describe('markAdvancePaid', () => {
     expect(data.paidAt).toBeInstanceOf(Date);
     expect(mockedSend).not.toHaveBeenCalled();
   });
+
+  it('no slip supplied → paidAt set, receiptUrl left alone', async () => {
+    txFindUnique.mockResolvedValue(approvedRow());
+
+    const r = await markAdvancePaid({ cashAdvanceId: 'ca-1' });
+
+    expect(r).toEqual({ ok: true });
+    const data = txUpdate.mock.calls[0]![0]!.data;
+    expect(data.paidAt).toBeInstanceOf(Date);
+    expect('receiptUrl' in data).toBe(false);
+  });
+
+  it('slip attached later → receiptUrl written, paidAt not moved', async () => {
+    txFindUnique.mockResolvedValue(approvedRow({ paidAt: new Date('2026-06-01T00:00:00Z') }));
+
+    const r = await markAdvancePaid({ cashAdvanceId: 'ca-1', receiptKey: VALID_KEY });
+
+    expect(r).toEqual({ ok: true });
+    const data = txUpdate.mock.calls[0]![0]!.data;
+    expect(data.receiptUrl).toBe(VALID_KEY);
+    expect('paidAt' in data).toBe(false);
+  });
+
+  it('explicit null receiptKey behaves like no slip', async () => {
+    txFindUnique.mockResolvedValue(approvedRow());
+
+    const r = await markAdvancePaid({ cashAdvanceId: 'ca-1', receiptKey: null });
+
+    expect(r).toEqual({ ok: true });
+    const data = txUpdate.mock.calls[0]![0]!.data;
+    expect(data.paidAt).toBeInstanceOf(Date);
+    expect('receiptUrl' in data).toBe(false);
+  });
+
+  // Guards the `.trim() || null` in markAdvancePaid: a form field that
+  // submits "" or spaces means "no slip", not "store an empty receiptUrl".
+  // Without this, swapping the trim for `?? null` would pass the suite.
+  it.each(['', '   '])('blank receiptKey (%j) behaves like no slip', async (blank) => {
+    txFindUnique.mockResolvedValue(approvedRow());
+
+    const r = await markAdvancePaid({ cashAdvanceId: 'ca-1', receiptKey: blank });
+
+    expect(r).toEqual({ ok: true });
+    const data = txUpdate.mock.calls[0]![0]!.data;
+    expect(data.paidAt).toBeInstanceOf(Date);
+    expect('receiptUrl' in data).toBe(false);
+  });
 });

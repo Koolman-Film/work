@@ -17,7 +17,7 @@ import { Pagination } from '@/components/ui/pagination';
 import { StatusBadge, type StatusKey } from '@/components/ui/status-badge';
 import { restoreCashAdvance } from '@/lib/advance/void';
 import { getPermittedBranches } from '@/lib/auth/branch-scope';
-import { requirePermission } from '@/lib/auth/check-permission';
+import { canDo, requirePermission } from '@/lib/auth/check-permission';
 import { buildPageMeta, pageArgs, parsePageParam } from '@/lib/pagination';
 import { signAttendancePhotoUrls } from '@/lib/storage/signed-urls';
 import { loadAdvanceInbox } from './_load-inbox';
@@ -52,6 +52,11 @@ export default async function AdminAdvanceInboxPage({
 
   const permitted = await getPermittedBranches(user, 'advance.read');
   const { skip, take } = pageArgs(requestedPage);
+
+  // advance.read (this page's gate) is individually assignable and doesn't
+  // imply advance.approve — the payout bank block is gated on the latter so
+  // a read-only role can't see full bank account numbers (see advance-row-vm.ts).
+  const canSeePayout = await canDo(user, 'advance.approve');
 
   // Branch-scoped inbox read (extracted to `_load-inbox` so it is testable
   // end-to-end — see tests/integration/advance-inbox-branch.integration.test.ts).
@@ -95,6 +100,7 @@ export default async function AdminAdvanceInboxPage({
           buildAdvanceRowVM(r, {
             receiptUrl: resolveReceipt(r.receiptUrl),
             advanceGuard: await advanceGuardVM(r),
+            canSeePayout,
           }),
         ),
       );

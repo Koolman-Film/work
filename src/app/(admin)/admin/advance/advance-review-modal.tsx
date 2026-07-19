@@ -33,9 +33,23 @@ export type AdvanceRowVM = {
   decidedAt: string | null;
   receiptUrl: string | null;
   advanceGuard: AdvanceGuardVM | null;
+  bankName: string | null;
+  bankAccountNumber: string | null;
+  bankAccountName: string | null;
+  /**
+   * Whether the VIEWER (not the row) may see the payout bank block —
+   * `advance.read` alone (individually assignable to custom roles) is not
+   * enough to expose full bank account numbers; only holders of
+   * `advance.approve` see it. Computed server-side so client code never
+   * calls a permission helper itself.
+   */
+  canSeePayout: boolean;
 };
 
 function Badge({ row }: { row: AdvanceRowVM }) {
+  // `statusLabel` already resolves Approved into รอจ่ายเงิน / จ่ายเงินแล้ว in
+  // buildAdvanceRowVM — deliberately not recomputed here, so this badge and the
+  // inbox list can never disagree about the same row.
   return (
     <StatusBadge status={row.statusKey}>
       {STATUS_ICON[row.statusKey] ?? ''} {row.statusLabel}
@@ -166,6 +180,40 @@ export function AdvanceReviewModal({
               {row.advanceGuard.available.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
               {row.advanceGuard.overCap && ' — คำขอนี้เกินวงเงิน ไม่สามารถอนุมัติได้'}
             </p>
+          )}
+
+          {/* Payout destination — shown before the receipt so the approver can
+              confirm the employee's bank data is complete before approving.
+              Gated on canSeePayout (advance.approve) and never shown for a
+              decided-no row: a Rejected/Cancelled advance is never paid, so
+              there's no reason to expose the account. `advance.read` alone
+              (individually assignable) must not surface bank details. */}
+          {row.canSeePayout && row.status !== 'Rejected' && row.status !== 'Cancelled' && (
+            <section className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-ink-3">โอนเข้าบัญชี</p>
+              {row.bankAccountNumber ? (
+                <dl className="mt-2 space-y-1 text-sm">
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-ink-3">ธนาคาร</dt>
+                    <dd className="font-medium text-ink-1">{row.bankName ?? '—'}</dd>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-ink-3">เลขบัญชี</dt>
+                    <dd className="font-medium tabular-nums text-ink-1">{row.bankAccountNumber}</dd>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-ink-3">ชื่อบัญชี</dt>
+                    <dd className="font-medium text-ink-1">{row.bankAccountName ?? '—'}</dd>
+                  </div>
+                </dl>
+              ) : (
+                // Never render an empty block: the approver must be able to tell
+                // "no data entered" apart from "the screen is broken".
+                <p className="mt-2 rounded-lg bg-amber-50 p-2 text-xs text-amber-800">
+                  ยังไม่ได้กรอกข้อมูลบัญชีธนาคารของพนักงานคนนี้ — ต้องกรอกก่อนโอน
+                </p>
+              )}
+            </section>
           )}
 
           {isPending ? (
