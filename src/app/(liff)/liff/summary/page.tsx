@@ -15,6 +15,7 @@ import { localizedLeaveTypeName } from '@/lib/leave/localized-name';
 import { formatDurationParts, splitDaysHours } from '@/lib/leave/units';
 import { adjacentMonths, resolveReportPeriod } from '@/lib/reports/period';
 import { PeriodPicker } from './period-picker';
+import { viewedPeriod } from './viewed-period';
 
 /** Month+year header label for the navigator — same convention as the
  *  /liff/calendar page: Thai shows the Buddhist year (CE+543, never Intl's
@@ -45,8 +46,12 @@ export default async function LiffSummaryPage({
   const params = await searchParams;
   const todayYmd = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
   const period = resolveReportPeriod({ m: params.m, from: params.from, to: params.to }, todayYmd);
-  const month = period.month ?? todayYmd.slice(0, 7);
-  const year = Number(month.slice(0, 4));
+  // The month/year actually being *viewed* — never a "today" fallback. In
+  // custom-range mode `period.month` is null, so `viewedMonth` anchors on
+  // the range's start (see viewed-period.ts for why). Anything that needs
+  // to know whether we're really in month mode must read `period.month`
+  // itself, not this derived value — see the "this month" shortcut below.
+  const { year, month: viewedMonth } = viewedPeriod(period);
   const utc = (ymd: string) => new Date(`${ymd}T00:00:00.000Z`);
 
   const [t, tUnits, rawLocale, cfg, att, types, remaining, usedAgg, balance] = await Promise.all([
@@ -72,6 +77,10 @@ export default async function LiffSummaryPage({
       orderBy: { name: 'asc' },
       select: { id: true, name: true, nameByLocale: true },
     }),
+    // `year` is the viewed period's start year (see viewedPeriod above). A
+    // custom range can span two calendar years; we deliberately don't
+    // aggregate leave across both — out of scope — so a range crossing
+    // Dec/Jan shows the leave balance for the range's starting year only.
     remainingByTypeForEmployee(employee.id, year),
     prisma.leaveRequest.groupBy({
       by: ['leaveTypeId'],
@@ -96,8 +105,8 @@ export default async function LiffSummaryPage({
     });
   const attBy = new Map(att.map((g) => [g.type, g]));
   const usedBy = new Map(usedAgg.map((g) => [g.leaveTypeId, g]));
-  const { prev, next } = adjacentMonths(month);
-  const monthLabel = buildMonthLabel(locale, month);
+  const { prev, next } = adjacentMonths(viewedMonth);
+  const monthLabel = buildMonthLabel(locale, viewedMonth);
   const displayYear = locale === 'th' ? year + 543 : year;
   const todayYm = todayYmd.slice(0, 7);
 
@@ -106,8 +115,12 @@ export default async function LiffSummaryPage({
     <main className="mx-auto max-w-md space-y-4 px-4 pt-8 pb-12">
       <header className="flex items-center justify-between gap-2">
         <h1 className="text-2xl font-semibold text-gray-900">{t('title')}</h1>
-        {month !== todayYm && (
-          // "This month" jump — lets the user return after scrubbing months.
+        {period.month !== todayYm && (
+          // "This month" jump — lets the user return after scrubbing months
+          // *or* after picking a custom range. Compares the real
+          // `period.month` (null in custom-range mode, so this is always
+          // true then) rather than `viewedMonth`, which would equal
+          // `todayYm` in custom mode and wrongly hide the shortcut.
           <Link
             href="/liff/summary"
             className="rounded-md border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
@@ -119,6 +132,14 @@ export default async function LiffSummaryPage({
 
       {/* Month navigator, or a custom from–to range ("เพิ่มใหม่" ask) */}
       <PeriodPicker
+        // Remount whenever the server-resolved period changes shape (month
+        // vs. custom range, or which month/range). Without this, pressing
+        // browser Back after "Apply range" is a soft transition — the
+        // Server Component re-renders with the new period, but PeriodPicker
+        // is a Client Component whose `custom`/`range` state was only
+        // initialised on mount, so it would keep showing stale custom-range
+        // UI over month-mode data (or vice versa).
+        key={period.month ?? `${period.from}_${period.to}`}
         month={period.month}
         monthLabel={monthLabel}
         prev={prev}
@@ -221,7 +242,9 @@ export default async function LiffSummaryPage({
 
       <nav className="flex justify-center gap-4 text-xs">
         <Link
-          href={`/liff/payslip?m=${month}`}
+          // In custom-range mode there's no payslip for a date range, so
+          // this points at the range's start month rather than today's.
+          href={`/liff/payslip?m=${viewedMonth}`}
           className="font-medium text-primary-700 hover:text-primary-800"
         >
           {t('payslipLink')}

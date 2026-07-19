@@ -4,10 +4,12 @@
  * Period selector for the employee summary: month arrows (the original
  * behaviour) or a custom from–to range, which the customer asked for.
  *
- * Navigates with plain hrefs / router.push rather than posting a form, so
- * every state is a shareable, bookmarkable URL and the back button works.
+ * Navigates with next/link Links / router.push rather than posting a form, so
+ * every state is a shareable, bookmarkable URL, soft transitions stay soft,
+ * and the back button works.
  */
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { DateRangeField } from '@/components/ui/date-range-field';
@@ -40,21 +42,26 @@ export function PeriodPicker({ month, monthLabel, prev, next, from, to, todayYmd
     return (
       <div className="rounded-xl border border-gray-200 bg-white px-3 py-2.5">
         <div className="flex items-center justify-between">
-          <a
+          {/* next/link Link, not <a> — a soft transition so scrubbing
+           *  through months doesn't cost a full page reload. This also
+           *  makes the PeriodPicker `key` in page.tsx load-bearing: without
+           *  Link, each click *was* a hard reload anyway, which happened to
+           *  mask the stale-state issue that `key` fixes. */}
+          <Link
             href={monthUrl(prev)}
             aria-label={labels.prevMonth}
             className="grid size-8 place-items-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-700"
           >
             ‹
-          </a>
+          </Link>
           <p className="text-sm font-semibold text-gray-900">{monthLabel}</p>
-          <a
+          <Link
             href={monthUrl(next)}
             aria-label={labels.nextMonth}
             className="grid size-8 place-items-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-700"
           >
             ›
-          </a>
+          </Link>
         </div>
         <button
           type="button"
@@ -85,12 +92,14 @@ export function PeriodPicker({ month, monthLabel, prev, next, from, to, todayYmd
         >
           {labels.applyRange}
         </button>
-        <a
+        <Link
+          // Deliberate default: if the pending range spans two months, this
+          // always lands on the range's START month, not the end.
           href={monthUrl((month ?? range.from ?? todayYmd).slice(0, 7))}
           className="rounded-md px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-100"
         >
           {labels.backToMonthly}
-        </a>
+        </Link>
       </div>
     </div>
   );
