@@ -160,10 +160,14 @@ export function DisputedClient({ rows, total }: { rows: DisputedVM[]; total: num
           <dl className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-lg bg-gray-50 p-4 text-sm">
             <div>
               <dt className="text-xs text-ink-4">ระยะจากสาขา</dt>
+              {/* Shown for every dispute type, unlike the scannable list row.
+                  Here the admin is investigating with the reason and the map
+                  in view, so the number can't be misread as "nothing wrong" —
+                  and for a selfie dispute it is exactly the evidence that
+                  separates "camera broke while genuinely at work" from a
+                  gallery photo taken elsewhere. */}
               <dd className="font-medium text-ink-1">
-                {selected.gpsRelated && selected.distanceMeters != null
-                  ? `${selected.distanceMeters} ม.`
-                  : '—'}
+                {selected.distanceMeters != null ? `${selected.distanceMeters} ม.` : '—'}
                 {selected.branch && (
                   <span className="text-ink-3"> (รัศมี {selected.branch.radiusMeters} ม.)</span>
                 )}
