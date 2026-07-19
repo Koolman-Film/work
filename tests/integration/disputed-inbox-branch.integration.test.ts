@@ -112,7 +112,7 @@ describe('disputed inbox — branch-scoped read (integration)', () => {
     const permitted = await scopedAttendanceAdmin(branchA.id);
     expect(permitted).toEqual([branchA.id]);
 
-    const rows = await loadDisputedCheckIns(permitted);
+    const { rows } = await loadDisputedCheckIns(permitted);
     const ids = new Set(rows.map((r) => r.id));
     expect(ids).toEqual(new Set([ciA.id, ciRot.id]));
     expect(ids.has(ciB.id)).toBe(false);
@@ -127,7 +127,7 @@ describe('disputed inbox — branch-scoped read (integration)', () => {
     const permitted = await scopedAttendanceAdmin(null);
     expect(permitted).toBe('all');
 
-    const rows = await loadDisputedCheckIns(permitted);
+    const { rows } = await loadDisputedCheckIns(permitted);
     expect(new Set(rows.map((r) => r.id))).toEqual(new Set([ciA.id, ciB.id, ciRot.id]));
   });
 
@@ -137,7 +137,7 @@ describe('disputed inbox — branch-scoped read (integration)', () => {
     const disputed = await makeCheckIn(empA, 'Disputed');
 
     const permitted = await scopedAttendanceAdmin(null); // global, so scope is inert here
-    const rows = await loadDisputedCheckIns(permitted);
+    const { rows } = await loadDisputedCheckIns(permitted);
     expect(rows.map((r) => r.id)).toEqual([disputed.id]);
   });
 });

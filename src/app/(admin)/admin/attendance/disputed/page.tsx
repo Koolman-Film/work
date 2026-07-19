@@ -43,7 +43,7 @@ export default async function DisputedInboxPage() {
   const permitted = await getPermittedBranches(user, 'attendance.read');
   // Branch-scoped disputed-check-in read (extracted to `_load-inbox` so it is
   // testable end-to-end — see the disputed-inbox integration harness).
-  const rows = await loadDisputedCheckIns(permitted);
+  const { rows, total } = await loadDisputedCheckIns(permitted);
 
   const selfieKeys = rows
     .map((r) => r.checkInSelfieUrl)
@@ -88,7 +88,7 @@ export default async function DisputedInboxPage() {
         title="ต้องตรวจสอบ"
         subtitle="เช็คอินที่อยู่นอกรัศมีสาขา — ตรวจหลักฐาน (เซลฟี่ + ตำแหน่ง) แล้วอนุมัติหรือปฏิเสธ"
       />
-      <AttendanceTabs current="disputed" disputedCount={vm.length} />
+      <AttendanceTabs current="disputed" disputedCount={total} />
 
       {vm.length === 0 ? (
         <div className="surface">
@@ -98,7 +98,7 @@ export default async function DisputedInboxPage() {
           />
         </div>
       ) : (
-        <DisputedClient rows={vm} />
+        <DisputedClient rows={vm} total={total} />
       )}
     </div>
   );
