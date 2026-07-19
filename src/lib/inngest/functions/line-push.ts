@@ -11,9 +11,13 @@
  *      Don't retry — the binding will only appear after the employee
  *      completes /liff/pair, which is asynchronous.
  *   4. Build Flex Message from the event payload (kind-discriminated)
- *   5. POST to LINE Messaging /v2/bot/message/push
- *   6. On success → set Notification.sentAt = now()
- *   7. On failure → throw; Inngest auto-retries up to `retries: 3`
+ *   5. Check LINE monthly quota headroom (src/lib/line/quota.ts). If
+ *      exhausted → mark "skipped" (at most one admin bell/day) and return.
+ *      Not a failure — do NOT throw, or Inngest retries a send we
+ *      deliberately declined.
+ *   6. POST to LINE Messaging /v2/bot/message/push
+ *   7. On success → set Notification.sentAt = now()
+ *   8. On failure → throw; Inngest auto-retries up to `retries: 3`
  *
  * Idempotency:
  *   - `Notification.create` step is dedup'd by Inngest's step memoization
@@ -28,10 +32,34 @@ import { prisma } from '@/lib/db/prisma';
 import { DEFAULT_LOCALE, isLocale } from '@/lib/i18n/config';
 import { appBaseUrl, buildFlexMessage } from '@/lib/line/flex-templates';
 import { getLineMessagingClient } from '@/lib/line/messaging-client';
+import { hasQuotaHeadroom } from '@/lib/line/quota';
+import { notifyAdminsInApp } from '@/lib/notifications/in-app-bell';
 import { inngest } from '../client';
 import type { NotificationSendEvent } from '../events';
 
 type FlexMessage = messagingApi.FlexMessage;
+
+/** Start of "today" in Asia/Bangkok, as a UTC instant — used to check
+ *  whether we've already pinged the bell about the quota today. */
+function bangkokTodayStart(): Date {
+  const ymd = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
+  return new Date(`${ymd}T00:00:00+07:00`);
+}
+
+/** Whether an admin bell for the quota-exhausted event has already fired
+ *  today. Keeps a whole day of skipped pushes to a single bell ping instead
+ *  of one per message. */
+async function alreadyNotifiedQuotaLowToday(): Promise<boolean> {
+  const existing = await prisma.notification.findFirst({
+    where: {
+      channel: 'InAppBell',
+      event: 'system.line-quota-low',
+      createdAt: { gte: bangkokTodayStart() },
+    },
+    select: { id: true },
+  });
+  return existing != null;
+}
 
 export const linePushNotification = inngest.createFunction(
   {
@@ -93,6 +121,32 @@ export const linePushNotification = inngest.createFunction(
     // Resolve recipient locale: prefer the stored value, fall back to DEFAULT_LOCALE.
     const recipientLocale = isLocale(userInfo.locale) ? userInfo.locale : DEFAULT_LOCALE;
     const message: FlexMessage = buildFlexMessage(payload, appBaseUrl(), recipientLocale);
+
+    // Quota gate. Skipping is a normal outcome, not a failure — do NOT throw,
+    // or Inngest will retry a send we deliberately declined.
+    const hasRoom = await step.run('check-quota', () => hasQuotaHeadroom());
+    if (!hasRoom) {
+      logger.warn(`skipping push: LINE quota headroom exhausted (notification ${notification.id})`);
+      await step.run('mark-quota-skipped', async () => {
+        // Merge a marker into the row's payload so a quota-skipped
+        // notification is distinguishable from a still-queued one in the
+        // table — the 464-message July figure that justified this whole
+        // branch was measured from this table, and a skipped row that
+        // looks "sent" would quietly inflate future counts.
+        await prisma.notification.update({
+          where: { id: notification.id },
+          data: { payload: { ...payload, skipped: 'quota' } },
+        });
+        // At most one bell/day — a whole day of skipped pushes shouldn't
+        // spam the bell once per declined message.
+        if (await alreadyNotifiedQuotaLowToday()) return;
+        await notifyAdminsInApp({
+          kind: 'system.line-quota-low',
+          notificationId: notification.id,
+        });
+      });
+      return { notificationId: notification.id, delivered: false, reason: 'quota-exhausted' };
+    }
 
     // Step 5 — push to LINE.
     // If this throws, Inngest retries with exponential backoff (3 retries

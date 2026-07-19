@@ -25,7 +25,6 @@ import { getTranslations } from 'next-intl/server';
 import { auditLog } from '@/lib/audit/log';
 import { requireEmployee } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
-import { notifyAdminsOnLine } from '@/lib/notifications/admin-line';
 import { notifyAdminsInApp } from '@/lib/notifications/in-app-bell';
 import { advanceBalanceFor } from './available';
 import { isOverCap } from './balance';
@@ -159,13 +158,8 @@ export async function submitCashAdvance(input: SubmitInput): Promise<SubmitAdvan
       employeeName: employeeDisplayName(employee),
       amount: formatBaht(input.amount),
     });
-    // LINE push to paired admins — same fire-and-forget contract.
-    void notifyAdminsOnLine({
-      kind: 'admin.advance-submitted',
-      cashAdvanceId: created.id,
-      employeeName: employeeDisplayName(employee),
-      amount: formatBaht(input.amount),
-    });
+    // Admin LINE push removed — admins now learn about this via the 09:30
+    // daily digest (see admin-daily-digest.ts) instead of a per-event push.
 
     revalidatePath('/liff/advance');
     return { ok: true, id: created.id };

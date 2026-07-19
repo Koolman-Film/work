@@ -16,11 +16,15 @@
  * function invocations will fail opaquely.
  *
  * Functions: add new functions to the `functions` array as we build
- * them (e.g. attendance-late-check, force-checkout-eod crons).
+ * them (e.g. attendance-late-check, force-checkout-eod, admin-daily-digest
+ * crons). A function not registered here simply never runs — Inngest has
+ * no other way to discover it — and unit tests still pass, so update
+ * `src/lib/inngest/functions/smoke.test.ts` alongside any addition.
  */
 
 import { serve } from 'inngest/next';
 import { inngest } from '@/lib/inngest/client';
+import { adminDailyDigest } from '@/lib/inngest/functions/admin-daily-digest';
 import { attendanceForceCheckoutEod } from '@/lib/inngest/functions/attendance-force-checkout-eod';
 import { attendanceLateCheck } from '@/lib/inngest/functions/attendance-late-check';
 import { birthdayReminder } from '@/lib/inngest/functions/birthday-reminder';
@@ -35,5 +39,6 @@ export const { GET, POST, PUT } = serve({
     attendanceLateCheck,
     probationReminder,
     birthdayReminder,
+    adminDailyDigest,
   ],
 });

@@ -1,10 +1,23 @@
 /**
- * Unit tests for notifyAdminsOnLine — the LINE-push sibling of
- * notifyAdminsInApp. prisma + sendNotification are stubbed at the
- * module boundary (same mocking style as require-role-line-fallback.test.ts).
+ * Unit tests for `linePushAdminIds` — the recipient predicate for admin LINE
+ * pushes.
+ *
+ * These used to test `notifyAdminsOnLine`, the per-event fan-out that was
+ * removed when the 09:30 digest replaced it. The predicate it used survived
+ * and is now MORE load-bearing than before: the digest and any future LINE
+ * path both resolve their audience through this one function, so a drift here
+ * silently changes who hears about pending work.
+ *
+ * prisma is stubbed at the module boundary (same style as
+ * require-role-line-fallback.test.ts).
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+// admin-line.ts does `import 'server-only'`, which throws under the default
+// vitest config (no react-server condition / alias). Mock it to a no-op so
+// this stays a plain unit test — same pattern as quota.test.ts.
+vi.mock('server-only', () => ({}));
 
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
@@ -14,39 +27,37 @@ vi.mock('@/lib/db/prisma', () => ({
   },
 }));
 
-vi.mock('@/lib/inngest/events', () => ({
-  sendNotification: vi.fn(),
-}));
-
 import { prisma } from '@/lib/db/prisma';
-import { sendNotification } from '@/lib/inngest/events';
-import { notifyAdminsOnLine } from './admin-line';
+import { linePushAdminIds } from './admin-line';
 
 const mockedFindMany = vi.mocked(prisma.user.findMany);
-const mockedSend = vi.mocked(sendNotification);
-
-const payload = {
-  kind: 'admin.leave-submitted' as const,
-  leaveRequestId: 'lr-1',
-  employeeName: 'สมชาย ใจดี',
-  leaveTypeName: 'ลาป่วย',
-  startDate: '2026-06-15',
-  endDate: '2026-06-16',
-};
 
 beforeEach(() => {
   vi.clearAllMocks();
 });
 
-describe('notifyAdminsOnLine', () => {
-  it('sends one notification per paired admin with the exact payload', async () => {
+describe('linePushAdminIds', () => {
+  it('returns the id of every matching admin', async () => {
     // biome-ignore lint/suspicious/noExplicitAny: minimal prisma stub
     mockedFindMany.mockResolvedValue([{ id: 'admin-1' }, { id: 'admin-2' }] as any);
-    mockedSend.mockResolvedValue(undefined);
 
-    await notifyAdminsOnLine(payload);
+    await expect(linePushAdminIds()).resolves.toEqual(['admin-1', 'admin-2']);
+  });
 
-    // recipient predicate: active + paired (lineUserId required) + admin role
+  it('returns an empty list when nobody qualifies', async () => {
+    mockedFindMany.mockResolvedValue([]);
+
+    await expect(linePushAdminIds()).resolves.toEqual([]);
+  });
+
+  it('requires active + LINE-linked + liff.admin (or Superadmin)', async () => {
+    mockedFindMany.mockResolvedValue([]);
+
+    await linePushAdminIds();
+
+    // Each clause matters: dropping `lineUserId` would queue pushes for admins
+    // who never linked LINE, and dropping the role filter would deep-link
+    // non-admins into /liff/admin/* pages that 404 for them.
     expect(mockedFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
@@ -66,62 +77,13 @@ describe('notifyAdminsOnLine', () => {
         }),
       }),
     );
-    expect(mockedSend).toHaveBeenCalledTimes(2);
-    expect(mockedSend).toHaveBeenCalledWith('admin-1', payload);
-    expect(mockedSend).toHaveBeenCalledWith('admin-2', payload);
   });
 
-  it('does nothing when no paired admins exist', async () => {
+  it('selects only the id — recipient resolution must not pull extra user data', async () => {
     mockedFindMany.mockResolvedValue([]);
 
-    await expect(notifyAdminsOnLine(payload)).resolves.toBeUndefined();
-    expect(mockedSend).not.toHaveBeenCalled();
-  });
+    await linePushAdminIds();
 
-  it('swallows prisma failures (fire-and-forget) and logs', async () => {
-    const consoleErr = vi.spyOn(console, 'error').mockImplementation(() => {});
-    mockedFindMany.mockRejectedValue(new Error('db down'));
-
-    await expect(notifyAdminsOnLine(payload)).resolves.toBeUndefined();
-    expect(mockedSend).not.toHaveBeenCalled();
-    expect(consoleErr).toHaveBeenCalledWith(
-      '[notifyAdminsOnLine] failed (non-fatal)',
-      expect.objectContaining({ kind: 'admin.leave-submitted', error: 'db down' }),
-    );
-    consoleErr.mockRestore();
-  });
-
-  it('swallows sendNotification failures too', async () => {
-    const consoleErr = vi.spyOn(console, 'error').mockImplementation(() => {});
-    // biome-ignore lint/suspicious/noExplicitAny: minimal prisma stub
-    mockedFindMany.mockResolvedValue([{ id: 'admin-1' }] as any);
-    mockedSend.mockRejectedValue(new Error('inngest down'));
-
-    await expect(notifyAdminsOnLine(payload)).resolves.toBeUndefined();
-    expect(consoleErr).toHaveBeenCalled();
-    consoleErr.mockRestore();
-  });
-
-  it('first admin fails, second still receives notification (allSettled fan-out)', async () => {
-    const consoleErr = vi.spyOn(console, 'error').mockImplementation(() => {});
-    // biome-ignore lint/suspicious/noExplicitAny: minimal prisma stub
-    mockedFindMany.mockResolvedValue([{ id: 'admin-1' }, { id: 'admin-2' }] as any);
-    mockedSend
-      .mockRejectedValueOnce(new Error('line push failed'))
-      .mockResolvedValueOnce(undefined);
-
-    await expect(notifyAdminsOnLine(payload)).resolves.toBeUndefined();
-
-    // both recipients attempted
-    expect(mockedSend).toHaveBeenCalledTimes(2);
-    expect(mockedSend).toHaveBeenCalledWith('admin-1', payload);
-    expect(mockedSend).toHaveBeenCalledWith('admin-2', payload);
-
-    // the rejection was logged individually, not thrown
-    expect(consoleErr).toHaveBeenCalledWith(
-      '[notifyAdminsOnLine] one recipient failed (non-fatal)',
-      expect.objectContaining({ kind: 'admin.leave-submitted', error: 'line push failed' }),
-    );
-    consoleErr.mockRestore();
+    expect(mockedFindMany).toHaveBeenCalledWith(expect.objectContaining({ select: { id: true } }));
   });
 });
