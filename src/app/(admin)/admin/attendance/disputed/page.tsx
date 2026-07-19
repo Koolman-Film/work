@@ -13,6 +13,7 @@ import { getPermittedBranches } from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { signAttendancePhotoUrls } from '@/lib/storage/signed-urls';
 import { AttendanceTabs } from '../attendance-tabs';
+import { isGpsRelatedDispute } from './_dispute-reason';
 import { loadDisputedCheckIns } from './_load-inbox';
 import { DisputedClient, type DisputedVM } from './disputed-client';
 
@@ -43,7 +44,7 @@ export default async function DisputedInboxPage() {
   const permitted = await getPermittedBranches(user, 'attendance.read');
   // Branch-scoped disputed-check-in read (extracted to `_load-inbox` so it is
   // testable end-to-end — see the disputed-inbox integration harness).
-  const rows = await loadDisputedCheckIns(permitted);
+  const { rows, total } = await loadDisputedCheckIns(permitted);
 
   const selfieKeys = rows
     .map((r) => r.checkInSelfieUrl)
@@ -73,6 +74,9 @@ export default async function DisputedInboxPage() {
       branchLabel: `${r.employee.branch.name}${r.employee.department ? ` • ${r.employee.department.name}` : ''}`,
       clockInLabel: r.clockInAt ? formatBkk(r.clockInAt) : '—',
       reason: r.disputeReason ?? 'ไม่ระบุ',
+      // Selfie-only disputes are raised while GPS is Confirmed, so distanceMeters
+      // is real but misleading there — the client only renders it when this is true.
+      gpsRelated: isGpsRelatedDispute(r.disputeReason),
       selfieUrl: r.checkInSelfieUrl ? (signedSelfieUrls.get(r.checkInSelfieUrl) ?? null) : null,
       empLat,
       empLng,
@@ -88,7 +92,7 @@ export default async function DisputedInboxPage() {
         title="ต้องตรวจสอบ"
         subtitle="เช็คอินที่อยู่นอกรัศมีสาขา — ตรวจหลักฐาน (เซลฟี่ + ตำแหน่ง) แล้วอนุมัติหรือปฏิเสธ"
       />
-      <AttendanceTabs current="disputed" disputedCount={vm.length} />
+      <AttendanceTabs current="disputed" disputedCount={total} />
 
       {vm.length === 0 ? (
         <div className="surface">
@@ -98,7 +102,7 @@ export default async function DisputedInboxPage() {
           />
         </div>
       ) : (
-        <DisputedClient rows={vm} />
+        <DisputedClient rows={vm} total={total} />
       )}
     </div>
   );

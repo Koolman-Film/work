@@ -14,6 +14,9 @@ export type DisputedVM = {
   branchLabel: string;
   clockInLabel: string;
   reason: string;
+  /** False for selfie-provenance-only disputes — distanceMeters is real but
+   *  misleading there (GPS was Confirmed), so it must stay hidden. */
+  gpsRelated: boolean;
   selfieUrl: string | null;
   empLat: number | null;
   empLng: number | null;
@@ -21,7 +24,7 @@ export type DisputedVM = {
   distanceMeters: number | null;
 };
 
-export function DisputedClient({ rows }: { rows: DisputedVM[] }) {
+export function DisputedClient({ rows, total }: { rows: DisputedVM[]; total: number }) {
   const router = useRouter();
   const [selectedId, setSelectedId] = useState<string | null>(rows[0]?.id ?? null);
   const [note, setNote] = useState('');
@@ -67,38 +70,51 @@ export function DisputedClient({ rows }: { rows: DisputedVM[] }) {
 
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-[300px_1fr]">
-      {/* Master list */}
-      <ul className="space-y-1.5">
-        {rows.map((r) => {
-          const on = r.id === selectedId;
-          return (
-            <li key={r.id}>
-              <button
-                type="button"
-                onClick={() => select(r.id)}
-                aria-current={on ? 'true' : undefined}
-                className={`block w-full rounded-lg border px-3 py-2.5 text-left transition ${
-                  on
-                    ? 'border-primary-200 bg-primary-50 ring-1 ring-primary-200'
-                    : 'border-gray-200 bg-white hover:bg-gray-50'
-                }`}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="truncate text-sm font-medium text-ink-1">
-                    {r.name}
-                    {r.nickname && <span className="text-ink-3"> ({r.nickname})</span>}
-                  </span>
-                  <span className="text-ink-4">›</span>
-                </div>
-                <p className="mt-0.5 text-[11px] text-ink-3">
-                  เช็คอิน {r.clockInLabel}
-                  {r.distanceMeters != null && ` · นอก ${r.distanceMeters} ม.`}
-                </p>
-              </button>
-            </li>
-          );
-        })}
-      </ul>
+      {/* Master list — the <ul> and the truncation note below must stay
+          inside one wrapper <div>. This grid is `lg:grid-cols-[300px_1fr]`
+          with auto-placement: with two direct children (list, note) instead
+          of one, the note lands in row 1 col 2 and pushes the detail panel
+          into row 2 col 1 — the narrow 300px column — crushing the map,
+          selfie, and detail <dl> for the whole rest of the queue. */}
+      <div>
+        <ul className="space-y-1.5">
+          {rows.map((r) => {
+            const on = r.id === selectedId;
+            return (
+              <li key={r.id}>
+                <button
+                  type="button"
+                  onClick={() => select(r.id)}
+                  aria-current={on ? 'true' : undefined}
+                  className={`block w-full rounded-lg border px-3 py-2.5 text-left transition ${
+                    on
+                      ? 'border-primary-200 bg-primary-50 ring-1 ring-primary-200'
+                      : 'border-gray-200 bg-white hover:bg-gray-50'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="truncate text-sm font-medium text-ink-1">
+                      {r.name}
+                      {r.nickname && <span className="text-ink-3"> ({r.nickname})</span>}
+                    </span>
+                    <span className="text-ink-4">›</span>
+                  </div>
+                  <p className="mt-0.5 text-[11px] text-ink-3">
+                    เช็คอิน {r.clockInLabel}
+                    {r.gpsRelated && r.distanceMeters != null && ` · นอก ${r.distanceMeters} ม.`}
+                  </p>
+                  <p className="mt-0.5 line-clamp-1 text-[11px] text-ink-4">{r.reason}</p>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+        {total > rows.length && (
+          <p className="mt-2 px-1 text-[11px] text-ink-4">
+            แสดง {rows.length} จาก {total} รายการ
+          </p>
+        )}
+      </div>
 
       {/* Detail */}
       {selected ? (
@@ -151,6 +167,12 @@ export function DisputedClient({ rows }: { rows: DisputedVM[] }) {
           <dl className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-lg bg-gray-50 p-4 text-sm">
             <div>
               <dt className="text-xs text-ink-4">ระยะจากสาขา</dt>
+              {/* Shown for every dispute type, unlike the scannable list row.
+                  Here the admin is investigating with the reason and the map
+                  in view, so the number can't be misread as "nothing wrong" —
+                  and for a selfie dispute it is exactly the evidence that
+                  separates "camera broke while genuinely at work" from a
+                  gallery photo taken elsewhere. */}
               <dd className="font-medium text-ink-1">
                 {selected.distanceMeters != null ? `${selected.distanceMeters} ม.` : '—'}
                 {selected.branch && (
