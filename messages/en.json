@@ -204,6 +204,9 @@
     "prevMonth": "Previous month",
     "nextMonth": "Next month",
     "thisMonth": "This month",
+    "customRange": "Custom range",
+    "backToMonthly": "Back to monthly",
+    "applyRange": "View this range",
     "backToCheckin": "Back to check-in",
     "attendance": {
       "title": "This month's attendance",
