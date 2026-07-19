@@ -99,7 +99,11 @@ export default async function PayrollConfigPage({
             </CardHeader>
             <CardBody className="space-y-4">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                <FormField label="หักขาดงาน/วัน (บาท)" htmlFor="absentDeductionPerDay">
+                <FormField
+                  label="หักขาดงาน/วัน (บาท) — เฉพาะพนักงานรายชั่วโมง"
+                  htmlFor="absentDeductionPerDay"
+                  hint='ใช้เป็นค่าสำรองสำหรับพนักงานรายชั่วโมง (หรือฐานเงินเดือน 0/ไม่ถูกต้อง) เท่านั้น พนักงานรายเดือนหักตามเงินเดือน/"วันทำงาน/เดือน" ด้านบน พนักงานรายวันหักตามค่าจ้างรายวันจริง — ไม่มีผลกับสองกลุ่มนี้'
+                >
                   <Input
                     id="absentDeductionPerDay"
                     name="absentDeductionPerDay"

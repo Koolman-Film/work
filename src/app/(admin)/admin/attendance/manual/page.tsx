@@ -56,6 +56,8 @@ export default async function ManualAttendancePage() {
         firstName: true,
         lastName: true,
         nickname: true,
+        salaryType: true,
+        baseSalary: true,
         branch: { select: { name: true } },
         workSchedule: {
           select: {
@@ -72,6 +74,7 @@ export default async function ManualAttendancePage() {
         absentDeductionPerDay: true,
         earlyLeaveDeduction: true,
         otThresholdMinutes: true,
+        workingDaysPerMonth: true,
       },
     }),
     // This form only ever accepts today or an earlier date, so a lookback
@@ -104,6 +107,8 @@ export default async function ManualAttendancePage() {
                 id: e.id,
                 label:
                   `${e.firstName} ${e.lastName}${e.nickname ? ` (${e.nickname})` : ''} — ${e.branch.name}`.trim(),
+                salaryType: e.salaryType,
+                baseSalary: e.baseSalary.toString(),
                 lateToleranceMin: e.workSchedule?.lateToleranceMin ?? null,
                 scheduleDays:
                   e.workSchedule?.days.map((d) => ({
@@ -124,6 +129,8 @@ export default async function ManualAttendancePage() {
               // Same fallback as getOtCandidates (src/lib/overtime/candidates.ts)
               // when the PayrollConfig row is missing.
               otThresholdMinutes={payrollCfg?.otThresholdMinutes ?? 30}
+              // Same fallback dailyRateFor uses when the divisor is missing/invalid.
+              workingDaysPerMonth={payrollCfg?.workingDaysPerMonth ?? 30}
             />
           </CardBody>
         </Card>
