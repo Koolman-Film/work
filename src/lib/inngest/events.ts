@@ -21,6 +21,14 @@ export type NotificationKind =
   | 'leave.rejected'
   | 'advance.approved'
   | 'advance.rejected'
+  // 'attendance.dispute-approved' has zero producers as of the dispute-review
+  // push reduction (src/lib/attendance/admin-review.ts): approving a dispute
+  // tells the employee "your check-in was fine, nothing to do" — no action,
+  // no pay impact — so it's no longer pushed. Kept here (type, Flex template,
+  // notification-id case) for one deploy cycle only: approvals queued before
+  // this deploy may still be in flight and must still render on the new
+  // code. Safe to delete everywhere once a deploy cycle has passed with no
+  // in-flight events left.
   | 'attendance.dispute-approved'
   | 'attendance.dispute-rejected'
   | 'payroll.published'
