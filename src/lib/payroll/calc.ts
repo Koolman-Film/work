@@ -120,6 +120,17 @@ export type ConfigForPayroll = {
   lateThreeStrikeCount?: number;
   severeLateEnabled?: boolean;
   severeLateThresholdMin?: number;
+  /**
+   * `PayrollConfig.workingDaysPerMonth` — the divisor `dailyRateFor` uses for
+   * Monthly employees. Optional so existing fixtures/callers that predate
+   * this field keep compiling; `dailyRateFor` falls back to 30 when omitted
+   * (or when the value is zero/negative). This is the SAME number
+   * leave-over-quota and OT already divide by — threading it through here is
+   * what keeps an absence-day and a leave-day priced identically on one
+   * payslip instead of silently disagreeing whenever an admin changes it
+   * away from the default.
+   */
+  workingDaysPerMonth?: number;
 };
 
 export type CalcInput = {
@@ -395,7 +406,11 @@ export function calcPayroll(input: CalcInput): PayrollDraft {
   // The customer writes penalties as "หักเงินหรือสิทธิ 1 วัน"; the old flat
   // ฿500 over-charged 32 of 46 people on production. Feeds absences, the
   // N-strikes penalty, severe lateness, AND the slip breakdown — one place.
-  const dayAmount = dailyRateFor(input.employee, cfg.absentDeductionPerDay);
+  const dayAmount = dailyRateFor(
+    input.employee,
+    cfg.absentDeductionPerDay,
+    cfg.workingDaysPerMonth,
+  );
   // Tier-1 lates: the N-strikes rule charges a 1-day amount per completed group;
   // when the rule is off, fall back to the legacy flat per-late charge.
   const tier1LateMoney = latePolicy.threeStrikeEnabled
