@@ -275,6 +275,13 @@ function renderNotification(n: BellNotification): RenderedKind {
           ? `/admin/employees/${payload.employeeId}/edit`
           : '/admin/employees',
       };
+    case 'system.line-quota-low':
+      return {
+        emoji: '🚫',
+        title: 'โควตาส่งข้อความ LINE ใกล้หมด',
+        subtitle: 'ระบบหยุดส่งการแจ้งเตือนผ่าน LINE ชั่วคราวจนกว่าโควตาจะรีเซ็ตเดือนถัดไป',
+        href: '/admin',
+      };
     default:
       return {
         emoji: '🔔',
