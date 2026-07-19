@@ -1,18 +1,21 @@
 'use server';
 
 /**
- * LINE-push fan-out to paired admins — the LINE sibling of
- * notifyAdminsInApp (same recipient predicate + lineUserId required).
- * Fire-and-forget: failures log, never propagate to the worker's submit.
+ * Who may receive an admin LINE push.
+ *
+ * This file used to also hold `notifyAdminsOnLine`, a per-event fan-out that
+ * sent one push per admin per leave/advance/dispute submission. That was 65%
+ * of July 2026's 464-message spend against a 300/month cap — its cost scaled
+ * with the number of admins rather than the amount of work, so linking a
+ * third admin was enough to exhaust the quota. It was replaced by the 09:30
+ * digest (`admin-daily-digest.ts`), which sends each admin one message
+ * summarising what is still pending, and nothing at all on quiet days.
+ *
+ * What remains is the recipient predicate, kept here and shared so the digest
+ * can never target a different set of people than the old pushes did.
  */
 
 import { prisma } from '@/lib/db/prisma';
-import { type NotificationPayload, sendNotification } from '@/lib/inngest/events';
-
-type AdminLinePayload = Extract<
-  NotificationPayload,
-  { kind: 'admin.leave-submitted' | 'admin.advance-submitted' | 'admin.dispute-submitted' }
->;
 
 /**
  * Admins who can receive LINE pushes: archived-free, LINE-linked, and
@@ -42,26 +45,4 @@ export async function linePushAdminIds(): Promise<string[]> {
     select: { id: true },
   });
   return recipients.map((r) => r.id);
-}
-
-export async function notifyAdminsOnLine(payload: AdminLinePayload): Promise<void> {
-  try {
-    const recipientIds = await linePushAdminIds();
-    const results = await Promise.allSettled(
-      recipientIds.map((id) => sendNotification(id, payload)),
-    );
-    for (const r of results) {
-      if (r.status === 'rejected') {
-        console.error('[notifyAdminsOnLine] one recipient failed (non-fatal)', {
-          kind: payload.kind,
-          error: r.reason instanceof Error ? r.reason.message : String(r.reason),
-        });
-      }
-    }
-  } catch (err) {
-    console.error('[notifyAdminsOnLine] failed (non-fatal)', {
-      kind: payload.kind,
-      error: err instanceof Error ? err.message : String(err),
-    });
-  }
 }
