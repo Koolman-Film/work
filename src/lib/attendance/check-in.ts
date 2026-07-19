@@ -38,7 +38,6 @@ import { getTranslations } from 'next-intl/server';
 import { auditLogTx } from '@/lib/audit/log';
 import { requireCheckInPermission, requireEmployee } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
-import { notifyAdminsOnLine } from '@/lib/notifications/admin-line';
 import { notifyAdminsInApp } from '@/lib/notifications/in-app-bell';
 import { bangkokDateUtcMidnight, isClosedDay } from './date';
 import { type CheckInPoint, disputeReasonText, evaluateCheckIn } from './evaluate';
@@ -400,14 +399,8 @@ export async function submitCheckIn(input: SubmitCheckInInput): Promise<SubmitCh
       date: bangkokDateString(now),
       reason: disputeReason ?? 'unknown',
     });
-    // LINE push to paired admins — same fire-and-forget contract.
-    void notifyAdminsOnLine({
-      kind: 'admin.dispute-submitted',
-      attendanceId: attendanceBox.id,
-      employeeName: employeeDisplayName(employee),
-      date: bangkokDateString(now),
-      reason: disputeReason ?? 'unknown',
-    });
+    // Admin LINE push removed — admins now learn about this via the 09:30
+    // daily digest (see admin-daily-digest.ts) instead of a per-event push.
   }
 
   const state = await getCheckInState();

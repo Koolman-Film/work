@@ -25,7 +25,6 @@ import { canActOnEmployeeBranches, getPermittedBranches } from '@/lib/auth/branc
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { sendNotification } from '@/lib/inngest/events';
-import { notifyAdminsOnLine } from '@/lib/notifications/admin-line';
 import { notifyAdminsInApp } from '@/lib/notifications/in-app-bell';
 
 /** Format Prisma.Decimal as a human-friendly currency string for Flex
@@ -580,13 +579,8 @@ export async function adminCreateCashAdvance(
       employeeName: employeeBellName(employee),
       amount: formatAmount(input.amount),
     });
-    // LINE push to paired admins — same fire-and-forget contract.
-    void notifyAdminsOnLine({
-      kind: 'admin.advance-submitted',
-      cashAdvanceId: created.id,
-      employeeName: employeeBellName(employee),
-      amount: formatAmount(input.amount),
-    });
+    // Admin LINE push removed — admins now learn about this via the 09:30
+    // daily digest (see admin-daily-digest.ts) instead of a per-event push.
 
     return { ok: true, id: created.id };
   } catch (err) {

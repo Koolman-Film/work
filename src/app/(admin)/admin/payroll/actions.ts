@@ -11,7 +11,6 @@ import { prisma } from '@/lib/db/prisma';
 import { sendNotification } from '@/lib/inngest/events';
 import {
   lockPayroll,
-  notifyPublishedSlips,
   type PayrollRowDetail,
   type PublishResult,
   payrollRowDetail,
@@ -104,14 +103,15 @@ export async function publishPayrollAction(formData: FormData) {
   const { user } = await requireGlobalPermission('payroll.publish');
   const month = readMonth(formData);
 
-  // Publishing fires LINE pushes and stamps sweep rows — block future
-  // months so a mis-clicked navigator can't blast notifications early.
+  // Publishing stamps sweep rows early — block future months so a
+  // mis-clicked navigator can't lock those in ahead of time.
   if (month > currentMonthBkk()) {
     back(month, 'ยังเผยแพร่เดือนล่วงหน้าไม่ได้ — เผยแพร่ได้ไม่เกินเดือนปัจจุบัน');
   }
 
   const result = await publishPayroll(month);
-  await notifyPublishedSlips(month, result.published);
+  // No automatic per-employee LINE push here anymore — employees read
+  // their slip from the LINE rich menu instead (quota reduction).
   await scheduleSlipWarming(month, result.published);
 
   auditLog({
@@ -126,7 +126,7 @@ export async function publishPayrollAction(formData: FormData) {
     },
   });
 
-  back(month, `เผยแพร่สลิป ${result.published.length} คน และส่งแจ้งเตือน LINE แล้ว`);
+  back(month, `เผยแพร่สลิป ${result.published.length} คนแล้ว`);
 }
 
 /**
@@ -335,12 +335,8 @@ export async function publishOnePayrollAction(
     return { ok: false, message: 'ไม่มีสลิปฉบับร่างให้เผยแพร่ (อาจเผยแพร่ไปแล้ว)' };
   }
 
-  // Publish already committed — a LINE failure must never undo it or skip the audit.
-  try {
-    await notifyPublishedSlips(month, result.published);
-  } catch (err) {
-    console.error('publishOnePayrollAction: LINE notify failed (publish already committed)', err);
-  }
+  // No automatic per-employee LINE push here anymore — employees read
+  // their slip from the LINE rich menu instead (quota reduction).
   await scheduleSlipWarming(month, result.published);
 
   auditLog({

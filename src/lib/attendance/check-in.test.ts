@@ -3,10 +3,12 @@
  * (fix wave item 1+2 on branch fix/advance-payout-selfie-provenance):
  *
  *   - A check-in Disputed ONLY by selfie provenance (GPS was fine) must
- *     still fan out notifyAdminsInApp/notifyAdminsOnLine — the whole point
- *     of the flag is that a human looks at it. Previously the notification
- *     guard read `verdict.status` (GPS-only), so a selfie-only flag landed
- *     in the review queue but notified nobody.
+ *     still fan out notifyAdminsInApp — the whole point of the flag is
+ *     that a human looks at it. Previously the notification guard read
+ *     `verdict.status` (GPS-only), so a selfie-only flag landed in the
+ *     review queue but notified nobody. (The admin LINE push this test
+ *     used to also assert on has since moved to the 09:30 daily digest —
+ *     see admin-daily-digest.ts — so submitCheckIn no longer fires one.)
  *   - The notification `reason` must be the RESOLVED disputeReason — a
  *     selfie-only flag must report the selfie reason, never 'unknown' or a
  *     GPS string it doesn't have.
@@ -60,12 +62,8 @@ vi.mock('@/lib/auth/require-role', () => ({
 
 // ── notification mocks ───────────────────────────────────────────────────────
 const notifyAdminsInApp = vi.fn();
-const notifyAdminsOnLine = vi.fn();
 vi.mock('@/lib/notifications/in-app-bell', () => ({
   notifyAdminsInApp: (...a: unknown[]) => notifyAdminsInApp(...a),
-}));
-vi.mock('@/lib/notifications/admin-line', () => ({
-  notifyAdminsOnLine: (...a: unknown[]) => notifyAdminsOnLine(...a),
 }));
 
 // ── prisma mocks ─────────────────────────────────────────────────────────────
@@ -180,13 +178,6 @@ describe('submitCheckIn — selfie-only dispute notifies admins', () => {
     expect(notifyAdminsInApp).toHaveBeenCalledWith(
       expect.objectContaining({ kind: 'attendance.disputed', reason: SELFIE_FALLBACK_REASON }),
     );
-    expect(notifyAdminsOnLine).toHaveBeenCalledTimes(1);
-    expect(notifyAdminsOnLine).toHaveBeenCalledWith(
-      expect.objectContaining({
-        kind: 'admin.dispute-submitted',
-        reason: SELFIE_FALLBACK_REASON,
-      }),
-    );
   });
 
   it('records the Attendance row and audit log as Disputed with the selfie dispute reason + selfieCapture', async () => {
@@ -224,7 +215,6 @@ describe('submitCheckIn — GPS dispute reason is never overwritten by the selfi
     expect(createData.disputeReason).toBe(gpsReason);
 
     expect(notifyAdminsInApp).toHaveBeenCalledWith(expect.objectContaining({ reason: gpsReason }));
-    expect(notifyAdminsOnLine).toHaveBeenCalledWith(expect.objectContaining({ reason: gpsReason }));
 
     const checkinAudit = auditLogTx.mock.calls.find(
       (c) => c[1].action === 'attendance.checkin',
@@ -242,7 +232,6 @@ describe('submitCheckIn — Confirmed check-ins stay silent', () => {
     expect(result.outcome).toBe('Confirmed');
 
     expect(notifyAdminsInApp).not.toHaveBeenCalled();
-    expect(notifyAdminsOnLine).not.toHaveBeenCalled();
 
     const checkinAudit = auditLogTx.mock.calls.find(
       (c) => c[1].action === 'attendance.checkin',

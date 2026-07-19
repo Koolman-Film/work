@@ -32,7 +32,6 @@ vi.mock('@/lib/inngest/events', () => ({
 vi.mock('@/lib/payroll/run', () => ({
   publishPayroll: vi.fn(),
   lockPayroll: vi.fn(),
-  notifyPublishedSlips: vi.fn(),
   payrollRowDetail: vi.fn(),
   runPayrollDraft: vi.fn(),
 }));
