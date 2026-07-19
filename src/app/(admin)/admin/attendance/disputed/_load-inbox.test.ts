@@ -4,9 +4,15 @@
  * Guards two things:
  *  1. The row cap (INBOX_LIMIT) doesn't hide the true total — the caller
  *     needs `total` to reconcile with the sidebar badge count.
- *  2. The count query and the findMany query see an IDENTICAL `where` —
- *     this is the regression guard for the bug where the badge (unbounded
- *     count()) and the list (take: 50, no count) drifted apart.
+ *  2. The count query and the findMany query see the SAME `where` object
+ *     (reference identity, not just deep-equal content) — this is the
+ *     regression guard for the bug where the badge (unbounded count()) and
+ *     the list (take: 50, no count) drifted apart. `toEqual` would still
+ *     pass if the loader were refactored to build two separate-but-
+ *     currently-identical `where` literals; only `toBe` catches that,
+ *     because it fails the moment the two stop being literally one object,
+ *     which is exactly the "ONE where object feeding both queries" property
+ *     the loader's own comment promises.
  *
  * prisma is mocked at the module boundary (same style as
  * src/lib/advance/mark-paid.test.ts), with $transaction handling the
@@ -49,12 +55,12 @@ describe('loadDisputedCheckIns', () => {
     expect(result.total).toBe(137);
   });
 
-  it('uses an identical where clause for the rows query and the count', async () => {
+  it('uses the SAME where object (reference identity) for the rows query and the count', async () => {
     findManyMock.mockResolvedValue([]);
     countMock.mockResolvedValue(0);
 
     await loadDisputedCheckIns('all');
 
-    expect(countMock.mock.calls[0]![0]!.where).toEqual(findManyMock.mock.calls[0]![0]!.where);
+    expect(countMock.mock.calls[0]![0]!.where).toBe(findManyMock.mock.calls[0]![0]!.where);
   });
 });

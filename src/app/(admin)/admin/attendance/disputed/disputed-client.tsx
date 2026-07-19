@@ -14,6 +14,9 @@ export type DisputedVM = {
   branchLabel: string;
   clockInLabel: string;
   reason: string;
+  /** False for selfie-provenance-only disputes — distanceMeters is real but
+   *  misleading there (GPS was Confirmed), so it must stay hidden. */
+  gpsRelated: boolean;
   selfieUrl: string | null;
   empLat: number | null;
   empLng: number | null;
@@ -92,7 +95,7 @@ export function DisputedClient({ rows, total }: { rows: DisputedVM[]; total: num
                 </div>
                 <p className="mt-0.5 text-[11px] text-ink-3">
                   เช็คอิน {r.clockInLabel}
-                  {r.distanceMeters != null && ` · นอก ${r.distanceMeters} ม.`}
+                  {r.gpsRelated && r.distanceMeters != null && ` · นอก ${r.distanceMeters} ม.`}
                 </p>
                 <p className="mt-0.5 line-clamp-1 text-[11px] text-ink-4">{r.reason}</p>
               </button>
@@ -158,7 +161,9 @@ export function DisputedClient({ rows, total }: { rows: DisputedVM[]; total: num
             <div>
               <dt className="text-xs text-ink-4">ระยะจากสาขา</dt>
               <dd className="font-medium text-ink-1">
-                {selected.distanceMeters != null ? `${selected.distanceMeters} ม.` : '—'}
+                {selected.gpsRelated && selected.distanceMeters != null
+                  ? `${selected.distanceMeters} ม.`
+                  : '—'}
                 {selected.branch && (
                   <span className="text-ink-3"> (รัศมี {selected.branch.radiusMeters} ม.)</span>
                 )}
