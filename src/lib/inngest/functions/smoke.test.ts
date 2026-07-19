@@ -86,6 +86,7 @@ vi.mock('@/lib/line/quota', () => ({
 import { prisma } from '@/lib/db/prisma';
 import { hasQuotaHeadroom } from '@/lib/line/quota';
 import { adminDailyDigest } from './admin-daily-digest';
+import { advanceApprovalNotify } from './advance-approval-notify';
 import { attendanceForceCheckoutEod } from './attendance-force-checkout-eod';
 import { attendanceLateCheck } from './attendance-late-check';
 import { birthdayReminder } from './birthday-reminder';
@@ -150,7 +151,7 @@ afterEach(() => {
 // ─── Structural checks ──────────────────────────────────────────────────────
 
 describe('Inngest route wiring', () => {
-  it('all 6 functions are imported by the /api/inngest route', async () => {
+  it('all 7 functions are imported by the /api/inngest route', async () => {
     // We import the route module dynamically because it side-effect-
     // exports the GET/POST/PUT handlers via `serve(...)`; importing
     // the route forces evaluation and proves no top-level throw.
@@ -195,6 +196,11 @@ describe('Function identity + trigger config', () => {
       fn: adminDailyDigest as unknown as InngestFnLike,
       id: 'admin-daily-digest',
       trigger: { cron: 'TZ=Asia/Bangkok 30 9 * * *' },
+    },
+    {
+      fn: advanceApprovalNotify as unknown as InngestFnLike,
+      id: 'advance-approval-notify',
+      trigger: { event: 'advance.approval-decided' },
     },
   ];
 

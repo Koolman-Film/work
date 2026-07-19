@@ -33,6 +33,11 @@ export type NotificationKind =
   | 'attendance.dispute-rejected'
   | 'payroll.published'
   | 'advance.paid'
+  // Sent by advance-approval-notify.ts once the settle window closes, when
+  // the advance was ALSO paid within that window — replaces the separate
+  // advance.approved + advance.paid pushes for the common same-click case.
+  // See src/lib/advance/settle-window.ts.
+  | 'advance.approved-and-paid'
   // The three `admin.*-submitted` kinds below have zero producers as of the
   // 09:30 digest replacing per-event admin fan-out (see admin-line.ts) —
   // nothing calls sendNotification with these kinds anymore. They are kept
@@ -81,7 +86,7 @@ export type NotificationPayload =
       reviewNote: string | null;
     }
   | {
-      kind: 'advance.approved' | 'advance.rejected';
+      kind: 'advance.approved' | 'advance.rejected' | 'advance.approved-and-paid';
       cashAdvanceId: string;
       employeeFirstName: string;
       /** Formatted as a string ("12,500.00") to preserve Decimal precision
@@ -178,5 +183,36 @@ export async function sendNotification(
     id: notificationEventId(payload, recipientUserId, opts?.dedupeSuffix),
     name: 'notification.send',
     data: { ...payload, recipientUserId },
+  });
+}
+
+/** Payload for `advance.approval-decided` — see advance-approval-notify.ts. */
+export type AdvanceApprovalDecidedEvent = {
+  data: {
+    cashAdvanceId: string;
+    /** User.id (NOT auth.users.id) of the recipient. */
+    recipientUserId: string;
+  };
+};
+
+/**
+ * Fired by approveCashAdvance instead of pushing `advance.approved`
+ * directly. The advance-approval-notify Inngest function sleeps out
+ * SETTLE_WINDOW_MS then decides, from the advance's live state, whether to
+ * send the plain "approved" message or the combined "approved and paid"
+ * one — see src/lib/advance/settle-window.ts for why.
+ *
+ * Keyed on cashAdvanceId alone (no recipient suffix): each advance is
+ * approved at most once, so there is exactly one event per advance and no
+ * admin-fan-out case that would need per-recipient dedup keys.
+ */
+export async function sendAdvanceApprovalDecided(data: {
+  cashAdvanceId: string;
+  recipientUserId: string;
+}): Promise<void> {
+  await inngest.send({
+    id: `advance-approval-decided:${data.cashAdvanceId}`,
+    name: 'advance.approval-decided',
+    data,
   });
 }
