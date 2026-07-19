@@ -269,6 +269,25 @@ export function buildFlexMessage(
       });
       break;
 
+    // Combined message replacing separate advance.approved + advance.paid
+    // pushes for the common case where an admin approves and pays in the
+    // same click (see src/lib/advance/settle-window.ts). Modeled on
+    // advance.paid above — same accent/emoji/footer — with copy that
+    // conveys both "approved" and "transferred" in one line.
+    case 'advance.approved-and-paid':
+      altText = t('advanceApprovedAndPaid.alt', { amount: payload.amount });
+      bubble = approvedRejectedBubble({
+        accent: GREEN,
+        headerEmoji: '💸',
+        headerText: t('advanceApprovedAndPaid.header'),
+        title: `฿${payload.amount}`,
+        subtitle: t('advanceApprovedAndPaid.subtitle'),
+        details: [],
+        actionLabel: t('action.viewSlip'),
+        actionUri: `${appBaseUrl}/liff/advance/${payload.cashAdvanceId}`,
+      });
+      break;
+
     case 'admin.leave-submitted':
       altText = t('adminLeaveSubmitted.alt', { name: payload.employeeName });
       bubble = approvedRejectedBubble({

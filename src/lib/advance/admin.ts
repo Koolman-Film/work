@@ -20,24 +20,14 @@ import { Prisma } from '@prisma/client';
 import { headers } from 'next/headers';
 import { advanceBalanceFor } from '@/lib/advance/available';
 import { isOverCap } from '@/lib/advance/balance';
+import { formatAmount } from '@/lib/advance/format-amount';
+import { paidPushNeeded } from '@/lib/advance/settle-window';
 import { auditLog, auditLogTx } from '@/lib/audit/log';
 import { canActOnEmployeeBranches, getPermittedBranches } from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
-import { sendNotification } from '@/lib/inngest/events';
+import { sendAdvanceApprovalDecided, sendNotification } from '@/lib/inngest/events';
 import { notifyAdminsInApp } from '@/lib/notifications/in-app-bell';
-
-/** Format Prisma.Decimal as a human-friendly currency string for Flex
- *  Message display. Stays in string form across the Inngest event
- *  boundary so JSON serialisation doesn't drop precision. */
-function formatAmount(d: { toString(): string }): string {
-  const n = Number(d.toString());
-  if (!Number.isFinite(n)) return d.toString();
-  return new Intl.NumberFormat('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(n);
-}
 
 /** Bell display name — prefer nickname. Mirrors advance/actions.ts. */
 function employeeBellName(e: {
@@ -101,7 +91,7 @@ export async function approveCashAdvance(input: ApproveInput): Promise<ApproveAd
   // async closures to `never` post-tx. Object mutation is exempt.
   // See src/lib/leave/admin.ts for the long-form note.
   const approveNotifBox: {
-    data: { recipientUserId: string; employeeFirstName: string; amount: string } | null;
+    data: { recipientUserId: string } | null;
   } = { data: null };
 
   // Hard cap: "การเบิก ไม่เกินเงินเดือน". Checked BEFORE the tx because
@@ -198,21 +188,19 @@ export async function approveCashAdvance(input: ApproveInput): Promise<ApproveAd
         metadata: { ip, userAgent, source: 'admin-ui' },
       });
 
-      approveNotifBox.data = {
-        recipientUserId: row.employee.userId,
-        employeeFirstName: row.employee.firstName,
-        amount: formatAmount(row.amount),
-      };
+      approveNotifBox.data = { recipientUserId: row.employee.userId };
 
       return { ok: true as const };
     });
 
     if (result.ok && approveNotifBox.data) {
-      await sendNotification(approveNotifBox.data.recipientUserId, {
-        kind: 'advance.approved',
+      // Don't push "approved" immediately — most advances get paid within
+      // the same click (see settle-window.ts). Fire an event that waits out
+      // the settle window and then sends exactly one combined message if
+      // payment landed in time, or the plain "approved" message otherwise.
+      await sendAdvanceApprovalDecided({
         cashAdvanceId: input.cashAdvanceId,
-        employeeFirstName: approveNotifBox.data.employeeFirstName,
-        amount: approveNotifBox.data.amount,
+        recipientUserId: approveNotifBox.data.recipientUserId,
       });
     }
 
@@ -368,6 +356,7 @@ export async function markAdvancePaid(input: {
           status: true,
           amount: true,
           paidAt: true,
+          approvedAt: true,
           receiptUrl: true,
           isDeducted: true,
           employee: {
@@ -395,12 +384,17 @@ export async function markAdvancePaid(input: {
       }
 
       const firstAttach = row.paidAt === null;
+      // Captured once so the update, audit log, and settle-window check all
+      // agree on the exact instant paidAt was set to — recomputing `new
+      // Date()` a second time below would let paidPushNeeded see a slightly
+      // later timestamp than what was actually persisted.
+      const paidAtValue = firstAttach ? new Date() : row.paidAt!;
       await tx.cashAdvance.update({
         where: { id: row.id },
         data: {
           // paidAt marks "money sent" on its own now — it no longer waits
           // for a slip. Set once; a later slip upload never moves it.
-          ...(firstAttach ? { paidAt: new Date() } : {}),
+          ...(firstAttach ? { paidAt: paidAtValue } : {}),
           ...(key ? { receiptUrl: key } : {}),
         },
       });
@@ -413,16 +407,22 @@ export async function markAdvancePaid(input: {
         before: { receiptUrl: row.receiptUrl, paidAt: row.paidAt?.toISOString() ?? null },
         after: {
           receiptUrl: key ?? row.receiptUrl,
-          paidAt: firstAttach ? 'now' : row.paidAt?.toISOString(),
+          paidAt: firstAttach ? paidAtValue.toISOString() : row.paidAt?.toISOString(),
         },
         metadata: { ip, userAgent, source: 'liff-admin' },
       });
 
-      // Populate notifBox only when this is the first attach AND the advance
-      // has not yet been swept by payroll. Sending a "โอนเงินแล้ว" push months
-      // after payroll already deducted the amount would be misleading — the slip
-      // is archived silently in that case.
-      if (firstAttach && !row.isDeducted) {
+      // Populate notifBox only when this is the first attach, the advance has
+      // not yet been swept by payroll (a "โอนเงินแล้ว" push months after
+      // payroll already deducted the amount would be misleading), AND the
+      // delayed approval notice hasn't already covered this payment — see
+      // settle-window.ts. Ambiguity (missing approvedAt) resolves toward
+      // sending here too, via paidPushNeeded.
+      if (
+        firstAttach &&
+        !row.isDeducted &&
+        paidPushNeeded({ approvedAt: row.approvedAt, paidAt: paidAtValue })
+      ) {
         notifBox.data = {
           recipientUserId: row.employee.userId,
           employeeFirstName: row.employee.firstName,

@@ -21,6 +21,16 @@ describe('notificationEventId', () => {
     expect(resend).not.toBe(base);
   });
 
+  it('advance.approved-and-paid keys on cashAdvanceId, same as advance.approved/advance.paid', () => {
+    const combined = {
+      kind: 'advance.approved-and-paid' as const,
+      cashAdvanceId: 'ca1',
+      employeeFirstName: 'Aung',
+      amount: '1,000.00',
+    };
+    expect(notificationEventId(combined, 'u1')).toBe('notif:advance.approved-and-paid:ca1:u1');
+  });
+
   it('admin.daily-digest keys on the Bangkok calendar day, not the counts', () => {
     const digest = { kind: 'admin.daily-digest' as const, leave: 1, advance: 2, attendance: 3 };
     const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
