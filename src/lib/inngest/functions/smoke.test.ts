@@ -195,8 +195,9 @@ describe('Function identity + trigger config', () => {
     {
       fn: adminDailyDigest as unknown as InngestFnLike,
       id: 'admin-daily-digest',
-      // 08:00, not 09:30 — see the rationale on the function itself.
-      trigger: { cron: 'TZ=Asia/Bangkok 0 8 * * *' },
+      // 08:30 — lands just ahead of the 08:41–08:59 modal start time.
+      // See the rationale on the function itself.
+      trigger: { cron: 'TZ=Asia/Bangkok 30 8 * * *' },
     },
     {
       fn: advanceApprovalNotify as unknown as InngestFnLike,
