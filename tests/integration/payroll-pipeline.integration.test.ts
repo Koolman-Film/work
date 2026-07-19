@@ -108,9 +108,11 @@ describe('runPayrollDraft', () => {
     expect(row.status).toBe('Draft');
     expect(Number(row.incomeBase)).toBe(20_000);
     expect(Number(row.deductAdvance)).toBe(3_000);
-    expect(Number(row.deductAttendance)).toBe(500); // 1 absent × ฿500
+    // Day rate = 20000/30 = 666.666..., rounded to 2dp = 666.67 (own day
+    // rate, not the old flat ฿500).
+    expect(Number(row.deductAttendance)).toBe(666.67); // 1 absent × ฿666.67
     expect(Number(row.deductSso)).toBe(0); // hasSso false
-    expect(Number(row.netPay)).toBe(16_500); // 20000 − 3000 − 500
+    expect(Number(row.netPay)).toBe(16_333.33); // 20000 − 3000 − 666.67
   });
 
   it('windows attendance by the payroll cutoff, not the calendar month (C8)', async () => {
@@ -136,7 +138,8 @@ describe('runPayrollDraft', () => {
     const row = await prisma.payroll.findFirstOrThrow({
       where: { employeeId: emp.id, month: MONTH },
     });
-    expect(Number(row.deductAttendance)).toBe(1_000); // only the 2 in-window absents × ฿500
+    // 2 in-window absents × day rate (20000/30 = 666.666...67) = 1333.33
+    expect(Number(row.deductAttendance)).toBe(1_333.33); // only the 2 in-window absents
   });
 
   it('windows advances by the payroll cutoff — a เบิก after the cutoff rolls to next month (C8)', async () => {
@@ -187,7 +190,8 @@ describe('runPayrollDraft', () => {
     const row = await prisma.payroll.findFirstOrThrow({
       where: { employeeId: emp.id, month: MONTH },
     });
-    expect(Number(row.deductAttendance)).toBe(500); // 1 day, not 3 × ฿100 flat
+    // 1 day @ this employee's own day rate = 20000/30 = 666.67, not 3 × ฿100 flat
+    expect(Number(row.deductAttendance)).toBe(666.67);
   });
 
   it('charges one absent-day for a severe late with no leave that day (C9)', async () => {
@@ -197,7 +201,8 @@ describe('runPayrollDraft', () => {
     const row = await prisma.payroll.findFirstOrThrow({
       where: { employeeId: emp.id, month: MONTH },
     });
-    expect(Number(row.deductAttendance)).toBe(500);
+    // 20000/30 = 666.67 (this employee's own day rate)
+    expect(Number(row.deductAttendance)).toBe(666.67);
   });
 
   it('exempts a severe late when the employee had approved leave that day (C9)', async () => {
@@ -586,9 +591,10 @@ describe('payrollRowDetail', () => {
     expect(typeof detail.netPay).toBe('string'); // serialized
     expect(detail.adjustments).toEqual([{ reason: 'ค่าคอม', kind: 'Income', amount: '1000.00' }]);
     expect(detail.breakdown.sso.applied).toBe('750.00');
-    expect(detail.breakdown.attendance.absent.money).toBe('500.00');
-    // 20000 + 1000 - 750(sso) - 500(absent) = 19750
-    expect(detail.netPay).toBe('19750.00');
+    // Day rate = 20000/30 = 666.666..., rounded to 2dp = 666.67
+    expect(detail.breakdown.attendance.absent.money).toBe('666.67');
+    // 20000 + 1000 - 750(sso) - 666.67(absent) = 19583.33
+    expect(detail.netPay).toBe('19583.33');
   });
 
   it('returns null when the employee has no computable row', async () => {
@@ -678,8 +684,8 @@ describe('payrollRowDetailRaw', () => {
     ]);
     expect(raw.employee).toEqual({ salaryType: 'Monthly', baseSalary: 20000 });
     expect(raw.config.ssoRate).toBe(0.05);
-    // 20000 + 1000 - 750(sso) - 500(absent) = 19750
-    expect(raw.buckets.netPay).toBe(19750);
+    // 20000 + 1000 - 750(sso) - 666.67(absent, day rate = 20000/30) = 19583.33
+    expect(raw.buckets.netPay).toBe(19583.33);
   });
 
   it('returns null when no computable row exists', async () => {
