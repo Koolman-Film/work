@@ -23,12 +23,15 @@ import { isClosedDay } from '@/lib/attendance/date';
 import { latePolicyFrom, resolveLatePolicy } from '@/lib/attendance/late-policy';
 import { type CreateManualResult, createManualAttendance } from '@/lib/attendance/manual';
 import { computeManualPreview } from '@/lib/attendance/manual-preview';
+import { dailyRateFor } from '@/lib/payroll/day-rate';
 
 type ScheduleDay = { dayOfWeek: number; startTime: string; endTime: string };
 
 type EmployeeOption = {
   id: string;
   label: string;
+  salaryType: 'Monthly' | 'Daily' | 'Hourly';
+  baseSalary: string;
   lateToleranceMin: number | null;
   scheduleDays: ScheduleDay[] | null;
 };
@@ -40,6 +43,8 @@ type Props = {
   holidayYmds: string[];
   /** `PayrollConfig.otThresholdMinutes` (already defaulted by the server). */
   otThresholdMinutes: number;
+  /** `PayrollConfig.workingDaysPerMonth` (already defaulted by the server). */
+  workingDaysPerMonth: number;
 };
 
 const baht = (v: string) => `฿${Number(v).toLocaleString()}`;
@@ -50,6 +55,7 @@ export function ManualAttendanceForm({
   rates,
   holidayYmds,
   otThresholdMinutes,
+  workingDaysPerMonth,
 }: Props) {
   const router = useRouter();
 
@@ -72,6 +78,20 @@ export function ManualAttendanceForm({
   const [pending, startTransition] = useTransition();
 
   const employee = employees.find((e) => e.id === employeeId) ?? null;
+
+  // This employee's actual per-day deduction — same function, same inputs
+  // `calcPayroll` uses, so the preview can never disagree with the charge.
+  // `null` until an employee is picked: showing the flat config fallback
+  // here would be exactly the stale, employee-agnostic figure this fix
+  // exists to remove.
+  const absentDayRate = useMemo(() => {
+    if (!employee) return null;
+    return dailyRateFor(
+      { salaryType: employee.salaryType, baseSalary: employee.baseSalary },
+      rates.absentPerDay,
+      workingDaysPerMonth,
+    );
+  }, [employee, rates.absentPerDay, workingDaysPerMonth]);
 
   // Resolve the same way the server does, then preview with the same fn.
   const preview = useMemo(() => {
@@ -271,7 +291,9 @@ export function ManualAttendanceForm({
                     ? `มาสาย ${r.durationMinutes} นาที`
                     : r.type === 'EarlyLeave'
                       ? `ออกก่อนเวลา ${r.durationMinutes} นาที (${baht(rates.earlyLeave)})`
-                      : `ขาดงาน (${baht(rates.absentPerDay)})`,
+                      : absentDayRate
+                        ? `ขาดงาน (${baht(absentDayRate.toFixed(2))})`
+                        : 'ขาดงาน',
               )
               .join(' + ')}
           </p>
