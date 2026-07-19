@@ -51,6 +51,7 @@
 import Decimal from 'decimal.js';
 
 import { dailyRateFor } from './day-rate';
+import { EMPTY_SETTLEMENT, moneyDaysFor, type SettlementDays } from './penalty-settlement';
 
 // ─── Input shapes ────────────────────────────────────────────────────────
 // Plain DTOs — NOT Prisma types. Callers translate at the boundary.
@@ -150,6 +151,14 @@ export type CalcInput = {
    */
   leaveDates?: readonly string[];
   /**
+   * Days of each penalty kind the admin chose to settle with leave instead of
+   * money. Omit → nothing settled, which is the pre-feature behaviour and the
+   * state of almost every employee. Optional deliberately: "absent" here is the
+   * normal case with a correct default, unlike remainingMinutes' penalty
+   * argument, where a forgotten value would silently overstate a balance.
+   */
+  penaltySettlement?: SettlementDays;
+  /**
    * Earnings/deductions applicable to this month. Omit for none — both
    * incomeOther and deductOther will be 0.
    */
@@ -187,6 +196,8 @@ export type CalcBreakdown = {
     };
     lateSevere: { days: number; perDay: Decimal; money: Decimal };
     earlyLeave: { count: number; perUnit: Decimal; money: Decimal };
+    /** Days of each kind paid with leave rather than money. */
+    settledDays: SettlementDays;
   };
 };
 
@@ -411,16 +422,22 @@ export function calcPayroll(input: CalcInput): PayrollDraft {
     cfg.absentDeductionPerDay,
     cfg.workingDaysPerMonth,
   );
+  const settled = input.penaltySettlement ?? EMPTY_SETTLEMENT;
+  const absentMoneyDays = moneyDaysFor(absentCount, settled.Absent);
+  const strikeMoneyDays = moneyDaysFor(latePenalty.threeStrikeDays, settled.LateThreeStrike);
+  const severeMoneyDays = moneyDaysFor(latePenalty.severeDays, settled.SevereLate);
+
   // Tier-1 lates: the N-strikes rule charges a 1-day amount per completed group;
-  // when the rule is off, fall back to the legacy flat per-late charge.
+  // when the rule is off, fall back to the legacy flat per-late charge. The flat
+  // charge is per occurrence, not a "1 day" unit, so it is never settleable.
   const tier1LateMoney = latePolicy.threeStrikeEnabled
-    ? new Decimal(latePenalty.threeStrikeDays).times(dayAmount)
+    ? new Decimal(strikeMoneyDays).times(dayAmount)
     : new Decimal(latePenalty.tier1Count).times(toDec(cfg.lateDeduction));
-  const severeLateMoney = new Decimal(latePenalty.severeDays).times(dayAmount);
+  const severeLateMoney = new Decimal(severeMoneyDays).times(dayAmount);
   const earlyLeaveMoney = toDec(cfg.earlyLeaveDeduction).times(earlyLeaveCount);
 
   const deductAttendance = dayAmount
-    .times(absentCount)
+    .times(absentMoneyDays)
     .plus(tier1LateMoney)
     .plus(severeLateMoney)
     .plus(earlyLeaveMoney)
@@ -481,6 +498,7 @@ export function calcPayroll(input: CalcInput): PayrollDraft {
         perUnit: toDec(cfg.earlyLeaveDeduction),
         money: earlyLeaveMoney.toDecimalPlaces(2),
       },
+      settledDays: settled,
     },
   };
 

@@ -35,6 +35,7 @@ import {
   PayrollCalcError,
   type PayrollDraft,
 } from './calc';
+import { loadSettlementsForMonth, type MonthSettlement } from './penalty-settlement-load';
 import { payrollMonthWindow } from './period';
 
 export type SkippedEmployee = {
@@ -184,12 +185,20 @@ async function gatherAndCalc(db: Tx | typeof prisma, month: string, employeeId?:
     }
   }
 
+  // What each employee's Absent/LateThreeStrike/SevereLate penalties were
+  // settled with this month (read-only — see penalty-settlement-load.ts).
+  // Loaded once for the whole run, then looked up per employee below. Kept on
+  // each draft entry (not just fed into calc) so payslip assembly downstream
+  // can also read `leaveTypeNames` for display.
+  const settlements = await loadSettlementsForMonth(month);
+
   const drafts: Array<{
     draft: PayrollDraft;
     employee: (typeof employees)[number];
     sweptAdvanceIds: string[];
     sweptLeaves: Array<{ id: string; deduct: number; over: number }>;
     appliedRecurring: Array<{ id: string; monthsRemaining: number }>;
+    settlement: MonthSettlement | undefined;
   }> = [];
   const skipped: SkippedEmployee[] = [];
 
@@ -224,6 +233,7 @@ async function gatherAndCalc(db: Tx | typeof prisma, month: string, employeeId?:
         })),
         leaveDeductions: empSweep.map((l) => ({ amount: l.deduct.toString() })),
         leaveDates: [...(leaveDatesByEmp.get(emp.id) ?? [])],
+        penaltySettlement: settlements.get(emp.id)?.days,
         adjustments: empAdjustments.map(
           (a): AdjustmentForPayroll => ({ kind: a.kind, amount: a.amount.toString() }),
         ),
@@ -251,6 +261,7 @@ async function gatherAndCalc(db: Tx | typeof prisma, month: string, employeeId?:
           id: r.id,
           monthsRemaining: r.monthsRemaining,
         })),
+        settlement: settlements.get(emp.id),
       });
     } catch (err) {
       if (err instanceof PayrollCalcError) {
