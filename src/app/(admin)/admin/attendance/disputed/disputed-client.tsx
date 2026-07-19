@@ -21,7 +21,7 @@ export type DisputedVM = {
   distanceMeters: number | null;
 };
 
-export function DisputedClient({ rows }: { rows: DisputedVM[] }) {
+export function DisputedClient({ rows, total }: { rows: DisputedVM[]; total: number }) {
   const router = useRouter();
   const [selectedId, setSelectedId] = useState<string | null>(rows[0]?.id ?? null);
   const [note, setNote] = useState('');
@@ -94,11 +94,17 @@ export function DisputedClient({ rows }: { rows: DisputedVM[] }) {
                   เช็คอิน {r.clockInLabel}
                   {r.distanceMeters != null && ` · นอก ${r.distanceMeters} ม.`}
                 </p>
+                <p className="mt-0.5 line-clamp-1 text-[11px] text-ink-4">{r.reason}</p>
               </button>
             </li>
           );
         })}
       </ul>
+      {total > rows.length && (
+        <p className="px-1 text-[11px] text-ink-4">
+          แสดง {rows.length} จาก {total} รายการ
+        </p>
+      )}
 
       {/* Detail */}
       {selected ? (
