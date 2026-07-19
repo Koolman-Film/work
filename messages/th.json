@@ -204,6 +204,9 @@
     "prevMonth": "เดือนก่อนหน้า",
     "nextMonth": "เดือนถัดไป",
     "thisMonth": "เดือนนี้",
+    "customRange": "เลือกช่วงเอง",
+    "backToMonthly": "กลับไปรายเดือน",
+    "applyRange": "ดูช่วงนี้",
     "backToCheckin": "กลับไปหน้าลงเวลา",
     "attendance": {
       "title": "การลงเวลาเดือนนี้",

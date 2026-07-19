@@ -1,5 +1,6 @@
 /** /liff/summary — "สรุปของฉัน": this month's lateness, annual leave balances
- *  (with over-quota deductions), advance balance. Month nav via ?m=YYYY-MM. */
+ *  (with over-quota deductions), advance balance. Month nav via ?m=YYYY-MM,
+ *  or a custom range via ?from=YYYY-MM-DD&to=YYYY-MM-DD. */
 
 import Link from 'next/link';
 import { getLocale, getTranslations } from 'next-intl/server';
@@ -13,6 +14,7 @@ import { getLeaveConfig } from '@/lib/leave/leave-config';
 import { localizedLeaveTypeName } from '@/lib/leave/localized-name';
 import { formatDurationParts, splitDaysHours } from '@/lib/leave/units';
 import { adjacentMonths, resolveReportPeriod } from '@/lib/reports/period';
+import { PeriodPicker } from './period-picker';
 
 /** Month+year header label for the navigator — same convention as the
  *  /liff/calendar page: Thai shows the Buddhist year (CE+543, never Intl's
@@ -37,12 +39,12 @@ function buildMonthLabel(locale: Locale, ym: string): string {
 export default async function LiffSummaryPage({
   searchParams,
 }: {
-  searchParams: Promise<{ m?: string }>;
+  searchParams: Promise<{ m?: string; from?: string; to?: string }>;
 }) {
   const { employee } = await requireEmployee();
   const params = await searchParams;
   const todayYmd = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
-  const period = resolveReportPeriod({ m: params.m }, todayYmd);
+  const period = resolveReportPeriod({ m: params.m, from: params.from, to: params.to }, todayYmd);
   const month = period.month ?? todayYmd.slice(0, 7);
   const year = Number(month.slice(0, 4));
   const utc = (ymd: string) => new Date(`${ymd}T00:00:00.000Z`);
@@ -115,24 +117,23 @@ export default async function LiffSummaryPage({
         )}
       </header>
 
-      {/* Month navigator: prev / month-label / next */}
-      <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-3 py-2.5">
-        <Link
-          href={`/liff/summary?m=${prev}`}
-          aria-label={t('prevMonth')}
-          className="grid size-8 place-items-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-700"
-        >
-          ‹
-        </Link>
-        <p className="text-sm font-semibold text-gray-900">{monthLabel}</p>
-        <Link
-          href={`/liff/summary?m=${next}`}
-          aria-label={t('nextMonth')}
-          className="grid size-8 place-items-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-700"
-        >
-          ›
-        </Link>
-      </div>
+      {/* Month navigator, or a custom from–to range ("เพิ่มใหม่" ask) */}
+      <PeriodPicker
+        month={period.month}
+        monthLabel={monthLabel}
+        prev={prev}
+        next={next}
+        from={period.from}
+        to={period.to}
+        todayYmd={todayYmd}
+        labels={{
+          prevMonth: t('prevMonth'),
+          nextMonth: t('nextMonth'),
+          customRange: t('customRange'),
+          backToMonthly: t('backToMonthly'),
+          applyRange: t('applyRange'),
+        }}
+      />
 
       {/* Attendance this month */}
       <section className={cardCls}>
