@@ -642,6 +642,17 @@ describe('penalties settled with leave', () => {
     });
     expect(r.breakdown.attendance.settledDays.Absent).toBe(1);
   });
+
+  it('breakdown.attendance.absent reflects the net money, not gross', () => {
+    // With 1 absence settled, the breakdown should show zero money
+    // (it was settled with leave, not charged), but still report the day count.
+    const r = calcPayroll({
+      ...calcInputWith({ absentDays: 1, baseSalary: '30000' }),
+      penaltySettlement: { Absent: 1, LateThreeStrike: 0, SevereLate: 0 },
+    });
+    expect(r.breakdown.attendance.absent.money.toString()).toBe('0');
+    expect(r.breakdown.attendance.absent.count).toBe(1);
+  });
 });
 
 describe('calcPayroll — config.workingDaysPerMonth threads through to the absence day rate', () => {
