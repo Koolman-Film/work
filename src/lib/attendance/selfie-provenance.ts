@@ -15,6 +15,13 @@
 
 export type SelfieCapture = 'live' | 'fallback';
 
+// LOAD-BEARING, not just display copy: `isGpsRelatedDispute`
+// (admin/attendance/disputed/_dispute-reason.ts) classifies every disputed
+// row by comparing its stored `disputeReason` against this exact string to
+// decide whether the distance is safe to show. Editing this text — even a
+// pure copy fix — silently reclassifies every historical selfie-only dispute
+// as GPS-related the next time that comparison runs. If this ever needs to
+// change, migrate to a stored enum/code instead of comparing display text.
 export const SELFIE_FALLBACK_REASON = 'รูปเซลฟี่ไม่ได้มาจากกล้องสด — อาจเลือกจากแกลเลอรี';
 
 type GpsVerdict = { status: 'Confirmed' } | { status: 'Disputed'; reason: string };
