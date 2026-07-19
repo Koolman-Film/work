@@ -1,4 +1,4 @@
-'use server';
+import 'server-only';
 
 /**
  * Who may receive an admin LINE push.
@@ -13,6 +13,13 @@
  *
  * What remains is the recipient predicate, kept here and shared so the digest
  * can never target a different set of people than the old pushes did.
+ *
+ * `import 'server-only'` (not `'use server'`): the sole export returns the
+ * list of admin User IDs and has no auth check of its own — `'use server'`
+ * would mark it a Next.js Server Action, callable from any client with zero
+ * arguments, handing out that ID list to whoever asks. Its only caller is
+ * the digest cron (`admin-daily-digest.ts`), which runs server-side; nothing
+ * here needs to be invocable from the browser.
  */
 
 import { prisma } from '@/lib/db/prisma';

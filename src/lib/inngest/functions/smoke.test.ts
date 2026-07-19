@@ -56,6 +56,7 @@ vi.mock('@/lib/db/prisma', () => ({
     notification: {
       create: vi.fn(),
       update: vi.fn(),
+      findFirst: vi.fn(),
     },
   },
 }));
@@ -77,8 +78,13 @@ vi.mock('@/lib/line/flex-templates', () => ({
   buildFlexMessage: vi.fn(() => ({ type: 'flex', altText: 'test', contents: {} })),
 }));
 
+vi.mock('@/lib/line/quota', () => ({
+  hasQuotaHeadroom: vi.fn(),
+}));
+
 // Imports AFTER vi.mock so the mocks intercept the module graph.
 import { prisma } from '@/lib/db/prisma';
+import { hasQuotaHeadroom } from '@/lib/line/quota';
 import { adminDailyDigest } from './admin-daily-digest';
 import { attendanceForceCheckoutEod } from './attendance-force-checkout-eod';
 import { attendanceLateCheck } from './attendance-late-check';
@@ -99,7 +105,7 @@ type InngestFnLike = {
 type HandlerCtx = {
   event: { data: unknown };
   step: { run: <T>(name: string, fn: () => T | Promise<T>) => Promise<T> };
-  logger: { info: (msg: string) => void };
+  logger: { info: (msg: string) => void; warn?: (msg: string) => void };
 };
 
 /**
@@ -124,11 +130,17 @@ const mockedPrisma = prisma as unknown as {
   notification: {
     create: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
+    findFirst: ReturnType<typeof vi.fn>;
   };
 };
 
+const mockedHasQuotaHeadroom = hasQuotaHeadroom as ReturnType<typeof vi.fn>;
+
 beforeEach(() => {
   vi.clearAllMocks();
+  // Default every test to "quota is fine" — the quota-exhausted branch is
+  // exercised explicitly in its own test below.
+  mockedHasQuotaHeadroom.mockResolvedValue(true);
 });
 
 afterEach(() => {
@@ -453,6 +465,34 @@ describe('line-push-notification', () => {
     expect(mockedPrisma.notification.update).toHaveBeenCalledWith({
       where: { id: 'n1' },
       data: { sentAt: expect.any(Date) },
+    });
+  });
+
+  it('marks the Notification row payload as quota-skipped when headroom is exhausted', async () => {
+    mockedPrisma.notification.create.mockResolvedValue({ id: 'n1' });
+    mockedPrisma.user.findUnique.mockResolvedValue({
+      lineUserId: 'Uabc123',
+      archivedAt: null,
+    });
+    mockedPrisma.notification.findFirst.mockResolvedValue(null); // bell not yet rung today
+    mockedHasQuotaHeadroom.mockResolvedValue(false);
+
+    const result = (await handler({
+      event: { data: samplePayload },
+      step: fakeStep(),
+      logger: { info: () => {}, warn: () => {} },
+    })) as { delivered: boolean; reason?: string };
+
+    expect(result.delivered).toBe(false);
+    expect(result.reason).toBe('quota-exhausted');
+    // A quota-skipped row must be distinguishable from a still-queued one —
+    // otherwise the Notification table (the very source used to measure the
+    // 464-message July figure) can't tell "declined" from "pending".
+    expect(mockedPrisma.notification.update).toHaveBeenCalledWith({
+      where: { id: 'n1' },
+      data: {
+        payload: expect.objectContaining({ kind: 'leave.approved', skipped: 'quota' }),
+      },
     });
   });
 });

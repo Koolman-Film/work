@@ -168,7 +168,12 @@ export async function hasQuotaHeadroom(): Promise<boolean>;
 ## Reversibility
 
 - ไม่มี schema change / migration
-- การลบ fan-out เป็นการ *ลบการเรียก* — กู้คืนได้ด้วยการใส่กลับ 5 บรรทัด
+- การลบ per-event fan-out (`notifyAdminsOnLine`) เป็นการ *ลบการเรียก* — กู้คืนได้ด้วยการใส่กลับไม่กี่บรรทัดที่ call site เดิม
+- การลบ payslip broadcast ต่างออกไป: `notifyPublishedSlips` (ทั้งฟังก์ชัน ~15 บรรทัดใน
+  `src/lib/payroll/run.ts`) ถูกลบไปเลย ไม่ใช่แค่ comment ออก การกู้คืนต้องเขียนฟังก์ชันกลับ
+  (ดู git history ของ commit `96ab73d` สำหรับโค้ดเดิม) แล้วต่อสายเรียกใหม่จาก
+  `publishPayrollAction` และ `publishOnePayrollAction` ใน
+  `src/app/(admin)/admin/payroll/actions.ts` — ไม่ใช่บรรทัดเดียวอีกต่อไป
 - digest เป็น cron ใหม่ ปิดได้โดยไม่กระทบอย่างอื่น
 - ตัวกันโควตา fail-open โดยออกแบบ — ถ้าพัง ระบบกลับไปทำงานเหมือนเดิม
 - ไม่มีคำสั่งเขียน/ลบข้อมูลใหม่ (นอกจาก Notification rows ที่มีอยู่แล้วตามปกติ)

@@ -128,6 +128,15 @@ export const linePushNotification = inngest.createFunction(
     if (!hasRoom) {
       logger.warn(`skipping push: LINE quota headroom exhausted (notification ${notification.id})`);
       await step.run('mark-quota-skipped', async () => {
+        // Merge a marker into the row's payload so a quota-skipped
+        // notification is distinguishable from a still-queued one in the
+        // table — the 464-message July figure that justified this whole
+        // branch was measured from this table, and a skipped row that
+        // looks "sent" would quietly inflate future counts.
+        await prisma.notification.update({
+          where: { id: notification.id },
+          data: { payload: { ...payload, skipped: 'quota' } },
+        });
         // At most one bell/day — a whole day of skipped pushes shouldn't
         // spam the bell once per declined message.
         if (await alreadyNotifiedQuotaLowToday()) return;
