@@ -25,6 +25,13 @@ export type NotificationKind =
   | 'attendance.dispute-rejected'
   | 'payroll.published'
   | 'advance.paid'
+  // The three `admin.*-submitted` kinds below have zero producers as of the
+  // 09:30 digest replacing per-event admin fan-out (see admin-line.ts) —
+  // nothing calls sendNotification with these kinds anymore. They are kept
+  // here (type, Flex template, notification-id case, tests, locale strings)
+  // for one deploy cycle only: events queued before this deploy may still be
+  // in flight and must render correctly on the new code. Safe to delete
+  // everywhere once a deploy cycle has passed with no in-flight events left.
   | 'admin.leave-submitted'
   | 'admin.advance-submitted'
   | 'admin.dispute-submitted'
@@ -98,6 +105,8 @@ export type NotificationPayload =
       /** Formatted string ("12,500.00") — same Decimal convention. */
       amount: string;
     }
+  // No producer as of the 09:30 digest — see the note on `NotificationKind`
+  // above. Retained for one deploy cycle to render events queued pre-deploy.
   | {
       kind: 'admin.leave-submitted';
       leaveRequestId: string;

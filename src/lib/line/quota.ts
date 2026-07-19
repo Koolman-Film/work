@@ -15,10 +15,21 @@ import 'server-only';
  * blocks delivery when it cannot read the quota would turn a LINE API blip
  * into a total notification outage — strictly worse than the problem it
  * guards against.
+ *
+ * Verified API shape (2026-07-19): queried the production channel directly
+ * and `GET /v2/bot/message/quota` returned `{"type":"limited","value":300}`,
+ * confirming the `.value` read below is correct for this plan. A channel
+ * configured differently (e.g. unlimited/developer trial) can return
+ * `{"type":"none"}` with no `value` field — `limit` (and therefore
+ * `remaining`) goes null in that case, and the guard fails open, same as any
+ * other unreadable-quota path.
  */
 
-/** Messages held back for genuinely urgent late-month sends. */
-export const QUOTA_RESERVE = 30;
+/** Messages held back as a buffer against the count going slightly stale
+ *  between the cached read (see CACHE_MS below) and the actual send — NOT an
+ *  urgent-send bypass; every caller goes through `hasQuotaHeadroom()`, so
+ *  there is no path that would ever spend this reserve. */
+export const QUOTA_RESERVE = 5;
 
 const CACHE_MS = 5 * 60 * 1000;
 let cache: { at: number; remaining: number | null } | null = null;
@@ -45,7 +56,15 @@ export async function remainingQuota(): Promise<number | null> {
   if (cache && Date.now() - cache.at < CACHE_MS) return cache.remaining;
 
   const token = process.env.LINE_MESSAGING_CHANNEL_ACCESS_TOKEN;
-  if (!token) return null;
+  if (!token) {
+    // Fail-open, but audibly: an unreadable quota must not look identical to
+    // a healthy one in the logs — that silence is exactly how the July 2026
+    // cap-out went unnoticed for days.
+    console.warn(
+      '[line/quota] LINE_MESSAGING_CHANNEL_ACCESS_TOKEN is not set — quota unreadable, failing open',
+    );
+    return null;
+  }
 
   const [quota, consumption] = await Promise.all([
     fetchJson('quota', token),
@@ -62,6 +81,21 @@ export async function remainingQuota(): Promise<number | null> {
     typeof (consumption as { totalUsage?: unknown }).totalUsage === 'number'
       ? (consumption as { totalUsage: number }).totalUsage
       : null;
+
+  if (limit == null) {
+    console.warn(
+      quota == null
+        ? '[line/quota] GET /v2/bot/message/quota failed (network error or non-2xx) — quota unreadable, failing open'
+        : '[line/quota] GET /v2/bot/message/quota returned an unexpected shape (no numeric "value" — plan may report {"type":"none"}) — quota unreadable, failing open',
+    );
+  }
+  if (used == null) {
+    console.warn(
+      consumption == null
+        ? '[line/quota] GET /v2/bot/message/quota/consumption failed (network error or non-2xx) — quota unreadable, failing open'
+        : '[line/quota] GET /v2/bot/message/quota/consumption returned an unexpected shape (no numeric "totalUsage") — quota unreadable, failing open',
+    );
+  }
 
   const remaining = limit != null && used != null ? limit - used : null;
   cache = { at: Date.now(), remaining };

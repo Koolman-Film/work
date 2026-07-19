@@ -14,6 +14,11 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+// admin-line.ts does `import 'server-only'`, which throws under the default
+// vitest config (no react-server condition / alias). Mock it to a no-op so
+// this stays a plain unit test — same pattern as quota.test.ts.
+vi.mock('server-only', () => ({}));
+
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
     user: {

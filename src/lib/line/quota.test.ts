@@ -17,6 +17,7 @@ const mockFetch = (quota: number, used: number) =>
 beforeEach(() => {
   __resetQuotaCache();
   vi.stubEnv('LINE_MESSAGING_CHANNEL_ACCESS_TOKEN', 'test-token');
+  vi.spyOn(console, 'warn').mockImplementation(() => {});
 });
 
 describe('remainingQuota', () => {
@@ -41,6 +42,36 @@ describe('remainingQuota', () => {
       }) as unknown as typeof fetch,
     );
     expect(await remainingQuota()).toBeNull();
+  });
+
+  it('warns when the token is missing — an unreadable quota must not be silent', async () => {
+    vi.stubEnv('LINE_MESSAGING_CHANNEL_ACCESS_TOKEN', '');
+    expect(await remainingQuota()).toBeNull();
+    expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('is not set'));
+  });
+
+  it('warns when the API call fails', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: false, status: 500 })) as unknown as typeof fetch,
+    );
+    expect(await remainingQuota()).toBeNull();
+    expect(console.warn).toHaveBeenCalledWith(
+      expect.stringContaining('failed (network error or non-2xx)'),
+    );
+  });
+
+  it('warns when the response has an unexpected shape (e.g. {"type":"none"})', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) =>
+        url.endsWith('/consumption')
+          ? { ok: true, json: async () => ({ totalUsage: 10 }) }
+          : { ok: true, json: async () => ({ type: 'none' }) },
+      ) as unknown as typeof fetch,
+    );
+    expect(await remainingQuota()).toBeNull();
+    expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('unexpected shape'));
   });
 });
 
