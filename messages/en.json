@@ -104,6 +104,11 @@
       "subtitle": "Tap to view the transfer slip",
       "alt": "💸 Advance ฿{amount} has been transferred"
     },
+    "advanceApprovedAndPaid": {
+      "header": "Approved · Paid",
+      "subtitle": "Your advance was approved and has been transferred",
+      "alt": "✅ Your advance of ฿{amount} was approved and paid"
+    },
     "adminLeaveSubmitted": {
       "header": "New leave request",
       "alt": "📥 {name} submitted a leave request"

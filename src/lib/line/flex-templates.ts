@@ -200,6 +200,9 @@ export function buildFlexMessage(
       });
       break;
 
+    // No producer as of the dispute-review push reduction (see the
+    // 'attendance.dispute-approved' comment in inngest/events.ts) — kept for
+    // one deploy cycle so in-flight approvals still render, then deletable.
     case 'attendance.dispute-approved':
       altText = t('disputeApproved.alt', { date: fmtDate(payload.date, locale) });
       bubble = approvedRejectedBubble({
@@ -260,6 +263,25 @@ export function buildFlexMessage(
         headerText: t('advancePaid.header'),
         title: `฿${payload.amount}`,
         subtitle: t('advancePaid.subtitle'),
+        details: [],
+        actionLabel: t('action.viewSlip'),
+        actionUri: `${appBaseUrl}/liff/advance/${payload.cashAdvanceId}`,
+      });
+      break;
+
+    // Combined message replacing separate advance.approved + advance.paid
+    // pushes for the common case where an admin approves and pays in the
+    // same click (see src/lib/advance/settle-window.ts). Modeled on
+    // advance.paid above — same accent/emoji/footer — with copy that
+    // conveys both "approved" and "transferred" in one line.
+    case 'advance.approved-and-paid':
+      altText = t('advanceApprovedAndPaid.alt', { amount: payload.amount });
+      bubble = approvedRejectedBubble({
+        accent: GREEN,
+        headerEmoji: '💸',
+        headerText: t('advanceApprovedAndPaid.header'),
+        title: `฿${payload.amount}`,
+        subtitle: t('advanceApprovedAndPaid.subtitle'),
         details: [],
         actionLabel: t('action.viewSlip'),
         actionUri: `${appBaseUrl}/liff/advance/${payload.cashAdvanceId}`,
