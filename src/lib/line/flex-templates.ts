@@ -325,6 +325,31 @@ export function buildFlexMessage(
         actionUri: adminLiffDeepLink(appBaseUrl, '/liff/admin/inbox', 'admin-inbox'),
       });
       break;
+
+    case 'admin.daily-digest': {
+      // Show only the count lines that are > 0 — a silent line for a
+      // domain with nothing pending would misleadingly read as "0 pending",
+      // when the point of the digest is "here's what needs you."
+      const lines = [
+        payload.leave > 0 ? t('adminDailyDigest.leaveLine', { n: payload.leave }) : null,
+        payload.advance > 0 ? t('adminDailyDigest.advanceLine', { n: payload.advance }) : null,
+        payload.attendance > 0
+          ? t('adminDailyDigest.attendanceLine', { n: payload.attendance })
+          : null,
+      ].filter((l): l is string => l !== null);
+      altText = t('adminDailyDigest.alt');
+      bubble = approvedRejectedBubble({
+        accent: ORANGE,
+        headerEmoji: '📋',
+        headerText: t('adminDailyDigest.header'),
+        title: lines.join(' · '),
+        subtitle: t('adminDailyDigest.subtitle'),
+        details: [],
+        actionLabel: t('action.review'),
+        actionUri: adminLiffDeepLink(appBaseUrl, '/liff/admin/dashboard', 'admin-dashboard'),
+      });
+      break;
+    }
   }
 
   return { type: 'flex', altText, contents: bubble };

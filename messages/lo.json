@@ -44,6 +44,14 @@
     "adminDisputeSubmitted": {
       "header": "ລາຍການລົງເວລາລໍຖ້າກວດສອບ",
       "alt": "📥 {name} ມີລາຍການລົງເວລາລໍຖ້າກວດສອບ"
+    },
+    "adminDailyDigest": {
+      "header": "ສະຫຼຸບວຽກຄ້າງມື້ນີ້",
+      "alt": "📋 ມີວຽກຄ້າງລໍຖ້າກວດສອບ",
+      "subtitle": "ແຕະເພື່ອກວດສອບ",
+      "leaveLine": "ຄຳຂໍລາພັກ {n}",
+      "advanceLine": "ຄຳຂໍເບີກ {n}",
+      "attendanceLine": "ຕ້ອງກວດສອບ {n}"
     }
   },
   "pair": {

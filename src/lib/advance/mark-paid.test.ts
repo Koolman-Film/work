@@ -33,10 +33,6 @@ vi.mock('@/lib/inngest/events', () => ({
   sendNotification: vi.fn(async () => undefined),
 }));
 
-vi.mock('@/lib/notifications/admin-line', () => ({
-  notifyAdminsOnLine: vi.fn(async () => undefined),
-}));
-
 vi.mock('@/lib/notifications/in-app-bell', () => ({
   notifyAdminsInApp: vi.fn(async () => undefined),
 }));

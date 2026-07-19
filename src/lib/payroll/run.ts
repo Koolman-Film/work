@@ -25,7 +25,6 @@
 import { Prisma } from '@prisma/client';
 import { bangkokDateUtcMidnight } from '@/lib/attendance/date';
 import { prisma } from '@/lib/db/prisma';
-import { sendNotification } from '@/lib/inngest/events';
 import { computeLiveLeaveCharges } from '@/lib/leave/recompute';
 import { invalidatePayslipPdf } from '@/lib/payslip/storage';
 import { adjustmentAppliesToMonth } from './adjustments';
@@ -348,8 +347,10 @@ export type PublishResult = {
  * whose row is already Published/Locked are silently left as-is (their
  * stamps were made when they were first published).
  *
- * Caller is responsible for firing notifications from the returned slips
- * (see `notifyPublishedSlips`) and writing the audit log.
+ * Caller is responsible for writing the audit log. There is no automatic
+ * per-employee LINE push on publish anymore — employees read their slip
+ * from the LINE rich menu instead (quota reduction; see
+ * admin-daily-digest.ts for what admins still get pushed).
  */
 export async function publishPayroll(
   month: string,
@@ -432,21 +433,6 @@ export async function publishPayroll(
   }
 
   return result;
-}
-
-/** Fire the per-employee LINE push for freshly published slips. */
-export async function notifyPublishedSlips(month: string, slips: PublishedSlip[]): Promise<void> {
-  await Promise.all(
-    slips.map((s) =>
-      sendNotification(s.recipientUserId, {
-        kind: 'payroll.published',
-        payrollId: s.payrollId,
-        month,
-        employeeFirstName: s.employeeFirstName,
-        netPay: s.netPay,
-      }),
-    ),
-  );
 }
 
 /** Flip every Published row of the month to Locked. Returns count. */
