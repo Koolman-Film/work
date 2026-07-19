@@ -162,6 +162,36 @@ describe('markAdvancePaid', () => {
     expect(auditLogTx).toHaveBeenCalledTimes(1);
   });
 
+  // approvedRow() has no approvedAt override, so without these two cases
+  // every existing test exercises paidPushNeeded's fail-open ("missing
+  // approvedAt → push") branch only. That leaves the real-world path —
+  // admin.ts selects approvedAt, passes the freshly-computed paidAtValue
+  // (not row.paidAt), and the condition is the right way round — completely
+  // uncovered.
+  it('approvedAt 1 minute ago (inside the settle window) → sendNotification NOT called; the delayed approval notice covers it', async () => {
+    const approvedAt = new Date(Date.now() - 60 * 1000);
+    txFindUnique.mockResolvedValue(approvedRow({ approvedAt }));
+
+    await markAdvancePaid({ cashAdvanceId: 'ca-1', receiptKey: VALID_KEY });
+
+    expect(mockedSend).not.toHaveBeenCalled();
+  });
+
+  it('approvedAt 30 minutes ago (past the settle window) → sendNotification called with advance.paid', async () => {
+    const approvedAt = new Date(Date.now() - 30 * 60 * 1000);
+    txFindUnique.mockResolvedValue(approvedRow({ approvedAt }));
+
+    await markAdvancePaid({ cashAdvanceId: 'ca-1', receiptKey: VALID_KEY });
+
+    expect(mockedSend).toHaveBeenCalledTimes(1);
+    expect(mockedSend).toHaveBeenCalledWith('worker-1', {
+      kind: 'advance.paid',
+      cashAdvanceId: 'ca-1',
+      employeeFirstName: 'สมชาย',
+      amount: '1,500.00',
+    });
+  });
+
   it('soft-deleted advance (deletedAt set) → not-found, no update', async () => {
     // findUnique with deletedAt:null filter returns null for soft-deleted rows
     txFindUnique.mockResolvedValue(null);

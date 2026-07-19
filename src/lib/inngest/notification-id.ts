@@ -13,6 +13,7 @@ export function notificationIdempotencyKey(payload: NotificationPayload): string
       return `notif:${payload.kind}:${payload.leaveRequestId}`;
     case 'advance.approved':
     case 'advance.rejected':
+    case 'advance.approved-and-paid':
     // advance.paid re-fires when an admin re-uploads the transfer slip —
     // within Inngest's ~24h dedupe window the second push is dropped.
     // Intentional: the employee already got "paid" for that advance.

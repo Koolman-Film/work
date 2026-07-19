@@ -124,6 +124,14 @@ const allKinds = [
     date: '2026-06-10',
     reason: 'ลืมเช็คอิน',
   },
+  // Appended (not inserted) — earlier entries are referenced by fixed index
+  // (allKinds[7], allKinds[8], ...) elsewhere in this file.
+  {
+    kind: 'advance.approved-and-paid' as const,
+    cashAdvanceId: 'a10',
+    employeeFirstName: 'Aung',
+    amount: '4,000.00',
+  },
 ];
 
 const footerActionUri = (m: messagingApi.FlexMessage): string => {
@@ -137,6 +145,13 @@ describe('buildFlexMessage new kinds (advance.paid + admin.*)', () => {
   it('advance.paid deep-links to the advance LIFF page with a green header', () => {
     const m = buildFlexMessage(allKinds[7] as (typeof allKinds)[number], 'https://x', 'th');
     expect(footerActionUri(m)).toBe('https://x/liff/advance/a3');
+    const header = (m.contents as Bubble).header as messagingApi.FlexBox;
+    expect(header.backgroundColor).toBe('#16a34a');
+  });
+
+  it('advance.approved-and-paid deep-links to the advance LIFF page with a green header', () => {
+    const m = buildFlexMessage(allKinds[11] as (typeof allKinds)[number], 'https://x', 'th');
+    expect(footerActionUri(m)).toBe('https://x/liff/advance/a10');
     const header = (m.contents as Bubble).header as messagingApi.FlexBox;
     expect(header.backgroundColor).toBe('#16a34a');
   });

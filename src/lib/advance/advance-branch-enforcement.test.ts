@@ -9,7 +9,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('next/headers', () => ({ headers: vi.fn(async () => ({ get: () => null })) }));
 vi.mock('@/lib/audit/log', () => ({ auditLog: vi.fn(), auditLogTx: vi.fn(async () => undefined) }));
-vi.mock('@/lib/inngest/events', () => ({ sendNotification: vi.fn(async () => undefined) }));
+vi.mock('@/lib/inngest/events', () => ({
+  sendNotification: vi.fn(async () => undefined),
+  sendAdvanceApprovalDecided: vi.fn(async () => undefined),
+}));
 vi.mock('@/lib/notifications/in-app-bell', () => ({
   notifyAdminsInApp: vi.fn(async () => undefined),
 }));

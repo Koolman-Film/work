@@ -25,6 +25,7 @@
 import { serve } from 'inngest/next';
 import { inngest } from '@/lib/inngest/client';
 import { adminDailyDigest } from '@/lib/inngest/functions/admin-daily-digest';
+import { advanceApprovalNotify } from '@/lib/inngest/functions/advance-approval-notify';
 import { attendanceForceCheckoutEod } from '@/lib/inngest/functions/attendance-force-checkout-eod';
 import { attendanceLateCheck } from '@/lib/inngest/functions/attendance-late-check';
 import { birthdayReminder } from '@/lib/inngest/functions/birthday-reminder';
@@ -40,5 +41,6 @@ export const { GET, POST, PUT } = serve({
     probationReminder,
     birthdayReminder,
     adminDailyDigest,
+    advanceApprovalNotify,
   ],
 });

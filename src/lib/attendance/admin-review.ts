@@ -155,10 +155,14 @@ async function review(input: ReviewInput, decision: 'approve' | 'reject'): Promi
       return { ok: true as const, nextStatus };
     });
 
-    if (result.ok && notifBox.data) {
+    // Only rejection is pushed. 99% of dispute resolutions are "approved" —
+    // "your check-in was fine, nothing to do" — which was 90 of the 91
+    // dispute notifications ever sent and carries no action for the
+    // employee. Rejection changes their recorded hours and their pay, so it
+    // still goes out immediately.
+    if (result.ok && notifBox.data && decision !== 'approve') {
       await sendNotification(notifBox.data.recipientUserId, {
-        kind:
-          decision === 'approve' ? 'attendance.dispute-approved' : 'attendance.dispute-rejected',
+        kind: 'attendance.dispute-rejected',
         attendanceId: input.attendanceId,
         employeeFirstName: notifBox.data.employeeFirstName,
         date: notifBox.data.date,

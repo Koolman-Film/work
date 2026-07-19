@@ -25,8 +25,9 @@ vi.mock('@/lib/audit/log', () => ({
 }));
 
 // ── inngest mock ──────────────────────────────────────────────────────────────
+const sendNotification = vi.fn().mockResolvedValue(undefined);
 vi.mock('@/lib/inngest/events', () => ({
-  sendNotification: vi.fn().mockResolvedValue(undefined),
+  sendNotification: (...a: unknown[]) => sendNotification(...a),
 }));
 
 // ── auth mocks ───────────────────────────────────────────────────────────────
@@ -235,5 +236,45 @@ describe('rejectDisputed — branch-scope gate', () => {
     expect(result).toEqual({ ok: true, nextStatus: 'Rejected' });
     expect(transactionFn).toHaveBeenCalledOnce();
     expect(attendanceUpdate).toHaveBeenCalledOnce();
+  });
+});
+
+describe('approveDisputed / rejectDisputed — LINE push reduction', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    requirePermission.mockResolvedValue({ user: { id: 'actor-id' } });
+    getUserAssignments.mockResolvedValue(globalActorAssignments());
+    setupTransaction();
+    attendanceFindUnique.mockResolvedValueOnce(disputedOuterRow('branch-Z', []));
+    attendanceFindUnique.mockResolvedValueOnce(disputedInnerRow());
+  });
+
+  it('approve → no LINE push (99% of resolutions carry no action for the employee)', async () => {
+    attendanceUpdate.mockResolvedValue({
+      checkInStatus: 'Confirmed',
+      isOverridden: true,
+      overrideNote: 'ok',
+    });
+
+    const result = await approveDisputed({ attendanceId: 'att-1', note: 'ok' });
+
+    expect(result).toEqual({ ok: true, nextStatus: 'Confirmed' });
+    expect(sendNotification).not.toHaveBeenCalled();
+  });
+
+  it('reject → still pushes, with the rejected kind', async () => {
+    attendanceUpdate.mockResolvedValue({
+      checkInStatus: 'Rejected',
+      isOverridden: true,
+      overrideNote: 'นอกพื้นที่',
+    });
+
+    const result = await rejectDisputed({ attendanceId: 'att-1', note: 'นอกพื้นที่' });
+
+    expect(result).toEqual({ ok: true, nextStatus: 'Rejected' });
+    expect(sendNotification).toHaveBeenCalledTimes(1);
+    expect(sendNotification.mock.calls[0]![1]).toMatchObject({
+      kind: 'attendance.dispute-rejected',
+    });
   });
 });
