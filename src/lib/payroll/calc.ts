@@ -471,7 +471,7 @@ export function calcPayroll(input: CalcInput): PayrollDraft {
       absent: {
         count: absentCount,
         perDay: dayAmount,
-        money: dayAmount.times(absentCount).toDecimalPlaces(2),
+        money: dayAmount.times(absentMoneyDays).toDecimalPlaces(2),
       },
       lateTier1: latePolicy.threeStrikeEnabled
         ? {
