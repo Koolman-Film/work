@@ -19,10 +19,22 @@ export type MonthSettlement = {
   leaveTypeNames: Partial<Record<PenaltyKindKey, string>>;
 };
 
+/** Transaction client compatible with both the extended `prisma` client and a
+ *  plain `Prisma.TransactionClient`. Mirrors the pattern used in leave/balance.ts. */
+type TxClient = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
+
+/**
+ * `db` defaults to the module-level `prisma` client, but the publish path
+ * (`gatherAndCalc` inside `prisma.$transaction`) passes its `tx` handle so this
+ * read joins the same snapshot as the attendance/leave rows it's netted
+ * against. Without that, a settlement written concurrently with a publish
+ * could be read outside the transaction and disagree with what got saved.
+ */
 export async function loadSettlementsForMonth(
   month: string,
+  db: TxClient = prisma,
 ): Promise<Map<string, MonthSettlement>> {
-  const rows = await prisma.attendancePenaltySettlement.findMany({
+  const rows = await db.attendancePenaltySettlement.findMany({
     where: { month, deletedAt: null },
     select: {
       employeeId: true,
