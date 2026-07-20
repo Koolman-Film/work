@@ -11,12 +11,16 @@ export type PenaltyKindKey = 'Absent' | 'LateThreeStrike' | 'SevereLate';
 /** Days of each penalty kind settled with leave, for one employee in one month. */
 export type SettlementDays = Record<PenaltyKindKey, number>;
 
-/** No settlement at all — the pre-feature behaviour, and the default. */
-export const EMPTY_SETTLEMENT: SettlementDays = {
+/** No settlement at all — the pre-feature behaviour, and the default.
+ *  Frozen: every consumer spreads it (`{ ...EMPTY_SETTLEMENT }`) rather than
+ *  mutating it directly, and calc.ts already guards against aliasing it — but
+ *  this is the shared singleton in the money path, so it must be impossible
+ *  to corrupt in the first place, not just conventionally never mutated. */
+export const EMPTY_SETTLEMENT: SettlementDays = Object.freeze({
   Absent: 0,
   LateThreeStrike: 0,
   SevereLate: 0,
-};
+});
 
 /**
  * Days still charged as money.

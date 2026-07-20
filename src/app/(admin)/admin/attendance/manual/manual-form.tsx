@@ -44,6 +44,7 @@ function payrollMonthFor(dateYmd: string, cutoffDay: number): string {
 
 const SETTLEMENT_ERROR_TH: Record<string, string> = {
   'invalid-days': 'จำนวนวันไม่ถูกต้อง',
+  'invalid-month': 'เดือนที่ระบุไม่ถูกต้อง',
   'period-closed': 'ปิดรอบเงินเดือนของเดือนนี้แล้ว',
   'leave-type-not-allowed': 'ประเภทวันลาที่เลือกไม่รองรับการหักค่าปรับนี้',
   'insufficient-balance': 'สิทธิวันลาคงเหลือไม่พอ',
