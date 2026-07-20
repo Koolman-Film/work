@@ -645,7 +645,17 @@ export function remainingMinutes(
 - [ ] **Step 4: Confirm the compiler lists every unfixed call site**
 
 Run: `npm run typecheck`
-Expected: FAIL, with exactly five `Expected 3 arguments, but got 2` errors — in `balance.ts` (three), `leave/admin.ts`, and `leave/approval-preview.ts`. **This list is the task's checklist; every entry must be fixed before the task is done.**
+Expected: FAIL, with eight `Expected 3 arguments, but got 2` errors — `balance.ts` (three), `leave/admin.ts` (one), `leave/approval-preview.ts` (one), and `balance.test.ts` (three, in the pre-existing `describe('remainingMinutes', …)` block). **This list is the task's checklist; every entry must be fixed before the task is done.**
+
+For the three in `balance.test.ts`, append `, 0` — that preserves their exact
+current meaning (no penalty applies). **Do not change their expected values.**
+If adding `, 0` makes one fail, stop and report: the new parameter would have
+changed the no-penalty result, which it must not.
+
+Where a call site passes a transaction client to `usedMinutes`, pass the same
+client to `penaltyMinutes`. A guard that reads `used` inside a transaction and
+`penalty` outside it compares two snapshots, and the leave-approval site
+(`admin.ts`) can then approve leave the employee no longer has.
 
 - [ ] **Step 5: Write the penalty-minutes queries**
 
