@@ -8,7 +8,9 @@ import { requireEmployee } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
 import type { Locale } from '@/lib/i18n/config';
 import { formatMoney } from '@/lib/i18n/format';
-import { adjustmentAppliesToMonth } from '@/lib/payroll/adjustments';
+import { localizedLeaveTypeName } from '@/lib/leave/localized-name';
+import { getPayslipDocument } from '@/lib/payslip/document';
+import type { PayslipLine } from '@/lib/payslip/types';
 import { adjacentMonths } from '@/lib/reports/period';
 
 /** Same Buddhist-year month label convention as /liff/summary. */
@@ -101,48 +103,21 @@ export default async function LiffPayslipPage({
   const todayYm = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' }).slice(0, 7);
   const month = params.m && MONTH_RE.test(params.m) ? params.m : todayYm;
 
-  const [t, tPdf, rawLocale, slip, adjustments] = await Promise.all([
+  // Built through the SAME assembler the downloadable PDF uses
+  // (getPayslipDocument → assemblePayslipDocument), so the on-screen slip and
+  // the PDF can never disagree about which lines a month has — including the
+  // settled-with-leave lines, which are keyed independently of
+  // deductAttendance and must show up here exactly as they do in the PDF.
+  const [t, tPdf, rawLocale, doc] = await Promise.all([
     getTranslations('payslip'),
     getTranslations('payslipPdf'),
     getLocale(),
-    prisma.payroll.findFirst({
-      where: { employeeId: employee.id, month, status: { in: ['Published', 'Locked'] } },
-    }),
-    prisma.payrollAdjustment.findMany({
-      where: {
-        employeeId: employee.id,
-        startMonth: { lte: month },
-        OR: [{ endMonth: null }, { endMonth: { gte: month } }],
-        deletedAt: null,
-      },
-      orderBy: { createdAt: 'asc' },
-      select: {
-        id: true,
-        kind: true,
-        reason: true,
-        amount: true,
-        startMonth: true,
-        endMonth: true,
-      },
-    }),
+    getPayslipDocument(employee.id, month),
   ]);
   const locale = rawLocale as Locale;
   const { prev, next } = adjacentMonths(month);
   const monthLabel = buildMonthLabel(locale, month);
-  const fmt = (v: { toNumber(): number } | number) =>
-    formatMoney(typeof v === 'number' ? v : v.toNumber(), locale);
-
-  // Per-reason detail lines are shown only when they still reconcile with
-  // the frozen bucket totals on the Payroll row (adjustments may have been
-  // edited after publish; the slip's stored numbers stay authoritative).
-  const applicable = adjustments.filter((a) => adjustmentAppliesToMonth(a, month));
-  const incomeLines = applicable.filter((a) => a.kind === 'Income');
-  const deductLines = applicable.filter((a) => a.kind === 'Deduction');
-  const sumOf = (xs: typeof applicable) => xs.reduce((acc, a) => acc + a.amount.toNumber(), 0);
-  const showIncomeDetail =
-    slip != null && incomeLines.length > 0 && sumOf(incomeLines) === slip.incomeOther.toNumber();
-  const showDeductDetail =
-    slip != null && deductLines.length > 0 && sumOf(deductLines) === slip.deductOther.toNumber();
+  const fmt = (v: number) => formatMoney(v, locale);
 
   const row = (label: string, value: string, opts?: { strong?: boolean; muted?: boolean }) => (
     <div className={`flex justify-between ${opts?.strong ? 'font-medium' : ''}`}>
@@ -151,12 +126,29 @@ export default async function LiffPayslipPage({
     </div>
   );
 
+  // Resolves a line's label the same way the PDF's `render-html.ts` does: a
+  // literal `label` (adjustment reason) renders as-is; a `labelKey` resolves
+  // through i18n in the reader's own locale, with the settled-with-leave
+  // lines' `{leaveType}` placeholder filled from the raw name/nameByLocale
+  // data via `localizedLeaveTypeName` (this workforce reads Burmese, Lao and
+  // Khmer, not just Thai).
+  const lineLabel = (l: PayslipLine): string => {
+    if (l.label) return l.label;
+    const vars = l.leaveType
+      ? {
+          ...l.vars,
+          leaveType: localizedLeaveTypeName(l.leaveType.name, l.leaveType.nameByLocale, locale),
+        }
+      : l.vars;
+    return t(l.labelKey! as Parameters<typeof t>[0], vars);
+  };
+
   return (
     <main className="mx-auto max-w-md space-y-4 px-4 pt-8 pb-12">
       <header className="flex items-center justify-between gap-2">
         <h1 className="text-2xl font-semibold text-gray-900">{t('title')}</h1>
         <div className="flex items-center gap-2">
-          {slip && (
+          {doc && (
             <a
               href={`/liff/payslip/pdf?m=${month}`}
               className="rounded-md border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
@@ -194,7 +186,7 @@ export default async function LiffPayslipPage({
         </Link>
       </div>
 
-      {!slip ? (
+      {!doc ? (
         <section className={`${cardCls} text-center`}>
           <p className="text-sm text-gray-500">{t('empty')}</p>
         </section>
@@ -204,20 +196,15 @@ export default async function LiffPayslipPage({
           <section className={cardCls}>
             <h2 className="text-sm font-semibold text-gray-900">{t('income.title')}</h2>
             <dl className="mt-3 space-y-1.5 text-sm">
-              {row(t('income.base'), fmt(slip.incomeBase))}
-              {showIncomeDetail
-                ? incomeLines.map((a) => (
-                    <div key={a.id} className="flex justify-between">
-                      <dt className="text-gray-500">{a.reason}</dt>
-                      <dd className="text-gray-900">{fmt(a.amount)}</dd>
-                    </div>
-                  ))
-                : !slip.incomeOther.isZero() && row(t('income.other'), fmt(slip.incomeOther))}
+              {doc.income.lines.map((l) => (
+                <div key={l.key} className="flex justify-between">
+                  <dt className="text-gray-500">{lineLabel(l)}</dt>
+                  <dd className="text-gray-900">{fmt(l.amount)}</dd>
+                </div>
+              ))}
               <div className="mt-2 flex justify-between border-t border-gray-100 pt-2 font-medium">
                 <dt className="text-gray-700">{t('income.total')}</dt>
-                <dd className="text-gray-900">
-                  {fmt(slip.incomeBase.toNumber() + slip.incomeOther.toNumber())}
-                </dd>
+                <dd className="text-gray-900">{fmt(doc.income.total)}</dd>
               </div>
             </dl>
           </section>
@@ -226,42 +213,21 @@ export default async function LiffPayslipPage({
           <section className={cardCls}>
             <h2 className="text-sm font-semibold text-gray-900">{t('deduct.title')}</h2>
             <dl className="mt-3 space-y-1.5 text-sm">
-              {!slip.deductSso.isZero() && row(t('deduct.sso'), `-${fmt(slip.deductSso)}`)}
-              {!slip.deductAdvance.isZero() &&
-                row(t('deduct.advance'), `-${fmt(slip.deductAdvance)}`)}
-              {!slip.deductAttendance.isZero() &&
-                row(t('deduct.attendance'), `-${fmt(slip.deductAttendance)}`)}
-              {!slip.deductLeave.isZero() && row(t('deduct.leave'), `-${fmt(slip.deductLeave)}`)}
-              {!slip.deductDebt.isZero() && row(t('deduct.debt'), `-${fmt(slip.deductDebt)}`)}
-              {showDeductDetail
-                ? deductLines.map((a) => (
-                    <div key={a.id} className="flex justify-between">
-                      <dt className="text-gray-500">{a.reason}</dt>
-                      <dd className="text-gray-900">-{fmt(a.amount)}</dd>
-                    </div>
-                  ))
-                : !slip.deductOther.isZero() && row(t('deduct.other'), `-${fmt(slip.deductOther)}`)}
-              {[
-                slip.deductSso,
-                slip.deductAdvance,
-                slip.deductAttendance,
-                slip.deductLeave,
-                slip.deductDebt,
-                slip.deductOther,
-              ].every((d) => d.isZero()) && row(t('deduct.none'), '—', { muted: true })}
+              {doc.deduct.lines.map((l) => (
+                <div key={l.key} className="flex justify-between">
+                  <dt className="text-gray-500">{lineLabel(l)}</dt>
+                  <dd className="text-gray-900">-{fmt(l.amount)}</dd>
+                </div>
+              ))}
+              {/* Only when there is truly nothing to show — including no
+                  settled-with-leave lines, which must always render even in
+                  a month whose deductAttendance bucket nets to zero. Gating
+                  on the assembled line list (not the raw buckets) is what
+                  keeps this fallback from contradicting a settled line. */}
+              {doc.deduct.lines.length === 0 && row(t('deduct.none'), '—', { muted: true })}
               <div className="mt-2 flex justify-between border-t border-gray-100 pt-2 font-medium">
                 <dt className="text-gray-700">{t('deduct.total')}</dt>
-                <dd className="text-gray-900">
-                  -
-                  {fmt(
-                    slip.deductSso.toNumber() +
-                      slip.deductAdvance.toNumber() +
-                      slip.deductAttendance.toNumber() +
-                      slip.deductLeave.toNumber() +
-                      slip.deductDebt.toNumber() +
-                      slip.deductOther.toNumber(),
-                  )}
-                </dd>
+                <dd className="text-gray-900">-{fmt(doc.deduct.total)}</dd>
               </div>
             </dl>
           </section>
@@ -270,7 +236,7 @@ export default async function LiffPayslipPage({
           <section className={`${cardCls} bg-primary-50`}>
             <div className="flex items-baseline justify-between">
               <h2 className="text-sm font-semibold text-gray-900">{t('net')}</h2>
-              <p className="text-2xl font-bold text-gray-900">{fmt(slip.netPay)}</p>
+              <p className="text-2xl font-bold text-gray-900">{fmt(doc.net)}</p>
             </div>
           </section>
         </>
