@@ -52,6 +52,14 @@ export type ReplayEntitlement = {
   grantedMinutes: number | null;
   carryoverMinutes: number;
   adjustmentMinutes: number;
+  /** Minutes consumed by attendance-penalty settlements against this leave
+   *  type/year (penalty-minutes.ts). REQUIRED, not optional with a zero
+   *  default — same reasoning as remainingMinutes' `penalty` parameter
+   *  (balance.ts): an optional field lets a construction site be missed, and
+   *  a missed site silently reports too much headroom, which is exactly the
+   *  bug this field exists to close. A required field turns a missed site
+   *  into a compile error instead of a silent money leak. */
+  penaltyMinutes: number;
 };
 
 export type ReplayResult = {
@@ -66,10 +74,23 @@ export type ReplayResult = {
  * quota is measured against the entitlement remaining AFTER all earlier
  * requests in `requests` (which MUST already be sorted — approval/start order).
  *
+ * `ent.penaltyMinutes` (attendance penalties settled with leave) is subtracted
+ * from `base` BEFORE the walk, not interleaved into the per-request loop. A
+ * penalty settlement has no position in the approval sequence — it isn't a
+ * leave request — so there is no principled point at which to "insert" it
+ * into the walk. Taking it off the top of `base` instead means it reduces
+ * headroom uniformly for every request, which is exactly how
+ * `remainingMinutes` (balance.ts) treats it: `granted + carryover +
+ * adjustment − used − penalty`. The two formulas must agree — this is the
+ * whole point of this function existing (see recompute.ts's module doc) — so
+ * this mirrors that formula's grouping rather than trying to charge the
+ * penalty against a specific request.
+ *
  * Mirrors the per-approval freeze in leave/admin.ts, but applied as a batch so
  * frozen deductions can be refreshed to match an edited entitlement (used by the
  * recompute script). `ratePerMin` = the employee's per-minute over-quota rate
- * (perMinuteRate). Unlimited entitlement (grantedMinutes null) → never over.
+ * (perMinuteRate). Unlimited entitlement (grantedMinutes null) → never over,
+ * regardless of `penaltyMinutes` (unlimited quota has no headroom to reduce).
  */
 export function replayOverQuota(
   ent: ReplayEntitlement,
@@ -79,7 +100,7 @@ export function replayOverQuota(
   const base =
     ent.grantedMinutes == null
       ? null
-      : ent.grantedMinutes + ent.carryoverMinutes + ent.adjustmentMinutes;
+      : ent.grantedMinutes + ent.carryoverMinutes + ent.adjustmentMinutes - ent.penaltyMinutes;
   let used = 0;
   const out: ReplayResult[] = [];
   for (const r of requests) {

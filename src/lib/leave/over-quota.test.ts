@@ -59,10 +59,11 @@ describe('deductionForOverQuota', () => {
 });
 
 describe('replayOverQuota', () => {
-  const ent = (granted: number | null, adjust = 0) => ({
+  const ent = (granted: number | null, adjust = 0, penalty = 0) => ({
     grantedMinutes: granted,
     carryoverMinutes: 0,
     adjustmentMinutes: adjust,
+    penaltyMinutes: penalty,
   });
 
   it('charges over-quota in order — earlier requests consume the quota first', () => {
@@ -113,7 +114,7 @@ describe('replayOverQuota', () => {
   it('carryover extends the base — granted+carryover are pooled before over-quota', () => {
     // base = 420 granted + 180 carryover = 600. r1 600 exactly fits; r2 60 over.
     const r = replayOverQuota(
-      { grantedMinutes: 420, carryoverMinutes: 180, adjustmentMinutes: 0 },
+      { grantedMinutes: 420, carryoverMinutes: 180, adjustmentMinutes: 0, penaltyMinutes: 0 },
       [
         { id: 'a', chargedMinutes: 600 },
         { id: 'b', chargedMinutes: 60 },
@@ -127,7 +128,7 @@ describe('replayOverQuota', () => {
   it('a negative base from carryover+adjustment makes the whole charge over-quota', () => {
     // base = 0 granted + 100 carryover − 300 adjustment = −200 → clamps, all over.
     const r = replayOverQuota(
-      { grantedMinutes: 0, carryoverMinutes: 100, adjustmentMinutes: -300 },
+      { grantedMinutes: 0, carryoverMinutes: 100, adjustmentMinutes: -300, penaltyMinutes: 0 },
       [{ id: 'a', chargedMinutes: 480 }],
       1,
     );
@@ -155,6 +156,87 @@ describe('replayOverQuota', () => {
   });
 });
 
+describe('replayOverQuota — penalty-settled minutes', () => {
+  it('a settled penalty reduces the headroom every request is measured against — the 6th of 6 full days is over quota', () => {
+    // Reproduces the concrete money-creation scenario: 6-day annual quota
+    // (420 min/day std) = 2520 minutes, ฿30,000/month, workingDaysPerMonth 30.
+    // An admin settles a 1-day absence against the quota (420 penalty minutes,
+    // ฿1,000 of money forgiven). The employee then takes 6 full leave days.
+    const rate = perMinuteRate('Monthly', 30_000, 30, 420);
+    const requests = Array.from({ length: 6 }, (_, i) => ({
+      id: `day-${i + 1}`,
+      chargedMinutes: 420,
+    }));
+    const r = replayOverQuota(
+      { grantedMinutes: 2520, carryoverMinutes: 0, adjustmentMinutes: 0, penaltyMinutes: 420 },
+      requests,
+      rate,
+    );
+    // First 5 days fit inside the penalty-reduced 2100-minute headroom.
+    for (const day of r.slice(0, 5)) {
+      expect(day.overQuotaMinutes).toBe(0);
+      expect(day.deductAmount).toBeNull();
+    }
+    // The 6th day is entirely over quota — the settled penalty consumed the
+    // headroom that would otherwise have absorbed it. This is the ฿1,000 that
+    // previously vanished: at approval (remainingMinutes) it was already
+    // frozen as owed, and now the live replay agrees instead of zeroing it out.
+    expect(r[5]).toEqual({ id: 'day-6', overQuotaMinutes: 420, deductAmount: 1000 });
+  });
+
+  it('penaltyMinutes: 0 reproduces byte-identical results to the pre-fix (no-penalty) formula', () => {
+    // This is what proves the ~99% of employees with no settlement are unaffected:
+    // base computed independently via the OLD formula (no penalty term) must
+    // match replayOverQuota's output exactly when penaltyMinutes is 0.
+    const reqs = [
+      { id: 'a', chargedMinutes: 300 },
+      { id: 'b', chargedMinutes: 400 },
+    ];
+    const withZeroPenalty = replayOverQuota(
+      { grantedMinutes: 480, carryoverMinutes: 100, adjustmentMinutes: -20, penaltyMinutes: 0 },
+      reqs,
+      1.5,
+    );
+    const oldBase = 480 + 100 - 20; // pre-fix formula: no penalty term at all
+    let used = 0;
+    const expected = reqs.map((req) => {
+      const remaining = oldBase - used;
+      const over = overQuotaMinutesFor(req.chargedMinutes, remaining);
+      used += req.chargedMinutes;
+      return {
+        id: req.id,
+        overQuotaMinutes: over,
+        deductAmount: over > 0 ? deductionForOverQuota(over, 1.5) : null,
+      };
+    });
+    expect(withZeroPenalty).toEqual(expected);
+  });
+
+  it('unlimited quota (grantedMinutes: null) never goes over, regardless of penalty minutes', () => {
+    const r = replayOverQuota(
+      { grantedMinutes: null, carryoverMinutes: 0, adjustmentMinutes: 0, penaltyMinutes: 999_999 },
+      [{ id: 'a', chargedMinutes: 100_000 }],
+      1,
+    );
+    expect(r[0]).toEqual({ id: 'a', overQuotaMinutes: 0, deductAmount: null });
+  });
+
+  it('a penalty larger than the whole entitlement drives every request over quota without retro-charging', () => {
+    // granted 480, penalty 1000 → base = −520, clamps to 0 headroom for every
+    // request in turn (not a retroactive −520 charge against the first one).
+    const r = replayOverQuota(
+      { grantedMinutes: 480, carryoverMinutes: 0, adjustmentMinutes: 0, penaltyMinutes: 1000 },
+      [
+        { id: 'a', chargedMinutes: 100 },
+        { id: 'b', chargedMinutes: 50 },
+      ],
+      1,
+    );
+    expect(r[0]).toEqual({ id: 'a', overQuotaMinutes: 100, deductAmount: 100 });
+    expect(r[1]).toEqual({ id: 'b', overQuotaMinutes: 50, deductAmount: 50 });
+  });
+});
+
 describe('replayOverQuota — order invariants (money safety net)', () => {
   // Attribution of over-quota to individual requests is order-DEPENDENT, but the
   // TOTAL over-quota minutes for a group is order-INVARIANT. The total is what
@@ -164,7 +246,12 @@ describe('replayOverQuota — order invariants (money safety net)', () => {
     rs.reduce((s, x) => s + x.overQuotaMinutes, 0);
 
   it('same total over-quota regardless of approval order, different attribution', () => {
-    const ent = { grantedMinutes: 500, carryoverMinutes: 0, adjustmentMinutes: 0 };
+    const ent = {
+      grantedMinutes: 500,
+      carryoverMinutes: 0,
+      adjustmentMinutes: 0,
+      penaltyMinutes: 0,
+    };
     const forward = replayOverQuota(
       ent,
       [
@@ -190,7 +277,12 @@ describe('replayOverQuota — order invariants (money safety net)', () => {
   });
 
   it('total = ΣchargedMinutes when the base is negative (no quota to absorb any)', () => {
-    const ent = { grantedMinutes: 0, carryoverMinutes: 0, adjustmentMinutes: -50 };
+    const ent = {
+      grantedMinutes: 0,
+      carryoverMinutes: 0,
+      adjustmentMinutes: -50,
+      penaltyMinutes: 0,
+    };
     const reqs = [
       { id: 'a', chargedMinutes: 120 },
       { id: 'b', chargedMinutes: 300 },
