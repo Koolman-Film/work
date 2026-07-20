@@ -681,7 +681,15 @@ export type SerializedBreakdown = {
     capped: boolean;
   };
   attendance: {
-    absent: { count: number; perDay: string; money: string };
+    absent: {
+      count: number;
+      perDay: string;
+      money: string;
+      /** Days of this penalty settled with leave instead of money (see penalty-settlement.ts). */
+      settledDays: number;
+      /** Which leave type absorbed the settlement, when `settledDays > 0`. */
+      leaveTypeName: string | null;
+    };
     lateTier1: {
       mode: 'threeStrike' | 'flat';
       count: number;
@@ -689,8 +697,17 @@ export type SerializedBreakdown = {
       days?: number;
       perUnit: string;
       money: string;
+      /** Only meaningful in 'threeStrike' mode — a flat-mode late is never settleable. */
+      settledDays: number;
+      leaveTypeName: string | null;
     };
-    lateSevere: { days: number; perDay: string; money: string };
+    lateSevere: {
+      days: number;
+      perDay: string;
+      money: string;
+      settledDays: number;
+      leaveTypeName: string | null;
+    };
     earlyLeave: { count: number; perUnit: string; money: string };
   };
 };
@@ -888,6 +905,8 @@ export async function payrollRowDetail(
           count: b.attendance.absent.count,
           perDay: money(b.attendance.absent.perDay),
           money: money(b.attendance.absent.money),
+          settledDays: b.attendance.settledDays.Absent,
+          leaveTypeName: entry.settlement?.leaveTypeNames.Absent?.name ?? null,
         },
         lateTier1: {
           mode: b.attendance.lateTier1.mode,
@@ -896,11 +915,24 @@ export async function payrollRowDetail(
           days: b.attendance.lateTier1.days,
           perUnit: money(b.attendance.lateTier1.perUnit),
           money: money(b.attendance.lateTier1.money),
+          // A flat-mode late is never settleable (calc.ts never nets it against
+          // LateThreeStrike days) — zeroed here so the pane can't show a
+          // settlement note for a kind that didn't actually reduce the charge.
+          settledDays:
+            b.attendance.lateTier1.mode === 'threeStrike'
+              ? b.attendance.settledDays.LateThreeStrike
+              : 0,
+          leaveTypeName:
+            b.attendance.lateTier1.mode === 'threeStrike'
+              ? (entry.settlement?.leaveTypeNames.LateThreeStrike?.name ?? null)
+              : null,
         },
         lateSevere: {
           days: b.attendance.lateSevere.days,
           perDay: money(b.attendance.lateSevere.perDay),
           money: money(b.attendance.lateSevere.money),
+          settledDays: b.attendance.settledDays.SevereLate,
+          leaveTypeName: entry.settlement?.leaveTypeNames.SevereLate?.name ?? null,
         },
         earlyLeave: {
           count: b.attendance.earlyLeave.count,
