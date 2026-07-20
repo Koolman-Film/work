@@ -432,12 +432,11 @@ describe('setPenaltySettlement', () => {
     const initial = await remainingByTypeForEmployee(emp.id, 2026);
     const std = initial[vacation.id]!; // annualQuota: 1 day == the whole balance
 
-    // A Draft Payroll row must exist for the lock to have anything to lock —
-    // exactly the state the reconcile page settles against in practice (it
-    // only shows a penalty once "คำนวณ" has produced a Draft row). Without
-    // this, there is nothing for lockPayrollRow to find, and — as documented
-    // on that function — that's fine for a single call, but it means this
-    // test would be asserting something the fix does not claim to cover.
+    // A Draft Payroll row is not required for the advisory lock (it's keyed
+    // on the month, not on any row — see month-lock.ts), but it IS the state
+    // the reconcile page settles against in practice (it only shows a
+    // penalty once "คำนวณ" has produced a Draft row), so this is still
+    // realistic setup.
     await runPayrollDraft('2026-07');
 
     const [absentResult, severeResult] = await Promise.all([
@@ -549,6 +548,78 @@ describe('publishPayroll vs setPenaltySettlement (publish-side lock race)', () =
       // Publish won the lock, committed first, and closed the period — the
       // settle call must have been correctly refused (not silently dropped),
       // and the slip carries the full unsettled charge with NO leave spent.
+      expect(settleResult).toEqual({ ok: false, error: 'period-closed' });
+      expect(settlementLive).toBeNull();
+      expect(Number(publishedRow.deductAttendance)).toBe(666.67);
+    }
+  });
+
+  it('never lets a concurrent settle and publish disagree even when NO Payroll row exists yet for the employee/month (Finding 1, zero-row race)', async () => {
+    // Deliberately do NOT call runPayrollDraft first — the point of this
+    // test. `FOR UPDATE` locks nothing when no row matches, so a row lock
+    // (the pre-fix code) leaves this case completely unprotected even
+    // though it's reachable in production: the manual attendance form lets
+    // an admin settle a penalty with leave without ever visiting the
+    // reconcile page or running "คำนวณ" first, so an employee can be
+    // settled before any Draft row for the month exists. publishPayroll's
+    // upsert has a `create` branch (run.ts) that writes a Published row in
+    // exactly that situation — publish does not merely stamp existing rows,
+    // it can create them. The advisory lock (month-lock.ts) protects this
+    // because it's keyed on the month string, not on row existence.
+    const emp = await makeEmployee();
+    const vacation = await makeVacationType();
+
+    // One Absent day inside the 2026-07 cutoff window (default cutoffDay 25
+    // → window 2026-06-26..2026-07-25) — same shape as the sibling test
+    // above, minus the runPayrollDraft call.
+    await prisma.attendance.create({
+      data: {
+        employeeId: emp.id,
+        date: new Date('2026-07-01'),
+        type: 'Absent',
+        source: 'Manual',
+        createdById: uid(),
+      },
+    });
+
+    const before = await prisma.payroll.findFirst({
+      where: { employeeId: emp.id, month: '2026-07' },
+    });
+    expect(before).toBeNull(); // no row for anything to (row-)lock
+
+    const [settleResult] = await Promise.all([
+      setPenaltySettlement({
+        employeeId: emp.id,
+        month: '2026-07',
+        kind: 'Absent',
+        leaveTypeId: vacation.id,
+        days: 1,
+      }),
+      publishPayroll('2026-07', { employeeId: emp.id }),
+    ]);
+
+    const publishedRow = await prisma.payroll.findFirstOrThrow({
+      where: { employeeId: emp.id, month: '2026-07' },
+    });
+    expect(publishedRow.status).toBe('Published');
+
+    const settlementRow = await prisma.attendancePenaltySettlement.findUnique({
+      where: {
+        employeeId_month_kind: { employeeId: emp.id, month: '2026-07', kind: 'Absent' },
+      },
+    });
+    const settlementLive = settlementRow && !settlementRow.deletedAt ? settlementRow : null;
+
+    // Same consistency invariant as the sibling test: either the settlement
+    // applied and the published money reflects it, or it was refused with
+    // `period-closed` and the money is the full unsettled amount — never
+    // both a spent day of leave AND the full ฿666.67 charge, which is the
+    // unrecoverable double-charge this test guards against (clear refuses a
+    // closed period, so there would be no way to undo it).
+    if (settleResult.ok) {
+      expect(settlementLive).not.toBeNull();
+      expect(Number(publishedRow.deductAttendance)).toBe(0);
+    } else {
       expect(settleResult).toEqual({ ok: false, error: 'period-closed' });
       expect(settlementLive).toBeNull();
       expect(Number(publishedRow.deductAttendance)).toBe(666.67);
