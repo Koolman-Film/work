@@ -12,7 +12,7 @@
 import { auditLogTx } from '@/lib/audit/log';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
-import { remainingByTypeForEmployee } from '@/lib/leave/balance';
+import { lockEntitlement, remainingByTypeForEmployee } from '@/lib/leave/balance';
 import { getLeaveConfig } from '@/lib/leave/leave-config';
 import { standardDayMinutes } from '@/lib/leave/units';
 import { isPayrollChargeableSalaryType, type SalaryType } from './calc';
@@ -123,6 +123,45 @@ export async function setPenaltySettlement(input: {
     }
 
     const year = periodYearOf(input.month);
+
+    // Defect 1 (concurrency): serialize against `approveLeaveRequest`
+    // (leave/admin.ts), which takes an advisory lock on this SAME
+    // (employeeId, leaveTypeId, year) key — via the SAME `lockEntitlement`
+    // helper (leave/balance.ts) — before it reads this employee's balance.
+    // Without this, a concurrent settle and approval each read the balance
+    // before the other commits (transactions run at ReadCommitted) and
+    // together overdraw it: e.g. approve reads `used=0` and freezes no
+    // deduction, settle reads the same pre-approval balance and writes a
+    // settlement, both commit, and the balance goes negative — which for a
+    // `Block`-policy type (ลาพักร้อน) then wrongly refuses every later
+    // request for the rest of the year, and for a `DeductPay` type
+    // (ลากิจ) makes the live over-quota replay charge money on top of the
+    // leave day already spent, defeating the reason this feature exists.
+    // Locked on `input.leaveTypeId` (the type this call is about to spend
+    // from), NOT `existing.leaveTypeId` when an edit switches types — a
+    // switch only ever CREDITS the old type back (see `creditBack` below),
+    // which cannot overdraw it, so only the type being spent needs the lock.
+    //
+    // Must run BEFORE `remainingByTypeForEmployee` below, same ordering
+    // rule as `lockPayrollMonth` two lines up: the lock only closes the
+    // race if it's held before the balance read, not merely held somewhere
+    // in the transaction.
+    //
+    // Deadlock analysis: `approveLeaveRequest` takes ONLY this leave lock,
+    // never `lockPayrollMonth`. `publishPayroll` takes ONLY the month lock,
+    // never this one. This function is the only place that ever holds
+    // both, and it always acquires them in the same order — month lock
+    // (`lockPayrollMonth` above) THEN this leave lock — so no transaction
+    // can be holding this leave lock while waiting on the month lock, which
+    // is what a cycle would require. No deadlock is possible.
+    //
+    // `clearPenaltySettlement` does NOT take this lock: it only ever
+    // releases entitlement (soft-deletes the row, crediting minutes back),
+    // and has no balance check to race — a release can't overdraw a
+    // balance no matter when it lands relative to a concurrent approval or
+    // settle.
+    await lockEntitlement(tx, input.employeeId, input.leaveTypeId, year);
+
     const std = standardDayMinutes(await getLeaveConfig());
     const minutes = input.days * std;
 

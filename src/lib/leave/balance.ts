@@ -222,6 +222,29 @@ export async function remainingByTypeForEmployees(
   return out;
 }
 
+/** Advisory-lock key shared by every writer that can spend or free a
+ *  specific (employee, leaveType, year) entitlement balance —
+ *  `approveLeaveRequest` (leave/admin.ts) and `setPenaltySettlement`
+ *  (payroll/penalty-settlement-admin.ts). Both MUST derive the key from
+ *  this ONE function rather than each formatting their own string: two
+ *  independently-written format strings can drift (field order, a stray
+ *  separator) and silently stop colliding on the same advisory lock, which
+ *  reopens the exact race this exists to close — one side reads the
+ *  balance, the other reads it too before either commits, and together
+ *  they overdraw it. Must be the FIRST statement in the caller's
+ *  transaction that decides what to write, before any read of the balance
+ *  it protects — same ordering rule as `lockPayrollMonth`
+ *  (payroll/month-lock.ts), and for the same reason: the lock only closes
+ *  the race if it's held before the read, not merely held. */
+export async function lockEntitlement(
+  db: TxClient,
+  employeeId: string,
+  leaveTypeId: string,
+  year: number,
+): Promise<void> {
+  await db.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`${employeeId}:${leaveTypeId}:${year}`}))`;
+}
+
 /** Read-only remaining-per-type for the LIFF form. Does NOT seed rows (an
  *  employee viewing the form shouldn't write). Falls back to the type's
  *  annualQuota default when no entitlement row exists. Returns a record

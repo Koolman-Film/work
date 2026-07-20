@@ -28,10 +28,43 @@ vi.mock('@/lib/auth/check-permission', () => ({
     authUserId: adminUserHolder.id,
     tier: 'Admin',
   })),
+  // approveLeaveRequest (leave/admin.ts) branch-scope-gates via
+  // getPermittedBranches → getUserAssignments — stub a superadmin (global)
+  // grant so `permitted = 'all'` and the gate passes regardless of which
+  // branch the test's employee is on. Mirrors
+  // liff-dispute-review.integration.test.ts.
+  getUserAssignments: vi.fn(async () => [
+    {
+      branchId: null,
+      role: {
+        id: 'test-superadmin',
+        key: 'superadmin',
+        name: 'Superadmin',
+        permissions: [],
+        isSuperadmin: true,
+        archivedAt: null,
+      },
+    },
+  ]),
+}));
+
+// approveLeaveRequest reads request headers (IP / user-agent) that don't
+// exist outside a real Next.js request context.
+vi.mock('next/headers', () => ({
+  headers: vi.fn(async () => ({
+    get: (_name: string) => null,
+  })),
+}));
+
+// approveLeaveRequest fires a fire-and-forget Inngest notification after
+// commit — not exercised here (separate Inngest integration concern).
+vi.mock('@/lib/inngest/events', () => ({
+  sendNotification: vi.fn(async () => undefined),
 }));
 
 import { Prisma } from '@prisma/client';
 // Import AFTER vi.mock hoisting.
+import { approveLeaveRequest } from '@/lib/leave/admin';
 import { remainingByTypeForEmployee } from '@/lib/leave/balance';
 import {
   clearPenaltySettlement,
@@ -1057,5 +1090,192 @@ describe('publishPayroll — blocks a stranded settlement (Defect 3)', () => {
         settledDays: 1,
       },
     ]);
+  });
+});
+
+describe('setPenaltySettlement vs approveLeaveRequest (entitlement-lock race, Defect 1)', () => {
+  it('never lets a concurrent settle and leave approval jointly overdraw the same (employee, type, year) balance', async () => {
+    // Genuine race, not timing-dependent: both calls run truly concurrently
+    // via Promise.all against real Postgres, so this test does not assert
+    // which one "wins" — only that whichever wins, the combined outcome
+    // never spends more than the 3-day (1,260-minute) grant.
+    //
+    // Without the entitlement lock (Defect 1's bug), both transactions read
+    // the SAME pre-write balance before either commits (ReadCommitted):
+    // approve sees used=0/penalty=0 → freezes NO over-quota deduction even
+    // though 420 minutes were about to be spent settling a penalty, and
+    // settle sees the same untouched 1,260-minute balance → both succeed.
+    // Net effect: 1,260 (leave) + 420 (settlement) = 1,680 minutes spent
+    // against a 1,260-minute grant, with the employee never charged a cent
+    // for the 420-minute excess — exactly the "leave day AND the money"
+    // double-jeopardy this feature exists to prevent, just inverted (here
+    // it's an undetected shortfall instead of a shortfall payroll catches).
+    const emp = await makeEmployee();
+    // ลากิจ-shaped type: opted into penalty settlement, DeductPay policy
+    // (the schema default) — approval is never blocked outright, so the
+    // interesting assertion is on the frozen over-quota amount, not on
+    // whether approval succeeds.
+    const personal = await prisma.leaveType.create({
+      data: {
+        name: `ลากิจ-${uid().slice(0, 8)}`,
+        annualQuota: 3, // 3 days × 420 std minutes = 1,260 minutes granted
+        penaltySettlementAllowed: true,
+      },
+    });
+    await makeAbsence(emp.id); // the actual 1-day penalty the settlement below settles
+
+    const initial = await remainingByTypeForEmployee(emp.id, 2026);
+    const std = initial[personal.id]! / 3;
+    expect(std).toBe(420); // 09:00–12:00 + 13:00–17:00, the default LeaveConfig
+    expect(initial[personal.id]).toBe(1260);
+
+    // A 3-working-day FullDay request (Mon–Wed, no Sunday/holiday in the
+    // range) that exactly exhausts the 1,260-minute grant on its own.
+    const req = await prisma.leaveRequest.create({
+      data: {
+        employeeId: emp.id,
+        leaveTypeId: personal.id,
+        startDate: new Date('2026-07-13'),
+        endDate: new Date('2026-07-15'),
+        unit: 'FullDay',
+        reason: 'ธุระส่วนตัว',
+        status: 'Pending',
+      },
+    });
+
+    const [settleResult, approveResult] = await Promise.all([
+      setPenaltySettlement({
+        employeeId: emp.id,
+        month: '2026-07',
+        kind: 'Absent',
+        leaveTypeId: personal.id,
+        days: 1, // 420 minutes
+      }),
+      approveLeaveRequest({ leaveRequestId: req.id, note: 'อนุมัติ' }),
+    ]);
+
+    // DeductPay never refuses outright — only Block does — so whichever
+    // order the lock resolves in, approval itself must succeed.
+    expect(approveResult.ok).toBe(true);
+
+    const updatedReq = await prisma.leaveRequest.findUniqueOrThrow({ where: { id: req.id } });
+    const settlementRow = await prisma.attendancePenaltySettlement.findUnique({
+      where: {
+        employeeId_month_kind: { employeeId: emp.id, month: '2026-07', kind: 'Absent' },
+      },
+    });
+    const settlementLive = settlementRow && !settlementRow.deletedAt ? settlementRow : null;
+
+    if (settleResult.ok) {
+      // Settle committed first (holding the lock) — approve's re-read must
+      // see the 420 minutes already spent and freeze EXACTLY that much as
+      // over-quota (840 minutes of true headroom left against a 1,260-
+      // minute request), not 0.
+      expect(settlementLive).not.toBeNull();
+      expect(updatedReq.chargedMinutes).toBe(1260);
+      expect(updatedReq.overQuotaMinutes).toBe(420);
+      expect(updatedReq.deductAmount).not.toBeNull();
+      expect(Number(updatedReq.deductAmount)).toBeGreaterThan(0);
+    } else {
+      // Approve committed first, consuming the full 1,260-minute grant with
+      // no leftover (chargedMinutes === the grant, so overQuota is 0/null)
+      // — settle's re-read must then see zero headroom and be correctly
+      // refused, never silently overdrawing.
+      expect(settleResult).toEqual({ ok: false, error: 'insufficient-balance' });
+      expect(settlementLive).toBeNull();
+      expect(updatedReq.chargedMinutes).toBe(1260);
+      expect(updatedReq.overQuotaMinutes).toBeNull();
+    }
+
+    // The invariant this test exists to prove, stated directly: a live
+    // settlement (420 minutes spent) coexisting with a fully-charged
+    // 1,260-minute request that recorded ZERO over-quota is exactly the
+    // race bug — it means 1,680 minutes left a 1,260-minute grant with no
+    // compensating deduction ever frozen. That combination must never occur.
+    const bothSlippedThrough = settlementLive != null && (updatedReq.overQuotaMinutes ?? 0) === 0;
+    expect(bothSlippedThrough).toBe(false);
+  });
+});
+
+/** Bulk-create `n` bare Monthly employees sharing one branch, via two
+ *  `createMany` round trips (explicit pre-generated ids correlate the User
+ *  and Employee rows) instead of `n` sequential `makeEmployee()` calls. Used
+ *  purely to pad `runPayrollDraft`'s per-employee write loop (see the race
+ *  test below) — their own payroll numbers are never asserted on. */
+async function makeFillerEmployees(n: number, branchId: string): Promise<void> {
+  const userIds = Array.from({ length: n }, () => uid());
+  await prisma.user.createMany({ data: userIds.map((id) => ({ id })) });
+  await prisma.employee.createMany({
+    data: userIds.map((userId, i) => ({
+      userId,
+      firstName: `Filler${i}`,
+      lastName: 'Worker',
+      branchId,
+      salaryType: 'Monthly' as const,
+      baseSalary: new Prisma.Decimal(20_000),
+      status: 'Active' as const,
+      hiredAt: new Date('2026-01-01'),
+    })),
+  });
+}
+
+describe('runPayrollDraft vs publishPayroll (month-lock race, Defect 2)', () => {
+  it('never leaves a row that was Published back in Draft when a recalculation races a publish', async () => {
+    // Genuine race, not a test that would pass either way — but also not one
+    // where a single Promise.all reliably lands in the exact vulnerable
+    // window. The unfixed `runPayrollDraft` reads ALL of the month's
+    // existing rows ONCE up front, then writes them back one employee at a
+    // time — the window where a concurrent `publishPayroll` can commit
+    // AFTER that read but BEFORE this employee's specific write is only as
+    // wide as "how many other employees does `runPayrollDraft` write before
+    // reaching this one." 60 filler employees (created first, so they sort
+    // before the target in `runPayrollDraft`'s unordered scan) pad that
+    // window, but empirically (checked while writing this test, against the
+    // pre-fix code) a single race attempt still only lands in the window
+    // roughly half the time — real wall-clock scheduling, not a lock, is
+    // doing the synchronizing on the unfixed side. So this test repeats the
+    // race 10 times against the SAME padded pool and asserts the invariant
+    // after every single one: with the fix, the shared month lock makes
+    // each iteration serialize deterministically (this must pass 10/10,
+    // every time, forever); without it, a real bug needs to slip through
+    // undetected in all 10 independent attempts to hide — chained across a
+    // ~50%-per-attempt window, roughly a 1-in-1,000 chance, which is what
+    // "reliably catches the pre-fix bug" means for a genuine timing race
+    // rather than a lock-mediated one (contrast the sibling settle-vs-
+    // publish tests above, which lock on both sides and so only need one
+    // attempt). This branch's setReconcileSettlement/clearReconcileSettlement
+    // (admin/payroll/reconcile/actions.ts) call runPayrollDraft immediately
+    // after a settlement commits, OUTSIDE any lock of their own — the shape
+    // this race takes in production, reproduced here directly against
+    // runPayrollDraft/publishPayroll rather than through those thin wrappers.
+    const branch = await prisma.branch.create({ data: { name: `Branch-${uid().slice(0, 8)}` } });
+    await makeFillerEmployees(60, branch.id);
+
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const emp = await makeEmployee();
+
+      await runPayrollDraft('2026-07');
+      const draftBefore = await prisma.payroll.findFirstOrThrow({
+        where: { employeeId: emp.id, month: '2026-07' },
+      });
+      expect(draftBefore.status).toBe('Draft');
+
+      const [, publishResult] = await Promise.all([
+        runPayrollDraft('2026-07'),
+        publishPayroll('2026-07', { employeeId: emp.id }),
+      ]);
+
+      expect(publishResult.blocked).toEqual([]);
+      expect(publishResult.published).toHaveLength(1);
+
+      const after = await prisma.payroll.findFirstOrThrow({
+        where: { employeeId: emp.id, month: '2026-07' },
+      });
+      // The one invariant this test exists to prove: whichever of the two
+      // concurrent calls' writes landed last, a row that reached Published
+      // must never read Draft afterward.
+      expect(after.status).toBe('Published');
+      expect(after.publishedAt).not.toBeNull();
+    }
   });
 });
