@@ -498,7 +498,11 @@ export function calcPayroll(input: CalcInput): PayrollDraft {
         perUnit: toDec(cfg.earlyLeaveDeduction),
         money: earlyLeaveMoney.toDecimalPlaces(2),
       },
-      settledDays: settled,
+      // Copy, not alias: `settled` defaults to the module-level EMPTY_SETTLEMENT
+      // singleton (see below) — handing that object out by reference would let
+      // any future in-place mutation of one employee's breakdown corrupt every
+      // other employee (and every later run) sharing the same singleton.
+      settledDays: { ...settled },
     },
   };
 

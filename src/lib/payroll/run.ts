@@ -190,7 +190,7 @@ async function gatherAndCalc(db: Tx | typeof prisma, month: string, employeeId?:
   // Loaded once for the whole run, then looked up per employee below. Kept on
   // each draft entry (not just fed into calc) so payslip assembly downstream
   // can also read `leaveTypeNames` for display.
-  const settlements = await loadSettlementsForMonth(month);
+  const settlements = await loadSettlementsForMonth(month, db);
 
   const drafts: Array<{
     draft: PayrollDraft;
