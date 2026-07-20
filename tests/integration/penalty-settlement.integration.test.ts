@@ -117,6 +117,19 @@ async function makeSickType() {
   });
 }
 
+/** Personal-leave-like type: the second of the two seed-allowed types
+ *  (ลากิจ and ลาพักร้อน), used alongside makeVacationType to test switching
+ *  the settlement's leave type between two allowed types. */
+async function makePersonalType() {
+  return prisma.leaveType.create({
+    data: {
+      name: `ลากิจ-${uid().slice(0, 8)}`,
+      annualQuota: 8,
+      penaltySettlementAllowed: true,
+    },
+  });
+}
+
 beforeEach(reset);
 afterAll(async () => {
   await prisma.$disconnect();
@@ -229,6 +242,152 @@ describe('setPenaltySettlement', () => {
       days: 1,
     });
     expect(retry).toEqual({ ok: false, error: 'leave-type-not-allowed' });
+  });
+
+  it('credits back the old amount when editing the SAME leave type, so raising 1 day to 2 does not charge 3', async () => {
+    // This is the upsert's `update` branch — the only one of the six original
+    // tests that looked like it exercised it actually created a second row
+    // under a different `kind` instead. Calling setPenaltySettlement twice
+    // for the identical (employeeId, month, kind) is what actually hits it.
+    const emp = await makeEmployee();
+    const vacation = await makeVacationType();
+
+    const initial = await remainingByTypeForEmployee(emp.id, 2026);
+    const std = initial[vacation.id]! / 10; // annualQuota: 10 days
+
+    const first = await setPenaltySettlement({
+      employeeId: emp.id,
+      month: '2026-07',
+      kind: 'Absent',
+      leaveTypeId: vacation.id,
+      days: 1,
+    });
+    expect(first).toEqual({ ok: true });
+
+    const second = await setPenaltySettlement({
+      employeeId: emp.id,
+      month: '2026-07',
+      kind: 'Absent',
+      leaveTypeId: vacation.id,
+      days: 2,
+    });
+    expect(second).toEqual({ ok: true });
+
+    const rows = await prisma.attendancePenaltySettlement.findMany({
+      where: { employeeId: emp.id, month: '2026-07', kind: 'Absent' },
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.days.toNumber()).toBe(2);
+
+    const after = await remainingByTypeForEmployee(emp.id, 2026);
+    // 2 days gone from the original balance, not 3 (1 from the first call
+    // plus 2 from the second) — proof the first day was credited back.
+    expect(after[vacation.id]).toBe(initial[vacation.id]! - 2 * std);
+  });
+
+  it('refuses a SAME-type edit that would exceed headroom, and leaves the stored row untouched', async () => {
+    const emp = await makeEmployee();
+    const vacation = await makeVacationType(); // annualQuota: 10 days
+
+    const first = await setPenaltySettlement({
+      employeeId: emp.id,
+      month: '2026-07',
+      kind: 'Absent',
+      leaveTypeId: vacation.id,
+      days: 1,
+    });
+    expect(first).toEqual({ ok: true });
+
+    // Headroom for the edit is available (9 days, since 1 is already spent)
+    // plus the 1-day credit-back = 10 days. 11 exceeds it.
+    const second = await setPenaltySettlement({
+      employeeId: emp.id,
+      month: '2026-07',
+      kind: 'Absent',
+      leaveTypeId: vacation.id,
+      days: 11,
+    });
+    expect(second).toEqual({ ok: false, error: 'insufficient-balance' });
+
+    // A refused edit must not partially apply: the row still holds the
+    // original 1 day, not 11.
+    const row = await prisma.attendancePenaltySettlement.findUniqueOrThrow({
+      where: {
+        employeeId_month_kind: { employeeId: emp.id, month: '2026-07', kind: 'Absent' },
+      },
+    });
+    expect(row.days.toNumber()).toBe(1);
+  });
+
+  it('moves the charge to the new leave type when the edit switches types, without crediting the old type', async () => {
+    const emp = await makeEmployee();
+    const vacation = await makeVacationType(); // ลาพักร้อน, annualQuota: 10
+    const personal = await makePersonalType(); // ลากิจ, annualQuota: 8
+
+    const initial = await remainingByTypeForEmployee(emp.id, 2026);
+    const stdA = initial[vacation.id]! / 10;
+    const stdB = initial[personal.id]! / 8;
+    expect(stdA).toBe(stdB); // same config-derived standard day
+
+    const first = await setPenaltySettlement({
+      employeeId: emp.id,
+      month: '2026-07',
+      kind: 'Absent',
+      leaveTypeId: vacation.id,
+      days: 2,
+    });
+    expect(first).toEqual({ ok: true });
+
+    const switched = await setPenaltySettlement({
+      employeeId: emp.id,
+      month: '2026-07',
+      kind: 'Absent',
+      leaveTypeId: personal.id,
+      days: 2,
+    });
+    expect(switched).toEqual({ ok: true });
+
+    const row = await prisma.attendancePenaltySettlement.findUniqueOrThrow({
+      where: {
+        employeeId_month_kind: { employeeId: emp.id, month: '2026-07', kind: 'Absent' },
+      },
+    });
+    expect(row.leaveTypeId).toBe(personal.id);
+
+    const after = await remainingByTypeForEmployee(emp.id, 2026);
+    // Type A (vacation) is fully restored — the old row's minutes must NOT
+    // still be credited against it once the settlement has moved away.
+    expect(after[vacation.id]).toBe(initial[vacation.id]);
+    // Type B (personal) is charged the new 2 days.
+    expect(after[personal.id]).toBe(initial[personal.id]! - 2 * stdB);
+  });
+
+  it('enforces invalid-days for zero and non-integer amounts, writing nothing', async () => {
+    const emp = await makeEmployee();
+    const vacation = await makeVacationType();
+
+    const zero = await setPenaltySettlement({
+      employeeId: emp.id,
+      month: '2026-07',
+      kind: 'Absent',
+      leaveTypeId: vacation.id,
+      days: 0,
+    });
+    expect(zero).toEqual({ ok: false, error: 'invalid-days' });
+
+    const fractional = await setPenaltySettlement({
+      employeeId: emp.id,
+      month: '2026-07',
+      kind: 'Absent',
+      leaveTypeId: vacation.id,
+      days: 1.5,
+    });
+    expect(fractional).toEqual({ ok: false, error: 'invalid-days' });
+
+    const rows = await prisma.attendancePenaltySettlement.findMany({
+      where: { employeeId: emp.id, month: '2026-07', kind: 'Absent' },
+    });
+    expect(rows).toHaveLength(0);
   });
 });
 
