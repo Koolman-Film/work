@@ -75,7 +75,7 @@ import {
   clearPenaltySettlement,
   setPenaltySettlement,
 } from '@/lib/payroll/penalty-settlement-admin';
-import { publishPayroll, runPayrollDraft } from '@/lib/payroll/run';
+import { actualPenaltyDaysForEmployee, publishPayroll, runPayrollDraft } from '@/lib/payroll/run';
 
 function uid(): string {
   return crypto.randomUUID();
@@ -1131,6 +1131,239 @@ describe('publishPayroll — blocks a stranded settlement (Defect 3)', () => {
         settledDays: 1,
       },
     ]);
+  });
+});
+
+/**
+ * Defect 3's guard (`publishPayroll`, run.ts) used to gather EVERY employee
+ * the run touched, evaluate all of them for a stranded settlement, and — if
+ * even one was stranded — return `published: []` for the WHOLE month. All
+ * prior Defect-3 tests above pass a single `{ employeeId }`, so that
+ * whole-month blast radius was never exercised: with only one employee in
+ * scope, "blocks everyone" and "blocks the stranded one" are indistinguishable.
+ * These tests use `makeFillerEmployees` (declared below) to put multiple
+ * employees in scope and prove the fix: a stranded settlement skips ONLY the
+ * employee it belongs to, and only when this call would actually write that
+ * employee (row absent or Draft) — an already-Published row is never even
+ * assessed, since publishing it is a no-op this call cannot freeze anyway.
+ */
+describe('publishPayroll — per-employee skip instead of a whole-month hard stop (Defect 3 blast radius)', () => {
+  it('publishes every healthy employee and holds back only the stranded one, naming them in `blocked`', async () => {
+    const branch = await prisma.branch.create({ data: { name: `Branch-${uid().slice(0, 8)}` } });
+    await makeFillerEmployees(3, branch.id); // 3 healthy employees — no penalty, no settlement
+
+    const stranded = await makeEmployee();
+    const vacation = await makeVacationType();
+    await makeAbsence(stranded.id); // 1 actual Absent day, justifying the settlement below
+
+    const settled = await setPenaltySettlement({
+      employeeId: stranded.id,
+      month: '2026-07',
+      kind: 'Absent',
+      leaveTypeId: vacation.id,
+      days: 1,
+      via: 'reconcile',
+    });
+    expect(settled).toEqual({ ok: true });
+
+    // Strand it: void the attendance row after the leave was already spent.
+    await prisma.attendance.updateMany({
+      where: { employeeId: stranded.id },
+      data: { deletedAt: new Date() },
+    });
+
+    await runPayrollDraft('2026-07');
+    const result = await publishPayroll('2026-07');
+
+    // The whole month must NOT halt: the 3 healthy fillers publish anyway.
+    expect(result.published).toHaveLength(3);
+    expect(result.published.some((p) => p.employeeId === stranded.id)).toBe(false);
+
+    // The stranded employee is named, not silently dropped and not the
+    // reason everyone else failed.
+    expect(result.blocked).toEqual([
+      {
+        employeeId: stranded.id,
+        name: 'Test Worker',
+        kind: 'Absent',
+        actualDays: 0,
+        settledDays: 1,
+      },
+    ]);
+
+    // The stranded row stays Draft — still editable via the reconcile page
+    // (isPeriodClosed only locks a row once it leaves Draft).
+    const strandedRow = await prisma.payroll.findFirst({
+      where: { employeeId: stranded.id, month: '2026-07' },
+    });
+    expect(strandedRow?.status).toBe('Draft');
+
+    // Every filler is now Published.
+    const fillerRows = await prisma.payroll.findMany({
+      where: { month: '2026-07', employeeId: { not: stranded.id } },
+    });
+    expect(fillerRows).toHaveLength(3);
+    expect(fillerRows.every((r) => r.status === 'Published')).toBe(true);
+  });
+
+  it('reproduces the C1 production sequence end to end: publish A alone, strand A afterward, then publish the month — everyone else publishes and A is left exactly as the earlier solo publish made it', async () => {
+    const branch = await prisma.branch.create({ data: { name: `Branch-${uid().slice(0, 8)}` } });
+    await makeFillerEmployees(5, branch.id);
+
+    const empA = await makeEmployee();
+    const vacation = await makeVacationType();
+    await makeAbsence(empA.id);
+    const settled = await setPenaltySettlement({
+      employeeId: empA.id,
+      month: '2026-07',
+      kind: 'Absent',
+      leaveTypeId: vacation.id,
+      days: 1,
+      via: 'reconcile',
+    });
+    expect(settled).toEqual({ ok: true });
+
+    await runPayrollDraft('2026-07');
+
+    // Step 1: "publish A alone" — exactly what publishOnePayrollAction's
+    // ConfirmDialog button does. A is not stranded yet, so this succeeds
+    // exactly like it does today.
+    const soloResult = await publishPayroll('2026-07', { employeeId: empA.id });
+    expect(soloResult.blocked).toEqual([]);
+    expect(soloResult.published).toHaveLength(1);
+
+    const afterSolo = await prisma.payroll.findFirstOrThrow({
+      where: { employeeId: empA.id, month: '2026-07' },
+    });
+    expect(afterSolo.status).toBe('Published');
+
+    // Step 2: strand A's settlement AFTER it is published — an attendance
+    // row voided has no payroll-status guard of its own (voidAttendance).
+    await prisma.attendance.updateMany({
+      where: { employeeId: empA.id },
+      data: { deletedAt: new Date() },
+    });
+
+    // Step 3: press "เผยแพร่" for the whole month. Before the fix this
+    // returned `blocked: [A]` and `published: []` for EVERYONE — the
+    // whole-company freeze this defect is about.
+    const monthResult = await publishPayroll('2026-07');
+
+    // A's row is already Published — a no-op for this call — so the guard
+    // must not even assess A: A is neither blocked nor freshly published,
+    // its earlier Published state simply carries forward untouched.
+    expect(monthResult.blocked).toEqual([]);
+    expect(monthResult.published.some((p) => p.employeeId === empA.id)).toBe(false);
+
+    // Every OTHER (healthy) employee — the ~48-employee blast radius the bug
+    // used to freeze — publishes normally.
+    expect(monthResult.published).toHaveLength(5);
+
+    const aRowAfter = await prisma.payroll.findFirstOrThrow({
+      where: { employeeId: empA.id, month: '2026-07' },
+    });
+    expect(aRowAfter.status).toBe('Published'); // untouched, not reverted or re-processed
+
+    // A's stranded settlement is still there and still detectable through
+    // the existing reconcile-page machinery (reconcile-settlement.ts) — this
+    // publish call not assessing A does not make the mismatch invisible, it
+    // only means publishing could never have been the mechanism that surfaces
+    // or fixes it once the row already left Draft (isPeriodClosed forbids
+    // editing it either way — that half of the story is pre-existing and
+    // unchanged by this fix).
+    const actual = await actualPenaltyDaysForEmployee(prisma, '2026-07', empA.id);
+    expect(actual?.Absent).toBe(0); // the penalty itself is gone
+    const settlement = await prisma.attendancePenaltySettlement.findFirst({
+      where: { employeeId: empA.id, month: '2026-07', kind: 'Absent' },
+    });
+    expect(settlement?.days.toNumber()).toBe(1); // but the leave charge remains — reported, permanently, by design
+  });
+
+  it('a stranded settlement on an employee whose row is already Published does not affect this publish at all', async () => {
+    const branch = await prisma.branch.create({ data: { name: `Branch-${uid().slice(0, 8)}` } });
+    await makeFillerEmployees(2, branch.id);
+
+    const emp = await makeEmployee();
+    const vacation = await makeVacationType();
+    await makeAbsence(emp.id);
+    const settled = await setPenaltySettlement({
+      employeeId: emp.id,
+      month: '2026-07',
+      kind: 'Absent',
+      leaveTypeId: vacation.id,
+      days: 1,
+      via: 'reconcile',
+    });
+    expect(settled).toEqual({ ok: true });
+
+    await runPayrollDraft('2026-07');
+    // Force this employee's row to Published directly (standing in for "it
+    // was published in an earlier run, before the strand happened") so the
+    // guard's row-status check — not the settlement math — is what's under
+    // test here.
+    await prisma.payroll.updateMany({
+      where: { employeeId: emp.id, month: '2026-07' },
+      data: { status: 'Published', publishedAt: new Date() },
+    });
+
+    // NOW strand it.
+    await prisma.attendance.updateMany({
+      where: { employeeId: emp.id },
+      data: { deletedAt: new Date() },
+    });
+
+    const result = await publishPayroll('2026-07');
+    expect(result.blocked).toEqual([]); // never assessed — its row wasn't Draft
+    expect(result.published).toHaveLength(2); // both fillers publish
+    expect(result.published.some((p) => p.employeeId === emp.id)).toBe(false);
+  });
+
+  it("publishOnePayrollAction's single-employee path (publishPayroll with { employeeId }) still refuses when that one target is stranded, even with other employees present", async () => {
+    const branch = await prisma.branch.create({ data: { name: `Branch-${uid().slice(0, 8)}` } });
+    await makeFillerEmployees(4, branch.id);
+
+    const emp = await makeEmployee();
+    const vacation = await makeVacationType();
+    await makeAbsence(emp.id);
+    const settled = await setPenaltySettlement({
+      employeeId: emp.id,
+      month: '2026-07',
+      kind: 'Absent',
+      leaveTypeId: vacation.id,
+      days: 1,
+      via: 'reconcile',
+    });
+    expect(settled).toEqual({ ok: true });
+
+    await prisma.attendance.updateMany({
+      where: { employeeId: emp.id },
+      data: { deletedAt: new Date() },
+    });
+
+    await runPayrollDraft('2026-07');
+    // publishOnePayrollAction (admin/payroll/actions.ts) is a thin
+    // permission/redirect wrapper that calls exactly this — reproduced
+    // directly since it needs no server-action mocking beyond what
+    // publishPayroll itself already exercises above.
+    const result = await publishPayroll('2026-07', { employeeId: emp.id });
+
+    // No "everyone else" is in scope for a single-employee call — refusing
+    // this one target IS the whole call, same as before the fix.
+    expect(result.published).toHaveLength(0);
+    expect(result.blocked).toEqual([
+      { employeeId: emp.id, name: 'Test Worker', kind: 'Absent', actualDays: 0, settledDays: 1 },
+    ]);
+
+    const row = await prisma.payroll.findFirstOrThrow({
+      where: { employeeId: emp.id, month: '2026-07' },
+    });
+    expect(row.status).toBe('Draft'); // stays editable
+
+    // The fillers were never in scope for this call — untouched either way.
+    const fillerRows = await prisma.payroll.findMany({
+      where: { month: '2026-07', employeeId: { not: emp.id } },
+    });
+    expect(fillerRows.every((r) => r.status === 'Draft')).toBe(true);
   });
 });
 

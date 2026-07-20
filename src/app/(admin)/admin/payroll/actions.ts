@@ -111,19 +111,6 @@ export async function publishPayrollAction(formData: FormData) {
 
   const result = await publishPayroll(month);
 
-  // Defect-3 guard (run.ts): a live settlement outlived the penalty that
-  // justified it (a late-penalty rule toggled off, a voided attendance row,
-  // a corrected absence) — publishing would freeze the month with the
-  // settlement uneditable forever, so this call published NOTHING. Send the
-  // admin to clear/adjust it on the reconcile page rather than trying again.
-  if (result.blocked.length > 0) {
-    const names = [...new Set(result.blocked.map((b) => b.name))].join(', ');
-    back(
-      month,
-      `เผยแพร่ไม่สำเร็จ: มีการหักสิทธิวันลาเกินโทษจริงของ ${names} — ไปแก้ไขหรือยกเลิกการหักสิทธิที่หน้ากระทบยอดก่อนเผยแพร่`,
-    );
-  }
-
   // No automatic per-employee LINE push here anymore — employees read
   // their slip from the LINE rich menu instead (quota reduction).
   await scheduleSlipWarming(month, result.published);
@@ -137,8 +124,26 @@ export async function publishPayrollAction(formData: FormData) {
       source: 'admin-ui',
       published: result.published.length,
       skipped: result.skipped,
+      blocked: result.blocked,
     },
   });
+
+  // Defect-3 guard (run.ts): each named employee below carries a live
+  // settlement that outlived the penalty that justified it (a late-penalty
+  // rule toggled off, a voided attendance row, a corrected absence).
+  // Publishing them would freeze that settlement uneditable forever, so
+  // THOSE employees were held back — everyone else above published
+  // normally (this is a per-employee skip, not a whole-month hard stop; see
+  // `blocked` on `PublishResult`). The named employees stay in Draft: clear
+  // or adjust the settlement on the reconcile page, then publish again
+  // (the whole month, or just that row) to pick them up.
+  if (result.blocked.length > 0) {
+    const names = [...new Set(result.blocked.map((b) => b.name))].join(', ');
+    back(
+      month,
+      `เผยแพร่สลิป ${result.published.length} คนแล้ว — ยกเว้น ${names} ที่มีการหักสิทธิวันลาเกินโทษจริง ไปแก้ไขหรือยกเลิกการหักสิทธิที่หน้ากระทบยอดก่อน แล้วเผยแพร่ใหม่อีกครั้ง`,
+    );
+  }
 
   back(month, `เผยแพร่สลิป ${result.published.length} คนแล้ว`);
 }
@@ -346,13 +351,17 @@ export async function publishOnePayrollAction(
     return { ok: false, message: 'เกิดข้อผิดพลาดในการเผยแพร่ กรุณาลองใหม่' };
   }
 
-  // Defect-3 guard (run.ts) — see the identical check in publishPayrollAction
-  // above for why this must block rather than publish around it.
+  // Defect-3 guard (run.ts): this call's scope is the ONE target employee —
+  // there is no "everyone else" for it to publish instead, so a non-empty
+  // `blocked` here means THIS employee's live settlement outlived the
+  // penalty that justified it, and refusing them is the whole outcome of
+  // this call (contrast publishPayrollAction above, which still publishes
+  // every other employee in the month around a blocked one).
   if (result.blocked.length > 0) {
     return {
       ok: false,
       message:
-        'เผยแพร่ไม่สำเร็จ: มีการหักสิทธิวันลาเกินโทษจริงของเดือนนี้ — ไปแก้ไขหรือยกเลิกการหักสิทธิที่หน้ากระทบยอดก่อนเผยแพร่',
+        'เผยแพร่ไม่สำเร็จ: พนักงานคนนี้มีการหักสิทธิวันลาเกินโทษจริงของเดือนนี้ — ไปแก้ไขหรือยกเลิกการหักสิทธิที่หน้ากระทบยอดก่อนเผยแพร่',
     };
   }
   if (result.published.length === 0) {
