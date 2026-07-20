@@ -347,34 +347,115 @@ export async function previewPayrollDrafts(month: string): Promise<Map<string, P
 /**
  * Calculate (or recalculate) Draft payroll rows for the month. Existing
  * Published/Locked rows are left untouched and counted as `frozen`.
+ *
+ * Runs inside the month's advisory lock (`lockPayrollMonth`, same as
+ * `publishPayroll`) so a recalculation and a publish can never interleave.
+ * Without this, this function's `row.status !== 'Draft'` guard reads a
+ * snapshot BEFORE the write below — if a `publishPayroll` for the same
+ * month commits in between, the row is now Published, but this function's
+ * write still lands (its snapshot said Draft) and flips it straight back to
+ * Draft. That reopens `isPeriodClosed` (penalty-settlement-admin.ts) on a
+ * month whose payslip may already be issued and downloaded, defeating the
+ * "published payroll is immutable" invariant the whole feature rests on.
+ * This branch added two new callers that make the race easy to hit in
+ * practice: `setReconcileSettlement`/`clearReconcileSettlement`
+ * (admin/payroll/reconcile/actions.ts) both call this function immediately
+ * after a settlement commits, OUTSIDE any lock of their own — exactly the
+ * moment an admin is likely to be pressing publish on the same month.
+ *
+ * Two complementary measures, deliberately both applied (see the PR
+ * description this shipped with):
+ *   1. The lock below closes the race at the source — a publish and a
+ *      recalculation for the same month simply cannot run concurrently.
+ *   2. The per-row write is ALSO scoped to `status: 'Draft'`
+ *      (`updateMany`, not an unconditional `upsert.update`) so it is
+ *      structurally impossible for this function to touch a non-Draft row
+ *      even if the lock were somehow bypassed by a future refactor. Belt
+ *      and braces: (1) is what actually prevents the race day-to-day, (2)
+ *      is what keeps a regression from being catastrophic if (1) is ever
+ *      weakened.
+ *
+ * Deadlock: safe. This takes ONLY the month lock — same single-key shape as
+ * `publishPayroll`, which also takes only the month lock. Neither this
+ * function nor `publishPayroll` ever also holds the leave-entitlement lock
+ * (`lockEntitlement`, leave/balance.ts) that `setPenaltySettlement` and
+ * `approveLeaveRequest` use, so there is no second lock for an ordering
+ * cycle to form around.
+ *
+ * Transaction timeout: explicit `timeout`/`maxWait` below, NOT the Prisma
+ * default (5s timeout / 2s maxWait). This function does one DB round trip
+ * per employee inside the transaction (the `updateMany`/`create` in the
+ * loop) on top of `gatherAndCalc`'s bulk reads — at real company scale
+ * (~48 employees) that is enough sequential round trips, on a
+ * non-local Postgres connection, to risk tripping the 5s default during a
+ * month-end rush when several admins are recalculating and publishing at
+ * once and contending on this same advisory lock. `publishPayroll` does
+ * strictly MORE per-employee work per transaction (an upsert plus
+ * conditional advance/leave/recurring-deduction writes) without an explicit
+ * timeout and predates this branch, so it is not touched here — but this
+ * new lock is what puts `runPayrollDraft` in the same risk class for the
+ * first time, so it gets an explicit, generous budget rather than silently
+ * inheriting a default sized for single-statement transactions.
  */
 export async function runPayrollDraft(month: string): Promise<RunResult> {
-  const { drafts, skipped } = await gatherAndCalc(prisma, month);
+  return prisma.$transaction(
+    async (tx) => {
+      // Lock FIRST, before gatherAndCalc or the `existing` read below — same
+      // ordering rule as publishPayroll/setPenaltySettlement (month-lock.ts):
+      // the lock only closes the race if every read that decides what to
+      // write happens after it, not merely somewhere inside the transaction.
+      await lockPayrollMonth(tx, month);
 
-  const existing = await prisma.payroll.findMany({
-    where: { month },
-    select: { id: true, employeeId: true, status: true },
-  });
-  const existingByEmp = new Map(existing.map((p) => [p.employeeId, p]));
+      const { drafts, skipped } = await gatherAndCalc(tx, month);
 
-  let calculated = 0;
-  let frozen = 0;
+      const existing = await tx.payroll.findMany({
+        where: { month },
+        select: { id: true, employeeId: true, status: true },
+      });
+      const existingByEmp = new Map(existing.map((p) => [p.employeeId, p]));
 
-  for (const { draft, employee } of drafts) {
-    const row = existingByEmp.get(employee.id);
-    if (row && row.status !== 'Draft') {
-      frozen++;
-      continue;
-    }
-    await prisma.payroll.upsert({
-      where: { employeeId_month: { employeeId: employee.id, month } },
-      create: { employeeId: employee.id, month, status: 'Draft', ...draftValues(draft) },
-      update: { status: 'Draft', ...draftValues(draft) },
-    });
-    calculated++;
-  }
+      let calculated = 0;
+      let frozen = 0;
 
-  return { calculated, frozen, skipped };
+      for (const { draft, employee } of drafts) {
+        const row = existingByEmp.get(employee.id);
+        if (row && row.status !== 'Draft') {
+          frozen++;
+          continue;
+        }
+
+        if (row) {
+          // `status: 'Draft'` in the `where` (measure 2 above) is what makes
+          // this structurally unable to overwrite a non-Draft row, even if
+          // the lock above were somehow bypassed. `count === 0` means the
+          // row's status changed out from under the snapshot taken above —
+          // shouldn't happen while the lock is held, but if it ever does,
+          // treat it the same as `frozen` rather than silently no-op-ing.
+          const result = await tx.payroll.updateMany({
+            where: { id: row.id, status: 'Draft' },
+            data: draftValues(draft),
+          });
+          if (result.count > 0) {
+            calculated++;
+          } else {
+            frozen++;
+          }
+        } else {
+          await tx.payroll.create({
+            data: { employeeId: employee.id, month, status: 'Draft', ...draftValues(draft) },
+          });
+          calculated++;
+        }
+      }
+
+      return { calculated, frozen, skipped };
+    },
+    // See "Transaction timeout" above. 10s maxWait covers queueing behind
+    // another admin's concurrent publish/recalculate on the same month lock;
+    // 20s timeout covers the per-employee write loop itself at ~48 employees
+    // plus headroom for a slower month-end connection.
+    { maxWait: 10_000, timeout: 20_000 },
+  );
 }
 
 export type PublishedSlip = {

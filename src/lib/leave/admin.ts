@@ -34,7 +34,7 @@ import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { sendNotification } from '@/lib/inngest/events';
 import { notifyAdminsInApp } from '@/lib/notifications/in-app-bell';
-import { remainingMinutes, resolveGrantedMinutes, usedMinutes } from './balance';
+import { lockEntitlement, remainingMinutes, resolveGrantedMinutes, usedMinutes } from './balance';
 import { getLeaveConfig } from './leave-config';
 import { asNameByLocale } from './localized-name';
 import { deductionForOverQuota, overQuotaMinutesFor, perMinuteRate } from './over-quota';
@@ -266,7 +266,19 @@ export async function approveLeaveRequest(input: Input): Promise<ApproveResult> 
       // quota without freezing a deduction (tx runs at ReadCommitted). The
       // advisory xact lock releases automatically at commit/rollback and only
       // ever contends on the same (employee, type, year) triple.
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`${req.employeeId}:${req.leaveTypeId}:${year}`}))`;
+      //
+      // `setPenaltySettlement` (payroll/penalty-settlement-admin.ts) takes
+      // this SAME lock, via the SAME `lockEntitlement` helper, before it
+      // reads this employee's balance to spend leave on a penalty — without
+      // that, a settle and an approval here could each read the balance
+      // before the other commits and jointly overdraw it. See
+      // `lockEntitlement`'s doc-comment (leave/balance.ts) for why a shared
+      // function (not two copies of a format string) matters, and
+      // penalty-settlement-admin.ts for the deadlock analysis: this function
+      // takes ONLY this lock, never the payroll month lock, so it cannot
+      // form a cycle with `setPenaltySettlement` (month, then this) or
+      // `publishPayroll` (month only).
+      await lockEntitlement(tx, req.employeeId, req.leaveTypeId, year);
       const std = standardDayMinutes(cfg);
       const ent = await tx.leaveEntitlement.findUnique({
         where: {
