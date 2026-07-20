@@ -17,7 +17,7 @@ import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageHeader } from '@/components/ui/page-header';
 import { bangkokDateUtcMidnight } from '@/lib/attendance/date';
 import { employeeBranchScope, getPermittedBranches } from '@/lib/auth/branch-scope';
-import { canDo, requirePermission } from '@/lib/auth/check-permission';
+import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { AttendanceTabs } from '../attendance-tabs';
 import { ManualAttendanceForm } from './manual-form';
@@ -95,8 +95,12 @@ export default async function ManualAttendancePage() {
     // admin may hold one and not the other. When they lack it, the choice
     // must not render at all (not a disabled control): they record the
     // absence and someone with payroll rights settles it later on the
-    // reconcile page.
-    canDo(user, 'payroll.run'),
+    // reconcile page. Checked the same way the server action's
+    // `requireGlobalPermission('payroll.run')` decides (GLOBAL only) —
+    // `canDo` alone would admit a branch-scoped grant (e.g. the
+    // branch-scoped system Admin role) and render a control the server
+    // then refuses with `notFound()`.
+    getPermittedBranches(user, 'payroll.run').then((permitted) => permitted === 'all'),
   ]);
 
   // Eligible leave types. Skipped entirely when the admin can't settle — no

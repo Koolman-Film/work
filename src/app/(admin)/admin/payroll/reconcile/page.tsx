@@ -3,7 +3,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { type Column, ResponsiveTable } from '@/components/ui/responsive-table';
 import { StatCard } from '@/components/ui/stat-card';
 import { StatusBadge, type StatusKey } from '@/components/ui/status-badge';
-import { canDo } from '@/lib/auth/check-permission';
+import { getPermittedBranches } from '@/lib/auth/branch-scope';
 import { requireGlobalPermission } from '@/lib/auth/require-global-permission';
 import { prisma } from '@/lib/db/prisma';
 import { formatTHB2, monthLabelTh } from '@/lib/format';
@@ -216,8 +216,12 @@ export default async function PayrollReconcilePage({
   // Settling a penalty (unlike merely viewing this page) needs payroll.run —
   // an admin may hold read-only reconciliation access without it. When they
   // lack it, the settlement controls must not render at all, same rule the
-  // manual attendance form applies (see manual/page.tsx's canSettle).
-  const canSettle = await canDo(user, 'payroll.run');
+  // manual attendance form applies (see manual/page.tsx's canSettle). Checked
+  // the same way the server action's `requireGlobalPermission('payroll.run')`
+  // decides (GLOBAL only) — `canDo` alone would admit a branch-scoped grant
+  // (e.g. the branch-scoped system Admin role) and render a control the
+  // server then refuses with `notFound()`.
+  const canSettle = (await getPermittedBranches(user, 'payroll.run')) === 'all';
 
   const [settlements, payrollStatuses, freshDrafts, penaltyLeaveTypes] = await Promise.all([
     // Reused rather than re-querying the same rows — see penalty-settlement-load.ts.
