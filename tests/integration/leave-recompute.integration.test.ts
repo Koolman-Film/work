@@ -365,4 +365,58 @@ describe('computeLiveLeaveCharges', () => {
     expect(c.overQuotaMinutes).toBe(420); // base 0 → the whole day is over
     expect(c.deductAmount).toBe(420);
   });
+
+  it('is penalty-aware: a settled AttendancePenaltySettlement reduces headroom in the LIVE replay, not just remainingMinutes', async () => {
+    // Regression coverage for the money-creation bug: computeLiveLeaveCharges
+    // (which feeds payroll's deductLeave via run.ts) must agree with
+    // remainingMinutes (balance.ts, used at approval) about how much
+    // entitlement a settled penalty consumes. 6-day quota (2520 min), a 1-day
+    // absence settled with leave (420 penalty minutes), then 6 full leave days.
+    const emp = await makeEmployee();
+    const lt = await deductType();
+    await grant(emp.id, lt.id, YEAR, 6 * STD); // 2520
+    await prisma.attendancePenaltySettlement.create({
+      data: {
+        employeeId: emp.id,
+        leaveTypeId: lt.id,
+        month: '2026-05',
+        kind: 'Absent',
+        days: new Prisma.Decimal(1),
+        minutes: STD, // 420
+        periodYear: YEAR,
+      },
+    });
+    const days = await Promise.all(
+      Array.from({ length: 6 }, (_, i) =>
+        prisma.leaveRequest.create({
+          data: {
+            employeeId: emp.id,
+            leaveTypeId: lt.id,
+            // chargedMinutes is explicit below, so the calendar/working-day
+            // fill logic never runs — the exact weekday doesn't matter.
+            startDate: day(2 + i),
+            endDate: day(2 + i),
+            reason: `day-${i + 1}`,
+            status: 'Approved',
+            chargedMinutes: STD,
+            reviewedAt: new Date(`2026-06-${String(2 + i).padStart(2, '0')}T0${i}:00:00Z`),
+          },
+        }),
+      ),
+    );
+
+    const cs = await computeLiveLeaveCharges([emp.id]);
+    // First 5 days fit inside the penalty-reduced 2100-minute headroom.
+    for (const d of days.slice(0, 5)) {
+      expect(charge(cs, d.id).overQuotaMinutes).toBe(0);
+      expect(charge(cs, d.id).deductAmount).toBeNull();
+    }
+    // The 6th (last-reviewed) day is entirely over quota — WITHOUT the fix
+    // this stayed 0 (deductAmount null) while remainingMinutes already showed
+    // negative, letting payroll skip the deduction entirely.
+    const sixth = days[5];
+    if (!sixth) throw new Error('expected 6 leave requests');
+    expect(charge(cs, sixth.id).overQuotaMinutes).toBe(STD);
+    expect(charge(cs, sixth.id).deductAmount).toBe(STD); // ฿1.00/min fixture rate
+  });
 });
