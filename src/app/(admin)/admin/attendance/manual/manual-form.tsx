@@ -14,7 +14,7 @@
  */
 
 import { useRouter } from 'next/navigation';
-import { useMemo, useState, useTransition } from 'react';
+import { useEffect, useMemo, useState, useTransition } from 'react';
 import { Button } from '@/components/ui/button';
 import { DateField } from '@/components/ui/date-field';
 import { FormField } from '@/components/ui/form-field';
@@ -25,7 +25,11 @@ import { latePolicyFrom, resolveLatePolicy } from '@/lib/attendance/late-policy'
 import { type CreateManualResult, createManualAttendance } from '@/lib/attendance/manual';
 import { computeManualPreview } from '@/lib/attendance/manual-preview';
 import { dailyRateFor } from '@/lib/payroll/day-rate';
-import { setPenaltySettlement } from '@/lib/payroll/penalty-settlement-admin';
+import {
+  getPenaltyLeaveBalance,
+  getPenaltySettlement,
+  setPenaltySettlement,
+} from '@/lib/payroll/penalty-settlement-admin';
 
 /**
  * Which pay-period month a date's penalty belongs to — delegates to
@@ -75,8 +79,6 @@ type Props = {
   canSettle: boolean;
   /** Leave types archived=null && penaltySettlementAllowed=true. Empty when !canSettle. */
   penaltyLeaveTypes: PenaltyLeaveTypeOption[];
-  /** employeeId → (leaveTypeId → remaining whole days). Empty when !canSettle. */
-  remainingDaysByEmployee: Record<string, Record<string, number>>;
 };
 
 const baht = (v: string) => `฿${Number(v).toLocaleString()}`;
@@ -91,7 +93,6 @@ export function ManualAttendanceForm({
   cutoffDay,
   canSettle,
   penaltyLeaveTypes,
-  remainingDaysByEmployee,
 }: Props) {
   const router = useRouter();
 
@@ -121,7 +122,53 @@ export function ManualAttendanceForm({
   // penalty kinds (LateThreeStrike, SevereLate) don't exist at manual-entry
   // time, they only emerge when payroll counts the period.
   const showSettleChoice = kind === 'absent' && canSettle;
-  const employeeRemainingDays = employeeId ? (remainingDaysByEmployee[employeeId] ?? {}) : {};
+
+  const [employeeRemainingDays, setEmployeeRemainingDays] = useState<Record<string, number>>({});
+  const [existingSettlement, setExistingSettlement] = useState<{
+    days: number;
+    leaveTypeName: string;
+  } | null>(null);
+
+  // Balance preview must be checked against the payroll YEAR the entry's own
+  // (possibly backdated) date belongs to, not today's calendar year — the
+  // same year `setPenaltySettlement` derives from `month` server-side.
+  // Fetched lazily rather than baked into page props, since it depends on
+  // the date the admin is about to pick.
+  useEffect(() => {
+    if (!showSettleChoice || settleWith !== 'leave' || !employeeId) {
+      setEmployeeRemainingDays({});
+      return;
+    }
+    let cancelled = false;
+    getPenaltyLeaveBalance({ employeeId, month: payrollMonthFor(date, cutoffDay) }).then((days) => {
+      if (!cancelled) setEmployeeRemainingDays(days);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [showSettleChoice, settleWith, employeeId, date, cutoffDay]);
+
+  // setPenaltySettlement upserts on (employeeId, month, kind) — a second
+  // "หักสิทธิ" pick for the same employee/month REPLACES the first rather
+  // than adding to it. Warn before that happens rather than after, since the
+  // save itself succeeds silently either way.
+  useEffect(() => {
+    if (!showSettleChoice || settleWith !== 'leave' || !employeeId) {
+      setExistingSettlement(null);
+      return;
+    }
+    let cancelled = false;
+    getPenaltySettlement({
+      employeeId,
+      month: payrollMonthFor(date, cutoffDay),
+      kind: 'Absent',
+    }).then((result) => {
+      if (!cancelled) setExistingSettlement(result);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [showSettleChoice, settleWith, employeeId, date, cutoffDay]);
 
   // This employee's actual per-day deduction — same function, same inputs
   // `calcPayroll` uses, so the preview can never disagree with the charge.
@@ -418,6 +465,13 @@ export function ManualAttendanceForm({
                 })}
               </select>
             </FormField>
+          )}
+          {settleWith === 'leave' && existingSettlement && (
+            <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              เดือนนี้มีการหักสิทธิ{existingSettlement.leaveTypeName} {existingSettlement.days} วันอยู่แล้ว —
+              การบันทึกครั้งนี้จะ<strong>แทนที่</strong>ยอดเดิม ไม่ใช่บวกเพิ่ม ถ้าต้องการยอดรวมมากกว่านี้
+              ให้แก้ที่หน้ากระทบยอดเงินเดือน
+            </p>
           )}
         </fieldset>
       )}
