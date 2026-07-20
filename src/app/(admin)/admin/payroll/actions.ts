@@ -110,6 +110,20 @@ export async function publishPayrollAction(formData: FormData) {
   }
 
   const result = await publishPayroll(month);
+
+  // Defect-3 guard (run.ts): a live settlement outlived the penalty that
+  // justified it (a late-penalty rule toggled off, a voided attendance row,
+  // a corrected absence) — publishing would freeze the month with the
+  // settlement uneditable forever, so this call published NOTHING. Send the
+  // admin to clear/adjust it on the reconcile page rather than trying again.
+  if (result.blocked.length > 0) {
+    const names = [...new Set(result.blocked.map((b) => b.name))].join(', ');
+    back(
+      month,
+      `เผยแพร่ไม่สำเร็จ: มีการหักสิทธิวันลาเกินโทษจริงของ ${names} — ไปแก้ไขหรือยกเลิกการหักสิทธิที่หน้ากระทบยอดก่อนเผยแพร่`,
+    );
+  }
+
   // No automatic per-employee LINE push here anymore — employees read
   // their slip from the LINE rich menu instead (quota reduction).
   await scheduleSlipWarming(month, result.published);
@@ -330,6 +344,16 @@ export async function publishOnePayrollAction(
   } catch (err) {
     console.error('publishOnePayrollAction: publish failed', err);
     return { ok: false, message: 'เกิดข้อผิดพลาดในการเผยแพร่ กรุณาลองใหม่' };
+  }
+
+  // Defect-3 guard (run.ts) — see the identical check in publishPayrollAction
+  // above for why this must block rather than publish around it.
+  if (result.blocked.length > 0) {
+    return {
+      ok: false,
+      message:
+        'เผยแพร่ไม่สำเร็จ: มีการหักสิทธิวันลาเกินโทษจริงของเดือนนี้ — ไปแก้ไขหรือยกเลิกการหักสิทธิที่หน้ากระทบยอดก่อนเผยแพร่',
+    };
   }
   if (result.published.length === 0) {
     return { ok: false, message: 'ไม่มีสลิปฉบับร่างให้เผยแพร่ (อาจเผยแพร่ไปแล้ว)' };

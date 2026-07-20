@@ -78,7 +78,7 @@ async function reset() {
   adminUserHolder.id = adminUser.id;
 }
 
-async function makeEmployee() {
+async function makeEmployee(overrides: { salaryType?: 'Monthly' | 'Daily' | 'Hourly' } = {}) {
   const user = await prisma.user.create({ data: {} });
   const branch = await prisma.branch.create({ data: { name: `Branch-${uid().slice(0, 8)}` } });
   return prisma.employee.create({
@@ -87,10 +87,45 @@ async function makeEmployee() {
       firstName: 'Test',
       lastName: 'Worker',
       branchId: branch.id,
-      salaryType: 'Monthly',
+      salaryType: overrides.salaryType ?? 'Monthly',
       baseSalary: new Prisma.Decimal(20_000),
       status: 'Active',
       hiredAt: new Date('2026-01-01'),
+    },
+  });
+}
+
+/** One Absent attendance row inside the default 2026-07 cutoff window
+ *  (cutoffDay 25 → 2026-06-26..2026-07-25) — gives the employee exactly one
+ *  actual Absent-penalty day for that month, the precondition Defect 2's
+ *  `exceeds-penalty` guard now requires before a settlement can spend leave
+ *  against it. */
+async function makeAbsence(employeeId: string, date = '2026-07-01') {
+  await prisma.attendance.create({
+    data: {
+      employeeId,
+      date: new Date(date),
+      type: 'Absent',
+      source: 'Manual',
+      createdById: uid(),
+    },
+  });
+}
+
+/** One Late attendance row inside the same window. `minutesLate` decides
+ *  which bucket it lands in under the default policy (severeLateEnabled:
+ *  true, severeLateThresholdMin: 30, lateThreeStrikeEnabled: true,
+ *  threeStrikeCount: 3): >30 counts toward SevereLate, <=30 toward the
+ *  tier-1/three-strike count. */
+async function makeLate(employeeId: string, date: string, minutesLate: number) {
+  await prisma.attendance.create({
+    data: {
+      employeeId,
+      date: new Date(date),
+      type: 'Late',
+      durationMinutes: minutesLate,
+      source: 'Manual',
+      createdById: uid(),
     },
   });
 }
@@ -139,6 +174,7 @@ describe('setPenaltySettlement', () => {
   it('deducts leave once no matter how many times payroll recalculates', async () => {
     const emp = await makeEmployee();
     const vacation = await makeVacationType();
+    await makeAbsence(emp.id); // the actual penalty the 1-day settlement below settles
 
     const res = await setPenaltySettlement({
       employeeId: emp.id,
@@ -216,6 +252,7 @@ describe('setPenaltySettlement', () => {
     // withheld. Only NEW selections are blocked.
     const emp = await makeEmployee();
     const vacation = await makeVacationType();
+    await makeAbsence(emp.id);
 
     await setPenaltySettlement({
       employeeId: emp.id,
@@ -251,6 +288,9 @@ describe('setPenaltySettlement', () => {
     // for the identical (employeeId, month, kind) is what actually hits it.
     const emp = await makeEmployee();
     const vacation = await makeVacationType();
+    // Two actual Absent days this month — the 2-day edit below settles both.
+    await makeAbsence(emp.id, '2026-07-01');
+    await makeAbsence(emp.id, '2026-07-02');
 
     const initial = await remainingByTypeForEmployee(emp.id, 2026);
     const std = initial[vacation.id]! / 10; // annualQuota: 10 days
@@ -288,6 +328,7 @@ describe('setPenaltySettlement', () => {
   it('refuses a SAME-type edit that would exceed headroom, and leaves the stored row untouched', async () => {
     const emp = await makeEmployee();
     const vacation = await makeVacationType(); // annualQuota: 10 days
+    await makeAbsence(emp.id);
 
     const first = await setPenaltySettlement({
       employeeId: emp.id,
@@ -323,6 +364,10 @@ describe('setPenaltySettlement', () => {
     const emp = await makeEmployee();
     const vacation = await makeVacationType(); // ลาพักร้อน, annualQuota: 10
     const personal = await makePersonalType(); // ลากิจ, annualQuota: 8
+    // Two actual Absent days — both calls below settle 2 days of the SAME
+    // kind (Absent), just moved between leave types.
+    await makeAbsence(emp.id, '2026-07-01');
+    await makeAbsence(emp.id, '2026-07-02');
 
     const initial = await remainingByTypeForEmployee(emp.id, 2026);
     const stdA = initial[vacation.id]! / 10;
@@ -428,6 +473,12 @@ describe('setPenaltySettlement', () => {
         penaltySettlementAllowed: true,
       },
     });
+    // Both kinds need an actual 1-day penalty this month for either 1-day
+    // settle call to be accepted (Defect 2's exceeds-penalty guard) —
+    // otherwise whichever call wins the balance race would still be refused
+    // for exceeding a (nonexistent) penalty instead of proving the race.
+    await makeAbsence(emp.id);
+    await makeLate(emp.id, '2026-07-02', 45); // severe (> default 30-min threshold)
 
     const initial = await remainingByTypeForEmployee(emp.id, 2026);
     const std = initial[vacation.id]!; // annualQuota: 1 day == the whole balance
@@ -684,6 +735,7 @@ describe('audit trail', () => {
   it('writes an audit entry naming the actor and the new values when creating a settlement', async () => {
     const emp = await makeEmployee();
     const vacation = await makeVacationType();
+    await makeAbsence(emp.id);
 
     const res = await setPenaltySettlement({
       employeeId: emp.id,
@@ -711,6 +763,8 @@ describe('audit trail', () => {
   it('writes an audit entry carrying the previous values when editing a settlement', async () => {
     const emp = await makeEmployee();
     const vacation = await makeVacationType();
+    await makeAbsence(emp.id, '2026-07-01');
+    await makeAbsence(emp.id, '2026-07-02'); // 2 actual days — covers the day1→day2 edit below
 
     await setPenaltySettlement({
       employeeId: emp.id,
@@ -753,6 +807,7 @@ describe('audit trail', () => {
   it('writes an audit entry when clearing a settlement', async () => {
     const emp = await makeEmployee();
     const vacation = await makeVacationType();
+    await makeAbsence(emp.id);
 
     await setPenaltySettlement({
       employeeId: emp.id,
@@ -792,6 +847,7 @@ describe('audit trail', () => {
     // that were no longer live — Finding 5 of the review.
     const emp = await makeEmployee();
     const vacation = await makeVacationType();
+    await makeAbsence(emp.id);
 
     const first = await setPenaltySettlement({
       employeeId: emp.id,
@@ -852,5 +908,154 @@ describe('audit trail', () => {
 
     const rows = await auditRowsFor(emp.id, 0);
     expect(rows).toHaveLength(0);
+  });
+});
+
+describe('setPenaltySettlement — refuses settlements payroll cannot charge', () => {
+  it('refuses a Daily employee with unsupported-salary-type and writes no row (Defect 1)', async () => {
+    // Payroll (calc.ts) only ever charges a money attendance penalty for
+    // Monthly employees — a Daily employee's absence never becomes a money
+    // charge in the first place, so settling it with leave would spend real
+    // entitlement forgiving a penalty that was never going to happen.
+    const emp = await makeEmployee({ salaryType: 'Daily' });
+    const vacation = await makeVacationType();
+
+    const r = await setPenaltySettlement({
+      employeeId: emp.id,
+      month: '2026-07',
+      kind: 'Absent',
+      leaveTypeId: vacation.id,
+      days: 1,
+    });
+    expect(r).toEqual({ ok: false, error: 'unsupported-salary-type' });
+
+    const rows = await prisma.attendancePenaltySettlement.findMany({
+      where: { employeeId: emp.id },
+    });
+    expect(rows).toHaveLength(0);
+  });
+
+  it('refuses days exceeding the actual penalty with exceeds-penalty, and accepts days equal to it (Defect 2)', async () => {
+    const emp = await makeEmployee();
+    const vacation = await makeVacationType();
+    await makeAbsence(emp.id); // exactly 1 actual Absent day this month
+
+    const tooMany = await setPenaltySettlement({
+      employeeId: emp.id,
+      month: '2026-07',
+      kind: 'Absent',
+      leaveTypeId: vacation.id,
+      days: 2,
+    });
+    expect(tooMany).toEqual({ ok: false, error: 'exceeds-penalty' });
+
+    const rowsAfterRefusal = await prisma.attendancePenaltySettlement.findMany({
+      where: { employeeId: emp.id, month: '2026-07', kind: 'Absent' },
+    });
+    expect(rowsAfterRefusal).toHaveLength(0);
+
+    const exact = await setPenaltySettlement({
+      employeeId: emp.id,
+      month: '2026-07',
+      kind: 'Absent',
+      leaveTypeId: vacation.id,
+      days: 1,
+    });
+    expect(exact).toEqual({ ok: true });
+  });
+});
+
+describe('publishPayroll — blocks a stranded settlement (Defect 3)', () => {
+  it('refuses to publish while a live settlement exceeds the actual penalty, names the employee, and succeeds once the settlement is cleared', async () => {
+    const emp = await makeEmployee();
+    const vacation = await makeVacationType();
+    await makeAbsence(emp.id); // 1 actual Absent day, justifying the 1-day settlement below
+
+    const settled = await setPenaltySettlement({
+      employeeId: emp.id,
+      month: '2026-07',
+      kind: 'Absent',
+      leaveTypeId: vacation.id,
+      days: 1,
+    });
+    expect(settled).toEqual({ ok: true });
+
+    // Strand it: void the attendance row after the leave was already spent —
+    // the same shape as "an attendance row voided" or "an absence corrected"
+    // (Defect 3's description). The settlement (and the leave it consumed)
+    // is untouched; only the actual penalty disappears.
+    await prisma.attendance.updateMany({
+      where: { employeeId: emp.id },
+      data: { deletedAt: new Date() },
+    });
+
+    await runPayrollDraft('2026-07');
+    const blockedResult = await publishPayroll('2026-07', { employeeId: emp.id });
+
+    expect(blockedResult.published).toHaveLength(0);
+    expect(blockedResult.blocked).toEqual([
+      { employeeId: emp.id, name: 'Test Worker', kind: 'Absent', actualDays: 0, settledDays: 1 },
+    ]);
+
+    // Nothing was written — the Draft row must still read Draft, not Published.
+    const row = await prisma.payroll.findFirst({
+      where: { employeeId: emp.id, month: '2026-07' },
+    });
+    expect(row?.status).toBe('Draft');
+
+    // Clearing the stranded settlement is the fix the blocked result points
+    // the admin toward — publish must then succeed.
+    const cleared = await clearPenaltySettlement({
+      employeeId: emp.id,
+      month: '2026-07',
+      kind: 'Absent',
+    });
+    expect(cleared).toEqual({ ok: true });
+
+    const retryResult = await publishPayroll('2026-07', { employeeId: emp.id });
+    expect(retryResult.blocked).toEqual([]);
+    expect(retryResult.published).toHaveLength(1);
+  });
+
+  it('blocks the exact double-charge this guard exists to prevent: a LateThreeStrike settlement stranded by switching lateThreeStrikeEnabled off', async () => {
+    // calc.ts:tier1LateMoney honours the settlement only in threeStrike mode
+    // — flipping the rule off makes it charge the FULL flat lateDeduction per
+    // late instead, while the settlement keeps its day of leave spent. Without
+    // this guard the employee would pay in money AND leave for the same lates.
+    const emp = await makeEmployee();
+    const vacation = await makeVacationType();
+
+    // 3 tier-1 lates = 1 threeStrikeDay under the default policy
+    // (lateThreeStrikeEnabled: true, lateThreeStrikeCount: 3).
+    await makeLate(emp.id, '2026-07-01', 10);
+    await makeLate(emp.id, '2026-07-02', 10);
+    await makeLate(emp.id, '2026-07-03', 10);
+
+    const settled = await setPenaltySettlement({
+      employeeId: emp.id,
+      month: '2026-07',
+      kind: 'LateThreeStrike',
+      leaveTypeId: vacation.id,
+      days: 1,
+    });
+    expect(settled).toEqual({ ok: true });
+
+    // Turn the three-strike rule off — the settlement is now stranded even
+    // though the underlying lates never changed.
+    await prisma.payrollConfig.updateMany({ data: { lateThreeStrikeEnabled: false } });
+
+    await runPayrollDraft('2026-07');
+    const result = await publishPayroll('2026-07', { employeeId: emp.id });
+
+    expect(result.published).toHaveLength(0);
+    expect(result.blocked).toEqual([
+      {
+        employeeId: emp.id,
+        name: 'Test Worker',
+        kind: 'LateThreeStrike',
+        actualDays: 0,
+        settledDays: 1,
+      },
+    ]);
   });
 });

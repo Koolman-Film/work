@@ -58,6 +58,21 @@ import { EMPTY_SETTLEMENT, moneyDaysFor, type SettlementDays } from './penalty-s
 
 export type SalaryType = 'Monthly' | 'Daily' | 'Hourly';
 
+/**
+ * Salary types payroll can currently charge an attendance penalty in money
+ * for — V1 scope is Monthly only (see the module doc-comment). Exported so
+ * callers that must refuse BEFORE ever reaching `calcPayroll` — namely
+ * `setPenaltySettlement` (penalty-settlement-admin.ts), which must not let an
+ * admin spend an employee's leave entitlement forgiving a money penalty that
+ * payroll would never have charged in the first place — derive the SAME
+ * condition `calcPayroll` enforces below, instead of hardcoding a second copy
+ * of the list that could silently drift from it (e.g. if Daily support is
+ * added here later, forgetting to update a duplicate elsewhere).
+ */
+export function isPayrollChargeableSalaryType(salaryType: SalaryType): boolean {
+  return salaryType === 'Monthly';
+}
+
 export type EmployeeForPayroll = {
   id: string;
   salaryType: SalaryType;
@@ -349,7 +364,7 @@ export function calcSso(
 // ─── Public entry point ──────────────────────────────────────────────────
 
 export function calcPayroll(input: CalcInput): PayrollDraft {
-  if (input.employee.salaryType !== 'Monthly') {
+  if (!isPayrollChargeableSalaryType(input.employee.salaryType)) {
     throw new PayrollCalcError({
       kind: 'unsupported-salary-type',
       given: input.employee.salaryType,

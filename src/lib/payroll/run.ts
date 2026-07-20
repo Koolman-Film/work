@@ -39,6 +39,7 @@ import { lockPayrollMonth } from './month-lock';
 import type { PenaltyKindKey, SettlementDays } from './penalty-settlement';
 import { loadSettlementsForMonth, type MonthSettlement } from './penalty-settlement-load';
 import { payrollMonthWindow } from './period';
+import { actualDaysFromAttendance, PENALTY_KINDS } from './reconcile-settlement';
 
 export type SkippedEmployee = {
   employeeId: string;
@@ -281,6 +282,41 @@ async function gatherAndCalc(db: Tx | typeof prisma, month: string, employeeId?:
   return { drafts, skipped };
 }
 
+/**
+ * Live actual penalty days for ONE employee's month — Absent /
+ * LateThreeStrike / SevereLate, read off a fresh (unpersisted) recompute of
+ * just that employee's attendance, the same way the reconcile page's
+ * over-settlement chip does (`actualDaysFromAttendance`, reconcile-
+ * settlement.ts). Scoped by `employeeId` through `gatherAndCalc`'s existing
+ * per-employee filter (already used by `payrollRowDetailRaw`/
+ * `payrollRowDetail` below for the same "recompute one row" cost) — this is
+ * NOT a full-month recompute; it touches only this employee's attendance,
+ * overlapping leave, and the small global config/holiday tables.
+ *
+ * Two callers:
+ *   - `setPenaltySettlement` (penalty-settlement-admin.ts) — refuses to
+ *     settle more days than the penalty actually justifies (`exceeds-
+ *     penalty`), inside the same locked transaction, so `db` must be the
+ *     active `tx`.
+ *   - `publishPayroll` below doesn't need to call this separately — it
+ *     already computes every publishing employee's breakdown as part of its
+ *     normal drafts loop, so it reads `actualDaysFromAttendance` straight off
+ *     that instead of a second recompute.
+ *
+ * Returns null when the employee has no calculable draft for the month (not
+ * found, archived, or a salary type payroll can't charge) — callers treat
+ * that as "nothing to compare," not as zero.
+ */
+export async function actualPenaltyDaysForEmployee(
+  db: Tx | typeof prisma,
+  month: string,
+  employeeId: string,
+): Promise<SettlementDays | null> {
+  const { drafts } = await gatherAndCalc(db, month, employeeId);
+  const entry = drafts[0];
+  return entry ? actualDaysFromAttendance(entry.draft.breakdown.attendance) : null;
+}
+
 /** Serialize a PayrollDraft's Decimals into Prisma write values. */
 function draftValues(draft: PayrollDraft) {
   return {
@@ -350,9 +386,30 @@ export type PublishedSlip = {
   netPay: string;
 };
 
+/**
+ * One employee's stranded settlement: a live penalty settlement whose kind
+ * settled MORE days than this month's actual penalty now justifies. This is
+ * how Defect 3 (a settlement outliving the penalty it was justified by — a
+ * late-penalty rule toggled off, an attendance row voided, an absence
+ * corrected) is caught BEFORE `publishPayroll` freezes the month: once
+ * Published, `isPeriodClosed` makes the settlement uneditable forever, so
+ * this is the last moment a human can still clear or adjust it.
+ */
+export type BlockedSettlement = {
+  employeeId: string;
+  name: string;
+  kind: PenaltyKindKey;
+  actualDays: number;
+  settledDays: number;
+};
+
 export type PublishResult = {
   published: PublishedSlip[];
   skipped: SkippedEmployee[];
+  /** Non-empty means this call published NOTHING — see the guard in
+   *  `publishPayroll` below. The admin must clear or adjust these settlements
+   *  (reconcile page) before retrying. */
+  blocked: BlockedSettlement[];
 };
 
 /**
@@ -412,6 +469,41 @@ export async function publishPayroll(
     await lockPayrollMonth(tx, month);
 
     const { drafts, skipped } = await gatherAndCalc(tx, month, opts?.employeeId);
+
+    // Defect 3 guard: refuse to publish while ANY employee about to be
+    // published carries a live settlement that outlived its penalty (e.g.
+    // `lateThreeStrikeEnabled` was switched off after the settlement was
+    // made — see calc.ts:tier1LateMoney — or an attendance row was voided,
+    // or an absence was corrected). `draft.breakdown.attendance` was just
+    // computed above for every employee in `drafts`, so this reuses that —
+    // no second recompute, and NOT a per-settle-call cost the way
+    // `actualPenaltyDaysForEmployee` is for `setPenaltySettlement`.
+    //
+    // Deliberately a hard stop, not a per-employee skip: calc.ts must stay
+    // pure (it cannot release the settlement itself), and once Published,
+    // `isPeriodClosed` makes the settlement uneditable forever — publishing
+    // it is the one irreversible step, so this is the last moment a human
+    // can still fix it. Checked BEFORE any write below, so a blocked publish
+    // writes nothing at all (not even for the employees that were fine).
+    const blocked: BlockedSettlement[] = [];
+    for (const { draft, employee } of drafts) {
+      const actualDays = actualDaysFromAttendance(draft.breakdown.attendance);
+      const settledDays = draft.breakdown.attendance.settledDays;
+      for (const kind of PENALTY_KINDS) {
+        if (settledDays[kind] > actualDays[kind]) {
+          blocked.push({
+            employeeId: employee.id,
+            name: `${employee.firstName} ${employee.lastName}`,
+            kind,
+            actualDays: actualDays[kind],
+            settledDays: settledDays[kind],
+          });
+        }
+      }
+    }
+    if (blocked.length > 0) {
+      return { published: [], skipped, blocked };
+    }
 
     const existing = await tx.payroll.findMany({
       where: { month },
@@ -477,7 +569,7 @@ export async function publishPayroll(
       });
     }
 
-    return { published, skipped };
+    return { published, skipped, blocked: [] };
   });
 
   // Bust any cached PDF for freshly-published slips so a download reflects the

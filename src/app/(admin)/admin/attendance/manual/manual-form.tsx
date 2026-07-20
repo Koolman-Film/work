@@ -49,6 +49,8 @@ const SETTLEMENT_ERROR_TH: Record<string, string> = {
   'period-closed': 'ปิดรอบเงินเดือนของเดือนนี้แล้ว',
   'leave-type-not-allowed': 'ประเภทวันลาที่เลือกไม่รองรับการหักค่าปรับนี้',
   'insufficient-balance': 'สิทธิวันลาคงเหลือไม่พอ',
+  'unsupported-salary-type': 'พนักงานประเภทเงินเดือนนี้ยังไม่รองรับการหักค่าปรับ จึงหักสิทธิวันลาแทนไม่ได้',
+  'exceeds-penalty': 'หักสิทธิได้ไม่เกินโทษจริงของเดือนนี้',
 };
 
 // See the identical note in reconcile-rows.tsx: publish now holds a
@@ -129,8 +131,14 @@ export function ManualAttendanceForm({
 
   // Only meaningful when kind === 'absent' && canSettle — the other two
   // penalty kinds (LateThreeStrike, SevereLate) don't exist at manual-entry
-  // time, they only emerge when payroll counts the period.
-  const showSettleChoice = kind === 'absent' && canSettle;
+  // time, they only emerge when payroll counts the period. Also requires
+  // salaryType === 'Monthly' — payroll's V1 scope (calc.ts) never charges a
+  // money penalty for Daily/Hourly employees, so offering "settle with
+  // leave" for one would spend real entitlement forgiving a charge that was
+  // never going to happen. The server enforces this too
+  // (setPenaltySettlement's `unsupported-salary-type`); this just keeps the
+  // admin from being offered a choice the server will refuse.
+  const showSettleChoice = kind === 'absent' && canSettle && employee?.salaryType === 'Monthly';
 
   const [employeeRemainingDays, setEmployeeRemainingDays] = useState<Record<string, number>>({});
   const [existingSettlement, setExistingSettlement] = useState<{
