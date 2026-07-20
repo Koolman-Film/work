@@ -22,6 +22,18 @@ import { prisma } from '@/lib/db/prisma';
 import { AttendanceTabs } from '../attendance-tabs';
 import { ManualAttendanceForm } from './manual-form';
 
+/**
+ * Defect 2 (run.ts / month-lock.ts): a settlement made from this form
+ * (`setManualAttendanceSettlement`, reconcile/actions.ts) calls
+ * `runPayrollDraft`, which now runs with an explicit `timeout` of up to 10s
+ * plus a 5s `maxWait` pool-acquisition budget (payroll/run.ts). This page
+ * isn't nested under /admin/payroll, so it doesn't inherit that segment's
+ * `maxDuration` — set it here directly, same reasoning and same value (60s,
+ * matching the lighter tier the five existing PDF/zip/export route handlers
+ * already use) as admin/payroll/layout.tsx.
+ */
+export const maxDuration = 60;
+
 /** Matches `PayrollConfig.cutoffDay`'s schema default — same fallback the
  *  attendance settings page uses when the singleton config row is missing. */
 const DEFAULT_CUTOFF_DAY = 25;

@@ -47,14 +47,20 @@ const SETTLEMENT_ERROR_TH: Record<string, string> = {
   // its server-side twin (setPenaltySettlement's `exceeds-penalty`) — reached
   // when the actual penalty shrank between opening the editor and saving.
   'exceeds-penalty': 'หักสิทธิได้ไม่เกินโทษจริงของเดือนนี้',
+  // Defect 1: the month's advisory lock (month-lock.ts) is now acquired
+  // non-blocking with a couple of short retries — `setPenaltySettlement`/
+  // `clearPenaltySettlement` return this as a clean `Result` (not a throw)
+  // once those retries are exhausted. Reuses BUSY_ERROR_TH's wording below so
+  // this and the thrown-P2028 backstop read identically to the admin.
+  busy: 'มีแอดมินอีกคนกำลังคำนวณหรือเผยแพร่เงินเดือนเดือนนี้อยู่ กรุณาลองใหม่อีกครั้ง',
 };
 
-// Prisma's default $transaction timeout (5s) / maxWait (2s) can be hit by a
-// concurrent settle now that publish holds the month-wide advisory lock
-// across a full recompute (see month-lock.ts) — the settle throws P2028
-// instead of returning a Result. Caught below so it surfaces as this Thai
-// message instead of an unhandled rejection inside the transition (Finding
-// 3 of the review that added the advisory lock).
+// Backstop only: with the month lock now acquired non-blocking (a couple of
+// short retries — see penalty-settlement-admin.ts), contention should surface
+// as SETTLEMENT_ERROR_TH['busy'] above, not a thrown rejection. This catch
+// stays as a safety net for a genuine DB hiccup (or any other unexpected
+// throw), so it still reads as an actionable Thai message instead of an
+// unhandled rejection inside the transition.
 const BUSY_ERROR_TH = 'ระบบกำลังประมวลผลรายการอื่นอยู่ กรุณาลองใหม่อีกครั้ง';
 
 // A notFound() denial (requireGlobalPermission('payroll.run') rejecting a

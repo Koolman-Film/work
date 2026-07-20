@@ -53,7 +53,14 @@ vi.mock('@/lib/leave/leave-config', () => ({
 
 // ── payroll seams ─────────────────────────────────────────────────────────────
 const lockPayrollMonth = vi.fn();
-vi.mock('./month-lock', () => ({ lockPayrollMonth: (...a: unknown[]) => lockPayrollMonth(...a) }));
+vi.mock('./month-lock', () => ({
+  lockPayrollMonth: (...a: unknown[]) => lockPayrollMonth(...a),
+  // Pass-through: this file's `lockPayrollMonth` mock always resolves `true`
+  // (see beforeEach below), so the retry loop in the real implementation
+  // would never actually run — a single call to `attempt()` is equivalent
+  // and keeps this test from depending on the real retry timing/delays.
+  withMonthLockRetry: (attempt: () => Promise<unknown>) => attempt(),
+}));
 const actualPenaltyDaysForEmployee = vi.fn();
 vi.mock('./run', () => ({
   actualPenaltyDaysForEmployee: (...a: unknown[]) => actualPenaltyDaysForEmployee(...a),
@@ -120,7 +127,11 @@ beforeEach(() => {
   remainingByTypeForEmployee.mockResolvedValue({ [LEAVE_TYPE]: 100000 });
   outerFindUnique.mockResolvedValue(null);
   lockEntitlement.mockResolvedValue(undefined);
-  lockPayrollMonth.mockResolvedValue(undefined);
+  // `lockPayrollMonth` now returns whether it acquired the (non-blocking)
+  // month lock (month-lock.ts) — `true` here mirrors every test in this
+  // file expecting to proceed past that check, same as the old
+  // void-returning mock implicitly did.
+  lockPayrollMonth.mockResolvedValue(true);
   actualPenaltyDaysForEmployee.mockResolvedValue(null);
 });
 

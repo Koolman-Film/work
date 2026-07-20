@@ -56,6 +56,7 @@ function uid(): string {
 
 async function reset() {
   await prisma.attendancePenaltySettlement.deleteMany({});
+  await prisma.payroll.deleteMany({});
   await prisma.leaveRequest.deleteMany({});
   await prisma.leaveEntitlement.deleteMany({});
   await prisma.employee.deleteMany({});
@@ -98,17 +99,43 @@ async function makeLeaveType() {
  *  `setPenaltySettlement` (the table's only production writer) deliberately —
  *  this test targets archiveLeaveType's own reference count, not the
  *  settlement-writing guards already covered by penalty-settlement.
- *  integration.test.ts. */
-async function makeSettlement(employeeId: string, leaveTypeId: string) {
+ *  integration.test.ts. `month` defaults to '2026-07' (periodYear derived
+ *  from it) so existing call sites are unaffected; tests below pass an
+ *  explicit month to control which Payroll row (if any) makes it closed. */
+async function makeSettlement(employeeId: string, leaveTypeId: string, month = '2026-07') {
   return prisma.attendancePenaltySettlement.create({
     data: {
       employeeId,
-      month: '2026-07',
+      month,
       kind: 'Absent',
       leaveTypeId,
       days: new Prisma.Decimal(1),
       minutes: 480,
-      periodYear: 2026,
+      periodYear: Number(month.slice(0, 4)),
+    },
+  });
+}
+
+/** A Published Payroll row for (employeeId, month) — makes that settlement's
+ *  month CLOSED per `isPeriodClosed` (penalty-settlement-admin.ts) and the
+ *  mirrored check in `archiveLeaveType`: any Payroll row whose status is not
+ *  Draft. Money fields are irrelevant to this test (archiveLeaveType never
+ *  reads them) so they're zeroed. */
+async function makePublishedPayroll(employeeId: string, month: string) {
+  await prisma.payroll.create({
+    data: {
+      employeeId,
+      month,
+      status: 'Published',
+      publishedAt: new Date(),
+      incomeBase: new Prisma.Decimal(0),
+      deductSso: new Prisma.Decimal(0),
+      deductAdvance: new Prisma.Decimal(0),
+      deductAttendance: new Prisma.Decimal(0),
+      deductLeave: new Prisma.Decimal(0),
+      deductDebt: new Prisma.Decimal(0),
+      deductOther: new Prisma.Decimal(0),
+      netPay: new Prisma.Decimal(0),
     },
   });
 }
@@ -195,5 +222,147 @@ describe('archiveLeaveType — blocks a live AttendancePenaltySettlement referen
 
     const after = await prisma.leaveType.findUniqueOrThrow({ where: { id: vacation.id } });
     expect(after.archivedAt).toBeNull();
+  });
+});
+
+describe('archiveLeaveType — closed-month settlements are archivable, open-month ones still block (Defect 4)', () => {
+  it('permits the archive when the only live settlement is in a CLOSED (Published) month — it cannot be cleared, so it must not be required to be', async () => {
+    const emp = await makeEmployee();
+    const vacation = await makeLeaveType();
+    await makeSettlement(emp.id, vacation.id, '2026-05');
+    await makePublishedPayroll(emp.id, '2026-05');
+
+    await expect(archiveLeaveType(vacation.id)).rejects.toThrow(
+      /^REDIRECT:\/admin\/settings\/leave-types$/,
+    );
+
+    const after = await prisma.leaveType.findUniqueOrThrow({ where: { id: vacation.id } });
+    expect(after.archivedAt).not.toBeNull();
+  });
+
+  it('still refuses when a live settlement is in an OPEN month (no Payroll row at all), and names that month', async () => {
+    const emp = await makeEmployee();
+    const vacation = await makeLeaveType();
+    await makeSettlement(emp.id, vacation.id, '2026-06');
+    // No Payroll row at all for 2026-06 — open, same as "never calculated".
+
+    let thrown: Error | undefined;
+    try {
+      await archiveLeaveType(vacation.id);
+    } catch (err) {
+      thrown = err as Error;
+    }
+    expect(thrown).toBeDefined();
+    const url = new URL(thrown!.message.replace(/^REDIRECT:/, ''), 'http://localhost');
+    const message = decodeURIComponent(url.searchParams.get('error') ?? '');
+    expect(message).toContain('2026-06');
+
+    const after = await prisma.leaveType.findUniqueOrThrow({ where: { id: vacation.id } });
+    expect(after.archivedAt).toBeNull();
+  });
+
+  it('still refuses when a live settlement is in an OPEN month with a Draft Payroll row, distinct from a Published one', async () => {
+    const emp = await makeEmployee();
+    const vacation = await makeLeaveType();
+    await makeSettlement(emp.id, vacation.id, '2026-06');
+    await prisma.payroll.create({
+      data: {
+        employeeId: emp.id,
+        month: '2026-06',
+        status: 'Draft',
+        incomeBase: new Prisma.Decimal(0),
+        netPay: new Prisma.Decimal(0),
+      },
+    });
+
+    await expect(archiveLeaveType(vacation.id)).rejects.toThrow(
+      /^REDIRECT:\/admin\/settings\/leave-types\?error=/,
+    );
+
+    const after = await prisma.leaveType.findUniqueOrThrow({ where: { id: vacation.id } });
+    expect(after.archivedAt).toBeNull();
+  });
+
+  it('mixed: refuses while ANY settlement is still open, naming only the open month — not the already-closed one', async () => {
+    const emp = await makeEmployee();
+    const vacation = await makeLeaveType();
+    // Closed month — settled and published.
+    await makeSettlement(emp.id, vacation.id, '2026-05');
+    await makePublishedPayroll(emp.id, '2026-05');
+    // Open month — settled, never published.
+    await makeSettlement(emp.id, vacation.id, '2026-06');
+
+    let thrown: Error | undefined;
+    try {
+      await archiveLeaveType(vacation.id);
+    } catch (err) {
+      thrown = err as Error;
+    }
+    expect(thrown).toBeDefined();
+    const url = new URL(thrown!.message.replace(/^REDIRECT:/, ''), 'http://localhost');
+    const message = decodeURIComponent(url.searchParams.get('error') ?? '');
+    expect(message).toContain('2026-06');
+    expect(message).not.toContain('2026-05');
+
+    const after = await prisma.leaveType.findUniqueOrThrow({ where: { id: vacation.id } });
+    expect(after.archivedAt).toBeNull();
+
+    // Now close the remaining open month too — the archive should go through.
+    await makePublishedPayroll(emp.id, '2026-06');
+    await expect(archiveLeaveType(vacation.id)).rejects.toThrow(
+      /^REDIRECT:\/admin\/settings\/leave-types$/,
+    );
+    const afterBothClosed = await prisma.leaveType.findUniqueOrThrow({
+      where: { id: vacation.id },
+    });
+    expect(afterBothClosed.archivedAt).not.toBeNull();
+  });
+});
+
+describe('archiving a closed-month-settled type must not silently refund entitlement (Defect 4, leave/balance.ts)', () => {
+  it('keeps subtracting a closed-month settlement’s spent minutes from remaining balance after the type is archived', async () => {
+    const { remainingByTypeForEmployee, getOrSeedEntitlements } = await import(
+      '@/lib/leave/balance'
+    );
+
+    const emp = await makeEmployee();
+    const vacation = await makeLeaveType(); // annualQuota: 10 days
+    // Seed the entitlement row for 2026 the same way a normal admin visit would
+    // (getOrSeedEntitlements creates it lazily) — done BEFORE archiving, while
+    // the type is still active, exactly like production.
+    const before = await getOrSeedEntitlements(emp.id, 2026);
+    const entBefore = before.find((r) => r.leaveTypeId === vacation.id);
+    expect(entBefore).toBeDefined();
+    const remainingBefore = entBefore!.remainingMinutes;
+
+    await makeSettlement(emp.id, vacation.id, '2026-05'); // 480 minutes, 1 day
+    await makePublishedPayroll(emp.id, '2026-05');
+
+    await expect(archiveLeaveType(vacation.id)).rejects.toThrow(
+      /^REDIRECT:\/admin\/settings\/leave-types$/,
+    );
+    const archived = await prisma.leaveType.findUniqueOrThrow({ where: { id: vacation.id } });
+    expect(archived.archivedAt).not.toBeNull();
+
+    // Both balance readers must still show the type (not silently drop it)
+    // AND still show the 480 minutes as spent — not refunded.
+    const remaining = await remainingByTypeForEmployee(emp.id, 2026);
+    expect(remaining[vacation.id]).toBe(remainingBefore! - 480);
+
+    const after = await getOrSeedEntitlements(emp.id, 2026);
+    const entAfter = after.find((r) => r.leaveTypeId === vacation.id);
+    expect(entAfter).toBeDefined();
+    expect(entAfter!.remainingMinutes).toBe(remainingBefore! - 480);
+  });
+
+  it('an archived type with NO settlement for this employee/year stays out of the enumeration (unaffected by the Defect 4 fix)', async () => {
+    const { remainingByTypeForEmployee } = await import('@/lib/leave/balance');
+
+    const emp = await makeEmployee();
+    const vacation = await makeLeaveType();
+    await prisma.leaveType.update({ where: { id: vacation.id }, data: { archivedAt: new Date() } });
+
+    const remaining = await remainingByTypeForEmployee(emp.id, 2026);
+    expect(remaining[vacation.id]).toBeUndefined();
   });
 });

@@ -42,15 +42,90 @@
  * orders can — there is only ever one key to acquire, so the old
  * employeeId-ordering concern for the row-lock version of this code no
  * longer applies.
+ *
+ * NON-BLOCKING BY DESIGN (`pg_try_advisory_xact_lock`, not
+ * `pg_advisory_xact_lock`): this used to block until the lock was free,
+ * which sounds harmless but isn't — it is the FIRST statement inside the
+ * transaction (see above), so every millisecond spent waiting here is
+ * charged against that transaction's `timeout` budget, not against
+ * Prisma's separate `maxWait` (pool-acquisition) budget. Sizing `timeout`
+ * to also cover an unknown, unbounded queueing delay behind however many
+ * other admins are contending for the SAME month is a losing game — bump it
+ * once, someone finds a scenario with one more concurrent caller than the
+ * bump covered, and it's an unhandled P2028 again (this is exactly what
+ * happened across the two previous fixes to this file: 5s timeout → 20s/30s
+ * → still not enough once a second concurrent `runPayrollDraft` could queue
+ * behind the first). `pg_try_advisory_xact_lock` returns immediately —
+ * `true` if it got the lock, `false` if someone else holds it — so
+ * `timeout` only ever has to cover this transaction's OWN work, never
+ * someone else's. Every caller MUST check the return value and treat
+ * `false` as "another operation is in progress, try again" (a `busy`
+ * outcome — see the callers), never assume the lock was acquired.
  */
 import type { prisma } from '@/lib/db/prisma';
 
 type TxClient = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
 
-export async function lockPayrollMonth(db: TxClient, month: string): Promise<void> {
-  // $executeRaw, not $queryRaw: pg_advisory_xact_lock returns `void`, and
-  // Prisma's query engine can't deserialize a `void` column ("Failed to
-  // deserialize column of type 'void'") — it can only run the statement and
-  // report rows affected, which is all this needs.
-  await db.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${month}))`;
+/**
+ * Attempt to acquire the month's advisory lock without blocking. Returns
+ * `true` if this transaction now holds it, `false` if another transaction
+ * holds it right now — the caller must treat `false` as "busy" and abort
+ * (return a `busy` result), NOT proceed as if the lock were held.
+ *
+ * `$queryRaw`, not `$executeRaw`: `pg_try_advisory_xact_lock` (unlike the
+ * blocking `pg_advisory_xact_lock`) returns a real `boolean` column, which
+ * Prisma's query engine deserializes fine — `$executeRaw` would discard it.
+ */
+export async function lockPayrollMonth(db: TxClient, month: string): Promise<boolean> {
+  const rows = await db.$queryRaw<
+    { locked: boolean }[]
+  >`SELECT pg_try_advisory_xact_lock(hashtext(${month})) AS locked`;
+  return rows[0]?.locked ?? false;
+}
+
+/** How long to wait before each retry attempt in {@link withMonthLockRetry}. */
+const MONTH_LOCK_RETRY_DELAYS_MS = [50, 150];
+
+/**
+ * A couple of short, bounded retries for a transaction whose FIRST statement
+ * is `lockPayrollMonth`, when losing that lock race once is unlikely to mean
+ * losing it again a moment later. Each attempt is a FRESH transaction
+ * (`attempt` is called again from scratch, not resumed) — a failed lock
+ * acquire never leaves a half-open transaction sitting around while this
+ * sleeps between attempts.
+ *
+ * Used by:
+ *   - `setPenaltySettlement`/`clearPenaltySettlement`
+ *     (penalty-settlement-admin.ts) — a handful of point reads/writes on ONE
+ *     employee; contention typically clears within tens of milliseconds, and
+ *     an admin having to manually re-click "save" for that is worse than a
+ *     couple of silent retries.
+ *   - `publishPayroll` (run.ts) — same reasoning applies whenever it's
+ *     scoped to ONE employee (`opts.employeeId`, the per-row "เผยแพร่" button)
+ *     or a whole month with few enough employees to finish fast; races it
+ *     against another equally-quick settlement are common (see the
+ *     "publish-side lock race" integration tests) and a short retry turns
+ *     most of them into a clean success instead of a spurious `busy`.
+ *
+ * Deliberately NOT used by `runPayrollDraft` (run.ts): that function's
+ * per-employee write loop can hold the lock for a duration that scales with
+ * headcount and is the side MORE likely to be the one already holding the
+ * lock when someone else loses a race against it (see the "month-lock race"
+ * integration test, which pads it to ~60 employees specifically to make this
+ * true) — retrying a fixed ~200ms budget against a hold time that can run
+ * well past that doesn't meaningfully raise the odds of success, only adds
+ * latency before the caller finds out either way. Surfacing `busy`
+ * immediately there is the more honest answer.
+ */
+export async function withMonthLockRetry<T>(
+  attempt: () => Promise<T>,
+  isBusy: (result: T) => boolean,
+): Promise<T> {
+  let result = await attempt();
+  for (const delayMs of MONTH_LOCK_RETRY_DELAYS_MS) {
+    if (!isBusy(result)) return result;
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+    result = await attempt();
+  }
+  return result;
 }

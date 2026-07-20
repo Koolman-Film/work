@@ -1871,3 +1871,110 @@ describe('setPenaltySettlement/publishPayroll — SevereLate and LateThreeStrike
     expect(result.published).toHaveLength(1);
   });
 });
+
+describe('setPenaltySettlement / clearPenaltySettlement — busy outcome + short retry (Defect 1)', () => {
+  /** Hold `month`'s advisory lock (month-lock.ts) for `holdMs` in its own
+   *  transaction — mirrors exactly what `runPayrollDraft`/`publishPayroll`
+   *  do as their first statement. */
+  async function holdMonthLock(month: string, holdMs: number): Promise<void> {
+    const { lockPayrollMonth } = await import('@/lib/payroll/month-lock');
+    await prisma.$transaction(async (tx) => {
+      const acquired = await lockPayrollMonth(tx, month);
+      if (!acquired) throw new Error('test setup bug: expected to acquire the lock uncontended');
+      await new Promise((resolve) => setTimeout(resolve, holdMs));
+    });
+  }
+
+  it('returns `busy` (not a throw, not a hang) once its couple of short retries are exhausted against a long-held lock', async () => {
+    const emp = await makeEmployee();
+    const vacation = await makeVacationType();
+    await makeAbsence(emp.id);
+
+    // Held well past the retry budget (50ms + 150ms ≈ 200ms) — every retry
+    // must still find the lock taken.
+    const holderPromise = holdMonthLock('2026-07', 500);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    const result = await setPenaltySettlement({
+      employeeId: emp.id,
+      month: '2026-07',
+      kind: 'Absent',
+      leaveTypeId: vacation.id,
+      days: 1,
+      via: 'reconcile',
+    });
+
+    expect(result).toEqual({ ok: false, error: 'busy' });
+
+    // Nothing was written — a `busy` result is a true no-op.
+    const row = await prisma.attendancePenaltySettlement.findUnique({
+      where: { employeeId_month_kind: { employeeId: emp.id, month: '2026-07', kind: 'Absent' } },
+    });
+    expect(row).toBeNull();
+
+    await holderPromise;
+  });
+
+  it('succeeds via retry when the lock is released within the retry budget, instead of failing on the first busy attempt', async () => {
+    const emp = await makeEmployee();
+    const vacation = await makeVacationType();
+    await makeAbsence(emp.id);
+
+    // Released well inside the retry budget — the first attempt sees `busy`,
+    // but a retry lands after the holder has committed.
+    const holderPromise = holdMonthLock('2026-07', 30);
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    const result = await setPenaltySettlement({
+      employeeId: emp.id,
+      month: '2026-07',
+      kind: 'Absent',
+      leaveTypeId: vacation.id,
+      days: 1,
+      via: 'reconcile',
+    });
+
+    expect(result).toEqual({ ok: true });
+
+    const row = await prisma.attendancePenaltySettlement.findUnique({
+      where: { employeeId_month_kind: { employeeId: emp.id, month: '2026-07', kind: 'Absent' } },
+    });
+    expect(row?.deletedAt).toBeNull();
+
+    await holderPromise;
+  });
+
+  it('clearPenaltySettlement also returns `busy` (not a throw) once retries are exhausted', async () => {
+    const emp = await makeEmployee();
+    const vacation = await makeVacationType();
+    await makeAbsence(emp.id);
+    const settled = await setPenaltySettlement({
+      employeeId: emp.id,
+      month: '2026-07',
+      kind: 'Absent',
+      leaveTypeId: vacation.id,
+      days: 1,
+      via: 'reconcile',
+    });
+    expect(settled).toEqual({ ok: true });
+
+    const holderPromise = holdMonthLock('2026-07', 500);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    const result = await clearPenaltySettlement({
+      employeeId: emp.id,
+      month: '2026-07',
+      kind: 'Absent',
+      via: 'reconcile',
+    });
+    expect(result).toEqual({ ok: false, error: 'busy' });
+
+    // The earlier settlement is untouched — clear did nothing.
+    const row = await prisma.attendancePenaltySettlement.findUniqueOrThrow({
+      where: { employeeId_month_kind: { employeeId: emp.id, month: '2026-07', kind: 'Absent' } },
+    });
+    expect(row.deletedAt).toBeNull();
+
+    await holderPromise;
+  });
+});

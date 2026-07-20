@@ -238,27 +238,58 @@ export async function archiveLeaveType(id: string) {
     );
   }
 
-  // Block archive if a live (non-deleted) AttendancePenaltySettlement still
-  // spends this type's entitlement (Defect 4). The three balance readers in
-  // leave/balance.ts (getOrSeedEntitlements, remainingByTypeForEmployees,
-  // remainingByTypeForEmployee) all enumerate leave types filtered on
-  // `archivedAt: null` before calling `penaltyMinutes` inside that loop —
-  // archiving a type out from under a live settlement would silently stop
-  // subtracting its spent minutes (the employee gets the days back) while
-  // `loadSettlementsForMonth` (payroll/penalty-settlement-load.ts, which has
-  // no archived filter) keeps applying the money offset: entitlement
-  // refunded, money still forgiven, with no code path that notices. Mirrors
-  // the leaveRequest check above — block, don't silently orphan; the admin
-  // can clear the settlements (reconcile page) first.
-  const activeSettlements = await prisma.attendancePenaltySettlement.count({
+  // Block archive ONLY when a live (non-deleted) AttendancePenaltySettlement
+  // still spends this type's entitlement for a month that is still OPEN
+  // (Draft or no Payroll row at all) — the reconcile page can actually clear
+  // those, so pointing the admin there is actionable. A settlement whose
+  // month has already left Draft (Published/Locked) can NOT be cleared —
+  // `clearPenaltySettlement` (penalty-settlement-admin.ts) refuses any edit
+  // there with `period-closed` — so requiring it to be cleared first would
+  // make the type permanently unarchivable the moment it was ever used to
+  // settle a penalty in a published month. Money for a closed month is
+  // already frozen either way (published slips don't change), so there is
+  // nothing left there for archiving to disturb.
+  //
+  // Money is safe regardless: `loadSettlementsForMonth`
+  // (payroll/penalty-settlement-load.ts) has no archived filter, so a
+  // closed month's published slip keeps showing/crediting its settlement
+  // exactly as before. Leave balance is the part that needs care — see the
+  // `remainingByTypeForEmployee`/`remainingByTypeForEmployees`/
+  // `getOrSeedEntitlements` fix in leave/balance.ts (Defect 4): those three
+  // readers enumerate leave types filtered on `archivedAt: null`, so without
+  // that fix, archiving would silently stop subtracting a closed-month
+  // settlement's already-spent minutes from the balance the moment the type
+  // is archived — an entitlement refund nobody asked for. That fix keeps a
+  // type in the enumeration for exactly the employees/years it still has a
+  // live settlement against, archived or not, so this block doesn't need to
+  // (and must not) also require those to be cleared.
+  const liveSettlements = await prisma.attendancePenaltySettlement.findMany({
     where: { leaveTypeId: id, deletedAt: null },
+    select: { employeeId: true, month: true },
   });
-  if (activeSettlements > 0) {
-    redirect(
-      `/admin/settings/leave-types?error=${encodeURIComponent(
-        `มีการหักค่าปรับด้วยสิทธิวันลา ${activeSettlements} รายการที่ใช้ประเภทนี้อยู่ — ไปยกเลิกที่หน้ากระทบยอดเงินเดือนก่อน`,
-      )}`,
-    );
+
+  if (liveSettlements.length > 0) {
+    const months = [...new Set(liveSettlements.map((s) => s.month))];
+    const employeeIds = [...new Set(liveSettlements.map((s) => s.employeeId))];
+    // "Closed" mirrors isPeriodClosed (penalty-settlement-admin.ts): any
+    // Payroll row for (employeeId, month) that has left Draft.
+    const closedPayrolls = await prisma.payroll.findMany({
+      where: { employeeId: { in: employeeIds }, month: { in: months }, status: { not: 'Draft' } },
+      select: { employeeId: true, month: true },
+    });
+    const closedKeys = new Set(closedPayrolls.map((p) => `${p.employeeId}:${p.month}`));
+    const blocking = liveSettlements.filter((s) => !closedKeys.has(`${s.employeeId}:${s.month}`));
+
+    if (blocking.length > 0) {
+      const blockingMonths = [...new Set(blocking.map((s) => s.month))].sort();
+      redirect(
+        `/admin/settings/leave-types?error=${encodeURIComponent(
+          `มีการหักค่าปรับด้วยสิทธิวันลา ${blocking.length} รายการที่ใช้ประเภทนี้อยู่ในงวดที่ยังไม่ปิด (${blockingMonths.join(', ')}) — ไปยกเลิกที่หน้ากระทบยอดเงินเดือนก่อน`,
+        )}`,
+      );
+    }
+    // Every live settlement referencing this type is in a closed
+    // (Published/Locked) month — nothing left to clear, safe to archive.
   }
 
   await prisma.leaveType.update({

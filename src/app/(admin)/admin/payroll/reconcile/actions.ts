@@ -48,7 +48,13 @@ async function recalculateAfterSettlement(month: string): Promise<{ recalcPendin
   revalidatePath('/admin/payroll/reconcile');
   revalidatePath('/admin/payroll');
   try {
-    await runPayrollDraft(month);
+    const result = await runPayrollDraft(month);
+    // Defect 1: the month lock (month-lock.ts) is now acquired non-blocking,
+    // so losing the race against a concurrent publish/draft/settlement
+    // returns a clean `busy` result here instead of throwing P2028 — treat
+    // it exactly like the catch below (the settlement already committed;
+    // only this courtesy recalculation didn't happen).
+    if (result.busy) return { recalcPending: true };
     return {};
   } catch (err) {
     console.error(
