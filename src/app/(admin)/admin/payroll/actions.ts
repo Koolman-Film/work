@@ -15,6 +15,7 @@ import {
   type PublishResult,
   payrollRowDetail,
   publishPayroll,
+  type RunResult,
   runPayrollDraft,
 } from '@/lib/payroll/run';
 import { warmPublishedPayslips } from '@/lib/payslip/warm';
@@ -59,16 +60,40 @@ function readMonth(formData: FormData): string {
   return month;
 }
 
-function back(month: string, msg: string): never {
+/**
+ * Redirect back to the payroll page carrying a status message.
+ *
+ * `severity` decides which visual treatment page.tsx renders the message
+ * with: 'success' (default) is the green banner used for a clean, complete
+ * result; 'alert' reuses the SAME amber/`role="alert"` treatment the page
+ * already renders for its stale-draft warning — for a partial result (some
+ * employees held back) or an outright failure, where the green treatment
+ * would read as "everything is fine" to a skimming admin when it isn't.
+ */
+function back(month: string, msg: string, severity: 'success' | 'alert' = 'success'): never {
   revalidatePath('/admin/payroll');
-  redirect(`/admin/payroll?m=${month}&msg=${encodeURIComponent(msg)}`);
+  const sevQs = severity === 'alert' ? '&sev=alert' : '';
+  redirect(`/admin/payroll?m=${month}&msg=${encodeURIComponent(msg)}${sevQs}`);
 }
 
 export async function calculatePayrollAction(formData: FormData) {
   const { user } = await requireGlobalPermission('payroll.run');
   const month = readMonth(formData);
 
-  const result = await runPayrollDraft(month);
+  let result: RunResult;
+  try {
+    result = await runPayrollDraft(month);
+  } catch (err) {
+    // Unhandled, this rejects the server action and surfaces as a generic
+    // error boundary instead of an actionable message — the same gap
+    // publishOnePayrollAction below already closes for its own publish call.
+    // Most likely cause now that runPayrollDraft holds the month's advisory
+    // lock across a full recompute: a concurrent settle/publish/recalculate
+    // for the same month held the lock long enough to exhaust this
+    // transaction's `timeout` (see run.ts's "Transaction timeout" note).
+    console.error('calculatePayrollAction: run failed', err);
+    back(month, 'คำนวณเงินเดือนไม่สำเร็จ ระบบอาจกำลังประมวลผลรายการอื่นอยู่ กรุณาลองใหม่อีกครั้ง', 'alert');
+  }
 
   auditLog({
     actorId: user.id,
@@ -106,10 +131,23 @@ export async function publishPayrollAction(formData: FormData) {
   // Publishing stamps sweep rows early — block future months so a
   // mis-clicked navigator can't lock those in ahead of time.
   if (month > currentMonthBkk()) {
-    back(month, 'ยังเผยแพร่เดือนล่วงหน้าไม่ได้ — เผยแพร่ได้ไม่เกินเดือนปัจจุบัน');
+    back(month, 'ยังเผยแพร่เดือนล่วงหน้าไม่ได้ — เผยแพร่ได้ไม่เกินเดือนปัจจุบัน', 'alert');
   }
 
-  const result = await publishPayroll(month);
+  let result: PublishResult;
+  try {
+    result = await publishPayroll(month);
+  } catch (err) {
+    // Unhandled, this rejects the server action and surfaces as a generic
+    // error boundary — the gap Defect 1 closes. publishPayroll now has its
+    // own explicit transaction budget at least as large as
+    // runPayrollDraft's (see run.ts), so this is no longer the routine "lost
+    // the budget race against a concurrent คำนวณ" case it used to be, but a
+    // transaction can still fail (contention, a genuine DB hiccup) and must
+    // not crash the action — mirrors publishOnePayrollAction below.
+    console.error('publishPayrollAction: publish failed', err);
+    back(month, 'เผยแพร่สลิปไม่สำเร็จ กรุณาลองใหม่อีกครั้ง', 'alert');
+  }
 
   // No automatic per-employee LINE push here anymore — employees read
   // their slip from the LINE rich menu instead (quota reduction).
@@ -142,6 +180,7 @@ export async function publishPayrollAction(formData: FormData) {
     back(
       month,
       `เผยแพร่สลิป ${result.published.length} คนแล้ว — ยกเว้น ${names} ที่มีการหักสิทธิวันลาเกินโทษจริง ไปแก้ไขหรือยกเลิกการหักสิทธิที่หน้ากระทบยอดก่อน แล้วเผยแพร่ใหม่อีกครั้ง`,
+      'alert',
     );
   }
 

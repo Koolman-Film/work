@@ -123,6 +123,11 @@ function PenaltySettlementLine({
   const [days, setDays] = useState(1);
   const [balances, setBalances] = useState<Record<string, number>>({});
   const [error, setError] = useState<string | null>(null);
+  // Distinct from `error`: the settlement itself saved successfully — only
+  // the courtesy draft recalculation afterward failed (Defect 2). Rendered
+  // as a notice, not an error, so the admin never reads a successful save as
+  // a failure and retries an action that already applied.
+  const [notice, setNotice] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   // Balance is fetched only once the editor opens — most rows never edit,
@@ -160,6 +165,7 @@ function PenaltySettlementLine({
 
   function handleSave() {
     setError(null);
+    setNotice(null);
     if (!leaveTypeId) {
       setError('กรุณาเลือกประเภทวันลาที่จะใช้หัก');
       return;
@@ -180,6 +186,14 @@ function PenaltySettlementLine({
           return;
         }
         setEditing(false);
+        if (result.recalcPending) {
+          // Same honesty contract as the manual attendance form's identical
+          // case: name what was saved (the settlement), name what was not
+          // (the recalculation), say what to do.
+          setNotice(
+            'บันทึกการหักสิทธิเรียบร้อยแล้ว แต่คำนวณฉบับร่างใหม่ไม่สำเร็จ — ตัวเลขที่หน้าเงินเดือนอาจยังไม่อัปเดต ไปกด "คำนวณใหม่ (ฉบับร่าง)" ที่หน้าเงินเดือนอีกครั้ง',
+          );
+        }
         router.refresh();
       } catch (err) {
         // Do not swallow silently — the admin must know the save did not
@@ -193,6 +207,7 @@ function PenaltySettlementLine({
 
   function handleClear() {
     setError(null);
+    setNotice(null);
     startTransition(async () => {
       try {
         const result = await clearReconcileSettlement({ employeeId, month, kind });
@@ -201,6 +216,11 @@ function PenaltySettlementLine({
           return;
         }
         setEditing(false);
+        if (result.recalcPending) {
+          setNotice(
+            'ยกเลิกการหักสิทธิเรียบร้อยแล้ว แต่คำนวณฉบับร่างใหม่ไม่สำเร็จ — ตัวเลขที่หน้าเงินเดือนอาจยังไม่อัปเดต ไปกด "คำนวณใหม่ (ฉบับร่าง)" ที่หน้าเงินเดือนอีกครั้ง',
+          );
+        }
         router.refresh();
       } catch (err) {
         setError(isNotFoundError(err) ? PERMISSION_ERROR_TH : BUSY_ERROR_TH);
@@ -219,6 +239,15 @@ function PenaltySettlementLine({
           {settledDays > 0 ? `หักสิทธิ${leaveTypeName ?? 'วันลา'} ${settledDays} วัน` : 'หักเป็นเงิน'}
         </span>
       </div>
+
+      {notice && (
+        <p
+          role="status"
+          className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-sm text-amber-900"
+        >
+          {notice}
+        </p>
+      )}
 
       {overSettled && (
         <p className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-sm text-amber-900">

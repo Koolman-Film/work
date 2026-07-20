@@ -15,6 +15,12 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState, useTransition } from 'react';
+// The reconcile page's own settle action, reused here (Defect 3) so a
+// settlement made from this form leaves payroll in the same state a
+// reconcile-page settlement does — recalculated Draft + revalidated
+// /admin/payroll — instead of showing the stale, unsettled money charge
+// until someone happens to press "คำนวณ" again. See that file's docstring.
+import { setManualAttendanceSettlement } from '@/app/(admin)/admin/payroll/reconcile/actions';
 import { Button } from '@/components/ui/button';
 import { DateField } from '@/components/ui/date-field';
 import { FormField } from '@/components/ui/form-field';
@@ -29,7 +35,6 @@ import { dailyRateFor } from '@/lib/payroll/day-rate';
 import {
   getPenaltyLeaveBalance,
   getPenaltySettlement,
-  setPenaltySettlement,
 } from '@/lib/payroll/penalty-settlement-admin';
 
 /**
@@ -319,19 +324,31 @@ export function ManualAttendanceForm({
       // e.g. later from the payroll reconcile page.
       if (showSettleChoice && settleWith === 'leave' && settleLeaveTypeId) {
         try {
-          const settled = await setPenaltySettlement({
+          const settled = await setManualAttendanceSettlement({
             employeeId,
             month: payrollMonthFor(date, cutoffDay),
             kind: 'Absent',
             leaveTypeId: settleLeaveTypeId,
             days: 1,
-            via: 'manual-attendance',
           });
           if (!settled.ok) {
             const reason = SETTLEMENT_ERROR_TH[settled.error] ?? 'เกิดข้อผิดพลาดไม่ทราบสาเหตุ';
             setError(
               `บันทึกขาดงานเรียบร้อยแล้ว แต่หักสิทธิวันลาไม่สำเร็จ (${reason}) ระบบจะหักเป็นเงินแทน — ` +
                 'ไปแก้ไขวิธีหักที่หน้าสรุปเงินเดือนได้ภายหลัง',
+            );
+            return;
+          }
+          if (settled.recalcPending) {
+            // Same honesty contract as the `!settled.ok` branch above: name
+            // what was saved (the absence AND the leave settlement — both
+            // committed), name what was not (the payroll draft recalculation
+            // — see setManualAttendanceSettlement's docstring for why that
+            // failure never rolls back the settlement itself), and say what
+            // to do about it.
+            setError(
+              'บันทึกขาดงานและหักสิทธิวันลาเรียบร้อยแล้ว แต่คำนวณฉบับร่างใหม่ไม่สำเร็จ — ' +
+                'ตัวเลขที่หน้าเงินเดือนอาจยังไม่อัปเดต ไปกด "คำนวณใหม่ (ฉบับร่าง)" ที่หน้าเงินเดือนอีกครั้ง',
             );
             return;
           }

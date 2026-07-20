@@ -238,6 +238,29 @@ export async function archiveLeaveType(id: string) {
     );
   }
 
+  // Block archive if a live (non-deleted) AttendancePenaltySettlement still
+  // spends this type's entitlement (Defect 4). The three balance readers in
+  // leave/balance.ts (getOrSeedEntitlements, remainingByTypeForEmployees,
+  // remainingByTypeForEmployee) all enumerate leave types filtered on
+  // `archivedAt: null` before calling `penaltyMinutes` inside that loop —
+  // archiving a type out from under a live settlement would silently stop
+  // subtracting its spent minutes (the employee gets the days back) while
+  // `loadSettlementsForMonth` (payroll/penalty-settlement-load.ts, which has
+  // no archived filter) keeps applying the money offset: entitlement
+  // refunded, money still forgiven, with no code path that notices. Mirrors
+  // the leaveRequest check above — block, don't silently orphan; the admin
+  // can clear the settlements (reconcile page) first.
+  const activeSettlements = await prisma.attendancePenaltySettlement.count({
+    where: { leaveTypeId: id, deletedAt: null },
+  });
+  if (activeSettlements > 0) {
+    redirect(
+      `/admin/settings/leave-types?error=${encodeURIComponent(
+        `มีการหักค่าปรับด้วยสิทธิวันลา ${activeSettlements} รายการที่ใช้ประเภทนี้อยู่ — ไปยกเลิกที่หน้ากระทบยอดเงินเดือนก่อน`,
+      )}`,
+    );
+  }
+
   await prisma.leaveType.update({
     where: { id },
     data: { archivedAt: new Date() },
