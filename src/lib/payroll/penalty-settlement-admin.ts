@@ -9,6 +9,7 @@
 
 'use server';
 
+import { auditLog } from '@/lib/audit/log';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { remainingByTypeForEmployee } from '@/lib/leave/balance';
@@ -84,7 +85,7 @@ export async function setPenaltySettlement(input: {
         kind: input.kind,
       },
     },
-    select: { minutes: true, leaveTypeId: true, deletedAt: true },
+    select: { id: true, days: true, minutes: true, leaveTypeId: true, deletedAt: true },
   });
   const creditBack =
     existing && !existing.deletedAt && existing.leaveTypeId === input.leaveTypeId
@@ -93,7 +94,7 @@ export async function setPenaltySettlement(input: {
 
   if (minutes > available + creditBack) return { ok: false, error: 'insufficient-balance' };
 
-  await prisma.attendancePenaltySettlement.upsert({
+  const row = await prisma.attendancePenaltySettlement.upsert({
     where: {
       employeeId_month_kind: {
         employeeId: input.employeeId,
@@ -120,6 +121,38 @@ export async function setPenaltySettlement(input: {
       note: input.note ?? null,
       deletedAt: null,
     },
+  });
+
+  // Reached only after every guard above has already passed — a refused
+  // call (period-closed / leave-type-not-allowed / insufficient-balance /
+  // invalid-days) never reaches here, so no audit row is written for it.
+  // Logged here (not in the reconcile page's wrapper) because this action is
+  // called from two surfaces — the manual attendance form and the payroll
+  // reconcile page — and auditing at the source covers both by construction.
+  auditLog({
+    actorId: user.id,
+    action: existing ? 'penaltySettlement.update' : 'penaltySettlement.create',
+    entityType: 'AttendancePenaltySettlement',
+    entityId: row.id,
+    before: existing
+      ? {
+          employeeId: input.employeeId,
+          month: input.month,
+          kind: input.kind,
+          leaveTypeId: existing.leaveTypeId,
+          days: existing.days.toNumber(),
+          minutes: existing.minutes,
+        }
+      : undefined,
+    after: {
+      employeeId: input.employeeId,
+      month: input.month,
+      kind: input.kind,
+      leaveTypeId: input.leaveTypeId,
+      days: input.days,
+      minutes,
+    },
+    metadata: { source: 'server-action' },
   });
 
   return { ok: true };
@@ -184,16 +217,52 @@ export async function clearPenaltySettlement(input: {
   month: string;
   kind: PenaltyKindKey;
 }): Promise<Result> {
-  await requirePermission('payroll.run');
+  const { user } = await requirePermission('payroll.run');
 
   if (await isPeriodClosed(input.employeeId, input.month)) {
     return { ok: false, error: 'period-closed' };
   }
 
-  await prisma.attendancePenaltySettlement.updateMany({
+  // Snapshot the live row before clearing so the audit entry can carry what
+  // it said — `updateMany`'s `count` (below) is what actually tells us
+  // whether anything was cleared, since this row may already be gone.
+  const existing = await prisma.attendancePenaltySettlement.findUnique({
+    where: {
+      employeeId_month_kind: {
+        employeeId: input.employeeId,
+        month: input.month,
+        kind: input.kind,
+      },
+    },
+    select: { id: true, days: true, minutes: true, leaveTypeId: true },
+  });
+
+  const result = await prisma.attendancePenaltySettlement.updateMany({
     where: { employeeId: input.employeeId, month: input.month, kind: input.kind, deletedAt: null },
     data: { deletedAt: new Date() },
   });
+
+  // Only log when a row was actually cleared — `updateMany` matches zero
+  // rows when there was nothing live to clear, and an unconditional log
+  // would claim a change that never happened.
+  if (result.count > 0 && existing) {
+    auditLog({
+      actorId: user.id,
+      action: 'penaltySettlement.clear',
+      entityType: 'AttendancePenaltySettlement',
+      entityId: existing.id,
+      before: {
+        employeeId: input.employeeId,
+        month: input.month,
+        kind: input.kind,
+        leaveTypeId: existing.leaveTypeId,
+        days: existing.days.toNumber(),
+        minutes: existing.minutes,
+      },
+      after: { cleared: true },
+      metadata: { source: 'server-action' },
+    });
+  }
 
   return { ok: true };
 }
