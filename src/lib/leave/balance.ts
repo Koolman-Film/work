@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db/prisma';
 import { getLeaveConfig } from './leave-config';
+import { penaltyMinutes, penaltyMinutesBy } from './penalty-minutes';
 import { standardDayMinutes } from './units';
 
 /** Transaction client compatible with both the extended `prisma` client and a
@@ -12,11 +13,22 @@ export type EntitlementForBalance = {
   adjustmentMinutes: number;
 };
 
-/** Remaining minutes = (granted) + carryover + adjustment − used. Returns null
- *  when granted is null (unlimited — no cap, no warning). May be negative. */
-export function remainingMinutes(ent: EntitlementForBalance, used: number): number | null {
+/** Remaining minutes = (granted) + carryover + adjustment − used − penalty.
+ *  Returns null when granted is null (unlimited — no cap, no warning).
+ *  May be negative.
+ *
+ *  `penalty` is REQUIRED, not optional with a zero default, on purpose. This
+ *  function has five call sites; an optional parameter lets one of them be
+ *  missed, and a missed call site reports a balance that is too high — the
+ *  employee is then allowed to book leave they no longer have, silently. A
+ *  required parameter turns that mistake into a compile error. */
+export function remainingMinutes(
+  ent: EntitlementForBalance,
+  used: number,
+  penalty: number,
+): number | null {
   if (ent.grantedMinutes == null) return null;
-  return ent.grantedMinutes + ent.carryoverMinutes + ent.adjustmentMinutes - used;
+  return ent.grantedMinutes + ent.carryoverMinutes + ent.adjustmentMinutes - used - penalty;
 }
 
 /** The effective grant for a type: the entitlement's grant if a row exists
@@ -118,6 +130,7 @@ export async function getOrSeedEntitlements(
   const rows: EntitlementRow[] = [];
   for (const e of ents) {
     const used = await usedMinutes(employeeId, e.leaveTypeId, year);
+    const penalty = await penaltyMinutes(employeeId, e.leaveTypeId, year);
     rows.push({
       leaveTypeId: e.leaveTypeId,
       leaveTypeName: e.leaveType.name,
@@ -126,7 +139,7 @@ export async function getOrSeedEntitlements(
       adjustmentMinutes: e.adjustmentMinutes,
       note: e.note,
       usedMinutes: used,
-      remainingMinutes: remainingMinutes(e, used),
+      remainingMinutes: remainingMinutes(e, used, penalty),
     });
   }
   return rows;
@@ -184,6 +197,8 @@ export async function remainingByTypeForEmployees(
     entBy.set(`${e.employeeId}:${e.leaveTypeId}`, e);
   }
 
+  const penaltyBy = await penaltyMinutesBy(employeeIds, year);
+
   const out: Record<string, Record<string, number | null>> = {};
   for (const empId of employeeIds) {
     const byType: Record<string, number | null> = {};
@@ -191,6 +206,7 @@ export async function remainingByTypeForEmployees(
       const ent = entBy.get(`${empId}:${t.id}`) ?? null;
       const granted = resolveGrantedMinutes(t.annualQuota, ent, std);
       const used = usedBy.get(`${empId}:${t.id}`) ?? 0;
+      const penalty = penaltyBy.get(`${empId}:${t.id}`) ?? 0;
       byType[t.id] = remainingMinutes(
         {
           grantedMinutes: granted,
@@ -198,6 +214,7 @@ export async function remainingByTypeForEmployees(
           adjustmentMinutes: ent?.adjustmentMinutes ?? 0,
         },
         used,
+        penalty,
       );
     }
     out[empId] = byType;
@@ -234,6 +251,7 @@ export async function remainingByTypeForEmployee(
     const ent = entByType.get(t.id) ?? null;
     const granted = resolveGrantedMinutes(t.annualQuota, ent, std);
     const used = await usedMinutes(employeeId, t.id, year);
+    const penalty = await penaltyMinutes(employeeId, t.id, year);
     out[t.id] = remainingMinutes(
       {
         grantedMinutes: granted,
@@ -241,6 +259,7 @@ export async function remainingByTypeForEmployee(
         adjustmentMinutes: ent?.adjustmentMinutes ?? 0,
       },
       used,
+      penalty,
     );
   }
   return out;
