@@ -15,6 +15,7 @@ import { prisma } from '@/lib/db/prisma';
 import { remainingByTypeForEmployee } from '@/lib/leave/balance';
 import { getLeaveConfig } from '@/lib/leave/leave-config';
 import { standardDayMinutes } from '@/lib/leave/units';
+import { lockPayrollMonth } from './month-lock';
 import type { PenaltyKindKey } from './penalty-settlement';
 
 type Result = { ok: true } | { ok: false; error: string };
@@ -25,6 +26,13 @@ type Result = { ok: true } | { ok: false; error: string };
 type TxClient = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
 
 const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
+// Malformed input must return `{ ok: false }` like every other guard here,
+// not let Postgres throw `invalid input syntax for type uuid` for a
+// `@db.Uuid` column and reject the whole action (Finding 2 of the review
+// that added the advisory lock). Same pattern as UUID_RE in
+// admin/payroll/actions.ts and the other admin routes that validate an id
+// before it reaches a typed Prisma query against a Uuid column.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** The leave year a pay-period month charges against: the year in its label.
  *  Stored on the row so no other reader re-derives it differently. */
@@ -38,9 +46,10 @@ function periodYearOf(month: string): number {
  *  would disagree permanently with no way to reconcile them.
  *
  *  Takes the active transaction client (defaults to `prisma` for read-only
- *  callers) so it participates in the row lock taken by `lockPayrollRow`
- *  below — see that function's comment for why this must run AFTER the lock,
- *  inside the same transaction, rather than as a standalone read. */
+ *  callers) so it participates in the advisory lock taken by
+ *  `lockPayrollMonth` (./month-lock.ts) — see that module's comment for why
+ *  this must run AFTER the lock, inside the same transaction, rather than as
+ *  a standalone read. */
 async function isPeriodClosed(
   employeeId: string,
   month: string,
@@ -51,37 +60,6 @@ async function isPeriodClosed(
     select: { id: true },
   });
   return row != null;
-}
-
-/**
- * Row-locks this employee's Payroll row for the month, if one exists, for
- * the rest of the transaction. This is what turns "check isPeriodClosed,
- * then later write" back into one atomic operation instead of two reads and
- * a write separated by arbitrary time (see the module doc / Finding 1 of the
- * review this fix answers):
- *
- *   - `publishPayroll` (run.ts) writes this exact row — `employeeId_month` —
- *     inside its own transaction. Whichever side (this one or publish) takes
- *     the lock first makes the other block until the first commits, so a
- *     settlement can never land on a row that finishes publishing in
- *     between the guard check and the write, and a publish can never miss a
- *     settlement that already committed.
- *   - Two settlement calls for the SAME employee/month but DIFFERENT penalty
- *     kinds (e.g. Absent and SevereLate) also serialize against each other
- *     here, because they lock the same Payroll row even though they write
- *     different AttendancePenaltySettlement rows (unique on employeeId +
- *     month + kind, so it doesn't collide on its own). Without this, both
- *     could read the same `available` balance and both spend it, driving the
- *     balance negative.
- *
- * No Payroll row exists yet for a month nobody has run "คำนวณ" on. That is
- * expected, not an error: with no row, nothing can currently be publishing
- * that month, so there is nothing to lock and no race to close — the guard
- * below still runs (and still passes, since isPeriodClosed also finds no
- * row), and the settlement proceeds normally.
- */
-async function lockPayrollRow(db: TxClient, employeeId: string, month: string): Promise<void> {
-  await db.$queryRaw`SELECT "id" FROM "Payroll" WHERE "employeeId" = ${employeeId}::uuid AND "month" = ${month} FOR UPDATE`;
 }
 
 export async function setPenaltySettlement(input: {
@@ -100,13 +78,16 @@ export async function setPenaltySettlement(input: {
   if (!MONTH_RE.test(input.month)) {
     return { ok: false, error: 'invalid-month' };
   }
+  if (!UUID_RE.test(input.employeeId)) {
+    return { ok: false, error: 'invalid-employee' };
+  }
 
   // Everything from the lock through the upsert runs in one transaction so
   // the "is this month still open" guard and the write it protects can never
   // be split by a concurrent publish or a concurrent settlement on another
-  // penalty kind for the same employee/month — see lockPayrollRow's comment.
+  // penalty kind for the same employee/month — see month-lock.ts's comment.
   return prisma.$transaction(async (tx) => {
-    await lockPayrollRow(tx, input.employeeId, input.month);
+    await lockPayrollMonth(tx, input.month);
 
     if (await isPeriodClosed(input.employeeId, input.month, tx)) {
       return { ok: false, error: 'period-closed' };
@@ -293,12 +274,15 @@ export async function clearPenaltySettlement(input: {
   if (!MONTH_RE.test(input.month)) {
     return { ok: false, error: 'invalid-month' };
   }
+  if (!UUID_RE.test(input.employeeId)) {
+    return { ok: false, error: 'invalid-employee' };
+  }
 
   // Same lock + transaction reasoning as setPenaltySettlement: the guard and
   // the write it protects must not be split by a concurrent publish or a
   // concurrent settlement on another kind for this employee/month.
   return prisma.$transaction(async (tx) => {
-    await lockPayrollRow(tx, input.employeeId, input.month);
+    await lockPayrollMonth(tx, input.month);
 
     if (await isPeriodClosed(input.employeeId, input.month, tx)) {
       return { ok: false, error: 'period-closed' };

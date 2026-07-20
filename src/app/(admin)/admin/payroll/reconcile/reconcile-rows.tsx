@@ -32,10 +32,19 @@ type LeaveTypeOption = { id: string; name: string };
 const SETTLEMENT_ERROR_TH: Record<string, string> = {
   'invalid-days': 'จำนวนวันไม่ถูกต้อง',
   'invalid-month': 'เดือนที่ระบุไม่ถูกต้อง',
+  'invalid-employee': 'รหัสพนักงานไม่ถูกต้อง',
   'period-closed': 'ปิดรอบเงินเดือนของเดือนนี้แล้ว',
   'leave-type-not-allowed': 'ประเภทวันลาที่เลือกไม่รองรับการหักค่าปรับนี้',
   'insufficient-balance': 'สิทธิวันลาคงเหลือไม่พอ',
 };
+
+// Prisma's default $transaction timeout (5s) / maxWait (2s) can be hit by a
+// concurrent settle now that publish holds the month-wide advisory lock
+// across a full recompute (see month-lock.ts) — the settle throws P2028
+// instead of returning a Result. Caught below so it surfaces as this Thai
+// message instead of an unhandled rejection inside the transition (Finding
+// 3 of the review that added the advisory lock).
+const BUSY_ERROR_TH = 'ระบบกำลังประมวลผลรายการอื่นอยู่ กรุณาลองใหม่อีกครั้ง';
 
 const PENALTY_KIND_LABEL: Record<PenaltyKindKey, string> = {
   Absent: 'ขาดงาน',
@@ -136,26 +145,36 @@ function PenaltySettlementLine({
       return;
     }
     startTransition(async () => {
-      const result = await setReconcileSettlement({ employeeId, month, kind, leaveTypeId, days });
-      if (!result.ok) {
-        setError(SETTLEMENT_ERROR_TH[result.error] ?? 'เกิดข้อผิดพลาดไม่ทราบสาเหตุ');
-        return;
+      try {
+        const result = await setReconcileSettlement({ employeeId, month, kind, leaveTypeId, days });
+        if (!result.ok) {
+          setError(SETTLEMENT_ERROR_TH[result.error] ?? 'เกิดข้อผิดพลาดไม่ทราบสาเหตุ');
+          return;
+        }
+        setEditing(false);
+        router.refresh();
+      } catch {
+        // Do not swallow silently — the admin must know the save did not
+        // apply, not assume it did because no error rendered.
+        setError(BUSY_ERROR_TH);
       }
-      setEditing(false);
-      router.refresh();
     });
   }
 
   function handleClear() {
     setError(null);
     startTransition(async () => {
-      const result = await clearReconcileSettlement({ employeeId, month, kind });
-      if (!result.ok) {
-        setError(SETTLEMENT_ERROR_TH[result.error] ?? 'เกิดข้อผิดพลาดไม่ทราบสาเหตุ');
-        return;
+      try {
+        const result = await clearReconcileSettlement({ employeeId, month, kind });
+        if (!result.ok) {
+          setError(SETTLEMENT_ERROR_TH[result.error] ?? 'เกิดข้อผิดพลาดไม่ทราบสาเหตุ');
+          return;
+        }
+        setEditing(false);
+        router.refresh();
+      } catch {
+        setError(BUSY_ERROR_TH);
       }
-      setEditing(false);
-      router.refresh();
     });
   }
 

@@ -45,10 +45,18 @@ function payrollMonthFor(dateYmd: string, cutoffDay: number): string {
 const SETTLEMENT_ERROR_TH: Record<string, string> = {
   'invalid-days': 'จำนวนวันไม่ถูกต้อง',
   'invalid-month': 'เดือนที่ระบุไม่ถูกต้อง',
+  'invalid-employee': 'รหัสพนักงานไม่ถูกต้อง',
   'period-closed': 'ปิดรอบเงินเดือนของเดือนนี้แล้ว',
   'leave-type-not-allowed': 'ประเภทวันลาที่เลือกไม่รองรับการหักค่าปรับนี้',
   'insufficient-balance': 'สิทธิวันลาคงเหลือไม่พอ',
 };
+
+// See the identical note in reconcile-rows.tsx: publish now holds a
+// month-wide advisory lock across a full recompute (month-lock.ts), so a
+// concurrent settle here can hit Prisma's transaction maxWait and throw
+// P2028 instead of returning a Result. Caught below so it surfaces as this
+// Thai message instead of an unhandled rejection inside the transition.
+const BUSY_ERROR_TH = 'ระบบกำลังประมวลผลรายการอื่นอยู่ กรุณาลองใหม่อีกครั้ง';
 
 type ScheduleDay = { dayOfWeek: number; startTime: string; endTime: string };
 
@@ -276,17 +284,28 @@ export function ManualAttendanceForm({
       // charged as money (the safe fallback); only the settlement is retried,
       // e.g. later from the payroll reconcile page.
       if (showSettleChoice && settleWith === 'leave' && settleLeaveTypeId) {
-        const settled = await setPenaltySettlement({
-          employeeId,
-          month: payrollMonthFor(date, cutoffDay),
-          kind: 'Absent',
-          leaveTypeId: settleLeaveTypeId,
-          days: 1,
-        });
-        if (!settled.ok) {
-          const reason = SETTLEMENT_ERROR_TH[settled.error] ?? 'เกิดข้อผิดพลาดไม่ทราบสาเหตุ';
+        try {
+          const settled = await setPenaltySettlement({
+            employeeId,
+            month: payrollMonthFor(date, cutoffDay),
+            kind: 'Absent',
+            leaveTypeId: settleLeaveTypeId,
+            days: 1,
+          });
+          if (!settled.ok) {
+            const reason = SETTLEMENT_ERROR_TH[settled.error] ?? 'เกิดข้อผิดพลาดไม่ทราบสาเหตุ';
+            setError(
+              `บันทึกขาดงานเรียบร้อยแล้ว แต่หักสิทธิวันลาไม่สำเร็จ (${reason}) ระบบจะหักเป็นเงินแทน — ` +
+                'ไปแก้ไขวิธีหักที่หน้าสรุปเงินเดือนได้ภายหลัง',
+            );
+            return;
+          }
+        } catch {
+          // Same "entry is safe, only the settlement failed" contract as the
+          // `!settled.ok` branch above — do not let this read as the whole
+          // entry having failed, and do not swallow it silently either.
           setError(
-            `บันทึกขาดงานเรียบร้อยแล้ว แต่หักสิทธิวันลาไม่สำเร็จ (${reason}) ระบบจะหักเป็นเงินแทน — ` +
+            `บันทึกขาดงานเรียบร้อยแล้ว แต่หักสิทธิวันลาไม่สำเร็จ (${BUSY_ERROR_TH}) ระบบจะหักเป็นเงินแทน — ` +
               'ไปแก้ไขวิธีหักที่หน้าสรุปเงินเดือนได้ภายหลัง',
           );
           return;

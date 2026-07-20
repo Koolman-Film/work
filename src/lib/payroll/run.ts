@@ -35,6 +35,7 @@ import {
   PayrollCalcError,
   type PayrollDraft,
 } from './calc';
+import { lockPayrollMonth } from './month-lock';
 import type { PenaltyKindKey, SettlementDays } from './penalty-settlement';
 import { loadSettlementsForMonth, type MonthSettlement } from './penalty-settlement-load';
 import { payrollMonthWindow } from './period';
@@ -370,15 +371,27 @@ export async function publishPayroll(
   opts?: { employeeId?: string },
 ): Promise<PublishResult> {
   const result = await prisma.$transaction(async (tx) => {
-    // Row-lock every Payroll row this publish will touch BEFORE
-    // gatherAndCalc reads settlements (and everything else). This closes
-    // the race against setPenaltySettlement/clearPenaltySettlement
-    // (penalty-settlement-admin.ts), which take their own single-row
-    // `FOR UPDATE` lock on employeeId+month before checking whether the
-    // month is still Draft: without a lock here, a settle transaction could
-    // start after our gatherAndCalc read, find the row still Draft, and
-    // commit its settlement — which our already-taken snapshot would never
-    // see — right before we stamp the row Published.
+    // Take the month's advisory lock BEFORE gatherAndCalc reads settlements
+    // (and everything else). This closes the race against
+    // setPenaltySettlement/clearPenaltySettlement (penalty-settlement-admin.ts),
+    // which take the SAME lock (see ./month-lock.ts) before checking whether
+    // the month is still Draft: without a lock here, a settle transaction
+    // could start after our gatherAndCalc read, find the month still open,
+    // and commit its settlement — which our already-taken snapshot would
+    // never see — right before we stamp the row Published.
+    //
+    // Keyed on the MONTH, not on a Payroll row: this upsert's `create`
+    // branch (below) can write a Payroll row that did not exist when this
+    // transaction started — an employee added or activated between
+    // "คำนวณ" and "เผยแพร่", reachable through the manual attendance form,
+    // which settles without requiring a Draft row first. A row lock (the
+    // previous version of this code, `SELECT ... FOR UPDATE`) locks nothing
+    // when no row matches, so that case wasn't protected at all — see
+    // month-lock.ts for the full failure mode this replaced (Finding 1 of
+    // the review that added it). Used unconditionally, even when
+    // `opts.employeeId` scopes this publish to one employee, so both this
+    // function and penalty-settlement-admin.ts always compute the same lock
+    // key and can never pick different ones and miss each other.
     //
     // The lock must be taken HERE, before gatherAndCalc, not after — that
     // ordering is the entire point:
@@ -390,23 +403,13 @@ export async function publishPayroll(
     //     settlement is visible.
     // Either ordering now yields a consistent result. A future refactor
     // that moves this lock after gatherAndCalc (or moves the read earlier)
-    // would silently reopen the race — don't.
+    // would silently reopen the race — don't. Likewise, don't "simplify"
+    // this back to a row lock — see month-lock.ts for why that is unsafe.
     //
-    // Locked in employeeId order so two concurrent full-month publishes
-    // (e.g. a double-submitted click) always acquire these locks in the
-    // same sequence and can only block on each other, never deadlock
-    // (AB-BA) — see the deadlock analysis in the fix report.
-    //
-    // Scoped to the single employee when opts.employeeId is set, so a
-    // single-employee publish doesn't lock the whole month. A Payroll row
-    // that doesn't exist yet locks nothing, which is correct: an employee
-    // with no row for this month has nothing to publish, so there is
-    // nothing to race a settlement against.
-    if (opts?.employeeId) {
-      await tx.$queryRaw`SELECT "id" FROM "Payroll" WHERE "month" = ${month} AND "employeeId" = ${opts.employeeId}::uuid FOR UPDATE`;
-    } else {
-      await tx.$queryRaw`SELECT "id" FROM "Payroll" WHERE "month" = ${month} ORDER BY "employeeId" FOR UPDATE`;
-    }
+    // A single advisory lock per transaction can't deadlock against itself:
+    // there's exactly one key per publish, so the old employeeId-ordering
+    // concern for the row-lock version of this code no longer applies.
+    await lockPayrollMonth(tx, month);
 
     const { drafts, skipped } = await gatherAndCalc(tx, month, opts?.employeeId);
 
