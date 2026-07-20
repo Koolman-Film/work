@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db/prisma';
 import { remainingMinutes, resolveGrantedMinutes, usedMinutes } from './balance';
 import { getLeaveConfig } from './leave-config';
 import { deductionForOverQuota, overQuotaMinutesFor, perMinuteRate } from './over-quota';
+import { penaltyMinutes } from './penalty-minutes';
 import { standardDayMinutes } from './units';
 
 export type OverQuotaPreview = {
@@ -43,6 +44,7 @@ export async function overQuotaPreview(
   const std = standardDayMinutes(cfg);
   const granted = resolveGrantedMinutes(type.annualQuota, ent, std);
   const used = await usedMinutes(employeeId, leaveTypeId, year);
+  const penalty = await penaltyMinutes(employeeId, leaveTypeId, year);
   const remaining = remainingMinutes(
     {
       grantedMinutes: granted,
@@ -50,6 +52,7 @@ export async function overQuotaPreview(
       adjustmentMinutes: ent?.adjustmentMinutes ?? 0,
     },
     used,
+    penalty,
   );
   const over = overQuotaMinutesFor(chargedMinutes, remaining);
   const rate = perMinuteRate(

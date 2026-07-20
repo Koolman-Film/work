@@ -38,6 +38,7 @@ import { remainingMinutes, resolveGrantedMinutes, usedMinutes } from './balance'
 import { getLeaveConfig } from './leave-config';
 import { asNameByLocale } from './localized-name';
 import { deductionForOverQuota, overQuotaMinutesFor, perMinuteRate } from './over-quota';
+import { penaltyMinutes } from './penalty-minutes';
 import {
   type DurationParts,
   formatDaysHours,
@@ -279,6 +280,7 @@ export async function approveLeaveRequest(input: Input): Promise<ApproveResult> 
       });
       const granted = resolveGrantedMinutes(req.leaveType.annualQuota, ent, std);
       const used = await usedMinutes(req.employeeId, req.leaveTypeId, year, tx);
+      const penalty = await penaltyMinutes(req.employeeId, req.leaveTypeId, year, tx);
       const remaining = remainingMinutes(
         {
           grantedMinutes: granted,
@@ -286,6 +288,7 @@ export async function approveLeaveRequest(input: Input): Promise<ApproveResult> 
           adjustmentMinutes: ent?.adjustmentMinutes ?? 0,
         },
         used,
+        penalty,
       );
       const overQuota = overQuotaMinutesFor(chargedMinutes, remaining);
 
