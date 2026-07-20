@@ -2,6 +2,12 @@ import { prisma } from '@/lib/db/prisma';
 import { perMinuteRate } from '@/lib/leave/over-quota';
 import { standardDayMinutes } from '@/lib/leave/units';
 import { adjustmentAppliesToMonth } from '@/lib/payroll/adjustments';
+import {
+  EMPTY_SETTLEMENT,
+  type PenaltyKindKey,
+  type SettlementDays,
+} from '@/lib/payroll/penalty-settlement';
+import { loadSettlementsForMonth } from '@/lib/payroll/penalty-settlement-load';
 import { payrollMonthWindow } from '@/lib/payroll/period';
 import type { PayslipDocument, PayslipLine } from './types';
 
@@ -41,6 +47,18 @@ export type NormalizedPayslipInput = {
   advanceCount: number;
   /** Attendance counts over the pay period (for the attendance line detail). */
   attendance: { absent: number; late: number };
+  /**
+   * Days of each attendance-penalty kind settled with leave this month
+   * instead of money — omit (or leave a kind out) when nothing of that kind
+   * was settled, the default and the state of almost every payslip. Drives a
+   * dedicated zero-amount line per settled kind (see settled-with-leave note
+   * below) so the employee is told which leave type paid for it, even in a
+   * month where that nets `deductAttendance` all the way to zero and the
+   * ordinary attendance line is omitted entirely.
+   */
+  settledDays?: Partial<SettlementDays>;
+  /** Which leave type absorbed each settled kind, by name — for the note's wording. */
+  settledLeaveTypeNames?: Partial<Record<PenaltyKindKey, string>>;
   /** Sum of over-quota leave minutes (for the leave line detail). */
   leaveOverMinutesTotal: number;
   /** Inputs the assembler needs to compute the SSO% label and the leave per-minute rate. */
@@ -62,6 +80,8 @@ export function assemblePayslipDocument(input: NormalizedPayslipInput): PayslipD
     deductAdjustments,
     advanceCount,
     attendance,
+    settledDays,
+    settledLeaveTypeNames,
     leaveOverMinutesTotal,
     rateInputs,
   } = input;
@@ -114,6 +134,37 @@ export function assemblePayslipDocument(input: NormalizedPayslipInput): PayslipD
     attDetail = { key: 'attendance', vars: { absent: attendance.absent, late: attendance.late } };
   }
   push('attendance', 'deduct.attendance', buckets.deductAttendance, attDetail);
+
+  // A penalty settled with leave nets its own money to zero — sometimes
+  // taking the whole `deductAttendance` bucket to zero too, which makes the
+  // `push()` above skip the attendance line entirely. Without a separate,
+  // always-shown line here, the employee would see nothing for that penalty
+  // and read the silence as "it didn't happen," only to find the leave days
+  // missing later. This loop is independent of `deductAttendance` on
+  // purpose: each settled kind gets its own ฿0 line naming the leave type
+  // that paid for it, keyed so it can only appear once per kind and never
+  // appears when that kind was not settled.
+  const SETTLED_KIND_LABEL_TH: Record<PenaltyKindKey, string> = {
+    Absent: 'ขาดงาน',
+    LateThreeStrike: 'มาสาย',
+    SevereLate: 'มาสายรุนแรง',
+  };
+  const SETTLED_KIND_LINE_KEY: Record<PenaltyKindKey, string> = {
+    Absent: 'settledAbsent',
+    LateThreeStrike: 'settledLateThreeStrike',
+    SevereLate: 'settledSevereLate',
+  };
+  for (const kind of Object.keys(EMPTY_SETTLEMENT) as PenaltyKindKey[]) {
+    const days = settledDays?.[kind] ?? 0;
+    if (days <= 0) continue;
+    const leaveTypeName = settledLeaveTypeNames?.[kind] ?? 'วันลา';
+    deduct.push({
+      key: SETTLED_KIND_LINE_KEY[kind],
+      label: `${SETTLED_KIND_LABEL_TH[kind]} — หักจากสิทธิ${leaveTypeName} ${days} วัน`,
+      amount: 0,
+      detail: null,
+    });
+  }
 
   const rate = perMinuteRate(
     rateInputs.salaryType,
@@ -168,55 +219,60 @@ export async function getPayslipDocument(
   });
   if (!payroll) return null;
 
-  const [employee, config, leaveConfig, adjustments, advances, leaves] = await Promise.all([
-    prisma.employee.findUniqueOrThrow({
-      where: { id: employeeId },
-      select: {
-        firstName: true,
-        lastName: true,
-        nickname: true,
-        salaryType: true,
-        baseSalary: true,
-        branch: {
-          select: {
-            name: true,
-            nameEn: true,
-            payslipNameEn: true,
-            payslipNameNative: true,
-            payslipLogoKey: true,
+  const [employee, config, leaveConfig, adjustments, advances, leaves, settlement] =
+    await Promise.all([
+      prisma.employee.findUniqueOrThrow({
+        where: { id: employeeId },
+        select: {
+          firstName: true,
+          lastName: true,
+          nickname: true,
+          salaryType: true,
+          baseSalary: true,
+          branch: {
+            select: {
+              name: true,
+              nameEn: true,
+              payslipNameEn: true,
+              payslipNameNative: true,
+              payslipLogoKey: true,
+            },
           },
+          department: { select: { name: true } },
         },
-        department: { select: { name: true } },
-      },
-    }),
-    prisma.payrollConfig.findFirstOrThrow(),
-    prisma.leaveConfig.findFirst(),
-    prisma.payrollAdjustment.findMany({
-      where: {
-        employeeId,
-        startMonth: { lte: month },
-        OR: [{ endMonth: null }, { endMonth: { gte: month } }],
-        deletedAt: null,
-      },
-      orderBy: { createdAt: 'asc' },
-      select: {
-        id: true,
-        kind: true,
-        reason: true,
-        amount: true,
-        startMonth: true,
-        endMonth: true,
-      },
-    }),
-    prisma.cashAdvance.findMany({
-      where: { deductedInPayrollId: payroll.id },
-      select: { amount: true },
-    }),
-    prisma.leaveRequest.findMany({
-      where: { deductedInPayrollId: payroll.id },
-      select: { overQuotaMinutes: true },
-    }),
-  ]);
+      }),
+      prisma.payrollConfig.findFirstOrThrow(),
+      prisma.leaveConfig.findFirst(),
+      prisma.payrollAdjustment.findMany({
+        where: {
+          employeeId,
+          startMonth: { lte: month },
+          OR: [{ endMonth: null }, { endMonth: { gte: month } }],
+          deletedAt: null,
+        },
+        orderBy: { createdAt: 'asc' },
+        select: {
+          id: true,
+          kind: true,
+          reason: true,
+          amount: true,
+          startMonth: true,
+          endMonth: true,
+        },
+      }),
+      prisma.cashAdvance.findMany({
+        where: { deductedInPayrollId: payroll.id },
+        select: { amount: true },
+      }),
+      prisma.leaveRequest.findMany({
+        where: { deductedInPayrollId: payroll.id },
+        select: { overQuotaMinutes: true },
+      }),
+      // Deliberately NOT gated on payroll.deductAttendance !== 0 (unlike the
+      // absent/late counts below): a fully-settled month nets deductAttendance
+      // to zero, which is exactly the case that needs this note most.
+      loadSettlementsForMonth(month).then((m) => m.get(employeeId)),
+    ]);
 
   const n = (d: { toNumber(): number }) => d.toNumber();
   const std = standardDayMinutes(
@@ -282,6 +338,8 @@ export async function getPayslipDocument(
     deductAdjustments: deductAdj.map((a) => ({ id: a.id, reason: a.reason, amount: n(a.amount) })),
     advanceCount: advances.length,
     attendance,
+    settledDays: settlement?.days,
+    settledLeaveTypeNames: settlement?.leaveTypeNames,
     leaveOverMinutesTotal: leaves.reduce((s, l) => s + (l.overQuotaMinutes ?? 0), 0),
     rateInputs: {
       ssoRate: n(config.ssoRate),

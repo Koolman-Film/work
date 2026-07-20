@@ -35,6 +35,7 @@ import {
   PayrollCalcError,
   type PayrollDraft,
 } from './calc';
+import type { PenaltyKindKey, SettlementDays } from './penalty-settlement';
 import { loadSettlementsForMonth, type MonthSettlement } from './penalty-settlement-load';
 import { payrollMonthWindow } from './period';
 
@@ -516,6 +517,10 @@ export type PayrollRowDetailRaw = {
   deductAdjustments: { id: string; reason: string; amount: number }[];
   advanceCount: number;
   attendance: { absent: number; late: number };
+  /** Days of each penalty kind settled with leave this month (Task 3's calc output) — for the payslip's settled-with-leave note. */
+  settledDays: SettlementDays;
+  /** Which leave type absorbed each settled kind, by name (from this month's settlements) — for the same note. */
+  settledLeaveTypeNames: Partial<Record<PenaltyKindKey, string>>;
   leaveOverMinutesTotal: number;
   employee: { salaryType: 'Monthly' | 'Daily' | 'Hourly'; baseSalary: number };
   config: { ssoRate: number; ssoSalaryCap: number; workingDaysPerMonth: number };
@@ -580,6 +585,8 @@ export async function payrollRowDetailRaw(
     deductAdjustments: mapAdj('Deduction'),
     advanceCount: entry.sweptAdvanceIds.length,
     attendance: { absent: b.absentCount, late: b.lateCount },
+    settledDays: b.attendance.settledDays,
+    settledLeaveTypeNames: entry.settlement?.leaveTypeNames ?? {},
     leaveOverMinutesTotal: entry.sweptLeaves.reduce((s, l) => s + l.over, 0),
     employee: {
       salaryType: employee.salaryType as 'Monthly' | 'Daily' | 'Hourly',

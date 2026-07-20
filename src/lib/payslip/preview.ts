@@ -72,6 +72,8 @@ export async function buildPreviewPayslipDocument(
     deductAdjustments: raw.deductAdjustments,
     advanceCount: raw.advanceCount,
     attendance: raw.attendance,
+    settledDays: raw.settledDays,
+    settledLeaveTypeNames: raw.settledLeaveTypeNames,
     leaveOverMinutesTotal: raw.leaveOverMinutesTotal,
     rateInputs: {
       ssoRate: raw.config.ssoRate,
