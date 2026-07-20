@@ -519,8 +519,8 @@ export type PayrollRowDetailRaw = {
   attendance: { absent: number; late: number };
   /** Days of each penalty kind settled with leave this month (Task 3's calc output) — for the payslip's settled-with-leave note. */
   settledDays: SettlementDays;
-  /** Which leave type absorbed each settled kind, by name (from this month's settlements) — for the same note. */
-  settledLeaveTypeNames: Partial<Record<PenaltyKindKey, string>>;
+  /** Which leave type absorbed each settled kind (name + nameByLocale, from this month's settlements) — for the same note. */
+  settledLeaveTypeNames: Partial<Record<PenaltyKindKey, { name: string; nameByLocale: unknown }>>;
   leaveOverMinutesTotal: number;
   employee: { salaryType: 'Monthly' | 'Daily' | 'Hourly'; baseSalary: number };
   config: { ssoRate: number; ssoSalaryCap: number; workingDaysPerMonth: number };

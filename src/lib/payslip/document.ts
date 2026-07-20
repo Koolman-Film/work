@@ -57,8 +57,13 @@ export type NormalizedPayslipInput = {
    * ordinary attendance line is omitted entirely.
    */
   settledDays?: Partial<SettlementDays>;
-  /** Which leave type absorbed each settled kind, by name — for the note's wording. */
-  settledLeaveTypeNames?: Partial<Record<PenaltyKindKey, string>>;
+  /**
+   * Which leave type absorbed each settled kind — for the note's wording.
+   * Carries both the Thai canonical `name` and the optional `nameByLocale`
+   * map so the renderer (which knows the locale; this module deliberately
+   * does not) can localize the note per employee.
+   */
+  settledLeaveTypeNames?: Partial<Record<PenaltyKindKey, { name: string; nameByLocale: unknown }>>;
   /** Sum of over-quota leave minutes (for the leave line detail). */
   leaveOverMinutesTotal: number;
   /** Inputs the assembler needs to compute the SSO% label and the leave per-minute rate. */
@@ -144,23 +149,28 @@ export function assemblePayslipDocument(input: NormalizedPayslipInput): PayslipD
   // purpose: each settled kind gets its own ฿0 line naming the leave type
   // that paid for it, keyed so it can only appear once per kind and never
   // appears when that kind was not settled.
-  const SETTLED_KIND_LABEL_TH: Record<PenaltyKindKey, string> = {
-    Absent: 'ขาดงาน',
-    LateThreeStrike: 'มาสาย',
-    SevereLate: 'มาสายรุนแรง',
-  };
   const SETTLED_KIND_LINE_KEY: Record<PenaltyKindKey, string> = {
     Absent: 'settledAbsent',
     LateThreeStrike: 'settledLateThreeStrike',
     SevereLate: 'settledSevereLate',
   };
+  // Fallback when a settlement has no leave type name recorded — mirrors the
+  // pre-fix behaviour exactly (always the Thai canonical name, in every
+  // locale): `nameByLocale: null` means `localizedLeaveTypeName` always
+  // falls back to `name`. Not translated further; out of scope for this fix.
+  const FALLBACK_LEAVE_TYPE: { name: string; nameByLocale: unknown } = {
+    name: 'วันลา',
+    nameByLocale: null,
+  };
   for (const kind of Object.keys(EMPTY_SETTLEMENT) as PenaltyKindKey[]) {
     const days = settledDays?.[kind] ?? 0;
     if (days <= 0) continue;
-    const leaveTypeName = settledLeaveTypeNames?.[kind] ?? 'วันลา';
+    const leaveType = settledLeaveTypeNames?.[kind] ?? FALLBACK_LEAVE_TYPE;
     deduct.push({
       key: SETTLED_KIND_LINE_KEY[kind],
-      label: `${SETTLED_KIND_LABEL_TH[kind]} — หักจากสิทธิ${leaveTypeName} ${days} วัน`,
+      labelKey: `deduct.${SETTLED_KIND_LINE_KEY[kind]}`,
+      vars: { days },
+      leaveType,
       amount: 0,
       detail: null,
     });

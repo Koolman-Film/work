@@ -138,12 +138,34 @@ describe('assemblePayslipDocument — settled-with-leave note', () => {
       buckets: { ...base.buckets, deductAttendance: 0, netPay: 19250 },
       attendance: { absent: 1, late: 0 },
       settledDays: { Absent: 1, LateThreeStrike: 0, SevereLate: 0 },
-      settledLeaveTypeNames: { Absent: 'ลาพักร้อน' },
+      settledLeaveTypeNames: {
+        Absent: { name: 'ลาพักร้อน', nameByLocale: { en: 'Vacation leave' } },
+      },
     });
     const line = doc.deduct.lines.find((l) => l.key === 'settledAbsent');
     expect(line).toBeDefined();
-    expect(line?.label).toContain('หักจากสิทธิลาพักร้อน 1 วัน');
+    // System-authored text goes through the translation channel (`labelKey`
+    // + `vars`), never a hardcoded literal `label` — see document.ts's
+    // labelKey/label split. The leave-type name travels as raw
+    // name/nameByLocale data (not a pre-formatted string) because this
+    // module has no locale awareness; only the renderer can localize it.
+    expect(line?.label).toBeUndefined();
+    expect(line?.labelKey).toBe('deduct.settledAbsent');
+    expect(line?.vars).toEqual({ days: 1 });
+    expect(line?.leaveType).toEqual({ name: 'ลาพักร้อน', nameByLocale: { en: 'Vacation leave' } });
     expect(line?.amount).toBe(0);
+  });
+
+  it('falls back to the canonical leave-type name when no settlement name was recorded', () => {
+    const doc = assemblePayslipDocument({
+      ...base,
+      buckets: { ...base.buckets, deductAttendance: 0, netPay: 19250 },
+      attendance: { absent: 1, late: 0 },
+      settledDays: { Absent: 1, LateThreeStrike: 0, SevereLate: 0 },
+      // settledLeaveTypeNames omitted entirely.
+    });
+    const line = doc.deduct.lines.find((l) => l.key === 'settledAbsent');
+    expect(line?.leaveType).toEqual({ name: 'วันลา', nameByLocale: null });
   });
 
   it('adds no settled-penalty line when nothing was settled this month', () => {
