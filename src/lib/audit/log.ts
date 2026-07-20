@@ -130,7 +130,10 @@ export type AuditAction =
   | 'recurringDeduction.end'
   | 'payrollAdjustment.create'
   | 'payrollAdjustment.edit'
-  | 'payrollAdjustment.delete';
+  | 'payrollAdjustment.delete'
+  | 'penaltySettlement.create'
+  | 'penaltySettlement.update'
+  | 'penaltySettlement.clear';
 
 export type AuditEntityType =
   | 'User'
@@ -154,7 +157,8 @@ export type AuditEntityType =
   | 'CashAdvance'
   | 'Payroll'
   | 'PayrollAdjustment'
-  | 'RecurringDeduction';
+  | 'RecurringDeduction'
+  | 'AttendancePenaltySettlement';
 
 export interface AuditLogParams {
   actorId: string | null;

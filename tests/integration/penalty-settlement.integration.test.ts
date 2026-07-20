@@ -406,3 +406,150 @@ describe('clearPenaltySettlement', () => {
     expect(r).toEqual({ ok: false, error: 'period-closed' });
   });
 });
+
+describe('audit trail', () => {
+  async function rawAuditRowsFor(employeeId: string) {
+    const rows = await prisma.auditLog.findMany({
+      where: { entityType: 'AttendancePenaltySettlement' },
+      orderBy: { createdAt: 'asc' },
+    });
+    return rows.filter((r) => {
+      const before = r.beforeValue as { employeeId?: string } | null;
+      const after = r.afterValue as { employeeId?: string } | null;
+      return before?.employeeId === employeeId || after?.employeeId === employeeId;
+    });
+  }
+
+  // auditLog() is fire-and-forget (see src/lib/audit/log.ts) — the write is
+  // kicked off but not awaited by setPenaltySettlement/clearPenaltySettlement.
+  // Poll briefly instead of asserting immediately, so this test isn't racing
+  // an in-flight insert.
+  async function auditRowsFor(employeeId: string, atLeast: number) {
+    const deadline = Date.now() + 2000;
+    let rows = await rawAuditRowsFor(employeeId);
+    while (rows.length < atLeast && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      rows = await rawAuditRowsFor(employeeId);
+    }
+    return rows;
+  }
+
+  it('writes an audit entry naming the actor and the new values when creating a settlement', async () => {
+    const emp = await makeEmployee();
+    const vacation = await makeVacationType();
+
+    const res = await setPenaltySettlement({
+      employeeId: emp.id,
+      month: '2026-07',
+      kind: 'Absent',
+      leaveTypeId: vacation.id,
+      days: 1,
+    });
+    expect(res).toEqual({ ok: true });
+
+    const rows = await auditRowsFor(emp.id, 1);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.action).toBe('penaltySettlement.create');
+    expect(rows[0]!.actorId).toBe(adminUserHolder.id);
+    expect(rows[0]!.beforeValue).toBeNull();
+    expect(rows[0]!.afterValue).toMatchObject({
+      employeeId: emp.id,
+      month: '2026-07',
+      kind: 'Absent',
+      leaveTypeId: vacation.id,
+      days: 1,
+    });
+  });
+
+  it('writes an audit entry carrying the previous values when editing a settlement', async () => {
+    const emp = await makeEmployee();
+    const vacation = await makeVacationType();
+
+    await setPenaltySettlement({
+      employeeId: emp.id,
+      month: '2026-07',
+      kind: 'Absent',
+      leaveTypeId: vacation.id,
+      days: 1,
+    });
+
+    const edited = await setPenaltySettlement({
+      employeeId: emp.id,
+      month: '2026-07',
+      kind: 'Absent',
+      leaveTypeId: vacation.id,
+      days: 2,
+    });
+    expect(edited).toEqual({ ok: true });
+
+    const rows = await auditRowsFor(emp.id, 2);
+    expect(rows).toHaveLength(2);
+    const editRow = rows[1]!;
+    expect(editRow.action).toBe('penaltySettlement.update');
+    expect(editRow.actorId).toBe(adminUserHolder.id);
+    expect(editRow.beforeValue).toMatchObject({
+      employeeId: emp.id,
+      month: '2026-07',
+      kind: 'Absent',
+      leaveTypeId: vacation.id,
+      days: 1,
+    });
+    expect(editRow.afterValue).toMatchObject({
+      employeeId: emp.id,
+      month: '2026-07',
+      kind: 'Absent',
+      leaveTypeId: vacation.id,
+      days: 2,
+    });
+  });
+
+  it('writes an audit entry when clearing a settlement', async () => {
+    const emp = await makeEmployee();
+    const vacation = await makeVacationType();
+
+    await setPenaltySettlement({
+      employeeId: emp.id,
+      month: '2026-07',
+      kind: 'Absent',
+      leaveTypeId: vacation.id,
+      days: 1,
+    });
+
+    const cleared = await clearPenaltySettlement({
+      employeeId: emp.id,
+      month: '2026-07',
+      kind: 'Absent',
+    });
+    expect(cleared).toEqual({ ok: true });
+
+    const rows = await auditRowsFor(emp.id, 2);
+    expect(rows).toHaveLength(2);
+    const clearRow = rows[1]!;
+    expect(clearRow.action).toBe('penaltySettlement.clear');
+    expect(clearRow.actorId).toBe(adminUserHolder.id);
+    expect(clearRow.beforeValue).toMatchObject({
+      employeeId: emp.id,
+      month: '2026-07',
+      kind: 'Absent',
+      leaveTypeId: vacation.id,
+      days: 1,
+    });
+  });
+
+  it('writes no audit entry when a call is refused for insufficient balance', async () => {
+    const emp = await makeEmployee();
+    const vacation = await makeVacationType(); // annualQuota: 10 days
+
+    const r = await setPenaltySettlement({
+      employeeId: emp.id,
+      month: '2026-07',
+      kind: 'Absent',
+      leaveTypeId: vacation.id,
+      days: 99,
+    });
+    expect(r).toEqual({ ok: false, error: 'insufficient-balance' });
+
+    const rows = await auditRowsFor(emp.id, 0);
+    expect(rows).toHaveLength(0);
+  });
+});
