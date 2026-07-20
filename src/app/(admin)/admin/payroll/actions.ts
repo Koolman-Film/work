@@ -95,6 +95,16 @@ export async function calculatePayrollAction(formData: FormData) {
     back(month, 'คำนวณเงินเดือนไม่สำเร็จ ระบบอาจกำลังประมวลผลรายการอื่นอยู่ กรุณาลองใหม่อีกครั้ง', 'alert');
   }
 
+  // Defect 1: the month's advisory lock (month-lock.ts) is now acquired
+  // non-blocking, so a concurrent settle/publish/recalculate on this same
+  // month returns a clean `busy` result instead of this call queueing for
+  // up to its whole `timeout` and possibly still throwing P2028. Surfaced
+  // as an actionable Thai message rather than falling through to the audit
+  // log below with all-zero counts.
+  if (result.busy) {
+    back(month, 'มีแอดมินอีกคนกำลังคำนวณหรือเผยแพร่เงินเดือนเดือนนี้อยู่ กรุณาลองใหม่อีกครั้ง', 'alert');
+  }
+
   auditLog({
     actorId: user.id,
     action: 'payroll.run',
@@ -147,6 +157,14 @@ export async function publishPayrollAction(formData: FormData) {
     // not crash the action — mirrors publishOnePayrollAction below.
     console.error('publishPayrollAction: publish failed', err);
     back(month, 'เผยแพร่สลิปไม่สำเร็จ กรุณาลองใหม่อีกครั้ง', 'alert');
+  }
+
+  // Defect 1: same non-blocking-lock `busy` outcome as calculatePayrollAction
+  // above — another admin's settle/publish/recalculate holds this month's
+  // lock right now. Nothing was published, so bail before the audit log and
+  // slip-warming below (both would otherwise report a no-op as a success).
+  if (result.busy) {
+    back(month, 'มีแอดมินอีกคนกำลังคำนวณหรือเผยแพร่เงินเดือนเดือนนี้อยู่ กรุณาลองใหม่อีกครั้ง', 'alert');
   }
 
   // No automatic per-employee LINE push here anymore — employees read
@@ -229,9 +247,36 @@ export async function createRowAdjustment(formData: FormData) {
     metadata: { source: 'admin-ui', via: 'payroll-row-modal' },
   });
 
-  await runPayrollDraft(month);
+  // Defect 3: the adjustment above is already committed — a throw (or a
+  // `busy` lock-contention result) from the recalculation below must NEVER
+  // reject this action. `payrollAdjustment` has no idempotency key, so an
+  // admin who sees an error screen after the write already succeeded will
+  // resubmit the same form and create a SECOND adjustment for the same
+  // reason/amount — a real double-charge, not just a confusing message.
+  // Mirrors `recalculateAfterSettlement` (reconcile/actions.ts), which the
+  // wave that added it explicitly cited this function as the precedent for.
+  let recalcPending = false;
+  try {
+    const result = await runPayrollDraft(month);
+    if (result.busy) recalcPending = true; // lock contended — not an error
+  } catch (err) {
+    console.error(
+      'createRowAdjustment: runPayrollDraft failed after adjustment already committed',
+      err,
+    );
+    recalcPending = true;
+  }
+
   revalidatePath('/admin/payroll/adjustments');
-  back(month, `เพิ่ม${data.kind === 'Income' ? 'เงินเพิ่ม' : 'เงินลด'} "${data.reason}" และคำนวณใหม่แล้ว`);
+  const label = `${data.kind === 'Income' ? 'เงินเพิ่ม' : 'เงินลด'} "${data.reason}"`;
+  if (recalcPending) {
+    back(
+      month,
+      `บันทึก${label}เรียบร้อยแล้ว แต่คำนวณฉบับร่างใหม่ไม่สำเร็จ — ไปกด "คำนวณ" อีกครั้งที่หน้าเงินเดือน`,
+      'alert',
+    );
+  }
+  back(month, `เพิ่ม${label}และคำนวณใหม่แล้ว`);
 }
 
 /**
@@ -266,7 +311,30 @@ export async function deleteRowAdjustment(
     metadata: { source: 'admin-ui', via: 'payroll-row-modal' },
   });
 
-  await runPayrollDraft(month);
+  // Defect 3 (same shape as createRowAdjustment above): the soft-delete
+  // already committed — a throw here is not corrupting (a retry finds the
+  // row already gone), but it MUST NOT make this function report a
+  // completed delete as a failure. ConfirmDialog (confirm-dialog.tsx) has
+  // no try/catch around `await action(...)`, so an uncaught rejection here
+  // would surface as a crashed transition instead of the clean `{ok:true}`
+  // this delete actually earned. The Draft numbers simply stay stale until
+  // the admin next presses "คำนวณ" — same fallback `recalcPending` accepts
+  // elsewhere; there is no field on `ActionResult` to surface a pending
+  // note through, so this only logs server-side.
+  try {
+    const result = await runPayrollDraft(month);
+    if (result.busy) {
+      console.warn('deleteRowAdjustment: runPayrollDraft busy after delete already committed', {
+        month,
+      });
+    }
+  } catch (err) {
+    console.error(
+      'deleteRowAdjustment: runPayrollDraft failed after delete already committed',
+      err,
+    );
+  }
+
   revalidatePath('/admin/payroll');
   revalidatePath('/admin/payroll/adjustments');
   return { ok: true };
@@ -388,6 +456,15 @@ export async function publishOnePayrollAction(
   } catch (err) {
     console.error('publishOnePayrollAction: publish failed', err);
     return { ok: false, message: 'เกิดข้อผิดพลาดในการเผยแพร่ กรุณาลองใหม่' };
+  }
+
+  // Defect 1: the month's lock (month-lock.ts) is held by another admin's
+  // settle/publish/recalculate right now. Checked BEFORE the "nothing to
+  // publish" branch below — a `busy` result also has an empty `published`,
+  // and would otherwise be misreported as "already published" instead of
+  // "try again".
+  if (result.busy) {
+    return { ok: false, message: 'มีแอดมินอีกคนกำลังคำนวณหรือเผยแพร่เงินเดือนเดือนนี้อยู่ กรุณาลองใหม่อีกครั้ง' };
   }
 
   // Defect-3 guard (run.ts): this call's scope is the ONE target employee —

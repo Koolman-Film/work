@@ -17,11 +17,16 @@ import { lockEntitlement, remainingByTypeForEmployee } from '@/lib/leave/balance
 import { getLeaveConfig } from '@/lib/leave/leave-config';
 import { standardDayMinutes } from '@/lib/leave/units';
 import { isPayrollChargeableSalaryType, type SalaryType } from './calc';
-import { lockPayrollMonth } from './month-lock';
+import { lockPayrollMonth, withMonthLockRetry } from './month-lock';
 import type { PenaltyKindKey } from './penalty-settlement';
 import { actualPenaltyDaysForEmployee } from './run';
 
 type Result = { ok: true } | { ok: false; error: string };
+
+/** `withMonthLockRetry`'s busy predicate for this module's `Result` shape. */
+function isBusyResult(result: Result): boolean {
+  return !result.ok && result.error === 'busy';
+}
 
 /** Transaction client compatible with both the extended `prisma` client and a
  *  plain `Prisma.TransactionClient`. Mirrors the pattern in leave/balance.ts
@@ -109,214 +114,229 @@ export async function setPenaltySettlement(input: {
   // the "is this month still open" guard and the write it protects can never
   // be split by a concurrent publish or a concurrent settlement on another
   // penalty kind for the same employee/month — see month-lock.ts's comment.
-  return prisma.$transaction(async (tx) => {
-    await lockPayrollMonth(tx, input.month);
+  // Wrapped in a couple of short retries (withMonthLockRetry above): this
+  // transaction is quick (one employee, a handful of point reads/writes), so
+  // losing the lock race once doesn't mean losing it again a moment later —
+  // an admin having to manually retry a routine save is worse than that.
+  return withMonthLockRetry(
+    () =>
+      prisma.$transaction(async (tx) => {
+        // Non-blocking: `false` means another publish/draft/settlement
+        // transaction holds this month's lock right now. Return `busy` (not a
+        // throw) so the retry above, and ultimately the caller, can treat it
+        // the same way as every other refusal here instead of an unhandled
+        // rejection.
+        if (!(await lockPayrollMonth(tx, input.month))) {
+          return { ok: false, error: 'busy' };
+        }
 
-    if (await isPeriodClosed(input.employeeId, input.month, tx)) {
-      return { ok: false, error: 'period-closed' };
-    }
+        if (await isPeriodClosed(input.employeeId, input.month, tx)) {
+          return { ok: false, error: 'period-closed' };
+        }
 
-    // Defect 1: refuse for a salary type payroll can never charge a money
-    // penalty for in the first place (V1 scope is Monthly only — see
-    // calc.ts). Settling such an employee would spend real leave
-    // entitlement forgiving a penalty that would never have been levied —
-    // pure loss, reachable today via the manual attendance form regardless
-    // of whether a Draft payroll row exists. Derives the SAME condition
-    // `calcPayroll` enforces (`isPayrollChargeableSalaryType`) rather than a
-    // second hardcoded list, so this guard tracks calc.ts automatically if
-    // its supported salary types ever change. `employee == null` falls
-    // through rather than refusing — an unknown id is not this guard's
-    // concern, and every other guard below still applies to it unchanged.
-    const employee = await tx.employee.findUnique({
-      where: { id: input.employeeId },
-      select: { salaryType: true },
-    });
-    if (employee && !isPayrollChargeableSalaryType(employee.salaryType as SalaryType)) {
-      return { ok: false, error: 'unsupported-salary-type' };
-    }
+        // Defect 1: refuse for a salary type payroll can never charge a money
+        // penalty for in the first place (V1 scope is Monthly only — see
+        // calc.ts). Settling such an employee would spend real leave
+        // entitlement forgiving a penalty that would never have been levied —
+        // pure loss, reachable today via the manual attendance form regardless
+        // of whether a Draft payroll row exists. Derives the SAME condition
+        // `calcPayroll` enforces (`isPayrollChargeableSalaryType`) rather than a
+        // second hardcoded list, so this guard tracks calc.ts automatically if
+        // its supported salary types ever change. `employee == null` falls
+        // through rather than refusing — an unknown id is not this guard's
+        // concern, and every other guard below still applies to it unchanged.
+        const employee = await tx.employee.findUnique({
+          where: { id: input.employeeId },
+          select: { salaryType: true },
+        });
+        if (employee && !isPayrollChargeableSalaryType(employee.salaryType as SalaryType)) {
+          return { ok: false, error: 'unsupported-salary-type' };
+        }
 
-    const leaveType = await tx.leaveType.findUnique({
-      where: { id: input.leaveTypeId },
-      select: { penaltySettlementAllowed: true, archivedAt: true },
-    });
-    if (!leaveType || leaveType.archivedAt || !leaveType.penaltySettlementAllowed) {
-      return { ok: false, error: 'leave-type-not-allowed' };
-    }
+        const leaveType = await tx.leaveType.findUnique({
+          where: { id: input.leaveTypeId },
+          select: { penaltySettlementAllowed: true, archivedAt: true },
+        });
+        if (!leaveType || leaveType.archivedAt || !leaveType.penaltySettlementAllowed) {
+          return { ok: false, error: 'leave-type-not-allowed' };
+        }
 
-    const year = periodYearOf(input.month);
+        const year = periodYearOf(input.month);
 
-    // Defect 1 (concurrency): serialize against `approveLeaveRequest`
-    // (leave/admin.ts), which takes an advisory lock on this SAME
-    // (employeeId, leaveTypeId, year) key — via the SAME `lockEntitlement`
-    // helper (leave/balance.ts) — before it reads this employee's balance.
-    // Without this, a concurrent settle and approval each read the balance
-    // before the other commits (transactions run at ReadCommitted) and
-    // together overdraw it: e.g. approve reads `used=0` and freezes no
-    // deduction, settle reads the same pre-approval balance and writes a
-    // settlement, both commit, and the balance goes negative — which for a
-    // `Block`-policy type (ลาพักร้อน) then wrongly refuses every later
-    // request for the rest of the year, and for a `DeductPay` type
-    // (ลากิจ) makes the live over-quota replay charge money on top of the
-    // leave day already spent, defeating the reason this feature exists.
-    // Locked on `input.leaveTypeId` (the type this call is about to spend
-    // from), NOT `existing.leaveTypeId` when an edit switches types — a
-    // switch only ever CREDITS the old type back (see `creditBack` below),
-    // which cannot overdraw it, so only the type being spent needs the lock.
-    //
-    // Must run BEFORE `remainingByTypeForEmployee` below, same ordering
-    // rule as `lockPayrollMonth` two lines up: the lock only closes the
-    // race if it's held before the balance read, not merely held somewhere
-    // in the transaction.
-    //
-    // Deadlock analysis: `approveLeaveRequest` takes ONLY this leave lock,
-    // never `lockPayrollMonth`. `publishPayroll` takes ONLY the month lock,
-    // never this one. This function is the only place that ever holds
-    // both, and it always acquires them in the same order — month lock
-    // (`lockPayrollMonth` above) THEN this leave lock — so no transaction
-    // can be holding this leave lock while waiting on the month lock, which
-    // is what a cycle would require. No deadlock is possible.
-    //
-    // `clearPenaltySettlement` does NOT take this lock: it only ever
-    // releases entitlement (soft-deletes the row, crediting minutes back),
-    // and has no balance check to race — a release can't overdraw a
-    // balance no matter when it lands relative to a concurrent approval or
-    // settle.
-    await lockEntitlement(tx, input.employeeId, input.leaveTypeId, year);
+        // Defect 1 (concurrency): serialize against `approveLeaveRequest`
+        // (leave/admin.ts), which takes an advisory lock on this SAME
+        // (employeeId, leaveTypeId, year) key — via the SAME `lockEntitlement`
+        // helper (leave/balance.ts) — before it reads this employee's balance.
+        // Without this, a concurrent settle and approval each read the balance
+        // before the other commits (transactions run at ReadCommitted) and
+        // together overdraw it: e.g. approve reads `used=0` and freezes no
+        // deduction, settle reads the same pre-approval balance and writes a
+        // settlement, both commit, and the balance goes negative — which for a
+        // `Block`-policy type (ลาพักร้อน) then wrongly refuses every later
+        // request for the rest of the year, and for a `DeductPay` type
+        // (ลากิจ) makes the live over-quota replay charge money on top of the
+        // leave day already spent, defeating the reason this feature exists.
+        // Locked on `input.leaveTypeId` (the type this call is about to spend
+        // from), NOT `existing.leaveTypeId` when an edit switches types — a
+        // switch only ever CREDITS the old type back (see `creditBack` below),
+        // which cannot overdraw it, so only the type being spent needs the lock.
+        //
+        // Must run BEFORE `remainingByTypeForEmployee` below, same ordering
+        // rule as `lockPayrollMonth` two lines up: the lock only closes the
+        // race if it's held before the balance read, not merely held somewhere
+        // in the transaction.
+        //
+        // Deadlock analysis: `approveLeaveRequest` takes ONLY this leave lock,
+        // never `lockPayrollMonth`. `publishPayroll` takes ONLY the month lock,
+        // never this one. This function is the only place that ever holds
+        // both, and it always acquires them in the same order — month lock
+        // (`lockPayrollMonth` above) THEN this leave lock — so no transaction
+        // can be holding this leave lock while waiting on the month lock, which
+        // is what a cycle would require. No deadlock is possible.
+        //
+        // `clearPenaltySettlement` does NOT take this lock: it only ever
+        // releases entitlement (soft-deletes the row, crediting minutes back),
+        // and has no balance check to race — a release can't overdraw a
+        // balance no matter when it lands relative to a concurrent approval or
+        // settle.
+        await lockEntitlement(tx, input.employeeId, input.leaveTypeId, year);
 
-    const std = standardDayMinutes(await getLeaveConfig());
-    const minutes = input.days * std;
+        const std = standardDayMinutes(await getLeaveConfig());
+        const minutes = input.days * std;
 
-    const remaining = await remainingByTypeForEmployee(input.employeeId, year, tx);
-    const available = remaining[input.leaveTypeId];
-    // null = unlimited quota. Spending from something with no ceiling is
-    // meaningless, so it is refused rather than silently allowed.
-    if (available == null) return { ok: false, error: 'leave-type-not-allowed' };
+        const remaining = await remainingByTypeForEmployee(input.employeeId, year, tx);
+        const available = remaining[input.leaveTypeId];
+        // null = unlimited quota. Spending from something with no ceiling is
+        // meaningless, so it is refused rather than silently allowed.
+        if (available == null) return { ok: false, error: 'leave-type-not-allowed' };
 
-    // The row being replaced already counts against `available`; add it back
-    // so editing 1 day to 2 days is judged on the true headroom, not on
-    // headroom that already excludes the day being replaced. Only credited
-    // back when the edit stays on the SAME leave type — switching types must
-    // not credit the old type's minutes against the new type's balance.
-    const existing = await tx.attendancePenaltySettlement.findUnique({
-      where: {
-        employeeId_month_kind: {
-          employeeId: input.employeeId,
-          month: input.month,
-          kind: input.kind,
-        },
-      },
-      select: {
-        id: true,
-        days: true,
-        minutes: true,
-        leaveTypeId: true,
-        deletedAt: true,
-        note: true,
-      },
-    });
-    const creditBack =
-      existing && !existing.deletedAt && existing.leaveTypeId === input.leaveTypeId
-        ? existing.minutes
-        : 0;
+        // The row being replaced already counts against `available`; add it back
+        // so editing 1 day to 2 days is judged on the true headroom, not on
+        // headroom that already excludes the day being replaced. Only credited
+        // back when the edit stays on the SAME leave type — switching types must
+        // not credit the old type's minutes against the new type's balance.
+        const existing = await tx.attendancePenaltySettlement.findUnique({
+          where: {
+            employeeId_month_kind: {
+              employeeId: input.employeeId,
+              month: input.month,
+              kind: input.kind,
+            },
+          },
+          select: {
+            id: true,
+            days: true,
+            minutes: true,
+            leaveTypeId: true,
+            deletedAt: true,
+            note: true,
+          },
+        });
+        const creditBack =
+          existing && !existing.deletedAt && existing.leaveTypeId === input.leaveTypeId
+            ? existing.minutes
+            : 0;
 
-    if (minutes > available + creditBack) return { ok: false, error: 'insufficient-balance' };
+        if (minutes > available + creditBack) return { ok: false, error: 'insufficient-balance' };
 
-    // Defect 2: refuse settling more days than this (employee, month, kind)
-    // penalty actually justifies — without this, `moneyDaysFor` clamps the
-    // money side to zero but the leave side has no floor, so e.g. 5 days
-    // settled against a single Absent silently destroys 4 days of
-    // entitlement for nothing. Checked AFTER insufficient-balance (not
-    // before) so a request that's both over-the-penalty AND over-balance
-    // still reads as the more familiar `insufficient-balance` — same
-    // observable behaviour as before this guard existed for that case.
-    // `actualPenaltyDaysForEmployee` reuses the exact breakdown
-    // `calcPayroll`/the reconcile page's chip already compute — see its
-    // doc-comment in run.ts for why this is a bounded, per-employee cost,
-    // not a full-month recompute. `null` (no calculable draft) falls
-    // through rather than refusing, same reasoning as the employee lookup
-    // above.
-    const actualDays = await actualPenaltyDaysForEmployee(tx, input.month, input.employeeId);
-    if (actualDays && input.days > actualDays[input.kind]) {
-      return { ok: false, error: 'exceeds-penalty' };
-    }
+        // Defect 2: refuse settling more days than this (employee, month, kind)
+        // penalty actually justifies — without this, `moneyDaysFor` clamps the
+        // money side to zero but the leave side has no floor, so e.g. 5 days
+        // settled against a single Absent silently destroys 4 days of
+        // entitlement for nothing. Checked AFTER insufficient-balance (not
+        // before) so a request that's both over-the-penalty AND over-balance
+        // still reads as the more familiar `insufficient-balance` — same
+        // observable behaviour as before this guard existed for that case.
+        // `actualPenaltyDaysForEmployee` reuses the exact breakdown
+        // `calcPayroll`/the reconcile page's chip already compute — see its
+        // doc-comment in run.ts for why this is a bounded, per-employee cost,
+        // not a full-month recompute. `null` (no calculable draft) falls
+        // through rather than refusing, same reasoning as the employee lookup
+        // above.
+        const actualDays = await actualPenaltyDaysForEmployee(tx, input.month, input.employeeId);
+        if (actualDays && input.days > actualDays[input.kind]) {
+          return { ok: false, error: 'exceeds-penalty' };
+        }
 
-    const row = await tx.attendancePenaltySettlement.upsert({
-      where: {
-        employeeId_month_kind: {
-          employeeId: input.employeeId,
-          month: input.month,
-          kind: input.kind,
-        },
-      },
-      create: {
-        employeeId: input.employeeId,
-        month: input.month,
-        kind: input.kind,
-        leaveTypeId: input.leaveTypeId,
-        days: input.days,
-        minutes,
-        periodYear: year,
-        note: input.note ?? null,
-        createdById: user.id,
-      },
-      update: {
-        leaveTypeId: input.leaveTypeId,
-        days: input.days,
-        minutes,
-        periodYear: year,
-        note: input.note ?? null,
-        deletedAt: null,
-      },
-    });
-
-    // A soft-deleted row is not "live" — resurrecting it (clear, then settle
-    // again) is a fresh settlement, not an edit of the values that used to be
-    // there. Classify strictly on a LIVE existing row so the audit trail
-    // doesn't read as `penaltySettlement.update` with a `before` block full
-    // of values that were already cleared. The credit-back math above already
-    // makes this same distinction (`!existing.deletedAt`) for the balance —
-    // this mirrors it for the audit decision only.
-    const existingLive = existing && !existing.deletedAt ? existing : null;
-
-    // Reached only after every guard above has already passed — a refused
-    // call (period-closed / leave-type-not-allowed / insufficient-balance /
-    // invalid-days / invalid-month) never reaches here, so no audit row is
-    // written for it. Logged here (not in the reconcile page's wrapper)
-    // because this action is called from two surfaces — the manual
-    // attendance form and the payroll reconcile page — and auditing at the
-    // source covers both by construction. Written via `auditLogTx` (not the
-    // fire-and-forget `auditLog`) so the audit row commits or rolls back with
-    // the settlement it describes, inside the same locked transaction.
-    await auditLogTx(tx, {
-      actorId: user.id,
-      action: existingLive ? 'penaltySettlement.update' : 'penaltySettlement.create',
-      entityType: 'AttendancePenaltySettlement',
-      entityId: row.id,
-      before: existingLive
-        ? {
+        const row = await tx.attendancePenaltySettlement.upsert({
+          where: {
+            employeeId_month_kind: {
+              employeeId: input.employeeId,
+              month: input.month,
+              kind: input.kind,
+            },
+          },
+          create: {
             employeeId: input.employeeId,
             month: input.month,
             kind: input.kind,
-            leaveTypeId: existingLive.leaveTypeId,
-            days: existingLive.days.toNumber(),
-            minutes: existingLive.minutes,
-            note: existingLive.note,
-          }
-        : undefined,
-      after: {
-        employeeId: input.employeeId,
-        month: input.month,
-        kind: input.kind,
-        leaveTypeId: input.leaveTypeId,
-        days: input.days,
-        minutes,
-        note: input.note ?? null,
-      },
-      metadata: { source: 'server-action', via: input.via, ip, userAgent },
-    });
+            leaveTypeId: input.leaveTypeId,
+            days: input.days,
+            minutes,
+            periodYear: year,
+            note: input.note ?? null,
+            createdById: user.id,
+          },
+          update: {
+            leaveTypeId: input.leaveTypeId,
+            days: input.days,
+            minutes,
+            periodYear: year,
+            note: input.note ?? null,
+            deletedAt: null,
+          },
+        });
 
-    return { ok: true };
-  });
+        // A soft-deleted row is not "live" — resurrecting it (clear, then settle
+        // again) is a fresh settlement, not an edit of the values that used to be
+        // there. Classify strictly on a LIVE existing row so the audit trail
+        // doesn't read as `penaltySettlement.update` with a `before` block full
+        // of values that were already cleared. The credit-back math above already
+        // makes this same distinction (`!existing.deletedAt`) for the balance —
+        // this mirrors it for the audit decision only.
+        const existingLive = existing && !existing.deletedAt ? existing : null;
+
+        // Reached only after every guard above has already passed — a refused
+        // call (period-closed / leave-type-not-allowed / insufficient-balance /
+        // invalid-days / invalid-month) never reaches here, so no audit row is
+        // written for it. Logged here (not in the reconcile page's wrapper)
+        // because this action is called from two surfaces — the manual
+        // attendance form and the payroll reconcile page — and auditing at the
+        // source covers both by construction. Written via `auditLogTx` (not the
+        // fire-and-forget `auditLog`) so the audit row commits or rolls back with
+        // the settlement it describes, inside the same locked transaction.
+        await auditLogTx(tx, {
+          actorId: user.id,
+          action: existingLive ? 'penaltySettlement.update' : 'penaltySettlement.create',
+          entityType: 'AttendancePenaltySettlement',
+          entityId: row.id,
+          before: existingLive
+            ? {
+                employeeId: input.employeeId,
+                month: input.month,
+                kind: input.kind,
+                leaveTypeId: existingLive.leaveTypeId,
+                days: existingLive.days.toNumber(),
+                minutes: existingLive.minutes,
+                note: existingLive.note,
+              }
+            : undefined,
+          after: {
+            employeeId: input.employeeId,
+            month: input.month,
+            kind: input.kind,
+            leaveTypeId: input.leaveTypeId,
+            days: input.days,
+            minutes,
+            note: input.note ?? null,
+          },
+          metadata: { source: 'server-action', via: input.via, ip, userAgent },
+        });
+
+        return { ok: true };
+      }),
+    isBusyResult,
+  );
 }
 
 /** Current live settlement for (employeeId, month, kind), or null when none
@@ -416,64 +436,72 @@ export async function clearPenaltySettlement(input: {
 
   // Same lock + transaction reasoning as setPenaltySettlement: the guard and
   // the write it protects must not be split by a concurrent publish or a
-  // concurrent settlement on another kind for this employee/month.
-  return prisma.$transaction(async (tx) => {
-    await lockPayrollMonth(tx, input.month);
+  // concurrent settlement on another kind for this employee/month. Same
+  // non-blocking lock + short retry too — see the comments on
+  // setPenaltySettlement above.
+  return withMonthLockRetry(
+    () =>
+      prisma.$transaction(async (tx) => {
+        if (!(await lockPayrollMonth(tx, input.month))) {
+          return { ok: false, error: 'busy' };
+        }
 
-    if (await isPeriodClosed(input.employeeId, input.month, tx)) {
-      return { ok: false, error: 'period-closed' };
-    }
+        if (await isPeriodClosed(input.employeeId, input.month, tx)) {
+          return { ok: false, error: 'period-closed' };
+        }
 
-    // Snapshot the live row before clearing so the audit entry can carry what
-    // it said — `updateMany`'s `count` (below) is what actually tells us
-    // whether anything was cleared, since this row may already be gone.
-    const existing = await tx.attendancePenaltySettlement.findUnique({
-      where: {
-        employeeId_month_kind: {
-          employeeId: input.employeeId,
-          month: input.month,
-          kind: input.kind,
-        },
-      },
-      select: { id: true, days: true, minutes: true, leaveTypeId: true, note: true },
-    });
+        // Snapshot the live row before clearing so the audit entry can carry what
+        // it said — `updateMany`'s `count` (below) is what actually tells us
+        // whether anything was cleared, since this row may already be gone.
+        const existing = await tx.attendancePenaltySettlement.findUnique({
+          where: {
+            employeeId_month_kind: {
+              employeeId: input.employeeId,
+              month: input.month,
+              kind: input.kind,
+            },
+          },
+          select: { id: true, days: true, minutes: true, leaveTypeId: true, note: true },
+        });
 
-    const result = await tx.attendancePenaltySettlement.updateMany({
-      where: {
-        employeeId: input.employeeId,
-        month: input.month,
-        kind: input.kind,
-        deletedAt: null,
-      },
-      data: { deletedAt: new Date() },
-    });
+        const result = await tx.attendancePenaltySettlement.updateMany({
+          where: {
+            employeeId: input.employeeId,
+            month: input.month,
+            kind: input.kind,
+            deletedAt: null,
+          },
+          data: { deletedAt: new Date() },
+        });
 
-    // Only log when a row was actually cleared — `updateMany` matches zero
-    // rows when there was nothing live to clear, and an unconditional log
-    // would claim a change that never happened. `updateMany`'s own
-    // `deletedAt: null` filter means a `count > 0` row was live, so `existing`
-    // here (found by the same key, in the same transaction) can't be a stale
-    // soft-deleted snapshot.
-    if (result.count > 0 && existing) {
-      await auditLogTx(tx, {
-        actorId: user.id,
-        action: 'penaltySettlement.clear',
-        entityType: 'AttendancePenaltySettlement',
-        entityId: existing.id,
-        before: {
-          employeeId: input.employeeId,
-          month: input.month,
-          kind: input.kind,
-          leaveTypeId: existing.leaveTypeId,
-          days: existing.days.toNumber(),
-          minutes: existing.minutes,
-          note: existing.note,
-        },
-        after: { cleared: true },
-        metadata: { source: 'server-action', via: input.via, ip, userAgent },
-      });
-    }
+        // Only log when a row was actually cleared — `updateMany` matches zero
+        // rows when there was nothing live to clear, and an unconditional log
+        // would claim a change that never happened. `updateMany`'s own
+        // `deletedAt: null` filter means a `count > 0` row was live, so `existing`
+        // here (found by the same key, in the same transaction) can't be a stale
+        // soft-deleted snapshot.
+        if (result.count > 0 && existing) {
+          await auditLogTx(tx, {
+            actorId: user.id,
+            action: 'penaltySettlement.clear',
+            entityType: 'AttendancePenaltySettlement',
+            entityId: existing.id,
+            before: {
+              employeeId: input.employeeId,
+              month: input.month,
+              kind: input.kind,
+              leaveTypeId: existing.leaveTypeId,
+              days: existing.days.toNumber(),
+              minutes: existing.minutes,
+              note: existing.note,
+            },
+            after: { cleared: true },
+            metadata: { source: 'server-action', via: input.via, ip, userAgent },
+          });
+        }
 
-    return { ok: true };
-  });
+        return { ok: true };
+      }),
+    isBusyResult,
+  );
 }

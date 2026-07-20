@@ -57,13 +57,16 @@ const SETTLEMENT_ERROR_TH: Record<string, string> = {
   'insufficient-balance': 'สิทธิวันลาคงเหลือไม่พอ',
   'unsupported-salary-type': 'พนักงานประเภทเงินเดือนนี้ยังไม่รองรับการหักค่าปรับ จึงหักสิทธิวันลาแทนไม่ได้',
   'exceeds-penalty': 'หักสิทธิได้ไม่เกินโทษจริงของเดือนนี้',
+  // Defect 1: same non-blocking lock + short-retry `busy` outcome as
+  // reconcile-rows.tsx — see the identical entry there.
+  busy: 'มีแอดมินอีกคนกำลังคำนวณหรือเผยแพร่เงินเดือนเดือนนี้อยู่ กรุณาลองใหม่อีกครั้ง',
 };
 
-// See the identical note in reconcile-rows.tsx: publish now holds a
-// month-wide advisory lock across a full recompute (month-lock.ts), so a
-// concurrent settle here can hit Prisma's transaction maxWait and throw
-// P2028 instead of returning a Result. Caught below so it surfaces as this
-// Thai message instead of an unhandled rejection inside the transition.
+// Backstop only, same as reconcile-rows.tsx's identical const: the month
+// lock is now acquired non-blocking with a couple of short retries, so
+// contention should surface as SETTLEMENT_ERROR_TH['busy'] above rather than
+// a thrown rejection. Kept as a safety net for a genuine DB hiccup or any
+// other unexpected throw.
 const BUSY_ERROR_TH = 'ระบบกำลังประมวลผลรายการอื่นอยู่ กรุณาลองใหม่อีกครั้ง';
 
 // A notFound() denial (requireGlobalPermission('payroll.run') rejecting a
