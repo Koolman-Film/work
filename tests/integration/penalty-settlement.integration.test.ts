@@ -65,7 +65,12 @@ vi.mock('@/lib/inngest/events', () => ({
 import { Prisma } from '@prisma/client';
 // Import AFTER vi.mock hoisting.
 import { approveLeaveRequest } from '@/lib/leave/admin';
-import { remainingByTypeForEmployee } from '@/lib/leave/balance';
+import { overQuotaPreview } from '@/lib/leave/approval-preview';
+import {
+  getOrSeedEntitlements,
+  remainingByTypeForEmployee,
+  remainingByTypeForEmployees,
+} from '@/lib/leave/balance';
 import {
   clearPenaltySettlement,
   setPenaltySettlement,
@@ -1277,5 +1282,313 @@ describe('runPayrollDraft vs publishPayroll (month-lock race, Defect 2)', () => 
       expect(after.status).toBe('Published');
       expect(after.publishedAt).not.toBeNull();
     }
+  });
+});
+
+/**
+ * Mutation-testing gap closure (see fix-testgaps-report.md).
+ *
+ * `approveLeaveRequest` (leave/admin.ts ~L283) reads `penaltyMinutes` and
+ * folds it into `remaining` before deciding two things: whether a `Block`
+ * leave type refuses the request, and how large a `DeductPay` type's frozen
+ * `deductAmount` is. A mutation that neutered the `penaltyMinutes` call
+ * (`0 * (await penaltyMinutes(...))`) survived the whole suite because no
+ * test ever settled a penalty against the SAME leave type before approving —
+ * every prior test either had no settlement, or settled a different
+ * (employee, type) pair. Both tests below settle a penalty against the exact
+ * type being approved, so the two halves of that call site's decision only
+ * come out right if the real (non-zero) penalty was actually subtracted.
+ */
+describe('approveLeaveRequest — folds settled penalty minutes into the over-quota decision', () => {
+  it('Block: refuses leave the employee no longer has once a penalty settlement consumed the entitlement that would have covered it', async () => {
+    const emp = await makeEmployee();
+    const vacation = await prisma.leaveType.create({
+      data: {
+        name: `ลาพักร้อน-block-${uid().slice(0, 8)}`,
+        annualQuota: 1, // 1 day = 420 minutes granted — exactly enough for the request below
+        overQuotaPolicy: 'Block',
+        penaltySettlementAllowed: true,
+      },
+    });
+    await makeAbsence(emp.id); // the actual 1-day penalty the settlement below settles
+
+    const settled = await setPenaltySettlement({
+      employeeId: emp.id,
+      month: '2026-07',
+      kind: 'Absent',
+      leaveTypeId: vacation.id,
+      days: 1, // spends the entire 420-minute grant, leaving 0 remaining
+    });
+    expect(settled).toEqual({ ok: true });
+
+    // A single-working-day FullDay request for the (now fully consumed)
+    // entitlement. With the real penalty subtracted, remaining is 0 and this
+    // 420-minute request is entirely over-quota — Block must refuse it. If
+    // the call site instead saw penalty=0 (the mutation), remaining would
+    // read back as the full untouched 420 minutes and the request would be
+    // wrongly approved against leave that was already spent settling the
+    // absence.
+    const req = await prisma.leaveRequest.create({
+      data: {
+        employeeId: emp.id,
+        leaveTypeId: vacation.id,
+        startDate: new Date('2026-07-13'), // Monday, no holiday
+        endDate: new Date('2026-07-13'),
+        unit: 'FullDay',
+        reason: 'ลาพักร้อน',
+        status: 'Pending',
+      },
+    });
+
+    const result = await approveLeaveRequest({ leaveRequestId: req.id, note: 'ตรวจสอบแล้ว' });
+    expect(result).toMatchObject({ ok: false, code: 'over-quota-block' });
+
+    // Nothing was written — the request must still read Pending, not Approved.
+    const after = await prisma.leaveRequest.findUniqueOrThrow({ where: { id: req.id } });
+    expect(after.status).toBe('Pending');
+    expect(after.deductAmount).toBeNull();
+  });
+
+  it('DeductPay: freezes the correct over-quota deduction once a penalty settlement has consumed part of the entitlement', async () => {
+    const emp = await makeEmployee(); // Monthly, ฿20,000, workingDaysPerMonth 30
+    const personal = await prisma.leaveType.create({
+      data: {
+        name: `ลากิจ-deduct-${uid().slice(0, 8)}`,
+        annualQuota: 2, // 2 days = 840 minutes granted
+        // overQuotaPolicy defaults to DeductPay (schema default) — deliberately not set.
+        penaltySettlementAllowed: true,
+      },
+    });
+    await makeAbsence(emp.id); // the actual 1-day penalty the settlement below settles
+
+    const settled = await setPenaltySettlement({
+      employeeId: emp.id,
+      month: '2026-07',
+      kind: 'Absent',
+      leaveTypeId: personal.id,
+      days: 1, // spends 420 of the 840 minutes, leaving 420 remaining
+    });
+    expect(settled).toEqual({ ok: true });
+
+    // A 2-working-day FullDay request (Mon–Tue) charging the full 840-minute
+    // grant. Against the penalty-reduced 420-minute remaining balance, 420
+    // minutes are over-quota; at this employee's rate (20000/30/420 ฿/min)
+    // that is exactly the familiar ฿666.67 one-day charge used elsewhere in
+    // this file. If the call site instead saw penalty=0, remaining would
+    // read back as the full 840 minutes, the request would exactly fit, and
+    // deductAmount would freeze as null — no money charged for leave the
+    // employee did not actually have.
+    const req = await prisma.leaveRequest.create({
+      data: {
+        employeeId: emp.id,
+        leaveTypeId: personal.id,
+        startDate: new Date('2026-07-13'), // Monday
+        endDate: new Date('2026-07-14'), // Tuesday — 2 working days, no Sunday between
+        unit: 'FullDay',
+        reason: 'ธุระส่วนตัว',
+        status: 'Pending',
+      },
+    });
+
+    const result = await approveLeaveRequest({ leaveRequestId: req.id, note: 'อนุมัติ' });
+    expect(result).toMatchObject({ ok: true });
+
+    const after = await prisma.leaveRequest.findUniqueOrThrow({ where: { id: req.id } });
+    expect(after.chargedMinutes).toBe(840);
+    expect(after.overQuotaMinutes).toBe(420);
+    expect(after.deductAmount).not.toBeNull();
+    expect(Number(after.deductAmount)).toBe(666.67);
+  });
+});
+
+/**
+ * Mutation-testing gap closure: the other three `remainingMinutes` call
+ * sites in leave/balance.ts and leave/approval-preview.ts. Each test settles
+ * a 1-day (420-minute) penalty and asserts the function's OWN return value
+ * moves by exactly that amount — not merely that the call succeeds — so a
+ * neutered `penaltyMinutes` call at that specific site goes red.
+ */
+describe('the other remaining-balance call sites also fold in settled penalty minutes', () => {
+  it('getOrSeedEntitlements (admin entitlement table) reports 420 fewer remaining minutes once a penalty is settled', async () => {
+    const emp = await makeEmployee();
+    const vacation = await makeVacationType(); // annualQuota: 10 days
+    await makeAbsence(emp.id);
+
+    const before = await getOrSeedEntitlements(emp.id, 2026);
+    const beforeRow = before.find((r) => r.leaveTypeId === vacation.id);
+    expect(beforeRow?.remainingMinutes).not.toBeNull();
+
+    const settled = await setPenaltySettlement({
+      employeeId: emp.id,
+      month: '2026-07',
+      kind: 'Absent',
+      leaveTypeId: vacation.id,
+      days: 1,
+    });
+    expect(settled).toEqual({ ok: true });
+
+    const after = await getOrSeedEntitlements(emp.id, 2026);
+    const afterRow = after.find((r) => r.leaveTypeId === vacation.id);
+    expect(afterRow?.remainingMinutes).toBe(beforeRow!.remainingMinutes! - 420);
+  });
+
+  it('remainingByTypeForEmployees (bulk report surface) reports 420 fewer remaining minutes once a penalty is settled', async () => {
+    const emp = await makeEmployee();
+    const vacation = await makeVacationType();
+    await makeAbsence(emp.id);
+
+    const before = await remainingByTypeForEmployees([emp.id], 2026);
+    const beforeRemaining = before[emp.id]?.[vacation.id];
+    expect(beforeRemaining).not.toBeNull();
+
+    const settled = await setPenaltySettlement({
+      employeeId: emp.id,
+      month: '2026-07',
+      kind: 'Absent',
+      leaveTypeId: vacation.id,
+      days: 1,
+    });
+    expect(settled).toEqual({ ok: true });
+
+    const after = await remainingByTypeForEmployees([emp.id], 2026);
+    const afterRemaining = after[emp.id]?.[vacation.id];
+    expect(afterRemaining).toBe(beforeRemaining! - 420);
+  });
+
+  it('overQuotaPreview (worker-facing preview) charges an over-quota deduction once a penalty settlement has consumed the entitlement it previews against', async () => {
+    const emp = await makeEmployee(); // Monthly, ฿20,000, workingDaysPerMonth 30
+    const personal = await prisma.leaveType.create({
+      data: {
+        name: `ลากิจ-preview-${uid().slice(0, 8)}`,
+        annualQuota: 2, // 840 minutes granted
+        penaltySettlementAllowed: true,
+      },
+    });
+    await makeAbsence(emp.id);
+
+    // Preview charging the FULL 840-minute grant, before anything is settled:
+    // fits exactly, no over-quota.
+    const before = await overQuotaPreview(emp.id, personal.id, 2026, 840);
+    expect(before.remaining).toBe(840);
+    expect(before.overQuotaMinutes).toBe(0);
+    expect(before.estimatedDeduction).toBe(0);
+
+    const settled = await setPenaltySettlement({
+      employeeId: emp.id,
+      month: '2026-07',
+      kind: 'Absent',
+      leaveTypeId: personal.id,
+      days: 1, // spends 420 of the 840 minutes
+    });
+    expect(settled).toEqual({ ok: true });
+
+    // Same 840-minute preview, now against a penalty-reduced 420-minute
+    // balance: 420 minutes over-quota, ฿666.67 estimated (same known
+    // one-day figure as the DeductPay freeze test above).
+    const after = await overQuotaPreview(emp.id, personal.id, 2026, 840);
+    expect(after.remaining).toBe(420);
+    expect(after.overQuotaMinutes).toBe(420);
+    expect(after.estimatedDeduction).toBe(666.67);
+  });
+});
+
+/**
+ * Mutation-testing gap closure: calc.ts's `lateTier1.days` and
+ * `lateSevere.days` must stay GROSS (what happened) even once a penalty of
+ * that kind has been settled — `moneyDaysFor` nets the MONEY side
+ * separately. `actualDaysFromAttendance` (reconcile-settlement.ts) reads
+ * these `days` fields directly to decide both whether an edit to an existing
+ * settlement "exceeds the penalty" and whether publish should block a
+ * "stranded settlement". If either field were netted instead of gross, an
+ * edit to a fully-settled SevereLate/LateThreeStrike penalty would falsely
+ * refuse as `exceeds-penalty`, and publishing the month would falsely block
+ * as stranded — even though nothing about the underlying attendance ever
+ * changed. Every pre-existing edit/publish test in this file uses
+ * `kind: 'Absent'` (whose `actual.count` is never netted in the first
+ * place), so this gap was invisible to the whole suite.
+ */
+describe('setPenaltySettlement/publishPayroll — SevereLate and LateThreeStrike stay editable and publishable once fully settled', () => {
+  it('SevereLate: an edit from 1 to 2 days succeeds, and publish is not blocked, once both severe lates are fully settled', async () => {
+    const emp = await makeEmployee();
+    const vacation = await makeVacationType();
+    // Two severe lates (> the default 30-min threshold) on separate dates —
+    // gross lateSevere.days = 2.
+    await makeLate(emp.id, '2026-07-01', 45);
+    await makeLate(emp.id, '2026-07-02', 45);
+
+    const first = await setPenaltySettlement({
+      employeeId: emp.id,
+      month: '2026-07',
+      kind: 'SevereLate',
+      leaveTypeId: vacation.id,
+      days: 1,
+    });
+    expect(first).toEqual({ ok: true });
+
+    // The edit: raising 1 day to 2. `exceeds-penalty` re-reads the actual
+    // days against the CURRENT settled amount (1) — if `lateSevere.days`
+    // were netted (2 gross − 1 settled = 1) instead of staying gross (2),
+    // this edit would be wrongly refused as exceeding a penalty that in
+    // reality still has 2 actual days behind it.
+    const edited = await setPenaltySettlement({
+      employeeId: emp.id,
+      month: '2026-07',
+      kind: 'SevereLate',
+      leaveTypeId: vacation.id,
+      days: 2,
+    });
+    expect(edited).toEqual({ ok: true });
+
+    await runPayrollDraft('2026-07');
+    const result = await publishPayroll('2026-07', { employeeId: emp.id });
+
+    // Fully settled (2 actual, 2 settled): if `lateSevere.days` were netted
+    // to 0 (2 gross − 2 settled), publish would wrongly see 0 actual days
+    // against 2 settled days and block as a stranded settlement.
+    expect(result.blocked).toEqual([]);
+    expect(result.published).toHaveLength(1);
+  });
+
+  it('LateThreeStrike (three-strike mode): an edit from 1 to 2 days succeeds, and publish is not blocked, once both strikes are fully settled', async () => {
+    const emp = await makeEmployee();
+    const vacation = await makeVacationType();
+    // 6 tier-1 lates (<= the default 30-min threshold) = 2 three-strike days
+    // under the default policy (lateThreeStrikeEnabled: true, count: 3).
+    await makeLate(emp.id, '2026-07-01', 10);
+    await makeLate(emp.id, '2026-07-02', 10);
+    await makeLate(emp.id, '2026-07-03', 10);
+    await makeLate(emp.id, '2026-07-04', 10);
+    await makeLate(emp.id, '2026-07-05', 10);
+    await makeLate(emp.id, '2026-07-06', 10);
+
+    const first = await setPenaltySettlement({
+      employeeId: emp.id,
+      month: '2026-07',
+      kind: 'LateThreeStrike',
+      leaveTypeId: vacation.id,
+      days: 1,
+    });
+    expect(first).toEqual({ ok: true });
+
+    // Same shape as the SevereLate edit above: if `lateTier1.days` were
+    // netted against the currently-settled 1 day instead of staying gross
+    // (2), this edit to 2 would be wrongly refused as exceeds-penalty.
+    const edited = await setPenaltySettlement({
+      employeeId: emp.id,
+      month: '2026-07',
+      kind: 'LateThreeStrike',
+      leaveTypeId: vacation.id,
+      days: 2,
+    });
+    expect(edited).toEqual({ ok: true });
+
+    await runPayrollDraft('2026-07');
+    const result = await publishPayroll('2026-07', { employeeId: emp.id });
+
+    // Fully settled (2 actual, 2 settled): a netted `lateTier1.days` (2
+    // gross − 2 settled = 0) would make publish wrongly see this as a
+    // stranded settlement.
+    expect(result.blocked).toEqual([]);
+    expect(result.published).toHaveLength(1);
   });
 });
