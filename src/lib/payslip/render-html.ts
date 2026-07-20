@@ -3,6 +3,8 @@
 // Ports the validated visual template from scripts/sample-payslip-pdf.mjs.
 // No DB, no Chromium — pure function.
 
+import type { Locale } from '@/lib/i18n/config';
+import { localizedLeaveTypeName } from '@/lib/leave/localized-name';
 import { FONT_STACK } from './fonts';
 import type { PayslipDocument, PayslipLine } from './types';
 
@@ -27,7 +29,7 @@ export interface BuildPayslipHtmlOpts {
    * otherwise Thai. Caller computes `refLocale = locale === 'th' ? 'en' : 'th'`
    * and passes `getTranslations({ locale: refLocale })`.
    */
-  tRef: (key: string) => string;
+  tRef: (key: string, vars?: Record<string, string | number>) => string;
   /** formatMoney bound to the locale */
   money: (n: number) => string;
   /** fontFaceCss(locale) */
@@ -166,6 +168,11 @@ export function buildPayslipHtml(doc: PayslipDocument, opts: BuildPayslipHtmlOpt
   // (via .ml-n) or the shaping looks wrong.
   const refIsLatin = locale === 'th';
   const refCls = refIsLatin ? '' : ' ml-n';
+  // Mirrors the caller's own `refLocale = locale === 'th' ? 'en' : 'th'` rule
+  // (see the `tRef` doc above) — needed here too so a locale-dependent
+  // `{leaveType}` interpolation can be resolved separately for each side of
+  // the bilingual label.
+  const refLocale: Locale = locale === 'th' ? 'en' : 'th';
   // The seal text uses the employee's own language; only English (Latin) may
   // keep the .s1 uppercase/tracking — other scripts need the .ml-n reset.
   const primaryCls = locale === 'en' ? '' : ' ml-n';
@@ -187,11 +194,26 @@ export function buildPayslipHtml(doc: PayslipDocument, opts: BuildPayslipHtmlOpt
   const labelInline = (primary: string, ref: string): string =>
     `<span class="ml-n">${primary}</span><span class="t2i${refCls}">${ref}</span>`;
 
+  // Resolves a line's `vars` for one side of the bilingual label. The
+  // `{leaveType}` placeholder can't be pre-formatted upstream — `document.ts`
+  // has no locale awareness by design — so it's resolved here, per side,
+  // from the raw `name`/`nameByLocale` the line carries.
+  const lineVars = (l: PayslipLine, loc: Locale): Record<string, string | number> | undefined =>
+    l.leaveType
+      ? {
+          ...l.vars,
+          leaveType: localizedLeaveTypeName(l.leaveType.name, l.leaveType.nameByLocale, loc),
+        }
+      : l.vars;
+
   const lineRow = (cls: 'pos' | 'neg' | '', l: PayslipLine): string => {
     // Free-text lines (adjustment reasons) have no translation — render once.
     const cell = l.label
       ? `<span class="t1">${l.label}</span>`
-      : label(t(`payslip.${l.labelKey!}`), tRef(`payslip.${l.labelKey!}`));
+      : label(
+          t(`payslip.${l.labelKey!}`, lineVars(l, locale as Locale)),
+          tRef(`payslip.${l.labelKey!}`, lineVars(l, refLocale)),
+        );
     const detail = l.detail
       ? `<span class="dt">${t(`payslipPdf.detail.${l.detail.key}`, l.detail.vars)}</span>`
       : '';

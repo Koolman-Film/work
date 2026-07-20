@@ -13,10 +13,15 @@ import { EMPTY_SETTLEMENT, type PenaltyKindKey, type SettlementDays } from './pe
  * type NAMES travel beside it rather than inside it because only the payslip
  * needs them — folding a display string into the arithmetic type would push
  * presentation into the money path for no benefit.
+ *
+ * Each entry carries both the Thai canonical `name` and the optional
+ * `nameByLocale` map (not a single resolved string) so the payslip renderer
+ * — the only place that knows the employee's locale — can localize the
+ * settled-with-leave note via `localizedLeaveTypeName`.
  */
 export type MonthSettlement = {
   days: SettlementDays;
-  leaveTypeNames: Partial<Record<PenaltyKindKey, string>>;
+  leaveTypeNames: Partial<Record<PenaltyKindKey, { name: string; nameByLocale: unknown }>>;
 };
 
 /** Transaction client compatible with both the extended `prisma` client and a
@@ -40,7 +45,7 @@ export async function loadSettlementsForMonth(
       employeeId: true,
       kind: true,
       days: true,
-      leaveType: { select: { name: true } },
+      leaveType: { select: { name: true, nameByLocale: true } },
     },
   });
 
@@ -48,7 +53,7 @@ export async function loadSettlementsForMonth(
   for (const r of rows) {
     const cur = out.get(r.employeeId) ?? { days: { ...EMPTY_SETTLEMENT }, leaveTypeNames: {} };
     cur.days[r.kind] = Number(r.days);
-    cur.leaveTypeNames[r.kind] = r.leaveType.name;
+    cur.leaveTypeNames[r.kind] = { name: r.leaveType.name, nameByLocale: r.leaveType.nameByLocale };
     out.set(r.employeeId, cur);
   }
   return out;
