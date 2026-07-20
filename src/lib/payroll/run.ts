@@ -487,9 +487,13 @@ export type BlockedSettlement = {
 export type PublishResult = {
   published: PublishedSlip[];
   skipped: SkippedEmployee[];
-  /** Non-empty means this call published NOTHING — see the guard in
-   *  `publishPayroll` below. The admin must clear or adjust these settlements
-   *  (reconcile page) before retrying. */
+  /** Employees this call held back — see the guard in `publishPayroll`
+   *  below. Everyone else in `published` still went through: a non-empty
+   *  `blocked` no longer means the whole call published nothing, only that
+   *  these specific employees were skipped. Each stays in Draft, so the
+   *  admin can clear or adjust the settlement (reconcile page) and publish
+   *  them afterward — the whole-month retry or a per-employee retry both
+   *  work. */
   blocked: BlockedSettlement[];
 };
 
@@ -497,7 +501,10 @@ export type PublishResult = {
  * Publish the month: recalculate inside one transaction, persist as
  * Published, stamp swept rows, decrement recurring deductions. Employees
  * whose row is already Published/Locked are silently left as-is (their
- * stamps were made when they were first published).
+ * stamps were made when they were first published). Employees carrying a
+ * stranded penalty settlement (see `BlockedSettlement` above) are held back
+ * and left in Draft — everyone else in scope still publishes; see
+ * `result.blocked` for who was skipped and why.
  *
  * Caller is responsible for writing the audit log. There is no automatic
  * per-employee LINE push on publish anymore — employees read their slip
@@ -551,8 +558,17 @@ export async function publishPayroll(
 
     const { drafts, skipped } = await gatherAndCalc(tx, month, opts?.employeeId);
 
-    // Defect 3 guard: refuse to publish while ANY employee about to be
-    // published carries a live settlement that outlived its penalty (e.g.
+    // Read BEFORE the guard below, not after: the guard must only assess
+    // employees this publish would actually write (row absent or Draft) —
+    // exactly what `existingByEmp` decides for the write loop further down.
+    const existing = await tx.payroll.findMany({
+      where: { month },
+      select: { id: true, employeeId: true, status: true },
+    });
+    const existingByEmp = new Map(existing.map((p) => [p.employeeId, p]));
+
+    // Defect 3 guard: hold back any employee THIS PUBLISH WOULD WRITE (row
+    // absent or Draft) whose live settlement outlived its penalty (e.g.
     // `lateThreeStrikeEnabled` was switched off after the settlement was
     // made — see calc.ts:tier1LateMoney — or an attendance row was voided,
     // or an absence was corrected). `draft.breakdown.attendance` was just
@@ -560,14 +576,28 @@ export async function publishPayroll(
     // no second recompute, and NOT a per-settle-call cost the way
     // `actualPenaltyDaysForEmployee` is for `setPenaltySettlement`.
     //
-    // Deliberately a hard stop, not a per-employee skip: calc.ts must stay
-    // pure (it cannot release the settlement itself), and once Published,
+    // A row that is already Published/Locked is skipped here WITHOUT being
+    // assessed at all: this publish is a no-op for that employee either way
+    // (the write loop below never touches it), so a stranded settlement of
+    // theirs isn't something this call could freeze — there's nothing left
+    // for it to do to that row.
+    //
+    // Per-employee skip, not a whole-month hard stop: calc.ts must stay pure
+    // (it cannot release the settlement itself), and once Published,
     // `isPeriodClosed` makes the settlement uneditable forever — publishing
-    // it is the one irreversible step, so this is the last moment a human
-    // can still fix it. Checked BEFORE any write below, so a blocked publish
-    // writes nothing at all (not even for the employees that were fine).
+    // it is the one irreversible step, so holding back just that employee
+    // (leaving their row in Draft) is what keeps them fixable afterward.
+    // Stopping the WHOLE month instead would destroy that same property for
+    // every OTHER employee too, for no benefit to the stranded one — see the
+    // fix-publish-lockout report for the production incident this replaced.
+    // Checked BEFORE any write below, so a held-back employee is never
+    // partially published.
     const blocked: BlockedSettlement[] = [];
+    const blockedEmployeeIds = new Set<string>();
     for (const { draft, employee } of drafts) {
+      const row = existingByEmp.get(employee.id);
+      if (row && row.status !== 'Draft') continue; // not writable by this call — not assessed
+
       const actualDays = actualDaysFromAttendance(draft.breakdown.attendance);
       const settledDays = draft.breakdown.attendance.settledDays;
       for (const kind of PENALTY_KINDS) {
@@ -579,22 +609,15 @@ export async function publishPayroll(
             actualDays: actualDays[kind],
             settledDays: settledDays[kind],
           });
+          blockedEmployeeIds.add(employee.id);
         }
       }
     }
-    if (blocked.length > 0) {
-      return { published: [], skipped, blocked };
-    }
-
-    const existing = await tx.payroll.findMany({
-      where: { month },
-      select: { id: true, employeeId: true, status: true },
-    });
-    const existingByEmp = new Map(existing.map((p) => [p.employeeId, p]));
 
     const published: PublishedSlip[] = [];
 
     for (const { draft, employee, sweptAdvanceIds, sweptLeaves, appliedRecurring } of drafts) {
+      if (blockedEmployeeIds.has(employee.id)) continue; // stranded — held back, left in Draft (see guard above)
       const row = existingByEmp.get(employee.id);
       if (row && row.status !== 'Draft') continue; // already published/locked
 
@@ -650,7 +673,7 @@ export async function publishPayroll(
       });
     }
 
-    return { published, skipped, blocked: [] };
+    return { published, skipped, blocked };
   });
 
   // Bust any cached PDF for freshly-published slips so a download reflects the
