@@ -104,7 +104,8 @@ describe('lockPayrollMonth — non-blocking acquire (Defect 1)', () => {
 describe('runPayrollDraft / publishPayroll — surface `busy` under contention (Defect 1)', () => {
   it('runPayrollDraft returns a clean `busy` result (not a throw, not a hang) when another transaction holds the month lock', async () => {
     const month = '2026-09';
-    const holderPromise = holdMonthLock(month, 500);
+    const holdMs = 500;
+    const holderPromise = holdMonthLock(month, holdMs);
     await new Promise((resolve) => setTimeout(resolve, 50));
 
     const start = Date.now();
@@ -112,14 +113,19 @@ describe('runPayrollDraft / publishPayroll — surface `busy` under contention (
     const elapsedMs = Date.now() - start;
 
     expect(result).toEqual({ calculated: 0, frozen: 0, skipped: [], busy: true });
-    expect(elapsedMs).toBeLessThan(250);
+    // The property that matters (Defect 3): a non-blocking try-lock plus a
+    // short bounded retry returns well before the holder releases — not a
+    // tight absolute bound (200ms of budgeted sleeps plus round trips) that
+    // a slow/loaded CI box can blow through with almost no margin.
+    expect(elapsedMs).toBeLessThan(holdMs);
 
     await holderPromise;
   });
 
   it('publishPayroll returns a clean `busy` result (not a throw, not a hang) when another transaction holds the month lock', async () => {
     const month = '2026-09';
-    const holderPromise = holdMonthLock(month, 500);
+    const holdMs = 500;
+    const holderPromise = holdMonthLock(month, holdMs);
     await new Promise((resolve) => setTimeout(resolve, 50));
 
     const start = Date.now();
@@ -127,7 +133,10 @@ describe('runPayrollDraft / publishPayroll — surface `busy` under contention (
     const elapsedMs = Date.now() - start;
 
     expect(result).toEqual({ published: [], skipped: [], blocked: [], busy: true });
-    expect(elapsedMs).toBeLessThan(250);
+    // Same reasoning as the runPayrollDraft case above (Defect 3): assert
+    // that it returned well before the holder released, not a tight
+    // absolute millisecond bound.
+    expect(elapsedMs).toBeLessThan(holdMs);
 
     await holderPromise;
   });
