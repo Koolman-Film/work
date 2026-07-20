@@ -19,11 +19,31 @@ import { Button } from '@/components/ui/button';
 import { DateField } from '@/components/ui/date-field';
 import { FormField } from '@/components/ui/form-field';
 import { Input } from '@/components/ui/input';
+import { payrollPeriodFor } from '@/lib/advance/period-earnings';
 import { isClosedDay } from '@/lib/attendance/date';
 import { latePolicyFrom, resolveLatePolicy } from '@/lib/attendance/late-policy';
 import { type CreateManualResult, createManualAttendance } from '@/lib/attendance/manual';
 import { computeManualPreview } from '@/lib/attendance/manual-preview';
 import { dailyRateFor } from '@/lib/payroll/day-rate';
+import { setPenaltySettlement } from '@/lib/payroll/penalty-settlement-admin';
+
+/**
+ * Which pay-period month a date's penalty belongs to — delegates to
+ * `payrollPeriodFor`'s cutoff-day arithmetic (the same math the advance cap
+ * and payroll run use) rather than re-deriving it here. Its `end` is the
+ * inclusive last day of the window, so that day's YYYY-MM prefix is exactly
+ * the `month` `payrollMonthWindow` would build back from.
+ */
+function payrollMonthFor(dateYmd: string, cutoffDay: number): string {
+  return payrollPeriodFor(dateYmd, cutoffDay).end.slice(0, 7);
+}
+
+const SETTLEMENT_ERROR_TH: Record<string, string> = {
+  'invalid-days': 'จำนวนวันไม่ถูกต้อง',
+  'period-closed': 'ปิดรอบเงินเดือนของเดือนนี้แล้ว',
+  'leave-type-not-allowed': 'ประเภทวันลาที่เลือกไม่รองรับการหักค่าปรับนี้',
+  'insufficient-balance': 'สิทธิวันลาคงเหลือไม่พอ',
+};
 
 type ScheduleDay = { dayOfWeek: number; startTime: string; endTime: string };
 
@@ -36,6 +56,8 @@ type EmployeeOption = {
   scheduleDays: ScheduleDay[] | null;
 };
 
+type PenaltyLeaveTypeOption = { id: string; name: string };
+
 type Props = {
   employees: EmployeeOption[];
   companyPolicy: { workStartTime: string | null; lateGraceMinutes: number | null };
@@ -45,6 +67,16 @@ type Props = {
   otThresholdMinutes: number;
   /** `PayrollConfig.workingDaysPerMonth` (already defaulted by the server). */
   workingDaysPerMonth: number;
+  /** `PayrollConfig.cutoffDay` (already defaulted by the server) — resolves
+   *  which pay-period month a settlement's absence date belongs to. */
+  cutoffDay: number;
+  /** Whether the signed-in admin holds `payroll.run`. When false, the
+   *  money/leave choice must not render at all — no disabled control. */
+  canSettle: boolean;
+  /** Leave types archived=null && penaltySettlementAllowed=true. Empty when !canSettle. */
+  penaltyLeaveTypes: PenaltyLeaveTypeOption[];
+  /** employeeId → (leaveTypeId → remaining whole days). Empty when !canSettle. */
+  remainingDaysByEmployee: Record<string, Record<string, number>>;
 };
 
 const baht = (v: string) => `฿${Number(v).toLocaleString()}`;
@@ -56,6 +88,10 @@ export function ManualAttendanceForm({
   holidayYmds,
   otThresholdMinutes,
   workingDaysPerMonth,
+  cutoffDay,
+  canSettle,
+  penaltyLeaveTypes,
+  remainingDaysByEmployee,
 }: Props) {
   const router = useRouter();
 
@@ -73,11 +109,19 @@ export function ManualAttendanceForm({
   const [exemptReason, setExemptReason] = useState('');
   const [recordEarlyLeave, setRecordEarlyLeave] = useState(false);
   const [note, setNote] = useState('');
+  const [settleWith, setSettleWith] = useState<'money' | 'leave'>('money');
+  const [settleLeaveTypeId, setSettleLeaveTypeId] = useState('');
 
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   const employee = employees.find((e) => e.id === employeeId) ?? null;
+
+  // Only meaningful when kind === 'absent' && canSettle — the other two
+  // penalty kinds (LateThreeStrike, SevereLate) don't exist at manual-entry
+  // time, they only emerge when payroll counts the period.
+  const showSettleChoice = kind === 'absent' && canSettle;
+  const employeeRemainingDays = employeeId ? (remainingDaysByEmployee[employeeId] ?? {}) : {};
 
   // This employee's actual per-day deduction — same function, same inputs
   // `calcPayroll` uses, so the preview can never disagree with the charge.
@@ -156,6 +200,10 @@ export function ManualAttendanceForm({
       setError('กรุณากรอกเวลาเข้างาน');
       return;
     }
+    if (showSettleChoice && settleWith === 'leave' && !settleLeaveTypeId) {
+      setError('กรุณาเลือกประเภทวันลาที่จะใช้หัก');
+      return;
+    }
 
     startTransition(async () => {
       const result: CreateManualResult = await createManualAttendance({
@@ -170,12 +218,35 @@ export function ManualAttendanceForm({
         note,
       });
 
-      if (result.ok) {
-        router.push('/admin');
-        router.refresh();
-      } else {
+      if (!result.ok) {
         setError(result.message);
+        return;
       }
+
+      // The absence row is committed at this point — a settlement failure
+      // below must NOT read as "the entry failed". It stays recorded and
+      // charged as money (the safe fallback); only the settlement is retried,
+      // e.g. later from the payroll reconcile page.
+      if (showSettleChoice && settleWith === 'leave' && settleLeaveTypeId) {
+        const settled = await setPenaltySettlement({
+          employeeId,
+          month: payrollMonthFor(date, cutoffDay),
+          kind: 'Absent',
+          leaveTypeId: settleLeaveTypeId,
+          days: 1,
+        });
+        if (!settled.ok) {
+          const reason = SETTLEMENT_ERROR_TH[settled.error] ?? 'เกิดข้อผิดพลาดไม่ทราบสาเหตุ';
+          setError(
+            `บันทึกขาดงานเรียบร้อยแล้ว แต่หักสิทธิวันลาไม่สำเร็จ (${reason}) ระบบจะหักเป็นเงินแทน — ` +
+              'ไปแก้ไขวิธีหักที่หน้าสรุปเงินเดือนได้ภายหลัง',
+          );
+          return;
+        }
+      }
+
+      router.push('/admin');
+      router.refresh();
     });
   }
 
@@ -298,6 +369,57 @@ export function ManualAttendanceForm({
               .join(' + ')}
           </p>
         </div>
+      )}
+
+      {showSettleChoice && (
+        <fieldset className="m-0 min-w-0 space-y-2 border-0 p-0">
+          <legend className="block px-0 text-sm font-medium text-gray-700">วิธีหัก</legend>
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-sm text-ink-1">
+              <input
+                type="radio"
+                name="settleWith"
+                value="money"
+                checked={settleWith === 'money'}
+                onChange={() => setSettleWith('money')}
+              />
+              หักเงิน{absentDayRate ? ` (${baht(absentDayRate.toFixed(2))})` : ''}
+            </label>
+            <label className="flex items-center gap-2 text-sm text-ink-1">
+              <input
+                type="radio"
+                name="settleWith"
+                value="leave"
+                checked={settleWith === 'leave'}
+                onChange={() => setSettleWith('leave')}
+                disabled={penaltyLeaveTypes.length === 0}
+              />
+              หักสิทธิวันลาแทน 1 วัน
+            </label>
+          </div>
+          {settleWith === 'leave' && (
+            <FormField label="ประเภทวันลาที่จะใช้หัก" htmlFor="settleLeaveTypeId" required>
+              <select
+                id="settleLeaveTypeId"
+                name="settleLeaveTypeId"
+                value={settleLeaveTypeId}
+                onChange={(e) => setSettleLeaveTypeId(e.target.value)}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                required
+              >
+                <option value="">— เลือกประเภทวันลา —</option>
+                {penaltyLeaveTypes.map((t) => {
+                  const left = employeeRemainingDays[t.id] ?? 0;
+                  return (
+                    <option key={t.id} value={t.id} disabled={left < 1}>
+                      {t.name} (เหลือ {left} วัน){left < 1 ? ' — สิทธิไม่พอ' : ''}
+                    </option>
+                  );
+                })}
+              </select>
+            </FormField>
+          )}
+        </fieldset>
       )}
 
       {showExemptOptIn && (

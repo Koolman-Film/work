@@ -17,10 +17,17 @@ import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageHeader } from '@/components/ui/page-header';
 import { bangkokDateUtcMidnight } from '@/lib/attendance/date';
 import { employeeBranchScope, getPermittedBranches } from '@/lib/auth/branch-scope';
-import { requirePermission } from '@/lib/auth/check-permission';
+import { canDo, requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
+import { remainingByTypeForEmployees } from '@/lib/leave/balance';
+import { getLeaveConfig } from '@/lib/leave/leave-config';
+import { standardDayMinutes } from '@/lib/leave/units';
 import { AttendanceTabs } from '../attendance-tabs';
 import { ManualAttendanceForm } from './manual-form';
+
+/** Matches `PayrollConfig.cutoffDay`'s schema default — same fallback the
+ *  attendance settings page uses when the singleton config row is missing. */
+const DEFAULT_CUTOFF_DAY = 25;
 
 /** Today's Bangkok calendar date, at UTC midnight (matches @db.Date). */
 function holidayWindowEnd(): Date {
@@ -43,7 +50,7 @@ export default async function ManualAttendancePage() {
   const { user } = await requirePermission('attendance.manual-create');
   const permitted = await getPermittedBranches(user, 'attendance.manual-create');
 
-  const [employees, payrollCfg, holidays] = await Promise.all([
+  const [employees, payrollCfg, holidays, canSettle] = await Promise.all([
     prisma.employee.findMany({
       where: {
         archivedAt: null,
@@ -75,6 +82,7 @@ export default async function ManualAttendancePage() {
         earlyLeaveDeduction: true,
         otThresholdMinutes: true,
         workingDaysPerMonth: true,
+        cutoffDay: true,
       },
     }),
     // This form only ever accepts today or an earlier date, so a lookback
@@ -85,7 +93,53 @@ export default async function ManualAttendancePage() {
       where: { archivedAt: null, date: { gte: holidayWindowStart(), lte: holidayWindowEnd() } },
       select: { date: true },
     }),
+    // Settling a penalty with leave needs `payroll.run`, separate from the
+    // `attendance.manual-create` permission that gates this whole page — an
+    // admin may hold one and not the other. When they lack it, the choice
+    // must not render at all (not a disabled control): they record the
+    // absence and someone with payroll rights settles it later on the
+    // reconcile page.
+    canDo(user, 'payroll.run'),
   ]);
+
+  // Eligible leave types + each listed employee's remaining balance,
+  // converted to whole days so the option labels can show it. Skipped
+  // entirely when the admin can't settle — no point loading data that never
+  // renders. Uses the bulk `remainingByTypeForEmployees` (one query for every
+  // employee on this page) rather than looping the single-employee variant,
+  // since the employee is picked client-side after the page has already
+  // loaded — every employee's balance has to be baked into the props, same
+  // as their schedule/salary data already is.
+  let penaltyLeaveTypes: { id: string; name: string }[] = [];
+  const remainingDaysByEmployee: Record<string, Record<string, number>> = {};
+  if (canSettle) {
+    const [types, leaveConfig, remainingByEmployee] = await Promise.all([
+      prisma.leaveType.findMany({
+        where: { archivedAt: null, penaltySettlementAllowed: true },
+        select: { id: true, name: true },
+        orderBy: { name: 'asc' },
+      }),
+      getLeaveConfig(),
+      remainingByTypeForEmployees(
+        employees.map((e) => e.id),
+        holidayWindowEnd().getUTCFullYear(),
+      ),
+    ]);
+    penaltyLeaveTypes = types;
+    const std = standardDayMinutes(leaveConfig);
+    for (const emp of employees) {
+      const byType = remainingByEmployee[emp.id] ?? {};
+      const days: Record<string, number> = {};
+      for (const t of types) {
+        const mins = byType[t.id];
+        // null = unlimited quota, which is not selectable — report 0 so the
+        // option renders disabled rather than appearing to offer infinite
+        // headroom (the server refuses it either way).
+        days[t.id] = mins == null ? 0 : Math.floor(mins / std);
+      }
+      remainingDaysByEmployee[emp.id] = days;
+    }
+  }
 
   return (
     <div className="px-4 py-6 sm:px-6 lg:px-8">
@@ -131,6 +185,13 @@ export default async function ManualAttendancePage() {
               otThresholdMinutes={payrollCfg?.otThresholdMinutes ?? 30}
               // Same fallback dailyRateFor uses when the divisor is missing/invalid.
               workingDaysPerMonth={payrollCfg?.workingDaysPerMonth ?? 30}
+              // Same fallback the attendance settings page uses when the
+              // PayrollConfig row is missing; needed client-side to resolve
+              // which pay-period month a settlement's absence date belongs to.
+              cutoffDay={payrollCfg?.cutoffDay ?? DEFAULT_CUTOFF_DAY}
+              canSettle={canSettle}
+              penaltyLeaveTypes={penaltyLeaveTypes}
+              remainingDaysByEmployee={remainingDaysByEmployee}
             />
           </CardBody>
         </Card>
