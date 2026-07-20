@@ -220,6 +220,7 @@ describe('setPenaltySettlement', () => {
       kind: 'Absent',
       leaveTypeId: vacation.id,
       days: 1,
+      via: 'reconcile',
     });
     expect(res).toEqual({ ok: true });
 
@@ -249,6 +250,7 @@ describe('setPenaltySettlement', () => {
       kind: 'Absent',
       leaveTypeId: sick.id,
       days: 1,
+      via: 'reconcile',
     });
     expect(r).toEqual({ ok: false, error: 'leave-type-not-allowed' });
   });
@@ -263,6 +265,7 @@ describe('setPenaltySettlement', () => {
       kind: 'Absent',
       leaveTypeId: vacation.id,
       days: 99,
+      via: 'reconcile',
     });
     expect(r).toEqual({ ok: false, error: 'insufficient-balance' });
   });
@@ -280,6 +283,7 @@ describe('setPenaltySettlement', () => {
       kind: 'Absent',
       leaveTypeId: vacation.id,
       days: 1,
+      via: 'reconcile',
     });
     expect(r).toEqual({ ok: false, error: 'period-closed' });
   });
@@ -298,6 +302,7 @@ describe('setPenaltySettlement', () => {
       kind: 'Absent',
       leaveTypeId: vacation.id,
       days: 1,
+      via: 'reconcile',
     });
     const before = await remainingByTypeForEmployee(emp.id, 2026);
 
@@ -315,6 +320,7 @@ describe('setPenaltySettlement', () => {
       kind: 'SevereLate',
       leaveTypeId: vacation.id,
       days: 1,
+      via: 'reconcile',
     });
     expect(retry).toEqual({ ok: false, error: 'leave-type-not-allowed' });
   });
@@ -339,6 +345,7 @@ describe('setPenaltySettlement', () => {
       kind: 'Absent',
       leaveTypeId: vacation.id,
       days: 1,
+      via: 'reconcile',
     });
     expect(first).toEqual({ ok: true });
 
@@ -348,6 +355,7 @@ describe('setPenaltySettlement', () => {
       kind: 'Absent',
       leaveTypeId: vacation.id,
       days: 2,
+      via: 'reconcile',
     });
     expect(second).toEqual({ ok: true });
 
@@ -374,6 +382,7 @@ describe('setPenaltySettlement', () => {
       kind: 'Absent',
       leaveTypeId: vacation.id,
       days: 1,
+      via: 'reconcile',
     });
     expect(first).toEqual({ ok: true });
 
@@ -385,6 +394,7 @@ describe('setPenaltySettlement', () => {
       kind: 'Absent',
       leaveTypeId: vacation.id,
       days: 11,
+      via: 'reconcile',
     });
     expect(second).toEqual({ ok: false, error: 'insufficient-balance' });
 
@@ -418,6 +428,7 @@ describe('setPenaltySettlement', () => {
       kind: 'Absent',
       leaveTypeId: vacation.id,
       days: 2,
+      via: 'reconcile',
     });
     expect(first).toEqual({ ok: true });
 
@@ -427,6 +438,7 @@ describe('setPenaltySettlement', () => {
       kind: 'Absent',
       leaveTypeId: personal.id,
       days: 2,
+      via: 'reconcile',
     });
     expect(switched).toEqual({ ok: true });
 
@@ -455,6 +467,7 @@ describe('setPenaltySettlement', () => {
       kind: 'Absent',
       leaveTypeId: vacation.id,
       days: 0,
+      via: 'reconcile',
     });
     expect(zero).toEqual({ ok: false, error: 'invalid-days' });
 
@@ -464,6 +477,7 @@ describe('setPenaltySettlement', () => {
       kind: 'Absent',
       leaveTypeId: vacation.id,
       days: 1.5,
+      via: 'reconcile',
     });
     expect(fractional).toEqual({ ok: false, error: 'invalid-days' });
 
@@ -484,6 +498,7 @@ describe('setPenaltySettlement', () => {
         kind: 'Absent',
         leaveTypeId: vacation.id,
         days: 1,
+        via: 'reconcile',
       });
       expect(r).toEqual({ ok: false, error: 'invalid-month' });
     }
@@ -535,6 +550,7 @@ describe('setPenaltySettlement', () => {
         kind: 'Absent',
         leaveTypeId: vacation.id,
         days: 1,
+        via: 'reconcile',
       }),
       setPenaltySettlement({
         employeeId: emp.id,
@@ -542,6 +558,7 @@ describe('setPenaltySettlement', () => {
         kind: 'SevereLate',
         leaveTypeId: vacation.id,
         days: 1,
+        via: 'reconcile',
       }),
     ]);
 
@@ -611,6 +628,7 @@ describe('publishPayroll vs setPenaltySettlement (publish-side lock race)', () =
         kind: 'Absent',
         leaveTypeId: vacation.id,
         days: 1,
+        via: 'reconcile',
       }),
       publishPayroll('2026-07', { employeeId: emp.id }),
     ]);
@@ -683,6 +701,7 @@ describe('publishPayroll vs setPenaltySettlement (publish-side lock race)', () =
         kind: 'Absent',
         leaveTypeId: vacation.id,
         days: 1,
+        via: 'reconcile',
       }),
       publishPayroll('2026-07', { employeeId: emp.id }),
     ]);
@@ -727,6 +746,7 @@ describe('clearPenaltySettlement', () => {
       employeeId: emp.id,
       month: '2026-06',
       kind: 'Absent',
+      via: 'reconcile',
     });
     expect(r).toEqual({ ok: false, error: 'period-closed' });
   });
@@ -738,6 +758,7 @@ describe('clearPenaltySettlement', () => {
       employeeId: emp.id,
       month: 'not-a-month',
       kind: 'Absent',
+      via: 'reconcile',
     });
     expect(r).toEqual({ ok: false, error: 'invalid-month' });
   });
@@ -781,6 +802,7 @@ describe('audit trail', () => {
       kind: 'Absent',
       leaveTypeId: vacation.id,
       days: 1,
+      via: 'reconcile',
     });
     expect(res).toEqual({ ok: true });
 
@@ -810,6 +832,7 @@ describe('audit trail', () => {
       kind: 'Absent',
       leaveTypeId: vacation.id,
       days: 1,
+      via: 'reconcile',
     });
 
     const edited = await setPenaltySettlement({
@@ -818,6 +841,7 @@ describe('audit trail', () => {
       kind: 'Absent',
       leaveTypeId: vacation.id,
       days: 2,
+      via: 'reconcile',
     });
     expect(edited).toEqual({ ok: true });
 
@@ -853,12 +877,14 @@ describe('audit trail', () => {
       kind: 'Absent',
       leaveTypeId: vacation.id,
       days: 1,
+      via: 'reconcile',
     });
 
     const cleared = await clearPenaltySettlement({
       employeeId: emp.id,
       month: '2026-07',
       kind: 'Absent',
+      via: 'reconcile',
     });
     expect(cleared).toEqual({ ok: true });
 
@@ -893,6 +919,7 @@ describe('audit trail', () => {
       kind: 'Absent',
       leaveTypeId: vacation.id,
       days: 1,
+      via: 'reconcile',
     });
     expect(first).toEqual({ ok: true });
 
@@ -900,6 +927,7 @@ describe('audit trail', () => {
       employeeId: emp.id,
       month: '2026-07',
       kind: 'Absent',
+      via: 'reconcile',
     });
     expect(cleared).toEqual({ ok: true });
 
@@ -909,6 +937,7 @@ describe('audit trail', () => {
       kind: 'Absent',
       leaveTypeId: vacation.id,
       days: 1,
+      via: 'reconcile',
     });
     expect(resettled).toEqual({ ok: true });
 
@@ -941,6 +970,7 @@ describe('audit trail', () => {
       kind: 'Absent',
       leaveTypeId: vacation.id,
       days: 99,
+      via: 'reconcile',
     });
     expect(r).toEqual({ ok: false, error: 'insufficient-balance' });
 
@@ -964,6 +994,7 @@ describe('setPenaltySettlement — refuses settlements payroll cannot charge', (
       kind: 'Absent',
       leaveTypeId: vacation.id,
       days: 1,
+      via: 'reconcile',
     });
     expect(r).toEqual({ ok: false, error: 'unsupported-salary-type' });
 
@@ -984,6 +1015,7 @@ describe('setPenaltySettlement — refuses settlements payroll cannot charge', (
       kind: 'Absent',
       leaveTypeId: vacation.id,
       days: 2,
+      via: 'reconcile',
     });
     expect(tooMany).toEqual({ ok: false, error: 'exceeds-penalty' });
 
@@ -998,6 +1030,7 @@ describe('setPenaltySettlement — refuses settlements payroll cannot charge', (
       kind: 'Absent',
       leaveTypeId: vacation.id,
       days: 1,
+      via: 'reconcile',
     });
     expect(exact).toEqual({ ok: true });
   });
@@ -1015,6 +1048,7 @@ describe('publishPayroll — blocks a stranded settlement (Defect 3)', () => {
       kind: 'Absent',
       leaveTypeId: vacation.id,
       days: 1,
+      via: 'reconcile',
     });
     expect(settled).toEqual({ ok: true });
 
@@ -1047,6 +1081,7 @@ describe('publishPayroll — blocks a stranded settlement (Defect 3)', () => {
       employeeId: emp.id,
       month: '2026-07',
       kind: 'Absent',
+      via: 'reconcile',
     });
     expect(cleared).toEqual({ ok: true });
 
@@ -1075,6 +1110,7 @@ describe('publishPayroll — blocks a stranded settlement (Defect 3)', () => {
       kind: 'LateThreeStrike',
       leaveTypeId: vacation.id,
       days: 1,
+      via: 'reconcile',
     });
     expect(settled).toEqual({ ok: true });
 
@@ -1155,6 +1191,7 @@ describe('setPenaltySettlement vs approveLeaveRequest (entitlement-lock race, De
         kind: 'Absent',
         leaveTypeId: personal.id,
         days: 1, // 420 minutes
+        via: 'reconcile',
       }),
       approveLeaveRequest({ leaveRequestId: req.id, note: 'อนุมัติ' }),
     ]);
@@ -1318,6 +1355,7 @@ describe('approveLeaveRequest — folds settled penalty minutes into the over-qu
       kind: 'Absent',
       leaveTypeId: vacation.id,
       days: 1, // spends the entire 420-minute grant, leaving 0 remaining
+      via: 'reconcile',
     });
     expect(settled).toEqual({ ok: true });
 
@@ -1367,6 +1405,7 @@ describe('approveLeaveRequest — folds settled penalty minutes into the over-qu
       kind: 'Absent',
       leaveTypeId: personal.id,
       days: 1, // spends 420 of the 840 minutes, leaving 420 remaining
+      via: 'reconcile',
     });
     expect(settled).toEqual({ ok: true });
 
@@ -1424,6 +1463,7 @@ describe('the other remaining-balance call sites also fold in settled penalty mi
       kind: 'Absent',
       leaveTypeId: vacation.id,
       days: 1,
+      via: 'reconcile',
     });
     expect(settled).toEqual({ ok: true });
 
@@ -1447,6 +1487,7 @@ describe('the other remaining-balance call sites also fold in settled penalty mi
       kind: 'Absent',
       leaveTypeId: vacation.id,
       days: 1,
+      via: 'reconcile',
     });
     expect(settled).toEqual({ ok: true });
 
@@ -1479,6 +1520,7 @@ describe('the other remaining-balance call sites also fold in settled penalty mi
       kind: 'Absent',
       leaveTypeId: personal.id,
       days: 1, // spends 420 of the 840 minutes
+      via: 'reconcile',
     });
     expect(settled).toEqual({ ok: true });
 
@@ -1522,6 +1564,7 @@ describe('setPenaltySettlement/publishPayroll — SevereLate and LateThreeStrike
       kind: 'SevereLate',
       leaveTypeId: vacation.id,
       days: 1,
+      via: 'reconcile',
     });
     expect(first).toEqual({ ok: true });
 
@@ -1536,6 +1579,7 @@ describe('setPenaltySettlement/publishPayroll — SevereLate and LateThreeStrike
       kind: 'SevereLate',
       leaveTypeId: vacation.id,
       days: 2,
+      via: 'reconcile',
     });
     expect(edited).toEqual({ ok: true });
 
@@ -1567,6 +1611,7 @@ describe('setPenaltySettlement/publishPayroll — SevereLate and LateThreeStrike
       kind: 'LateThreeStrike',
       leaveTypeId: vacation.id,
       days: 1,
+      via: 'reconcile',
     });
     expect(first).toEqual({ ok: true });
 
@@ -1579,6 +1624,7 @@ describe('setPenaltySettlement/publishPayroll — SevereLate and LateThreeStrike
       kind: 'LateThreeStrike',
       leaveTypeId: vacation.id,
       days: 2,
+      via: 'reconcile',
     });
     expect(edited).toEqual({ ok: true });
 

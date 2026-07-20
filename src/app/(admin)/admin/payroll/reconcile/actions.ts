@@ -30,7 +30,7 @@ export async function setReconcileSettlement(input: {
   leaveTypeId: string;
   days: number;
 }): Promise<Result> {
-  const result = await setPenaltySettlement(input);
+  const result = await setPenaltySettlement({ ...input, via: 'reconcile' });
   if (result.ok) {
     await runPayrollDraft(input.month);
     revalidatePath('/admin/payroll/reconcile');
@@ -44,7 +44,7 @@ export async function clearReconcileSettlement(input: {
   month: string;
   kind: PenaltyKindKey;
 }): Promise<Result> {
-  const result = await clearPenaltySettlement(input);
+  const result = await clearPenaltySettlement({ ...input, via: 'reconcile' });
   if (result.ok) {
     await runPayrollDraft(input.month);
     revalidatePath('/admin/payroll/reconcile');
