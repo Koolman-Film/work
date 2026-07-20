@@ -208,7 +208,9 @@ function PenaltySettlementLine({
       )}
 
       {!isDraft ? (
-        <p className="text-sm text-ink-2">เดือนนี้เผยแพร่แล้ว — แก้วิธีหักไม่ได้ ต้องออกใบแก้ไข</p>
+        <p className="text-sm text-ink-2">
+          เดือนนี้เผยแพร่แล้ว — วิธีหักของเดือนนี้ถือเป็นที่สิ้นสุด ไม่สามารถแก้ไขได้อีก
+        </p>
       ) : (
         canSettle &&
         (editing ? (
