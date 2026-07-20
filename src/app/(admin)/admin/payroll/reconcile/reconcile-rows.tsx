@@ -1,16 +1,46 @@
 'use client';
 
-import { Fragment, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Fragment, useEffect, useState, useTransition } from 'react';
 import { formatTHB2, monthLabelTh } from '@/lib/format';
+import type { PenaltyKindKey } from '@/lib/payroll/penalty-settlement';
+import { getPenaltyLeaveBalance } from '@/lib/payroll/penalty-settlement-admin';
 import type { PayrollBreakdown } from '@/lib/payroll/reconcile';
 import type { ReconRow } from '@/lib/payroll/reconcile-data';
+import {
+  hasAnyOverSettlement,
+  isOverSettled,
+  kindsToShow,
+  type PenaltyRowInfo,
+} from '@/lib/payroll/reconcile-settlement';
+import { clearReconcileSettlement, setReconcileSettlement } from './actions';
 
 /**
  * Client child of /admin/payroll/reconcile — owns the two pieces of the page
  * that need interactivity: the "all rows" section (collapsed by default) and,
  * inside it, the per-employee derivation (current vs baseline, changed lines
- * highlighted). Receives already-loaded plain data as props — no fetching.
+ * highlighted), which now also carries the penalty-settlement section (Task
+ * 9) for employees whose row has an Absent / LateThreeStrike / SevereLate
+ * penalty this month. Receives already-loaded plain data as props — the
+ * settlement WRITE actions ('./actions') are the only thing this file calls
+ * directly, mirroring how the manual attendance form calls
+ * penalty-settlement-admin.ts's exports straight from the client.
  */
+
+type LeaveTypeOption = { id: string; name: string };
+
+const SETTLEMENT_ERROR_TH: Record<string, string> = {
+  'invalid-days': 'จำนวนวันไม่ถูกต้อง',
+  'period-closed': 'ปิดรอบเงินเดือนของเดือนนี้แล้ว',
+  'leave-type-not-allowed': 'ประเภทวันลาที่เลือกไม่รองรับการหักค่าปรับนี้',
+  'insufficient-balance': 'สิทธิวันลาคงเหลือไม่พอ',
+};
+
+const PENALTY_KIND_LABEL: Record<PenaltyKindKey, string> = {
+  Absent: 'ขาดงาน',
+  LateThreeStrike: 'มาสายครบกำหนด',
+  SevereLate: 'มาสายรุนแรง',
+};
 
 // The eight breakdown lines shown side-by-side with baseline (netPay is its
 // own row below, since it's the bottom-line total rather than a component).
@@ -25,7 +55,264 @@ const BREAKDOWN_LINES: { key: keyof Omit<PayrollBreakdown, 'netPay'>; label: str
   { key: 'deductOther', label: 'หักอื่นๆ' },
 ];
 
-function RowDerivation({ row }: { row: ReconRow }) {
+/**
+ * One penalty kind's settlement line: what happened this month (actual
+ * days), what's currently settled with leave (if anything), the
+ * over-settlement warning, and — when the row is still Draft and the admin
+ * holds payroll.run — the control to change it.
+ *
+ * The control is genuinely inert (not merely styled differently) once the
+ * row leaves Draft: `!isDraft` short-circuits before any editor UI exists,
+ * so there is no disabled-but-present form to route around. The same is
+ * true when `!canSettle` — that branch never renders a control either,
+ * matching the manual attendance form's rule that a choice an admin can't
+ * exercise must not render at all.
+ */
+function PenaltySettlementLine({
+  employeeId,
+  month,
+  kind,
+  actualDays,
+  settledDays,
+  leaveTypeName,
+  isDraft,
+  canSettle,
+  leaveTypeOptions,
+}: {
+  employeeId: string;
+  month: string;
+  kind: PenaltyKindKey;
+  actualDays: number;
+  settledDays: number;
+  leaveTypeName: string | undefined;
+  isDraft: boolean;
+  canSettle: boolean;
+  leaveTypeOptions: LeaveTypeOption[];
+}) {
+  const router = useRouter();
+  const [editing, setEditing] = useState(false);
+  const [leaveTypeId, setLeaveTypeId] = useState('');
+  const [days, setDays] = useState(1);
+  const [balances, setBalances] = useState<Record<string, number>>({});
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  // Balance is fetched only once the editor opens — most rows never edit,
+  // so eagerly loading every row's balance up front would be wasted work.
+  // Mirrors the manual attendance form's `getPenaltyLeaveBalance` usage.
+  useEffect(() => {
+    if (!editing) return;
+    let cancelled = false;
+    getPenaltyLeaveBalance({ employeeId, month }).then((result) => {
+      if (!cancelled) setBalances(result);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [editing, employeeId, month]);
+
+  const overSettled = isOverSettled(actualDays, settledDays);
+
+  function openEditor() {
+    setError(null);
+    setLeaveTypeId('');
+    setDays(settledDays > 0 ? settledDays : Math.max(1, actualDays));
+    setEditing(true);
+  }
+
+  function handleSave() {
+    setError(null);
+    if (!leaveTypeId) {
+      setError('กรุณาเลือกประเภทวันลาที่จะใช้หัก');
+      return;
+    }
+    if (!Number.isInteger(days) || days <= 0) {
+      setError('จำนวนวันไม่ถูกต้อง');
+      return;
+    }
+    startTransition(async () => {
+      const result = await setReconcileSettlement({ employeeId, month, kind, leaveTypeId, days });
+      if (!result.ok) {
+        setError(SETTLEMENT_ERROR_TH[result.error] ?? 'เกิดข้อผิดพลาดไม่ทราบสาเหตุ');
+        return;
+      }
+      setEditing(false);
+      router.refresh();
+    });
+  }
+
+  function handleClear() {
+    setError(null);
+    startTransition(async () => {
+      const result = await clearReconcileSettlement({ employeeId, month, kind });
+      if (!result.ok) {
+        setError(SETTLEMENT_ERROR_TH[result.error] ?? 'เกิดข้อผิดพลาดไม่ทราบสาเหตุ');
+        return;
+      }
+      setEditing(false);
+      router.refresh();
+    });
+  }
+
+  return (
+    <div className="space-y-1.5 rounded-md border border-gray-100 px-3 py-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="text-sm text-ink-2">
+          {PENALTY_KIND_LABEL[kind]}{' '}
+          <span className="text-xs text-ink-4">(เกิดขึ้นจริงเดือนนี้ {actualDays} วัน)</span>
+        </span>
+        <span className="text-sm font-medium text-ink-1">
+          {settledDays > 0 ? `หักสิทธิ${leaveTypeName ?? 'วันลา'} ${settledDays} วัน` : 'หักเป็นเงิน'}
+        </span>
+      </div>
+
+      {overSettled && (
+        <p className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-sm text-amber-900">
+          มีการหักสิทธิ {settledDays} วัน แต่เดือนนี้เหลือโทษจริง {actualDays} วัน — รายการที่เกินไม่ถูกนำมาคิด
+          กรุณาตรวจสอบ
+        </p>
+      )}
+
+      {!isDraft ? (
+        <p className="text-sm text-ink-2">เดือนนี้เผยแพร่แล้ว — แก้วิธีหักไม่ได้ ต้องออกใบแก้ไข</p>
+      ) : (
+        canSettle &&
+        (editing ? (
+          <div className="space-y-2 rounded-md bg-gray-50 p-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                value={leaveTypeId}
+                onChange={(e) => setLeaveTypeId(e.target.value)}
+                className="rounded-md border border-gray-300 px-2 py-1 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+              >
+                <option value="">— เลือกประเภทวันลา —</option>
+                {leaveTypeOptions.map((t) => {
+                  const left = balances[t.id] ?? 0;
+                  return (
+                    <option key={t.id} value={t.id} disabled={left < 1}>
+                      {t.name} (เหลือ {left} วัน){left < 1 ? ' — สิทธิไม่พอ' : ''}
+                    </option>
+                  );
+                })}
+              </select>
+              <input
+                type="number"
+                min={1}
+                value={days}
+                onChange={(e) => setDays(Number(e.target.value))}
+                className="w-20 rounded-md border border-gray-300 px-2 py-1 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+              />
+              <span className="text-xs text-ink-4">วัน</span>
+            </div>
+            {error && (
+              <p role="alert" className="text-xs text-red-600">
+                {error}
+              </p>
+            )}
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={pending}
+                className="rounded-md bg-primary-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-primary-700 disabled:opacity-60"
+              >
+                {pending ? 'กำลังบันทึก...' : 'บันทึก'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditing(false)}
+                disabled={pending}
+                className="text-xs font-medium text-ink-3 hover:underline"
+              >
+                ยกเลิก
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={openEditor}
+              className="text-xs font-medium text-primary-700 hover:underline"
+            >
+              {settledDays > 0 ? 'แก้ไขวิธีหัก' : 'หักสิทธิวันลาแทน'}
+            </button>
+            {settledDays > 0 && (
+              <button
+                type="button"
+                onClick={handleClear}
+                disabled={pending}
+                className="text-xs font-medium text-red-700 hover:underline disabled:opacity-60"
+              >
+                เลิกหักสิทธิ (กลับไปหักเงิน)
+              </button>
+            )}
+            {error && (
+              <p role="alert" className="text-xs text-red-600">
+                {error}
+              </p>
+            )}
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
+
+/** All penalty-kind lines for one row — only rendered when `penalty` is
+ *  non-null (page.tsx already filtered to rows with something to show). */
+function PenaltySettlementSection({
+  row,
+  month,
+  canSettle,
+  leaveTypeOptions,
+  penalty,
+}: {
+  row: ReconRow;
+  month: string;
+  canSettle: boolean;
+  leaveTypeOptions: LeaveTypeOption[];
+  penalty: PenaltyRowInfo;
+}) {
+  const kinds = kindsToShow(penalty.actualDays, penalty.settledDays);
+  if (kinds.length === 0) return null;
+
+  return (
+    <div className="mt-3 space-y-2 border-t border-gray-100 pt-3">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-4">
+        การหักค่าปรับด้วยสิทธิวันลา
+      </p>
+      {kinds.map((kind) => (
+        <PenaltySettlementLine
+          key={kind}
+          employeeId={row.employeeId}
+          month={month}
+          kind={kind}
+          actualDays={penalty.actualDays[kind]}
+          settledDays={penalty.settledDays[kind]}
+          leaveTypeName={penalty.leaveTypeNames[kind]}
+          isDraft={penalty.isDraft}
+          canSettle={canSettle}
+          leaveTypeOptions={leaveTypeOptions}
+        />
+      ))}
+    </div>
+  );
+}
+
+function RowDerivation({
+  row,
+  month,
+  canSettle,
+  leaveTypeOptions,
+  penalty,
+}: {
+  row: ReconRow;
+  month: string;
+  canSettle: boolean;
+  leaveTypeOptions: LeaveTypeOption[];
+  penalty: PenaltyRowInfo | undefined;
+}) {
   const { current, baseline } = row;
   return (
     <div className="mt-3 border-t border-gray-100 pt-3">
@@ -99,11 +386,33 @@ function RowDerivation({ row }: { row: ReconRow }) {
           </ul>
         </div>
       )}
+
+      {penalty && (
+        <PenaltySettlementSection
+          row={row}
+          month={month}
+          canSettle={canSettle}
+          leaveTypeOptions={leaveTypeOptions}
+          penalty={penalty}
+        />
+      )}
     </div>
   );
 }
 
-export function ReconcileRows({ rows }: { rows: ReconRow[] }) {
+export function ReconcileRows({
+  rows,
+  month,
+  canSettle,
+  leaveTypeOptions,
+  penaltyByEmployee,
+}: {
+  rows: ReconRow[];
+  month: string;
+  canSettle: boolean;
+  leaveTypeOptions: LeaveTypeOption[];
+  penaltyByEmployee: Record<string, PenaltyRowInfo>;
+}) {
   const [showAll, setShowAll] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -125,6 +434,10 @@ export function ReconcileRows({ rows }: { rows: ReconRow[] }) {
         <ul className="divide-y divide-gray-100 border-t border-gray-100">
           {rows.map((row) => {
             const expanded = expandedId === row.employeeId;
+            const penalty = penaltyByEmployee[row.employeeId];
+            const overSettled = penalty
+              ? hasAnyOverSettlement(penalty.actualDays, penalty.settledDays)
+              : false;
             return (
               <li key={row.employeeId} className="px-4 py-3">
                 <button
@@ -136,12 +449,28 @@ export function ReconcileRows({ rows }: { rows: ReconRow[] }) {
                   <span className="min-w-0 truncate">
                     <span className="font-medium text-ink-1">{row.name}</span>
                     <span className="ml-2 text-xs text-ink-4">{row.branchName}</span>
+                    {overSettled && (
+                      <span
+                        className="ml-2 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800"
+                        title="มีการหักสิทธิวันลามากกว่าโทษจริงของเดือนนี้"
+                      >
+                        หักสิทธิเกินโทษจริง
+                      </span>
+                    )}
                   </span>
                   <span className="shrink-0 font-mono text-sm tabular-nums text-ink-1">
                     {row.current ? formatTHB2(row.current.netPay) : '—'}
                   </span>
                 </button>
-                {expanded && <RowDerivation row={row} />}
+                {expanded && (
+                  <RowDerivation
+                    row={row}
+                    month={month}
+                    canSettle={canSettle}
+                    leaveTypeOptions={leaveTypeOptions}
+                    penalty={penalty}
+                  />
+                )}
               </li>
             );
           })}
