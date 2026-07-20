@@ -9,8 +9,9 @@
 
 'use server';
 
+import { headers } from 'next/headers';
 import { auditLogTx } from '@/lib/audit/log';
-import { requirePermission } from '@/lib/auth/check-permission';
+import { requireGlobalPermission } from '@/lib/auth/require-global-permission';
 import { prisma } from '@/lib/db/prisma';
 import { lockEntitlement, remainingByTypeForEmployee } from '@/lib/leave/balance';
 import { getLeaveConfig } from '@/lib/leave/leave-config';
@@ -71,8 +72,28 @@ export async function setPenaltySettlement(input: {
   leaveTypeId: string;
   days: number;
   note?: string;
+  /** Which surface called this — the manual attendance form's one-off entry
+   *  flow, or the payroll reconcile page's per-row editor. Recorded on the
+   *  audit entry, same discriminator payroll/actions.ts records for its own
+   *  writes, so a disputed settlement's audit trail says where it came from
+   *  without guessing from the (employeeId, month, kind) key alone. */
+  via: 'manual-attendance' | 'reconcile';
 }): Promise<Result> {
-  const { user } = await requirePermission('payroll.run');
+  // B-payroll-guard Layer 1: payroll permissions may only ever be exercised
+  // GLOBALLY. A bare permission check (no branch-scope requirement) would
+  // admit a branch-scoped grant (e.g. the system Admin role, which is
+  // intentionally allowed to be branch-scoped — see team-guards.ts) and let
+  // that actor settle/enumerate any employee in any branch, since nothing
+  // else in this function is branch-aware (the month-wide advisory lock and
+  // runPayrollDraft recompute the WHOLE month, not one employee).
+  const { user } = await requireGlobalPermission('payroll.run');
+
+  const headerList = await headers();
+  const ip =
+    headerList.get('x-forwarded-for')?.split(',')[0]?.trim() ??
+    headerList.get('x-real-ip') ??
+    undefined;
+  const userAgent = headerList.get('user-agent') ?? undefined;
 
   if (!Number.isInteger(input.days) || input.days <= 0) {
     return { ok: false, error: 'invalid-days' };
@@ -184,7 +205,14 @@ export async function setPenaltySettlement(input: {
           kind: input.kind,
         },
       },
-      select: { id: true, days: true, minutes: true, leaveTypeId: true, deletedAt: true },
+      select: {
+        id: true,
+        days: true,
+        minutes: true,
+        leaveTypeId: true,
+        deletedAt: true,
+        note: true,
+      },
     });
     const creditBack =
       existing && !existing.deletedAt && existing.leaveTypeId === input.leaveTypeId
@@ -272,6 +300,7 @@ export async function setPenaltySettlement(input: {
             leaveTypeId: existingLive.leaveTypeId,
             days: existingLive.days.toNumber(),
             minutes: existingLive.minutes,
+            note: existingLive.note,
           }
         : undefined,
       after: {
@@ -281,8 +310,9 @@ export async function setPenaltySettlement(input: {
         leaveTypeId: input.leaveTypeId,
         days: input.days,
         minutes,
+        note: input.note ?? null,
       },
-      metadata: { source: 'server-action' },
+      metadata: { source: 'server-action', via: input.via, ip, userAgent },
     });
 
     return { ok: true };
@@ -301,7 +331,14 @@ export async function getPenaltySettlement(input: {
   month: string;
   kind: PenaltyKindKey;
 }): Promise<{ days: number; leaveTypeName: string } | null> {
-  await requirePermission('payroll.run');
+  await requireGlobalPermission('payroll.run');
+
+  // A malformed id/month can never match a real row, so this is just an
+  // early "no settlement" rather than a distinct error — same `null`
+  // result the not-found path below returns, and it keeps a bad
+  // `employeeId` from reaching a `@db.Uuid` column and throwing
+  // `invalid input syntax for type uuid` instead of resolving cleanly.
+  if (!MONTH_RE.test(input.month) || !UUID_RE.test(input.employeeId)) return null;
 
   const row = await prisma.attendancePenaltySettlement.findUnique({
     where: {
@@ -327,7 +364,16 @@ export async function getPenaltyLeaveBalance(input: {
   employeeId: string;
   month: string;
 }): Promise<Record<string, number>> {
-  await requirePermission('payroll.run');
+  await requireGlobalPermission('payroll.run');
+
+  // Same reasoning as getPenaltySettlement above: a malformed month would
+  // otherwise reach `periodYearOf` as `Number('bogus'.slice(0, 4))` → NaN,
+  // and a malformed employeeId would reach a `@db.Uuid` column and throw.
+  // Neither balance is meaningful for a request that can't identify a real
+  // employee/period, so report it the same way as "nothing to show" — an
+  // empty record, matching this function's existing "no data for this type"
+  // convention (see the `null` → `0` comment below).
+  if (!MONTH_RE.test(input.month) || !UUID_RE.test(input.employeeId)) return {};
 
   const year = periodYearOf(input.month);
   const std = standardDayMinutes(await getLeaveConfig());
@@ -347,8 +393,19 @@ export async function clearPenaltySettlement(input: {
   employeeId: string;
   month: string;
   kind: PenaltyKindKey;
+  /** Same discriminator as `setPenaltySettlement.via` — which surface
+   *  triggered the clear. */
+  via: 'manual-attendance' | 'reconcile';
 }): Promise<Result> {
-  const { user } = await requirePermission('payroll.run');
+  // B-payroll-guard Layer 1 — see the comment on setPenaltySettlement.
+  const { user } = await requireGlobalPermission('payroll.run');
+
+  const headerList = await headers();
+  const ip =
+    headerList.get('x-forwarded-for')?.split(',')[0]?.trim() ??
+    headerList.get('x-real-ip') ??
+    undefined;
+  const userAgent = headerList.get('user-agent') ?? undefined;
 
   if (!MONTH_RE.test(input.month)) {
     return { ok: false, error: 'invalid-month' };
@@ -378,7 +435,7 @@ export async function clearPenaltySettlement(input: {
           kind: input.kind,
         },
       },
-      select: { id: true, days: true, minutes: true, leaveTypeId: true },
+      select: { id: true, days: true, minutes: true, leaveTypeId: true, note: true },
     });
 
     const result = await tx.attendancePenaltySettlement.updateMany({
@@ -410,9 +467,10 @@ export async function clearPenaltySettlement(input: {
           leaveTypeId: existing.leaveTypeId,
           days: existing.days.toNumber(),
           minutes: existing.minutes,
+          note: existing.note,
         },
         after: { cleared: true },
-        metadata: { source: 'server-action' },
+        metadata: { source: 'server-action', via: input.via, ip, userAgent },
       });
     }
 

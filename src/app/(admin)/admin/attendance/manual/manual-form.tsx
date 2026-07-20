@@ -299,6 +299,7 @@ export function ManualAttendanceForm({
             kind: 'Absent',
             leaveTypeId: settleLeaveTypeId,
             days: 1,
+            via: 'manual-attendance',
           });
           if (!settled.ok) {
             const reason = SETTLEMENT_ERROR_TH[settled.error] ?? 'เกิดข้อผิดพลาดไม่ทราบสาเหตุ';
