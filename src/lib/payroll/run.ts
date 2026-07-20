@@ -370,6 +370,44 @@ export async function publishPayroll(
   opts?: { employeeId?: string },
 ): Promise<PublishResult> {
   const result = await prisma.$transaction(async (tx) => {
+    // Row-lock every Payroll row this publish will touch BEFORE
+    // gatherAndCalc reads settlements (and everything else). This closes
+    // the race against setPenaltySettlement/clearPenaltySettlement
+    // (penalty-settlement-admin.ts), which take their own single-row
+    // `FOR UPDATE` lock on employeeId+month before checking whether the
+    // month is still Draft: without a lock here, a settle transaction could
+    // start after our gatherAndCalc read, find the row still Draft, and
+    // commit its settlement — which our already-taken snapshot would never
+    // see — right before we stamp the row Published.
+    //
+    // The lock must be taken HERE, before gatherAndCalc, not after — that
+    // ordering is the entire point:
+    //   - a settle that starts after us now blocks on this lock until we
+    //     commit, then re-runs its own isPeriodClosed check and correctly
+    //     sees the row is no longer Draft (`period-closed`);
+    //   - a settle already in flight forces US to wait here until it
+    //     commits, so gatherAndCalc's read below always happens AFTER that
+    //     settlement is visible.
+    // Either ordering now yields a consistent result. A future refactor
+    // that moves this lock after gatherAndCalc (or moves the read earlier)
+    // would silently reopen the race — don't.
+    //
+    // Locked in employeeId order so two concurrent full-month publishes
+    // (e.g. a double-submitted click) always acquire these locks in the
+    // same sequence and can only block on each other, never deadlock
+    // (AB-BA) — see the deadlock analysis in the fix report.
+    //
+    // Scoped to the single employee when opts.employeeId is set, so a
+    // single-employee publish doesn't lock the whole month. A Payroll row
+    // that doesn't exist yet locks nothing, which is correct: an employee
+    // with no row for this month has nothing to publish, so there is
+    // nothing to race a settlement against.
+    if (opts?.employeeId) {
+      await tx.$queryRaw`SELECT "id" FROM "Payroll" WHERE "month" = ${month} AND "employeeId" = ${opts.employeeId}::uuid FOR UPDATE`;
+    } else {
+      await tx.$queryRaw`SELECT "id" FROM "Payroll" WHERE "month" = ${month} ORDER BY "employeeId" FOR UPDATE`;
+    }
+
     const { drafts, skipped } = await gatherAndCalc(tx, month, opts?.employeeId);
 
     const existing = await tx.payroll.findMany({

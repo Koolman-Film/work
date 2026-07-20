@@ -479,6 +479,83 @@ describe('setPenaltySettlement', () => {
   });
 });
 
+describe('publishPayroll vs setPenaltySettlement (publish-side lock race)', () => {
+  it('never lets a concurrent settle and publish disagree — settled money and settled leave move together or not at all', async () => {
+    // Genuine race, not timing-dependent: both calls run truly concurrently
+    // via Promise.all against real Postgres row locks, so this test does not
+    // assert which one "wins" — only that whichever wins, the outcome is
+    // internally consistent. Before the publish-side lock (this fix), the
+    // failure mode was: settle wins the write to AttendancePenaltySettlement
+    // (spending a day of leave) but publish's already-in-flight gatherAndCalc
+    // read ran before that commit and stamps the slip with the FULL, unsettled
+    // ฿666.67 charge — money and leave both consumed for the same day, with
+    // no way to fix it afterward (clearPenaltySettlement refuses a closed
+    // period).
+    const emp = await makeEmployee();
+    const vacation = await makeVacationType();
+
+    // One Absent day inside the 2026-07 cutoff window (default cutoffDay 25 →
+    // window 2026-06-26..2026-07-25).
+    await prisma.attendance.create({
+      data: {
+        employeeId: emp.id,
+        date: new Date('2026-07-01'),
+        type: 'Absent',
+        source: 'Manual',
+        createdById: uid(),
+      },
+    });
+
+    // A Draft row must exist before the race — exactly the state the
+    // reconcile page settles against in practice, and the state that gives
+    // both the settle lock and the new publish lock something to lock. See
+    // the identical setup note on the cross-kind race test above.
+    await runPayrollDraft('2026-07');
+    const draftRow = await prisma.payroll.findFirstOrThrow({
+      where: { employeeId: emp.id, month: '2026-07' },
+    });
+    expect(Number(draftRow.deductAttendance)).toBe(666.67); // unsettled: full day
+
+    const [settleResult] = await Promise.all([
+      setPenaltySettlement({
+        employeeId: emp.id,
+        month: '2026-07',
+        kind: 'Absent',
+        leaveTypeId: vacation.id,
+        days: 1,
+      }),
+      publishPayroll('2026-07', { employeeId: emp.id }),
+    ]);
+
+    const publishedRow = await prisma.payroll.findFirstOrThrow({
+      where: { employeeId: emp.id, month: '2026-07' },
+    });
+    expect(publishedRow.status).toBe('Published');
+
+    const settlementRow = await prisma.attendancePenaltySettlement.findUnique({
+      where: {
+        employeeId_month_kind: { employeeId: emp.id, month: '2026-07', kind: 'Absent' },
+      },
+    });
+    const settlementLive = settlementRow && !settlementRow.deletedAt ? settlementRow : null;
+
+    if (settleResult.ok) {
+      // Settle won the lock and committed before publish's gatherAndCalc
+      // read — the published slip MUST reflect it: no money AND the day of
+      // leave spent, never money charged on top.
+      expect(settlementLive).not.toBeNull();
+      expect(Number(publishedRow.deductAttendance)).toBe(0);
+    } else {
+      // Publish won the lock, committed first, and closed the period — the
+      // settle call must have been correctly refused (not silently dropped),
+      // and the slip carries the full unsettled charge with NO leave spent.
+      expect(settleResult).toEqual({ ok: false, error: 'period-closed' });
+      expect(settlementLive).toBeNull();
+      expect(Number(publishedRow.deductAttendance)).toBe(666.67);
+    }
+  });
+});
+
 describe('clearPenaltySettlement', () => {
   it('refuses to clear a settlement in a published month', async () => {
     const emp = await makeEmployee();
