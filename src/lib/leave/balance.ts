@@ -225,17 +225,24 @@ export async function remainingByTypeForEmployees(
 /** Read-only remaining-per-type for the LIFF form. Does NOT seed rows (an
  *  employee viewing the form shouldn't write). Falls back to the type's
  *  annualQuota default when no entitlement row exists. Returns a record
- *  leaveTypeId → remaining minutes (null = unlimited). */
+ *  leaveTypeId → remaining minutes (null = unlimited).
+ *
+ *  Accepts an optional `db` param (a Prisma transaction client) so a caller
+ *  that has already locked rows inside a transaction — e.g.
+ *  penalty-settlement-admin.ts's balance check — reads through the same
+ *  client instead of a separate, unlocked connection. Defaults to the
+ *  module-level `prisma` client for read-only callers. */
 export async function remainingByTypeForEmployee(
   employeeId: string,
   year: number,
+  db: TxClient = prisma,
 ): Promise<Record<string, number | null>> {
   const std = standardDayMinutes(await getLeaveConfig());
-  const types = await prisma.leaveType.findMany({
+  const types = await db.leaveType.findMany({
     where: { archivedAt: null },
     select: { id: true, annualQuota: true },
   });
-  const ents = await prisma.leaveEntitlement.findMany({
+  const ents = await db.leaveEntitlement.findMany({
     where: { employeeId, periodYear: year },
     select: {
       leaveTypeId: true,
@@ -250,8 +257,8 @@ export async function remainingByTypeForEmployee(
   for (const t of types) {
     const ent = entByType.get(t.id) ?? null;
     const granted = resolveGrantedMinutes(t.annualQuota, ent, std);
-    const used = await usedMinutes(employeeId, t.id, year);
-    const penalty = await penaltyMinutes(employeeId, t.id, year);
+    const used = await usedMinutes(employeeId, t.id, year, db);
+    const penalty = await penaltyMinutes(employeeId, t.id, year, db);
     out[t.id] = remainingMinutes(
       {
         grantedMinutes: granted,

@@ -31,6 +31,7 @@ type LeaveTypeOption = { id: string; name: string };
 
 const SETTLEMENT_ERROR_TH: Record<string, string> = {
   'invalid-days': 'จำนวนวันไม่ถูกต้อง',
+  'invalid-month': 'เดือนที่ระบุไม่ถูกต้อง',
   'period-closed': 'ปิดรอบเงินเดือนของเดือนนี้แล้ว',
   'leave-type-not-allowed': 'ประเภทวันลาที่เลือกไม่รองรับการหักค่าปรับนี้',
   'insufficient-balance': 'สิทธิวันลาคงเหลือไม่พอ',
@@ -130,6 +131,10 @@ function PenaltySettlementLine({
       setError('จำนวนวันไม่ถูกต้อง');
       return;
     }
+    if (days > actualDays) {
+      setError(`หักสิทธิได้ไม่เกินโทษจริงของเดือนนี้ (${actualDays} วัน)`);
+      return;
+    }
     startTransition(async () => {
       const result = await setReconcileSettlement({ employeeId, month, kind, leaveTypeId, days });
       if (!result.ok) {
@@ -198,6 +203,7 @@ function PenaltySettlementLine({
               <input
                 type="number"
                 min={1}
+                max={Math.max(1, actualDays)}
                 value={days}
                 onChange={(e) => setDays(Number(e.target.value))}
                 className="w-20 rounded-md border border-gray-300 px-2 py-1 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"

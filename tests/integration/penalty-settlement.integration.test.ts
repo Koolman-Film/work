@@ -389,6 +389,94 @@ describe('setPenaltySettlement', () => {
     });
     expect(rows).toHaveLength(0);
   });
+
+  it('refuses a malformed month, writing nothing — the reconcile page validates its own month, but the manual attendance form derives one client-side from a cutoff-day prop, so the server must not trust it verbatim', async () => {
+    const emp = await makeEmployee();
+    const vacation = await makeVacationType();
+
+    for (const badMonth of ['2026-13', '2026-00', '2026-7', '2026/07', 'not-a-month', '']) {
+      const r = await setPenaltySettlement({
+        employeeId: emp.id,
+        month: badMonth,
+        kind: 'Absent',
+        leaveTypeId: vacation.id,
+        days: 1,
+      });
+      expect(r).toEqual({ ok: false, error: 'invalid-month' });
+    }
+
+    const rows = await prisma.attendancePenaltySettlement.findMany({
+      where: { employeeId: emp.id },
+    });
+    expect(rows).toHaveLength(0);
+  });
+
+  it('serializes two concurrent settlements on DIFFERENT kinds for the same employee/month so together they cannot overspend the balance (Finding 1, cross-kind race)', async () => {
+    // Without the row lock, both calls read `available` before either writes,
+    // both see the same 1-day headroom, and both succeed — driving the
+    // balance to -1 day. `ลาพักร้อน`-shaped types run `overQuotaPolicy:
+    // Block` in production, so a negative balance there blocks the employee
+    // from taking any vacation for the rest of the year. The lock forces one
+    // call to wait for the other's full commit before it re-reads the
+    // balance, so this is a genuine race test — not timing-dependent on
+    // which one "wins," only on the outcome being correct either way.
+    const emp = await makeEmployee();
+    const vacation = await prisma.leaveType.create({
+      data: {
+        name: `ลาพักร้อน-${uid().slice(0, 8)}`,
+        annualQuota: 1, // exactly one day of headroom, shared by both calls
+        penaltySettlementAllowed: true,
+      },
+    });
+
+    const initial = await remainingByTypeForEmployee(emp.id, 2026);
+    const std = initial[vacation.id]!; // annualQuota: 1 day == the whole balance
+
+    // A Draft Payroll row must exist for the lock to have anything to lock —
+    // exactly the state the reconcile page settles against in practice (it
+    // only shows a penalty once "คำนวณ" has produced a Draft row). Without
+    // this, there is nothing for lockPayrollRow to find, and — as documented
+    // on that function — that's fine for a single call, but it means this
+    // test would be asserting something the fix does not claim to cover.
+    await runPayrollDraft('2026-07');
+
+    const [absentResult, severeResult] = await Promise.all([
+      setPenaltySettlement({
+        employeeId: emp.id,
+        month: '2026-07',
+        kind: 'Absent',
+        leaveTypeId: vacation.id,
+        days: 1,
+      }),
+      setPenaltySettlement({
+        employeeId: emp.id,
+        month: '2026-07',
+        kind: 'SevereLate',
+        leaveTypeId: vacation.id,
+        days: 1,
+      }),
+    ]);
+
+    const results = [absentResult, severeResult];
+    const succeeded = results.filter((r) => r.ok);
+    const refused = results.filter((r) => !r.ok);
+
+    // Exactly one of the two 1-day requests fits in the 1-day balance —
+    // never both (the pre-fix bug) and never neither (over-strict).
+    expect(succeeded).toHaveLength(1);
+    expect(refused).toHaveLength(1);
+    expect(refused[0]).toEqual({ ok: false, error: 'insufficient-balance' });
+
+    const after = await remainingByTypeForEmployee(emp.id, 2026);
+    // Exactly one day gone, not two, and never negative.
+    expect(after[vacation.id]).toBe(initial[vacation.id]! - std);
+    expect(after[vacation.id]).toBeGreaterThanOrEqual(0);
+
+    const rows = await prisma.attendancePenaltySettlement.findMany({
+      where: { employeeId: emp.id, month: '2026-07' },
+    });
+    expect(rows).toHaveLength(1);
+  });
 });
 
 describe('clearPenaltySettlement', () => {
@@ -404,6 +492,17 @@ describe('clearPenaltySettlement', () => {
       kind: 'Absent',
     });
     expect(r).toEqual({ ok: false, error: 'period-closed' });
+  });
+
+  it('refuses a malformed month, writing nothing', async () => {
+    const emp = await makeEmployee();
+
+    const r = await clearPenaltySettlement({
+      employeeId: emp.id,
+      month: 'not-a-month',
+      kind: 'Absent',
+    });
+    expect(r).toEqual({ ok: false, error: 'invalid-month' });
   });
 });
 
@@ -528,6 +627,60 @@ describe('audit trail', () => {
     expect(clearRow.action).toBe('penaltySettlement.clear');
     expect(clearRow.actorId).toBe(adminUserHolder.id);
     expect(clearRow.beforeValue).toMatchObject({
+      employeeId: emp.id,
+      month: '2026-07',
+      kind: 'Absent',
+      leaveTypeId: vacation.id,
+      days: 1,
+    });
+  });
+
+  it('audits a re-settle after a clear as a fresh create, not an update carrying stale before-values', async () => {
+    // The soft-deleted row is still sitting there with deletedAt set when the
+    // second setPenaltySettlement call runs its upsert (Prisma's `update`
+    // branch fires because the unique key already exists). Without the
+    // deletedAt filter on the audit-classification decision, this would log
+    // as `penaltySettlement.update` with a `before` block describing values
+    // that were no longer live — Finding 5 of the review.
+    const emp = await makeEmployee();
+    const vacation = await makeVacationType();
+
+    const first = await setPenaltySettlement({
+      employeeId: emp.id,
+      month: '2026-07',
+      kind: 'Absent',
+      leaveTypeId: vacation.id,
+      days: 1,
+    });
+    expect(first).toEqual({ ok: true });
+
+    const cleared = await clearPenaltySettlement({
+      employeeId: emp.id,
+      month: '2026-07',
+      kind: 'Absent',
+    });
+    expect(cleared).toEqual({ ok: true });
+
+    const resettled = await setPenaltySettlement({
+      employeeId: emp.id,
+      month: '2026-07',
+      kind: 'Absent',
+      leaveTypeId: vacation.id,
+      days: 1,
+    });
+    expect(resettled).toEqual({ ok: true });
+
+    // create, clear, create — never an update, because the row the second
+    // setPenaltySettlement call found was soft-deleted, not live.
+    const rows = await auditRowsFor(emp.id, 3);
+    expect(rows).toHaveLength(3);
+    expect(rows.map((r) => r.action)).toEqual([
+      'penaltySettlement.create',
+      'penaltySettlement.clear',
+      'penaltySettlement.create',
+    ]);
+    expect(rows[2]!.beforeValue).toBeNull();
+    expect(rows[2]!.afterValue).toMatchObject({
       employeeId: emp.id,
       month: '2026-07',
       kind: 'Absent',
