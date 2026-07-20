@@ -24,6 +24,7 @@ import { isClosedDay } from '@/lib/attendance/date';
 import { latePolicyFrom, resolveLatePolicy } from '@/lib/attendance/late-policy';
 import { type CreateManualResult, createManualAttendance } from '@/lib/attendance/manual';
 import { computeManualPreview } from '@/lib/attendance/manual-preview';
+import { isNotFoundError } from '@/lib/auth/is-not-found-error';
 import { dailyRateFor } from '@/lib/payroll/day-rate';
 import {
   getPenaltyLeaveBalance,
@@ -59,6 +60,13 @@ const SETTLEMENT_ERROR_TH: Record<string, string> = {
 // P2028 instead of returning a Result. Caught below so it surfaces as this
 // Thai message instead of an unhandled rejection inside the transition.
 const BUSY_ERROR_TH = 'ระบบกำลังประมวลผลรายการอื่นอยู่ กรุณาลองใหม่อีกครั้ง';
+
+// A notFound() denial (requireGlobalPermission('payroll.run') rejecting a
+// branch-scoped admin) is not the same situation as BUSY_ERROR_TH above —
+// retrying can never succeed. canSettle already hides this whole control
+// for such an admin, so this is only reachable if the grant changed (or
+// this page loaded stale) between render and submit.
+const PERMISSION_ERROR_TH = 'ไม่มีสิทธิ์หักสิทธิวันลาแทนค่าปรับนี้';
 
 type ScheduleDay = { dayOfWeek: number; startTime: string; endTime: string };
 
@@ -157,9 +165,19 @@ export function ManualAttendanceForm({
       return;
     }
     let cancelled = false;
-    getPenaltyLeaveBalance({ employeeId, month: payrollMonthFor(date, cutoffDay) }).then((days) => {
-      if (!cancelled) setEmployeeRemainingDays(days);
-    });
+    getPenaltyLeaveBalance({ employeeId, month: payrollMonthFor(date, cutoffDay) })
+      .then((days) => {
+        if (!cancelled) setEmployeeRemainingDays(days);
+      })
+      .catch(() => {
+        // Backstop: showSettleChoice already gates this effect on canSettle
+        // (page.tsx), so a denial here should be unreachable through normal
+        // navigation — but leaving this unhandled would silently keep
+        // `employeeRemainingDays` empty, which renders every leave option as
+        // a confident "สิทธิไม่พอ" indistinguishable from a real zero
+        // balance. Surface that the check itself failed instead.
+        if (!cancelled) setError('ไม่สามารถตรวจสอบสิทธิวันลาคงเหลือได้ กรุณาลองใหม่อีกครั้ง');
+      });
     return () => {
       cancelled = true;
     };
@@ -179,9 +197,17 @@ export function ManualAttendanceForm({
       employeeId,
       month: payrollMonthFor(date, cutoffDay),
       kind: 'Absent',
-    }).then((result) => {
-      if (!cancelled) setExistingSettlement(result);
-    });
+    })
+      .then((result) => {
+        if (!cancelled) setExistingSettlement(result);
+      })
+      .catch(() => {
+        // Backstop, same reasoning as the getPenaltyLeaveBalance effect
+        // above. Left unhandled, this would silently suppress the "this
+        // will REPLACE the existing settlement" warning below — a real
+        // safety message — with no indication the check didn't run.
+        if (!cancelled) setError('ไม่สามารถตรวจสอบรายการหักสิทธิเดิมได้ กรุณาลองใหม่อีกครั้ง');
+      });
     return () => {
       cancelled = true;
     };
@@ -309,12 +335,16 @@ export function ManualAttendanceForm({
             );
             return;
           }
-        } catch {
+        } catch (err) {
           // Same "entry is safe, only the settlement failed" contract as the
           // `!settled.ok` branch above — do not let this read as the whole
           // entry having failed, and do not swallow it silently either.
+          // A notFound() denial (see PERMISSION_ERROR_TH) is not retryable
+          // like a BUSY_ERROR_TH transaction timeout — say so instead of
+          // telling the admin to try again.
+          const reason = isNotFoundError(err) ? PERMISSION_ERROR_TH : BUSY_ERROR_TH;
           setError(
-            `บันทึกขาดงานเรียบร้อยแล้ว แต่หักสิทธิวันลาไม่สำเร็จ (${BUSY_ERROR_TH}) ระบบจะหักเป็นเงินแทน — ` +
+            `บันทึกขาดงานเรียบร้อยแล้ว แต่หักสิทธิวันลาไม่สำเร็จ (${reason}) ระบบจะหักเป็นเงินแทน — ` +
               'ไปแก้ไขวิธีหักที่หน้าสรุปเงินเดือนได้ภายหลัง',
           );
           return;

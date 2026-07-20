@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { Fragment, useEffect, useState, useTransition } from 'react';
+import { isNotFoundError } from '@/lib/auth/is-not-found-error';
 import { formatTHB2, monthLabelTh } from '@/lib/format';
 import type { PenaltyKindKey } from '@/lib/payroll/penalty-settlement';
 import { getPenaltyLeaveBalance } from '@/lib/payroll/penalty-settlement-admin';
@@ -55,6 +56,13 @@ const SETTLEMENT_ERROR_TH: Record<string, string> = {
 // message instead of an unhandled rejection inside the transition (Finding
 // 3 of the review that added the advisory lock).
 const BUSY_ERROR_TH = 'ระบบกำลังประมวลผลรายการอื่นอยู่ กรุณาลองใหม่อีกครั้ง';
+
+// A notFound() denial (requireGlobalPermission('payroll.run') rejecting a
+// branch-scoped admin) is not the same situation as BUSY_ERROR_TH above —
+// retrying can never succeed. `canSettle` (page.tsx) already hides this
+// whole control for such an admin, so this is only reachable if the grant
+// changed (or this page loaded stale) between render and submit.
+const PERMISSION_ERROR_TH = 'ไม่มีสิทธิ์หักสิทธิวันลาแทนค่าปรับนี้';
 
 const PENALTY_KIND_LABEL: Record<PenaltyKindKey, string> = {
   Absent: 'ขาดงาน',
@@ -123,9 +131,19 @@ function PenaltySettlementLine({
   useEffect(() => {
     if (!editing) return;
     let cancelled = false;
-    getPenaltyLeaveBalance({ employeeId, month }).then((result) => {
-      if (!cancelled) setBalances(result);
-    });
+    getPenaltyLeaveBalance({ employeeId, month })
+      .then((result) => {
+        if (!cancelled) setBalances(result);
+      })
+      .catch(() => {
+        // Backstop: this editor only opens when `canSettle` already gated
+        // it (page.tsx), so a denial here should be unreachable through
+        // normal navigation — but leaving this unhandled would silently
+        // keep `balances` empty, which renders every leave option as a
+        // confident "สิทธิไม่พอ" indistinguishable from a real zero
+        // balance. Surface that the check itself failed instead.
+        if (!cancelled) setError('ไม่สามารถตรวจสอบสิทธิวันลาคงเหลือได้ กรุณาลองใหม่อีกครั้ง');
+      });
     return () => {
       cancelled = true;
     };
@@ -163,10 +181,12 @@ function PenaltySettlementLine({
         }
         setEditing(false);
         router.refresh();
-      } catch {
+      } catch (err) {
         // Do not swallow silently — the admin must know the save did not
-        // apply, not assume it did because no error rendered.
-        setError(BUSY_ERROR_TH);
+        // apply, not assume it did because no error rendered. A notFound()
+        // denial is not retryable like a BUSY_ERROR_TH transaction timeout —
+        // say so instead of telling the admin to try again.
+        setError(isNotFoundError(err) ? PERMISSION_ERROR_TH : BUSY_ERROR_TH);
       }
     });
   }
@@ -182,8 +202,8 @@ function PenaltySettlementLine({
         }
         setEditing(false);
         router.refresh();
-      } catch {
-        setError(BUSY_ERROR_TH);
+      } catch (err) {
+        setError(isNotFoundError(err) ? PERMISSION_ERROR_TH : BUSY_ERROR_TH);
       }
     });
   }
