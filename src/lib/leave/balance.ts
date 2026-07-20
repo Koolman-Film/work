@@ -103,19 +103,35 @@ export type EntitlementRow = {
  * refund nobody asked for. Union this function's ids into that enumeration
  * (see each call site) so an archived type stays counted for exactly the
  * employees/years it still has a live settlement against, and only those.
+ *
+ * Returns a per-employee mapping (employeeId → set of leaveTypeIds), not a
+ * flat union — a batch caller (`remainingByTypeForEmployees`) must apply an
+ * archived type only to the specific employees that have a live settlement
+ * for it, not to every employee in the batch. A flat list would let an
+ * employee with no settlement pick up a full-quota entry for a type they
+ * never touched.
  */
 async function settledLeaveTypeIds(
   employeeIds: readonly string[],
   year: number,
   db: TxClient = prisma,
-): Promise<string[]> {
-  if (employeeIds.length === 0) return [];
+): Promise<Map<string, Set<string>>> {
+  const byEmployee = new Map<string, Set<string>>();
+  if (employeeIds.length === 0) return byEmployee;
   const rows = await db.attendancePenaltySettlement.findMany({
     where: { employeeId: { in: [...employeeIds] }, periodYear: year, deletedAt: null },
-    select: { leaveTypeId: true },
-    distinct: ['leaveTypeId'],
+    select: { employeeId: true, leaveTypeId: true },
+    distinct: ['employeeId', 'leaveTypeId'],
   });
-  return rows.map((r) => r.leaveTypeId);
+  for (const r of rows) {
+    let set = byEmployee.get(r.employeeId);
+    if (!set) {
+      set = new Set<string>();
+      byEmployee.set(r.employeeId, set);
+    }
+    set.add(r.leaveTypeId);
+  }
+  return byEmployee;
 }
 
 /** Ensure an entitlement row exists for every active leave type for this
@@ -152,7 +168,9 @@ export async function getOrSeedEntitlements(
 
   // Defect 4: keep an archived type's row here when this employee still has
   // a live settlement against it this year — see settledLeaveTypeIds above.
-  const settledTypeIds = await settledLeaveTypeIds([employeeId], year);
+  const settledTypeIds = [
+    ...((await settledLeaveTypeIds([employeeId], year)).get(employeeId) ?? []),
+  ];
 
   const ents = await prisma.leaveEntitlement.findMany({
     where: {
@@ -203,24 +221,33 @@ export async function remainingByTypeForEmployees(
     where: { archivedAt: null },
     select: { id: true, annualQuota: true },
   });
+  const activeTypeIds = new Set(activeTypes.map((t) => t.id));
 
   // Defect 4: bring back any archived type that still has a live settlement
   // for one of these employees this year, so its penalty keeps being
-  // subtracted for THAT employee — see settledLeaveTypeIds above. Fetched as
-  // a separate query (rather than folding into `activeTypes`' own filter)
-  // because these ids need their own `leaveType.findMany` for `annualQuota`
-  // — `activeTypes`' `archivedAt: null` filter would otherwise exclude them.
-  const settledArchivedTypeIds = (await settledLeaveTypeIds(employeeIds, year)).filter(
-    (id) => !activeTypes.some((t) => t.id === id),
-  );
+  // subtracted for THAT employee — see settledLeaveTypeIds above. Kept
+  // per-employee (settledByEmployee), not unioned into one flat list, so the
+  // per-employee loop below applies each archived type only to the
+  // employees that actually have a live settlement against it — an employee
+  // with none must not pick up an entry for it. Fetched as a separate query
+  // (rather than folding into `activeTypes`' own filter) because these ids
+  // need their own `leaveType.findMany` for `annualQuota` — `activeTypes`'
+  // `archivedAt: null` filter would otherwise exclude them.
+  const settledByEmployee = await settledLeaveTypeIds(employeeIds, year);
+  const archivedIdsNeeded = new Set<string>();
+  for (const settledIds of settledByEmployee.values()) {
+    for (const id of settledIds) {
+      if (!activeTypeIds.has(id)) archivedIdsNeeded.add(id);
+    }
+  }
   const archivedTypesStillNeeded =
-    settledArchivedTypeIds.length > 0
+    archivedIdsNeeded.size > 0
       ? await prisma.leaveType.findMany({
-          where: { id: { in: settledArchivedTypeIds } },
+          where: { id: { in: [...archivedIdsNeeded] } },
           select: { id: true, annualQuota: true },
         })
       : [];
-  const types = [...activeTypes, ...archivedTypesStillNeeded];
+  const archivedTypesById = new Map(archivedTypesStillNeeded.map((t) => [t.id, t]));
 
   const ents = await prisma.leaveEntitlement.findMany({
     where: { employeeId: { in: [...employeeIds] }, periodYear: year },
@@ -262,23 +289,42 @@ export async function remainingByTypeForEmployees(
 
   const penaltyBy = await penaltyMinutesBy(employeeIds, year);
 
+  function remainingFor(
+    empId: string,
+    t: { id: string; annualQuota: number | null },
+  ): number | null {
+    const ent = entBy.get(`${empId}:${t.id}`) ?? null;
+    const granted = resolveGrantedMinutes(t.annualQuota, ent, std);
+    const used = usedBy.get(`${empId}:${t.id}`) ?? 0;
+    const penalty = penaltyBy.get(`${empId}:${t.id}`) ?? 0;
+    return remainingMinutes(
+      {
+        grantedMinutes: granted,
+        carryoverMinutes: ent?.carryoverMinutes ?? 0,
+        adjustmentMinutes: ent?.adjustmentMinutes ?? 0,
+      },
+      used,
+      penalty,
+    );
+  }
+
   const out: Record<string, Record<string, number | null>> = {};
   for (const empId of employeeIds) {
     const byType: Record<string, number | null> = {};
-    for (const t of types) {
-      const ent = entBy.get(`${empId}:${t.id}`) ?? null;
-      const granted = resolveGrantedMinutes(t.annualQuota, ent, std);
-      const used = usedBy.get(`${empId}:${t.id}`) ?? 0;
-      const penalty = penaltyBy.get(`${empId}:${t.id}`) ?? 0;
-      byType[t.id] = remainingMinutes(
-        {
-          grantedMinutes: granted,
-          carryoverMinutes: ent?.carryoverMinutes ?? 0,
-          adjustmentMinutes: ent?.adjustmentMinutes ?? 0,
-        },
-        used,
-        penalty,
-      );
+    // Active types apply to every employee.
+    for (const t of activeTypes) {
+      byType[t.id] = remainingFor(empId, t);
+    }
+    // Defect 4: an archived type applies ONLY to the employees that have a
+    // live settlement against it this year — not to the whole batch.
+    const settledIds = settledByEmployee.get(empId);
+    if (settledIds) {
+      for (const typeId of settledIds) {
+        if (activeTypeIds.has(typeId)) continue; // already covered above
+        const t = archivedTypesById.get(typeId);
+        if (!t) continue; // settlement references a type row that vanished — defensive only
+        byType[t.id] = remainingFor(empId, t);
+      }
     }
     out[empId] = byType;
   }
@@ -326,7 +372,9 @@ export async function remainingByTypeForEmployee(
   const std = standardDayMinutes(await getLeaveConfig());
   // Defect 4: keep an archived type here when this employee still has a live
   // settlement against it this year — see settledLeaveTypeIds above.
-  const settledTypeIds = await settledLeaveTypeIds([employeeId], year, db);
+  const settledTypeIds = [
+    ...((await settledLeaveTypeIds([employeeId], year, db)).get(employeeId) ?? []),
+  ];
   const types = await db.leaveType.findMany({
     where: { OR: [{ archivedAt: null }, { id: { in: settledTypeIds } }] },
     select: { id: true, annualQuota: true },

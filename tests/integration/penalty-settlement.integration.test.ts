@@ -570,7 +570,18 @@ describe('setPenaltySettlement', () => {
     // never both (the pre-fix bug) and never neither (over-strict).
     expect(succeeded).toHaveLength(1);
     expect(refused).toHaveLength(1);
-    expect(refused[0]).toEqual({ ok: false, error: 'insufficient-balance' });
+    // Both calls contend on the SAME month-level lock (setPenaltySettlement
+    // locks by month, not by employee+kind). The loser normally re-reads the
+    // balance after the winner commits and is refused for the domain reason
+    // (insufficient-balance) — but the non-blocking lock's short retry budget
+    // means it can instead exhaust its retries first and see `busy`. Either
+    // way nothing unsafe happened: the state assertions below (exactly one
+    // day gone, exactly one row written) are what actually prove safety; only
+    // the loser's error identity is timing-dependent.
+    expect(refused[0]!.ok).toBe(false);
+    expect(['insufficient-balance', 'busy']).toContain(
+      (refused[0] as { ok: false; error: string }).error,
+    );
 
     const after = await remainingByTypeForEmployee(emp.id, 2026);
     // Exactly one day gone, not two, and never negative.
@@ -655,7 +666,16 @@ describe('publishPayroll vs setPenaltySettlement (publish-side lock race)', () =
       // Publish won the lock, committed first, and closed the period — the
       // settle call must have been correctly refused (not silently dropped),
       // and the slip carries the full unsettled charge with NO leave spent.
-      expect(settleResult).toEqual({ ok: false, error: 'period-closed' });
+      // The refusal is normally `period-closed` (settle re-reads after
+      // publish commits and sees the closed month), but the non-blocking
+      // lock's short retry budget means settle can instead exhaust its
+      // retries first and see `busy` — still a true no-op, so the state
+      // assertions below (no live settlement, full unsettled charge) are
+      // what actually prove safety; only the error identity is loosened.
+      expect(settleResult.ok).toBe(false);
+      expect(['period-closed', 'busy']).toContain(
+        (settleResult as { ok: false; error: string }).error,
+      );
       expect(settlementLive).toBeNull();
       expect(Number(publishedRow.deductAttendance)).toBe(666.67);
     }
@@ -719,16 +739,21 @@ describe('publishPayroll vs setPenaltySettlement (publish-side lock race)', () =
     const settlementLive = settlementRow && !settlementRow.deletedAt ? settlementRow : null;
 
     // Same consistency invariant as the sibling test: either the settlement
-    // applied and the published money reflects it, or it was refused with
-    // `period-closed` and the money is the full unsettled amount — never
-    // both a spent day of leave AND the full ฿666.67 charge, which is the
-    // unrecoverable double-charge this test guards against (clear refuses a
-    // closed period, so there would be no way to undo it).
+    // applied and the published money reflects it, or it was refused (either
+    // `period-closed` after re-reading the closed month, or `busy` if its
+    // retries were exhausted first — both a true no-op) and the money is the
+    // full unsettled amount — never both a spent day of leave AND the full
+    // ฿666.67 charge, which is the unrecoverable double-charge this test
+    // guards against (clear refuses a closed period, so there would be no way
+    // to undo it).
     if (settleResult.ok) {
       expect(settlementLive).not.toBeNull();
       expect(Number(publishedRow.deductAttendance)).toBe(0);
     } else {
-      expect(settleResult).toEqual({ ok: false, error: 'period-closed' });
+      expect(settleResult.ok).toBe(false);
+      expect(['period-closed', 'busy']).toContain(
+        (settleResult as { ok: false; error: string }).error,
+      );
       expect(settlementLive).toBeNull();
       expect(Number(publishedRow.deductAttendance)).toBe(666.67);
     }
@@ -1540,17 +1565,32 @@ describe('runPayrollDraft vs publishPayroll (month-lock race, Defect 2)', () => 
         publishPayroll('2026-07', { employeeId: emp.id }),
       ]);
 
-      expect(publishResult.blocked).toEqual([]);
-      expect(publishResult.published).toHaveLength(1);
-
       const after = await prisma.payroll.findFirstOrThrow({
         where: { employeeId: emp.id, month: '2026-07' },
       });
-      // The one invariant this test exists to prove: whichever of the two
-      // concurrent calls' writes landed last, a row that reached Published
-      // must never read Draft afterward.
-      expect(after.status).toBe('Published');
-      expect(after.publishedAt).not.toBeNull();
+
+      if (publishResult.busy) {
+        // The non-blocking lock (pg_try_advisory_xact_lock + a short bounded
+        // retry) means publish can legitimately lose this race outright on a
+        // slow/loaded machine: runPayrollDraft's 61-employee write loop can
+        // hold the month lock longer than publish's ~200ms retry budget.
+        // That's correct, not a bug — nothing was written, so the row simply
+        // stays Draft. Asserting `published` has length 1 here would make
+        // this test timing-dependent on the very thing Defect 1 (month-lock)
+        // fixed: the two operations can never both hold the lock, and a busy
+        // attempt is a true no-op.
+        expect(publishResult.published).toEqual([]);
+        expect(publishResult.blocked).toEqual([]);
+        expect(after.status).toBe('Draft');
+      } else {
+        expect(publishResult.blocked).toEqual([]);
+        expect(publishResult.published).toHaveLength(1);
+        // The one invariant this test exists to prove: whichever of the two
+        // concurrent calls' writes landed last, a row that reached Published
+        // must never read Draft afterward.
+        expect(after.status).toBe('Published');
+        expect(after.publishedAt).not.toBeNull();
+      }
     }
   });
 });

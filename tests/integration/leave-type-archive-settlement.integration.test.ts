@@ -365,4 +365,42 @@ describe('archiving a closed-month-settled type must not silently refund entitle
     const remaining = await remainingByTypeForEmployee(emp.id, 2026);
     expect(remaining[vacation.id]).toBeUndefined();
   });
+
+  it('remainingByTypeForEmployees (bulk) applies an archived, still-settled type ONLY to the employee that has the live settlement, not batch-wide', async () => {
+    // Pins the bug the function's own doc comment already promised was fixed:
+    // settledLeaveTypeIds used to be computed once for the whole batch, then
+    // every archived type it returned was looped over EVERY employee in the
+    // batch — so an employee with no settlement for that type still picked up
+    // a (wrong) full-quota entry for it. This test seeds TWO employees
+    // sharing one archived+settled leave type: one has a live settlement
+    // against it, the other doesn't, and only the settled one may see an
+    // entry for it.
+    const { remainingByTypeForEmployees } = await import('@/lib/leave/balance');
+
+    const settledEmp = await makeEmployee();
+    const untouchedEmp = await makeEmployee();
+    const vacation = await makeLeaveType(); // annualQuota: 10 days
+
+    // Read the settled employee's balance for this type BEFORE the settlement
+    // and the archive, so the expected post-settlement value doesn't need to
+    // hardcode the standard-day-minutes config.
+    const before = await remainingByTypeForEmployees([settledEmp.id], 2026);
+    const remainingBefore = before[settledEmp.id]![vacation.id];
+
+    await makeSettlement(settledEmp.id, vacation.id, '2026-05'); // 480 minutes, 1 day
+    await makePublishedPayroll(settledEmp.id, '2026-05'); // closed month — archivable
+
+    await prisma.leaveType.update({ where: { id: vacation.id }, data: { archivedAt: new Date() } });
+
+    const remaining = await remainingByTypeForEmployees([settledEmp.id, untouchedEmp.id], 2026);
+
+    // The settled employee keeps an entry for the archived type, with the
+    // settlement's 480 minutes subtracted — not refunded by the archive.
+    expect(remaining[settledEmp.id]![vacation.id]).toBe(remainingBefore! - 480);
+
+    // The untouched employee has no settlement for this type at all — it must
+    // not appear in their map (the Defect 4 batch-wide leak this test guards
+    // against would give them a full-quota entry instead).
+    expect(remaining[untouchedEmp.id]![vacation.id]).toBeUndefined();
+  });
 });
