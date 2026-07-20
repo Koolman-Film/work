@@ -19,9 +19,6 @@ import { bangkokDateUtcMidnight } from '@/lib/attendance/date';
 import { employeeBranchScope, getPermittedBranches } from '@/lib/auth/branch-scope';
 import { canDo, requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
-import { remainingByTypeForEmployees } from '@/lib/leave/balance';
-import { getLeaveConfig } from '@/lib/leave/leave-config';
-import { standardDayMinutes } from '@/lib/leave/units';
 import { AttendanceTabs } from '../attendance-tabs';
 import { ManualAttendanceForm } from './manual-form';
 
@@ -102,43 +99,20 @@ export default async function ManualAttendancePage() {
     canDo(user, 'payroll.run'),
   ]);
 
-  // Eligible leave types + each listed employee's remaining balance,
-  // converted to whole days so the option labels can show it. Skipped
-  // entirely when the admin can't settle — no point loading data that never
-  // renders. Uses the bulk `remainingByTypeForEmployees` (one query for every
-  // employee on this page) rather than looping the single-employee variant,
-  // since the employee is picked client-side after the page has already
-  // loaded — every employee's balance has to be baked into the props, same
-  // as their schedule/salary data already is.
+  // Eligible leave types. Skipped entirely when the admin can't settle — no
+  // point loading data that never renders. Remaining balances are NOT
+  // precomputed here: which leave YEAR a balance is checked against depends
+  // on the entry's own (possibly backdated) date, not today's — so the form
+  // fetches balances itself, per employee/date, via
+  // `getPenaltyLeaveBalance` (penalty-settlement-admin.ts), the same
+  // payroll-year math `setPenaltySettlement` enforces.
   let penaltyLeaveTypes: { id: string; name: string }[] = [];
-  const remainingDaysByEmployee: Record<string, Record<string, number>> = {};
   if (canSettle) {
-    const [types, leaveConfig, remainingByEmployee] = await Promise.all([
-      prisma.leaveType.findMany({
-        where: { archivedAt: null, penaltySettlementAllowed: true },
-        select: { id: true, name: true },
-        orderBy: { name: 'asc' },
-      }),
-      getLeaveConfig(),
-      remainingByTypeForEmployees(
-        employees.map((e) => e.id),
-        holidayWindowEnd().getUTCFullYear(),
-      ),
-    ]);
-    penaltyLeaveTypes = types;
-    const std = standardDayMinutes(leaveConfig);
-    for (const emp of employees) {
-      const byType = remainingByEmployee[emp.id] ?? {};
-      const days: Record<string, number> = {};
-      for (const t of types) {
-        const mins = byType[t.id];
-        // null = unlimited quota, which is not selectable — report 0 so the
-        // option renders disabled rather than appearing to offer infinite
-        // headroom (the server refuses it either way).
-        days[t.id] = mins == null ? 0 : Math.floor(mins / std);
-      }
-      remainingDaysByEmployee[emp.id] = days;
-    }
+    penaltyLeaveTypes = await prisma.leaveType.findMany({
+      where: { archivedAt: null, penaltySettlementAllowed: true },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    });
   }
 
   return (
@@ -191,7 +165,6 @@ export default async function ManualAttendancePage() {
               cutoffDay={payrollCfg?.cutoffDay ?? DEFAULT_CUTOFF_DAY}
               canSettle={canSettle}
               penaltyLeaveTypes={penaltyLeaveTypes}
-              remainingDaysByEmployee={remainingDaysByEmployee}
             />
           </CardBody>
         </Card>

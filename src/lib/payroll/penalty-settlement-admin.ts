@@ -125,6 +125,60 @@ export async function setPenaltySettlement(input: {
   return { ok: true };
 }
 
+/** Current live settlement for (employeeId, month, kind), or null when none
+ *  exists (never written, or soft-deleted). Read-only — used so the manual
+ *  attendance form can warn before a second call to `setPenaltySettlement`
+ *  silently replaces the first (the upsert is keyed on employeeId+month+kind,
+ *  so a second "หักสิทธิ" pick for the same month overwrites rather than
+ *  adds). Does not write anything; `setPenaltySettlement`/
+ *  `clearPenaltySettlement` remain the only writers of this table. */
+export async function getPenaltySettlement(input: {
+  employeeId: string;
+  month: string;
+  kind: PenaltyKindKey;
+}): Promise<{ days: number; leaveTypeName: string } | null> {
+  await requirePermission('payroll.run');
+
+  const row = await prisma.attendancePenaltySettlement.findUnique({
+    where: {
+      employeeId_month_kind: {
+        employeeId: input.employeeId,
+        month: input.month,
+        kind: input.kind,
+      },
+    },
+    select: { days: true, deletedAt: true, leaveType: { select: { name: true } } },
+  });
+  if (!row || row.deletedAt) return null;
+
+  return { days: row.days.toNumber(), leaveTypeName: row.leaveType.name };
+}
+
+/** Remaining whole days per penalty-eligible leave type, for the payroll year
+ *  that owns `month` — the exact year `setPenaltySettlement` enforces its
+ *  balance check against. Read-only; used by the manual attendance form's
+ *  preview so a backdated entry that crosses a payroll-year boundary shows
+ *  the same balance the server will check, instead of today's calendar year. */
+export async function getPenaltyLeaveBalance(input: {
+  employeeId: string;
+  month: string;
+}): Promise<Record<string, number>> {
+  await requirePermission('payroll.run');
+
+  const year = periodYearOf(input.month);
+  const std = standardDayMinutes(await getLeaveConfig());
+  const remaining = await remainingByTypeForEmployee(input.employeeId, year);
+
+  const days: Record<string, number> = {};
+  for (const [leaveTypeId, minutes] of Object.entries(remaining)) {
+    // null = unlimited quota, which is not selectable — report 0 so the
+    // option renders disabled rather than appearing to offer infinite
+    // headroom (setPenaltySettlement refuses it either way).
+    days[leaveTypeId] = minutes == null ? 0 : Math.floor(minutes / std);
+  }
+  return days;
+}
+
 export async function clearPenaltySettlement(input: {
   employeeId: string;
   month: string;
