@@ -13,6 +13,7 @@ type Initial = {
   allowFullDay: boolean;
   allowHalfDay: boolean;
   allowHourly: boolean;
+  penaltySettlementAllowed: boolean;
 };
 
 type Props =
@@ -170,6 +171,21 @@ export function LeaveTypeForm({ mode, action, initial, error, extraActions }: Pr
                 ))}
               </div>
             </FormField>
+
+            <label className="flex items-start gap-2">
+              <input
+                type="checkbox"
+                name="penaltySettlementAllowed"
+                defaultChecked={initial?.penaltySettlementAllowed ?? false}
+                className="mt-1"
+              />
+              <span>
+                <span className="font-medium">ใช้จ่ายค่าปรับได้</span>
+                <span className="block text-sm text-ink-2">
+                  อนุญาตให้แอดมินหักสิทธิลาประเภทนี้แทนการหักเงิน เมื่อพนักงานขาดงานหรือมาสาย
+                </span>
+              </span>
+            </label>
           </CardBody>
           <CardFooter className="flex items-center justify-between">
             <Link href="/admin/settings/leave-types">

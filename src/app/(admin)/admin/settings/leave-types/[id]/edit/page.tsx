@@ -32,6 +32,7 @@ export default async function EditLeaveTypePage({
       allowFullDay: true,
       allowHalfDay: true,
       allowHourly: true,
+      penaltySettlementAllowed: true,
     },
   });
   if (!row || row.archivedAt) notFound();
@@ -62,6 +63,7 @@ export default async function EditLeaveTypePage({
             allowFullDay: row.allowFullDay,
             allowHalfDay: row.allowHalfDay,
             allowHourly: row.allowHourly,
+            penaltySettlementAllowed: row.penaltySettlementAllowed,
           }}
           error={error ? decodeURIComponent(error) : null}
           extraActions={

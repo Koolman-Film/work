@@ -42,6 +42,10 @@ const Schema = z.object({
     .optional()
     .transform((v) => v === 'on'),
   overQuotaPolicy: z.nativeEnum(OverQuotaPolicy).optional().default(OverQuotaPolicy.DeductPay),
+  penaltySettlementAllowed: z
+    .literal('on')
+    .optional()
+    .transform((v) => v === 'on'),
 });
 
 /** Collect optional per-locale name inputs (name_en, name_my, …) into the
@@ -67,6 +71,7 @@ function readForm(formData: FormData) {
     allowFullDay: formData.get('allowFullDay') ?? undefined,
     allowHalfDay: formData.get('allowHalfDay') ?? undefined,
     allowHourly: formData.get('allowHourly') ?? undefined,
+    penaltySettlementAllowed: formData.get('penaltySettlementAllowed') ?? undefined,
   });
 }
 
@@ -88,6 +93,7 @@ type ParsedData = {
   allowFullDay: boolean;
   allowHalfDay: boolean;
   allowHourly: boolean;
+  penaltySettlementAllowed: boolean;
 };
 
 function normalize(
@@ -103,6 +109,7 @@ function normalize(
     allowFullDay: parsed.allowFullDay ?? false,
     allowHalfDay: parsed.allowHalfDay ?? false,
     allowHourly: parsed.allowHourly ?? false,
+    penaltySettlementAllowed: parsed.penaltySettlementAllowed ?? false,
   };
 }
 
@@ -189,6 +196,7 @@ export async function updateLeaveType(id: string, formData: FormData) {
         allowFullDay: before.allowFullDay,
         allowHalfDay: before.allowHalfDay,
         allowHourly: before.allowHourly,
+        penaltySettlementAllowed: before.penaltySettlementAllowed,
       },
       after: data,
       metadata: { source: 'admin-ui' },
