@@ -15,8 +15,10 @@ import { prisma } from '@/lib/db/prisma';
 import { remainingByTypeForEmployee } from '@/lib/leave/balance';
 import { getLeaveConfig } from '@/lib/leave/leave-config';
 import { standardDayMinutes } from '@/lib/leave/units';
+import { isPayrollChargeableSalaryType, type SalaryType } from './calc';
 import { lockPayrollMonth } from './month-lock';
 import type { PenaltyKindKey } from './penalty-settlement';
+import { actualPenaltyDaysForEmployee } from './run';
 
 type Result = { ok: true } | { ok: false; error: string };
 
@@ -93,6 +95,25 @@ export async function setPenaltySettlement(input: {
       return { ok: false, error: 'period-closed' };
     }
 
+    // Defect 1: refuse for a salary type payroll can never charge a money
+    // penalty for in the first place (V1 scope is Monthly only — see
+    // calc.ts). Settling such an employee would spend real leave
+    // entitlement forgiving a penalty that would never have been levied —
+    // pure loss, reachable today via the manual attendance form regardless
+    // of whether a Draft payroll row exists. Derives the SAME condition
+    // `calcPayroll` enforces (`isPayrollChargeableSalaryType`) rather than a
+    // second hardcoded list, so this guard tracks calc.ts automatically if
+    // its supported salary types ever change. `employee == null` falls
+    // through rather than refusing — an unknown id is not this guard's
+    // concern, and every other guard below still applies to it unchanged.
+    const employee = await tx.employee.findUnique({
+      where: { id: input.employeeId },
+      select: { salaryType: true },
+    });
+    if (employee && !isPayrollChargeableSalaryType(employee.salaryType as SalaryType)) {
+      return { ok: false, error: 'unsupported-salary-type' };
+    }
+
     const leaveType = await tx.leaveType.findUnique({
       where: { id: input.leaveTypeId },
       select: { penaltySettlementAllowed: true, archivedAt: true },
@@ -132,6 +153,25 @@ export async function setPenaltySettlement(input: {
         : 0;
 
     if (minutes > available + creditBack) return { ok: false, error: 'insufficient-balance' };
+
+    // Defect 2: refuse settling more days than this (employee, month, kind)
+    // penalty actually justifies — without this, `moneyDaysFor` clamps the
+    // money side to zero but the leave side has no floor, so e.g. 5 days
+    // settled against a single Absent silently destroys 4 days of
+    // entitlement for nothing. Checked AFTER insufficient-balance (not
+    // before) so a request that's both over-the-penalty AND over-balance
+    // still reads as the more familiar `insufficient-balance` — same
+    // observable behaviour as before this guard existed for that case.
+    // `actualPenaltyDaysForEmployee` reuses the exact breakdown
+    // `calcPayroll`/the reconcile page's chip already compute — see its
+    // doc-comment in run.ts for why this is a bounded, per-employee cost,
+    // not a full-month recompute. `null` (no calculable draft) falls
+    // through rather than refusing, same reasoning as the employee lookup
+    // above.
+    const actualDays = await actualPenaltyDaysForEmployee(tx, input.month, input.employeeId);
+    if (actualDays && input.days > actualDays[input.kind]) {
+      return { ok: false, error: 'exceeds-penalty' };
+    }
 
     const row = await tx.attendancePenaltySettlement.upsert({
       where: {

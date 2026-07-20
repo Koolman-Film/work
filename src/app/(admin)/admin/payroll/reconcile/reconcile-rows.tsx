@@ -36,6 +36,16 @@ const SETTLEMENT_ERROR_TH: Record<string, string> = {
   'period-closed': 'ปิดรอบเงินเดือนของเดือนนี้แล้ว',
   'leave-type-not-allowed': 'ประเภทวันลาที่เลือกไม่รองรับการหักค่าปรับนี้',
   'insufficient-balance': 'สิทธิวันลาคงเหลือไม่พอ',
+  // Reachable here even though this page's own `freshDrafts` lookup already
+  // skips employees payroll can't charge (page.tsx's `buildPenaltyByEmployee`
+  // — no draft, no penalty section, no control to click) — kept as a label
+  // for defense-in-depth against a stale/refused server round-trip, same as
+  // the manual attendance form's identical map.
+  'unsupported-salary-type': 'พนักงานประเภทเงินเดือนนี้ยังไม่รองรับการหักค่าปรับ จึงหักสิทธิวันลาแทนไม่ได้',
+  // The days<=actualDays cap below (handleSave) is client-side only; this is
+  // its server-side twin (setPenaltySettlement's `exceeds-penalty`) — reached
+  // when the actual penalty shrank between opening the editor and saving.
+  'exceeds-penalty': 'หักสิทธิได้ไม่เกินโทษจริงของเดือนนี้',
 };
 
 // Prisma's default $transaction timeout (5s) / maxWait (2s) can be hit by a
