@@ -232,6 +232,7 @@
     "leave": {
       "title": "Leave {year}",
       "remaining": "{d} left",
+      "penaltySettled": "{d} deducted as penalty",
       "unlimited": "Unlimited",
       "deducted": "{amount} deducted"
     },

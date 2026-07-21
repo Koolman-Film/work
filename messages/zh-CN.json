@@ -187,6 +187,7 @@
     "leave": {
       "title": "{year} 年请假",
       "remaining": "剩余 {d}",
+      "penaltySettled": "已作罚款扣除 {d}",
       "unlimited": "不限",
       "deducted": "扣款 {amount}"
     },

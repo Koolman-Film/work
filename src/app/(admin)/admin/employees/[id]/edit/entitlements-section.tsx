@@ -102,6 +102,11 @@ export async function EntitlementsSection({
                   </td>
                   <td className="px-2 tabular-nums text-ink-3">
                     {formatDaysHours(r.usedMinutes, cfg)}
+                    {r.penaltyMinutes > 0 && (
+                      <div className="text-xs font-normal text-amber-700">
+                        หักเป็นค่าปรับ {formatDaysHours(r.penaltyMinutes, cfg)}
+                      </div>
+                    )}
                   </td>
                   <td className="px-2 font-medium tabular-nums">
                     {r.remainingMinutes == null ? (

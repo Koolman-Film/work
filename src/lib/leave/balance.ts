@@ -79,6 +79,13 @@ export type EntitlementRow = {
   adjustmentMinutes: number;
   note: string | null;
   usedMinutes: number;
+  /** Minutes already subtracted from `remainingMinutes` via an attendance
+   *  penalty settled against this leave type (see penalty-minutes.ts). Not
+   *  part of `usedMinutes` — surfaced separately so a caller displaying both
+   *  `usedMinutes` and `remainingMinutes` can show the gap between them
+   *  instead of leaving it unexplained. Presentation only; does not change
+   *  the remainingMinutes computation below. */
+  penaltyMinutes: number;
   remainingMinutes: number | null;
 };
 
@@ -201,6 +208,7 @@ export async function getOrSeedEntitlements(
       adjustmentMinutes: e.adjustmentMinutes,
       note: e.note,
       usedMinutes: used,
+      penaltyMinutes: penalty,
       remainingMinutes: remainingMinutes(e, used, penalty),
     });
   }

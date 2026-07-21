@@ -87,6 +87,7 @@ describe('leaveTable', () => {
       name: 'สมชาย',
       byType: { t1: { usedMinutes: 420, overQuotaMinutes: 60, deductAmount: 100 } },
       remainingByType: { t1: 840 },
+      penaltyByType: { t1: 420 },
     },
   ];
   // 420 min/day: morning 09:00-12:00 (180 min) + afternoon 13:00-17:00 (240 min)
@@ -97,12 +98,13 @@ describe('leaveTable', () => {
     afternoonEnd: '17:00',
   };
   const t = leaveTable(rows, types, cfg, period, 2026);
-  it('generates used/remaining/over columns per type', () => {
+  it('generates used/remaining/over/penalty columns per type', () => {
     expect(t.columns.map((c) => c.label)).toEqual([
       'พนักงาน',
       'ลาป่วย — ใช้ไป',
       'ลาป่วย — คงเหลือ (ปี 2569)',
       'ลาป่วย — เกิน (หักเงิน)',
+      'ลาป่วย — หักเป็นค่าปรับ',
     ]);
   });
   it('formats durations via formatDaysHours and deductions as THB', () => {
@@ -110,8 +112,9 @@ describe('leaveTable', () => {
     expect(r['t1:used']).toBe('1 วัน');
     expect(r['t1:remaining']).toBe('2 วัน');
     expect(r['t1:over']).toBe('1 ชม. (฿100.00)');
+    expect(r['t1:penalty']).toBe('1 วัน');
   });
-  it('renders unlimited remaining as ไม่จำกัด and empty over as —', () => {
+  it('renders unlimited remaining, empty over, and empty penalty as placeholders', () => {
     const t2 = leaveTable(
       [
         {
@@ -119,6 +122,7 @@ describe('leaveTable', () => {
           name: 'สมหญิง',
           byType: { t1: { usedMinutes: 0, overQuotaMinutes: 0, deductAmount: 0 } },
           remainingByType: {},
+          penaltyByType: {},
         },
       ],
       types,
@@ -129,5 +133,6 @@ describe('leaveTable', () => {
     const r = t2.rows[0]!;
     expect(r['t1:remaining']).toBe('ไม่จำกัด');
     expect(r['t1:over']).toBe('—');
+    expect(r['t1:penalty']).toBe('—');
   });
 });
