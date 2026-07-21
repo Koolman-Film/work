@@ -14,9 +14,6 @@ export type DisputedVM = {
   branchLabel: string;
   clockInLabel: string;
   reason: string;
-  /** False for selfie-provenance-only disputes — distanceMeters is real but
-   *  misleading there (GPS was Confirmed), so it must stay hidden. */
-  gpsRelated: boolean;
   selfieUrl: string | null;
   empLat: number | null;
   empLng: number | null;
@@ -101,7 +98,7 @@ export function DisputedClient({ rows, total }: { rows: DisputedVM[]; total: num
                   </div>
                   <p className="mt-0.5 text-[11px] text-ink-3">
                     เช็คอิน {r.clockInLabel}
-                    {r.gpsRelated && r.distanceMeters != null && ` · นอก ${r.distanceMeters} ม.`}
+                    {r.distanceMeters != null && ` · นอก ${r.distanceMeters} ม.`}
                   </p>
                   <p className="mt-0.5 line-clamp-1 text-[11px] text-ink-4">{r.reason}</p>
                 </button>
@@ -167,12 +164,11 @@ export function DisputedClient({ rows, total }: { rows: DisputedVM[]; total: num
           <dl className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-lg bg-gray-50 p-4 text-sm">
             <div>
               <dt className="text-xs text-ink-4">ระยะจากสาขา</dt>
-              {/* Shown for every dispute type, unlike the scannable list row.
-                  Here the admin is investigating with the reason and the map
-                  in view, so the number can't be misread as "nothing wrong" —
-                  and for a selfie dispute it is exactly the evidence that
-                  separates "camera broke while genuinely at work" from a
-                  gallery photo taken elsewhere. */}
+              {/* Every dispute reaching this inbox is GPS-authored, so the
+                  distance is always the relevant evidence. (It used to be
+                  conditionally hidden, because a selfie-provenance dispute
+                  could fire while GPS was Confirmed — making a small, true
+                  distance read as an accusation. That rule is gone.) */}
               <dd className="font-medium text-ink-1">
                 {selected.distanceMeters != null ? `${selected.distanceMeters} ม.` : '—'}
                 {selected.branch && (

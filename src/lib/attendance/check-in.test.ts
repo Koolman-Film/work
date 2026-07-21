@@ -1,38 +1,29 @@
 /**
- * Behavioral tests for submitCheckIn's dispute-notification + audit wiring
- * (fix wave item 1+2 on branch fix/advance-payout-selfie-provenance):
+ * Behavioral tests for submitCheckIn's dispute-notification + audit wiring.
  *
- *   - A check-in Disputed ONLY by selfie provenance (GPS was fine) must
- *     still fan out notifyAdminsInApp — the whole point of the flag is
- *     that a human looks at it. Previously the notification guard read
- *     `verdict.status` (GPS-only), so a selfie-only flag landed in the
- *     review queue but notified nobody. (The admin LINE push this test
- *     used to also assert on has since moved to the 09:30 daily digest —
- *     see admin-daily-digest.ts — so submitCheckIn no longer fires one.)
- *   - The notification `reason` must be the RESOLVED disputeReason — a
- *     selfie-only flag must report the selfie reason, never 'unknown' or a
- *     GPS string it doesn't have.
- *   - The audit log's `after.status`/`after.disputeReason` must match the
- *     resolved status actually stored on the Attendance row (not the
- *     GPS-only verdict), and `after.selfieCapture` must always be present
- *     — that field is the only record of fallback-camera usage anywhere
- *     in the system.
- *   - A GPS-Disputed check-in must keep the GPS reason even when the
- *     selfie was a fallback capture (the flag only ADDS scrutiny, never
- *     downgrades a more specific GPS reason).
- *   - A Confirmed (live capture, good GPS) check-in stays silent — no
- *     notifications — matching existing behavior.
+ *   - GPS is the sole author of a dispute. A fallback selfie capture is
+ *     AUDITED but never disputes and never notifies. It briefly did both,
+ *     which auto-disputed ~16% of check-ins from employees standing inside
+ *     the geofence whose phone camera permission was off — see
+ *     selfie-provenance.ts for the production evidence.
+ *   - A GPS-Disputed check-in fans out notifyAdminsInApp with the GPS
+ *     reason. (The admin LINE push this test used to also assert on has
+ *     since moved to the 09:30 daily digest — see admin-daily-digest.ts —
+ *     so submitCheckIn no longer fires one.)
+ *   - `after.selfieCapture` is always present in the audit log: it is the
+ *     only record of fallback-camera usage anywhere in the system, and the
+ *     only reason the 16% figure above is knowable.
+ *   - A Confirmed check-in stays silent — no notifications.
  *
  * Mocking strategy mirrors manual.test.ts: mock every I/O boundary
  * (next/*, auth, prisma, audit, notifications), then call the REAL
- * submitCheckIn — including the REAL evaluateCheckIn/resolveCheckInStatus
- * pure logic, so the resolved status/reason are genuine, not stubbed.
+ * submitCheckIn — including the REAL evaluateCheckIn pure logic, so the
+ * status/reason are genuine, not stubbed.
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { bangkokDateUtcMidnight } from './date';
 import { disputeReasonText } from './evaluate';
-import { SELFIE_FALLBACK_REASON } from './selfie-provenance';
 
 // ── next/* mocks ─────────────────────────────────────────────────────────────
 vi.mock('next/headers', () => ({
@@ -164,43 +155,40 @@ beforeEach(() => {
   holidayFindFirst.mockResolvedValue(null);
 });
 
-describe('submitCheckIn — selfie-only dispute notifies admins', () => {
-  it('fallback capture + good GPS → Disputed, notifies admins with the SELFIE reason (not "unknown")', async () => {
+describe('submitCheckIn — a fallback selfie never disputes on its own', () => {
+  // Regression: on 20 Jul 2026 this path auto-disputed ~16% of all check-ins.
+  // The affected employees were inside the geofence; their phones simply had
+  // the camera permission denied, which the OS remembers forever — so the
+  // same honest people hit the admin queue every single day.
+  it('fallback capture + good GPS → Confirmed, and does NOT wake an admin', async () => {
     const result = await submitCheckIn(baseInput({ selfieCapture: 'fallback' }));
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.outcome).toBe('Disputed');
-
-    // The bug: this notification guard used to read `verdict.status`
-    // (GPS-only), so a selfie-only flag never fired it.
-    expect(notifyAdminsInApp).toHaveBeenCalledTimes(1);
-    expect(notifyAdminsInApp).toHaveBeenCalledWith(
-      expect.objectContaining({ kind: 'attendance.disputed', reason: SELFIE_FALLBACK_REASON }),
-    );
+    expect(result.outcome).toBe('Confirmed');
+    expect(notifyAdminsInApp).not.toHaveBeenCalled();
   });
 
-  it('records the Attendance row and audit log as Disputed with the selfie dispute reason + selfieCapture', async () => {
+  it('stores no dispute on the row, but still audits the capture', async () => {
     await submitCheckIn(baseInput({ selfieCapture: 'fallback' }));
 
     expect(attendanceCreate).toHaveBeenCalledTimes(1);
     const createData = attendanceCreate.mock.calls[0]![0].data;
-    expect(createData.checkInStatus).toBe('Disputed');
-    expect(createData.disputeReason).toBe(SELFIE_FALLBACK_REASON);
+    expect(createData.checkInStatus).toBe('Confirmed');
+    expect(createData.disputeReason).toBeNull();
 
     const checkinAudit = auditLogTx.mock.calls.find(
       (c) => c[1].action === 'attendance.checkin',
     )![1];
-    // Auditing `verdict.status` here would wrongly say 'Confirmed' — GPS was
-    // fine; only the selfie flag disputed this row.
-    expect(checkinAudit.after.status).toBe('Disputed');
-    expect(checkinAudit.after.disputeReason).toBe(SELFIE_FALLBACK_REASON);
+    expect(checkinAudit.after.status).toBe('Confirmed');
+    expect(checkinAudit.after.disputeReason).toBeNull();
+    // The signal survives the policy change — this is where the 16% came from.
     expect(checkinAudit.after.selfieCapture).toBe('fallback');
   });
 });
 
-describe('submitCheckIn — GPS dispute reason is never overwritten by the selfie flag', () => {
-  it('out-of-range GPS + fallback capture → keeps the GPS reason, notifies with the GPS reason', async () => {
+describe('submitCheckIn — GPS is the sole author of a dispute', () => {
+  it('out-of-range GPS + fallback capture → Disputed on the GPS reason alone', async () => {
     const farAway = { lat: 14.9, lng: 102.1, accuracy: 10 }; // far outside BRANCH's 100m radius
     const result = await submitCheckIn(baseInput({ ...farAway, selfieCapture: 'fallback' }));
 
@@ -209,7 +197,6 @@ describe('submitCheckIn — GPS dispute reason is never overwritten by the selfi
     expect(result.outcome).toBe('Disputed');
 
     const gpsReason = disputeReasonText('no-branch-in-range');
-    expect(gpsReason).not.toBe(SELFIE_FALLBACK_REASON);
 
     const createData = attendanceCreate.mock.calls[0]![0].data;
     expect(createData.disputeReason).toBe(gpsReason);
