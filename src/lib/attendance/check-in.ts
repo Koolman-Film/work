@@ -42,11 +42,7 @@ import { notifyAdminsInApp } from '@/lib/notifications/in-app-bell';
 import { bangkokDateUtcMidnight, isClosedDay } from './date';
 import { type CheckInPoint, disputeReasonText, evaluateCheckIn } from './evaluate';
 import { lateMinutesForCheckIn, latePolicyFrom, resolveLatePolicy } from './late-policy';
-import {
-  resolveCheckInStatus,
-  SELFIE_FALLBACK_REASON,
-  type SelfieCapture,
-} from './selfie-provenance';
+import type { SelfieCapture } from './selfie-provenance';
 
 /** Display name for admin bell — prefer nickname. Mirrors leave/actions.ts. */
 function employeeDisplayName(e: Pick<Employee, 'firstName' | 'lastName' | 'nickname'>): string {
@@ -219,13 +215,11 @@ export async function submitCheckIn(input: SubmitCheckInInput): Promise<SubmitCh
     now,
   });
 
-  const { status: checkInStatus, disputeReason } = resolveCheckInStatus(
-    verdict.status === 'Disputed'
-      ? { status: 'Disputed', reason: disputeReasonText(verdict.reason) }
-      : { status: 'Confirmed' },
-    input.selfieCapture,
-    selfieKey != null,
-  );
+  // GPS is the sole verdict. Selfie provenance is audited below but never
+  // disputes on its own — see selfie-provenance.ts for the production
+  // evidence behind that.
+  const checkInStatus = verdict.status;
+  const disputeReason = verdict.status === 'Disputed' ? disputeReasonText(verdict.reason) : null;
 
   const headerList = await headers();
   const ip =
@@ -315,10 +309,6 @@ export async function submitCheckIn(input: SubmitCheckInInput): Promise<SubmitCh
         entityType: 'Attendance',
         entityId: created.id,
         after: {
-          // Resolved status/reason (GPS + selfie provenance merged) — matches
-          // what's actually stored on the Attendance row. Auditing
-          // `verdict.status` here would show `Confirmed` for a check-in the
-          // row itself records as `Disputed` when only the selfie flag fired.
           status: checkInStatus,
           disputeReason,
           branchId: verdict.branchId,
@@ -329,10 +319,9 @@ export async function submitCheckIn(input: SubmitCheckInInput): Promise<SubmitCh
           accuracy: input.accuracy,
           selfieKey: selfieKey ?? null,
           // How the selfie was captured (live camera vs. camera-failure
-          // fallback) — the only record of fallback usage anywhere in the
-          // system. This is the evidence the "flag, don't remove" decision
-          // (see docs/superpowers/specs/2026-07-18-...-design.md) needs to
-          // eventually judge whether the fallback is safe to remove.
+          // fallback). The ONLY record of fallback usage anywhere in the
+          // system — deliberately so: it is evidence to reason about, not a
+          // field any code branches on. See selfie-provenance.ts.
           selfieCapture: input.selfieCapture ?? null,
         },
         metadata: { ip, userAgent, source: 'liff' },
@@ -386,11 +375,8 @@ export async function submitCheckIn(input: SubmitCheckInInput): Promise<SubmitCh
   // open /admin/attendance/disputed. Confirmed check-ins are silent —
   // the live board already shows them, no need for a bell ping.
   //
-  // Gate on the RESOLVED status (`checkInStatus`), not the GPS-only
-  // `verdict.status` — a check-in flagged purely by selfie provenance
-  // (GPS was fine) still needs a human to look at it, same as a GPS
-  // dispute. `disputeReason` is likewise the resolved reason, so a
-  // selfie-only flag reports the selfie reason instead of 'unknown'.
+  // Only GPS disputes ring the bell. A fallback selfie capture is audited but
+  // is not an admin task — see selfie-provenance.ts.
   if (checkInStatus === 'Disputed' && attendanceBox.id) {
     void notifyAdminsInApp({
       kind: 'attendance.disputed',
@@ -406,13 +392,24 @@ export async function submitCheckIn(input: SubmitCheckInInput): Promise<SubmitCh
   const state = await getCheckInState();
   let message: string;
   if (checkInStatus === 'Confirmed') {
+    // A fallback capture lands here now — the check-in is genuinely fine.
+    // But this is the ONLY moment we know the employee's camera permission is
+    // broken, and nothing else will ever tell them: it fails silently, every
+    // day, forever. This message is the whole self-healing mechanism for the
+    // ~16% fallback rate.
+    //
+    // TODO(you): decide what a fallback employee sees on a successful check-in.
+    //   `input.selfieCapture === 'fallback'` is the condition.
+    //   Trade-off: a nudge ("เปิดสิทธิ์กล้องให้แอปไลน์ เพื่อเช็คอินได้เร็วขึ้น")
+    //   fixes the root cause but appears on EVERY check-in for people who
+    //   can't or won't change the setting, becoming nagging they learn to
+    //   ignore. Staying silent keeps the flow clean but guarantees the
+    //   fallback rate never drops. A middle path — nudge only when this is
+    //   their first fallback in N days — needs a query here that the other
+    //   two don't.
     message = verdict.branchName
       ? t('success.checkedInAt', { branch: verdict.branchName })
       : t('success.checkedIn');
-  } else if (disputeReason === SELFIE_FALLBACK_REASON) {
-    // Flagged purely by selfie provenance — GPS itself was fine, so there's
-    // no GPS reason enum to translate here.
-    message = t('success.checkedInDisputed', { reason: t('disputeReason.selfieFallback') });
   } else {
     // Disputed by GPS: translate the reason enum (the Thai `disputeReason` above stays
     // the single source of truth for the stored row + admin inbox).

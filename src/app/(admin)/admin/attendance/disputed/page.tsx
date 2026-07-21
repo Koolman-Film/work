@@ -13,7 +13,6 @@ import { getPermittedBranches } from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { signAttendancePhotoUrls } from '@/lib/storage/signed-urls';
 import { AttendanceTabs } from '../attendance-tabs';
-import { isGpsRelatedDispute } from './_dispute-reason';
 import { loadDisputedCheckIns } from './_load-inbox';
 import { DisputedClient, type DisputedVM } from './disputed-client';
 
@@ -74,9 +73,6 @@ export default async function DisputedInboxPage() {
       branchLabel: `${r.employee.branch.name}${r.employee.department ? ` • ${r.employee.department.name}` : ''}`,
       clockInLabel: r.clockInAt ? formatBkk(r.clockInAt) : '—',
       reason: r.disputeReason ?? 'ไม่ระบุ',
-      // Selfie-only disputes are raised while GPS is Confirmed, so distanceMeters
-      // is real but misleading there — the client only renders it when this is true.
-      gpsRelated: isGpsRelatedDispute(r.disputeReason),
       selfieUrl: r.checkInSelfieUrl ? (signedSelfieUrls.get(r.checkInSelfieUrl) ?? null) : null,
       empLat,
       empLng,
