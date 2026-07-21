@@ -86,6 +86,7 @@ export default async function LeaveReportPage({
                         {types.map((t) => {
                           const cell = r.byType[t.id];
                           const remaining = r.remainingByType[t.id];
+                          const penalty = r.penaltyByType[t.id] ?? 0;
                           return (
                             <td key={t.id} className="px-4 py-2.5 text-right align-top">
                               <div>{cell ? formatDaysHours(cell.usedMinutes, cfg) : '—'}</div>
@@ -99,6 +100,11 @@ export default async function LeaveReportPage({
                                 <div className="text-xs font-medium text-amber-600">
                                   เกิน {formatDaysHours(cell.overQuotaMinutes, cfg)} (
                                   {formatTHB2(cell.deductAmount)})
+                                </div>
+                              )}
+                              {penalty > 0 && (
+                                <div className="text-xs font-medium text-amber-700">
+                                  หักเป็นค่าปรับ {formatDaysHours(penalty, cfg)}
                                 </div>
                               )}
                             </td>

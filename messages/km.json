@@ -187,6 +187,7 @@
     "leave": {
       "title": "ច្បាប់ឈប់ {year}",
       "remaining": "នៅសល់ {d}",
+      "penaltySettled": "កាត់ជាទណ្ឌកម្ម {d}",
       "unlimited": "គ្មានកំណត់",
       "deducted": "កាត់ប្រាក់ {amount}"
     },

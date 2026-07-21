@@ -187,6 +187,7 @@
     "leave": {
       "title": "ວັນລາພັກ {year}",
       "remaining": "ເຫຼືອ {d}",
+      "penaltySettled": "ຫັກເປັນຄ່າປັບ {d}",
       "unlimited": "ບໍ່ຈຳກັດ",
       "deducted": "ຫັກເງິນ {amount}"
     },
