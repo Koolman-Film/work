@@ -147,10 +147,26 @@ export async function setPenaltySettlement(input: {
         // concern, and every other guard below still applies to it unchanged.
         const employee = await tx.employee.findUnique({
           where: { id: input.employeeId },
-          select: { salaryType: true },
+          select: { salaryType: true, status: true },
         });
         if (employee && !isPayrollChargeableSalaryType(employee.salaryType as SalaryType)) {
           return { ok: false, error: 'unsupported-salary-type' };
+        }
+
+        // Defect 3: refuse for an Archived employee. `gatherAndCalc` (run.ts)
+        // filters `status: { not: 'Archived' }`, so `actualPenaltyDaysForEmployee`
+        // below returns `null` for one, and a `null` is treated as "no
+        // calculable draft — don't block" by the `exceeds-penalty` guard that
+        // follows. Left unguarded, that ceiling silently falls away and an
+        // archived employee's settlement would be bounded only by their
+        // leave balance, not by any actual penalty at all. Neither admin UI
+        // can reach this today (both filter archived employees out of their
+        // pickers), but this module's contract is that every guard here is
+        // enforced server-side regardless of what the UI currently allows —
+        // see the file-level doc-comment. Checked here, alongside the other
+        // employee-shape guard above, rather than as a separate query.
+        if (employee && employee.status === 'Archived') {
+          return { ok: false, error: 'employee-archived' };
         }
 
         const leaveType = await tx.leaveType.findUnique({

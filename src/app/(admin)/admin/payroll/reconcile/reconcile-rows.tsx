@@ -47,6 +47,12 @@ const SETTLEMENT_ERROR_TH: Record<string, string> = {
   // its server-side twin (setPenaltySettlement's `exceeds-penalty`) — reached
   // when the actual penalty shrank between opening the editor and saving.
   'exceeds-penalty': 'หักสิทธิได้ไม่เกินโทษจริงของเดือนนี้',
+  // Defect 3: not reachable from this page today (page.tsx's
+  // `buildPenaltyByEmployee` already excludes archived employees from the
+  // list this editor renders for) — kept as a label for defense-in-depth
+  // against a stale/refused server round-trip, same reasoning as
+  // 'unsupported-salary-type' above.
+  'employee-archived': 'พนักงานถูกเก็บเข้าคลังแล้ว ไม่สามารถหักสิทธิวันลาได้',
   // Defect 1: the month's advisory lock (month-lock.ts) is now acquired
   // non-blocking with a couple of short retries — `setPenaltySettlement`/
   // `clearPenaltySettlement` return this as a clean `Result` (not a throw)
