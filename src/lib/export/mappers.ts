@@ -90,6 +90,11 @@ export function leaveTable(
         align: 'right' as const,
       },
       { key: `${t.id}:over`, label: `${t.name} — เกิน (หักเงิน)`, align: 'right' as const },
+      // Own column, not folded into "ใช้ไป" — a settlement's minutes are
+      // already subtracted out of "คงเหลือ" but never counted in "ใช้ไป";
+      // redefining an existing column's meaning would silently break
+      // whoever already consumes this export.
+      { key: `${t.id}:penalty`, label: `${t.name} — หักเป็นค่าปรับ`, align: 'right' as const },
     ]),
   ];
   return {
@@ -102,6 +107,7 @@ export function leaveTable(
       for (const t of types) {
         const cell = r.byType[t.id];
         const remaining = r.remainingByType[t.id];
+        const penalty = r.penaltyByType[t.id] ?? 0;
         out[`${t.id}:used`] = cell ? formatDaysHours(cell.usedMinutes, cfg) : '—';
         out[`${t.id}:remaining`] =
           remaining === undefined || remaining === null
@@ -111,6 +117,7 @@ export function leaveTable(
           cell && cell.overQuotaMinutes > 0
             ? `${formatDaysHours(cell.overQuotaMinutes, cfg)} (${formatTHB2(cell.deductAmount)})`
             : '—';
+        out[`${t.id}:penalty`] = penalty > 0 ? formatDaysHours(penalty, cfg) : '—';
       }
       return out;
     }),

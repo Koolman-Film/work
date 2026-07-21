@@ -51,11 +51,27 @@
 import Decimal from 'decimal.js';
 
 import { dailyRateFor } from './day-rate';
+import { EMPTY_SETTLEMENT, moneyDaysFor, type SettlementDays } from './penalty-settlement';
 
 // ─── Input shapes ────────────────────────────────────────────────────────
 // Plain DTOs — NOT Prisma types. Callers translate at the boundary.
 
 export type SalaryType = 'Monthly' | 'Daily' | 'Hourly';
+
+/**
+ * Salary types payroll can currently charge an attendance penalty in money
+ * for — V1 scope is Monthly only (see the module doc-comment). Exported so
+ * callers that must refuse BEFORE ever reaching `calcPayroll` — namely
+ * `setPenaltySettlement` (penalty-settlement-admin.ts), which must not let an
+ * admin spend an employee's leave entitlement forgiving a money penalty that
+ * payroll would never have charged in the first place — derive the SAME
+ * condition `calcPayroll` enforces below, instead of hardcoding a second copy
+ * of the list that could silently drift from it (e.g. if Daily support is
+ * added here later, forgetting to update a duplicate elsewhere).
+ */
+export function isPayrollChargeableSalaryType(salaryType: SalaryType): boolean {
+  return salaryType === 'Monthly';
+}
 
 export type EmployeeForPayroll = {
   id: string;
@@ -150,6 +166,14 @@ export type CalcInput = {
    */
   leaveDates?: readonly string[];
   /**
+   * Days of each penalty kind the admin chose to settle with leave instead of
+   * money. Omit → nothing settled, which is the pre-feature behaviour and the
+   * state of almost every employee. Optional deliberately: "absent" here is the
+   * normal case with a correct default, unlike remainingMinutes' penalty
+   * argument, where a forgotten value would silently overstate a balance.
+   */
+  penaltySettlement?: SettlementDays;
+  /**
    * Earnings/deductions applicable to this month. Omit for none — both
    * incomeOther and deductOther will be 0.
    */
@@ -187,6 +211,8 @@ export type CalcBreakdown = {
     };
     lateSevere: { days: number; perDay: Decimal; money: Decimal };
     earlyLeave: { count: number; perUnit: Decimal; money: Decimal };
+    /** Days of each kind paid with leave rather than money. */
+    settledDays: SettlementDays;
   };
 };
 
@@ -338,7 +364,7 @@ export function calcSso(
 // ─── Public entry point ──────────────────────────────────────────────────
 
 export function calcPayroll(input: CalcInput): PayrollDraft {
-  if (input.employee.salaryType !== 'Monthly') {
+  if (!isPayrollChargeableSalaryType(input.employee.salaryType)) {
     throw new PayrollCalcError({
       kind: 'unsupported-salary-type',
       given: input.employee.salaryType,
@@ -411,16 +437,22 @@ export function calcPayroll(input: CalcInput): PayrollDraft {
     cfg.absentDeductionPerDay,
     cfg.workingDaysPerMonth,
   );
+  const settled = input.penaltySettlement ?? EMPTY_SETTLEMENT;
+  const absentMoneyDays = moneyDaysFor(absentCount, settled.Absent);
+  const strikeMoneyDays = moneyDaysFor(latePenalty.threeStrikeDays, settled.LateThreeStrike);
+  const severeMoneyDays = moneyDaysFor(latePenalty.severeDays, settled.SevereLate);
+
   // Tier-1 lates: the N-strikes rule charges a 1-day amount per completed group;
-  // when the rule is off, fall back to the legacy flat per-late charge.
+  // when the rule is off, fall back to the legacy flat per-late charge. The flat
+  // charge is per occurrence, not a "1 day" unit, so it is never settleable.
   const tier1LateMoney = latePolicy.threeStrikeEnabled
-    ? new Decimal(latePenalty.threeStrikeDays).times(dayAmount)
+    ? new Decimal(strikeMoneyDays).times(dayAmount)
     : new Decimal(latePenalty.tier1Count).times(toDec(cfg.lateDeduction));
-  const severeLateMoney = new Decimal(latePenalty.severeDays).times(dayAmount);
+  const severeLateMoney = new Decimal(severeMoneyDays).times(dayAmount);
   const earlyLeaveMoney = toDec(cfg.earlyLeaveDeduction).times(earlyLeaveCount);
 
   const deductAttendance = dayAmount
-    .times(absentCount)
+    .times(absentMoneyDays)
     .plus(tier1LateMoney)
     .plus(severeLateMoney)
     .plus(earlyLeaveMoney)
@@ -454,7 +486,7 @@ export function calcPayroll(input: CalcInput): PayrollDraft {
       absent: {
         count: absentCount,
         perDay: dayAmount,
-        money: dayAmount.times(absentCount).toDecimalPlaces(2),
+        money: dayAmount.times(absentMoneyDays).toDecimalPlaces(2),
       },
       lateTier1: latePolicy.threeStrikeEnabled
         ? {
@@ -481,6 +513,11 @@ export function calcPayroll(input: CalcInput): PayrollDraft {
         perUnit: toDec(cfg.earlyLeaveDeduction),
         money: earlyLeaveMoney.toDecimalPlaces(2),
       },
+      // Copy, not alias: `settled` defaults to the module-level EMPTY_SETTLEMENT
+      // singleton (see below) — handing that object out by reference would let
+      // any future in-place mutation of one employee's breakdown corrupt every
+      // other employee (and every later run) sharing the same singleton.
+      settledDays: { ...settled },
     },
   };
 

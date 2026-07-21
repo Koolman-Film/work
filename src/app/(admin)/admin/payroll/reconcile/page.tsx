@@ -3,8 +3,12 @@ import { PageHeader } from '@/components/ui/page-header';
 import { type Column, ResponsiveTable } from '@/components/ui/responsive-table';
 import { StatCard } from '@/components/ui/stat-card';
 import { StatusBadge, type StatusKey } from '@/components/ui/status-badge';
+import { getPermittedBranches } from '@/lib/auth/branch-scope';
 import { requireGlobalPermission } from '@/lib/auth/require-global-permission';
+import { prisma } from '@/lib/db/prisma';
 import { formatTHB2, monthLabelTh } from '@/lib/format';
+import { EMPTY_SETTLEMENT, type PenaltyKindKey } from '@/lib/payroll/penalty-settlement';
+import { loadSettlementsForMonth } from '@/lib/payroll/penalty-settlement-load';
 import type { DeductionComponent, ReconcileFlag } from '@/lib/payroll/reconcile';
 import { sortFlaggedRows } from '@/lib/payroll/reconcile';
 import {
@@ -12,6 +16,12 @@ import {
   type ReconciliationView,
   type ReconRow,
 } from '@/lib/payroll/reconcile-data';
+import {
+  actualDaysFromAttendance,
+  kindsToShow,
+  type PenaltyRowInfo,
+} from '@/lib/payroll/reconcile-settlement';
+import { previewPayrollDrafts } from '@/lib/payroll/run';
 import { ReconcileRows } from './reconcile-rows';
 
 /**
@@ -79,6 +89,57 @@ function flagLabel(flag: ReconcileFlag): string {
  *  one kind that can repeat per row) is stable within a render. */
 function flagKey(flag: ReconcileFlag): string {
   return flag.kind === 'deduction-jump' ? `${flag.kind}-${flag.component}` : flag.kind;
+}
+
+/**
+ * Per-employee data for the penalty-settlement section (Task 9): live actual
+ * penalty days (a fresh, unpersisted recompute — the same engine calcPayroll
+ * uses), what's currently settled with leave, and whether that employee's
+ * row is still Draft (money can only move on a Draft row; see
+ * penalty-settlement-admin.ts's isPeriodClosed). Only employees with
+ * something to show (an actual penalty or a lingering settlement) get an
+ * entry — everyone else is the ordinary, unaffected case.
+ *
+ * `freshDrafts` is null when the live recompute itself failed (e.g. no
+ * PayrollConfig row) — defensively skipped rather than risking a wrong
+ * "over-settled" flag built from a fabricated zero.
+ */
+function buildPenaltyByEmployee(
+  rows: readonly ReconRow[],
+  freshDrafts: Awaited<ReturnType<typeof previewPayrollDrafts>> | null,
+  settlements: Awaited<ReturnType<typeof loadSettlementsForMonth>>,
+  statusByEmployee: Map<string, string>,
+): Record<string, PenaltyRowInfo> {
+  if (!freshDrafts) return {};
+
+  const out: Record<string, PenaltyRowInfo> = {};
+  for (const row of rows) {
+    if (row.current === null) continue;
+
+    const draft = freshDrafts.get(row.employeeId);
+    if (!draft) continue;
+    const actualDays = actualDaysFromAttendance(draft.breakdown.attendance);
+
+    const settlement = settlements.get(row.employeeId);
+    const settledDays = settlement?.days ?? { ...EMPTY_SETTLEMENT };
+
+    const kinds = kindsToShow(actualDays, settledDays);
+    if (kinds.length === 0) continue;
+
+    const leaveTypeNames: Partial<Record<PenaltyKindKey, string>> = {};
+    for (const kind of kinds) {
+      const name = settlement?.leaveTypeNames[kind]?.name;
+      if (name) leaveTypeNames[kind] = name;
+    }
+
+    out[row.employeeId] = {
+      actualDays,
+      settledDays,
+      leaveTypeNames,
+      isDraft: statusByEmployee.get(row.employeeId) === 'Draft',
+    };
+  }
+  return out;
 }
 
 function FlagChip({ flag }: { flag: ReconcileFlag }) {
@@ -149,8 +210,52 @@ export default async function PayrollReconcilePage({
   const { m } = await searchParams;
   const month = m && MONTH_RE.test(m) ? m : currentMonth();
 
-  await requireGlobalPermission('payroll.read');
+  const { user } = await requireGlobalPermission('payroll.read');
   const view = await loadReconciliation(month);
+
+  // Settling a penalty (unlike merely viewing this page) needs payroll.run —
+  // an admin may hold read-only reconciliation access without it. When they
+  // lack it, the settlement controls must not render at all, same rule the
+  // manual attendance form applies (see manual/page.tsx's canSettle). Checked
+  // the same way the server action's `requireGlobalPermission('payroll.run')`
+  // decides (GLOBAL only) — `canDo` alone would admit a branch-scoped grant
+  // (e.g. the branch-scoped system Admin role) and render a control the
+  // server then refuses with `notFound()`.
+  const canSettle = (await getPermittedBranches(user, 'payroll.run')) === 'all';
+
+  const [settlements, payrollStatuses, freshDrafts, penaltyLeaveTypes] = await Promise.all([
+    // Reused rather than re-querying the same rows — see penalty-settlement-load.ts.
+    loadSettlementsForMonth(month),
+    // Per-employee Draft/Published/Locked — a month's rows can be published
+    // one employee at a time (publishOnePayrollAction), so this can't be
+    // read off the month-level `view.status` aggregate.
+    prisma.payroll.findMany({ where: { month }, select: { employeeId: true, status: true } }),
+    // Live, unpersisted recompute (same engine calcPayroll uses) so the
+    // over-settlement flag compares against the CURRENT actual penalty, not
+    // whatever was last saved. Defensively wrapped — a calc hiccup here must
+    // not blank the rest of the reconciliation page (mirrors /admin/payroll's
+    // own staleness check).
+    previewPayrollDrafts(month).catch(() => null),
+    // Eligible leave types — archived=null && penaltySettlementAllowed=true.
+    // Skipped when the admin can't settle: no point loading data that never renders.
+    canSettle
+      ? prisma.leaveType.findMany({
+          where: { archivedAt: null, penaltySettlementAllowed: true },
+          select: { id: true, name: true },
+          orderBy: { name: 'asc' },
+        })
+      : Promise.resolve([]),
+  ]);
+
+  const statusByEmployee = new Map<string, string>(
+    payrollStatuses.map((p) => [p.employeeId, p.status]),
+  );
+  const penaltyByEmployee = buildPenaltyByEmployee(
+    view.rows,
+    freshDrafts,
+    settlements,
+    statusByEmployee,
+  );
 
   const flaggedRows = sortFlaggedRows(view.rows.filter((r) => r.flags.length > 0));
   const statusInfo = STATUS_INFO[view.status];
@@ -239,7 +344,13 @@ export default async function PayrollReconcilePage({
       {/* All rows IN THIS RUN (collapsed) + per-row expandable derivation.
           Rows without a current payroll (roster members not in the run) are
           excluded — a genuinely missing one already surfaces in Needs review. */}
-      <ReconcileRows rows={view.rows.filter((r) => r.current !== null)} />
+      <ReconcileRows
+        rows={view.rows.filter((r) => r.current !== null)}
+        month={month}
+        canSettle={canSettle}
+        leaveTypeOptions={penaltyLeaveTypes}
+        penaltyByEmployee={penaltyByEmployee}
+      />
     </div>
   );
 }

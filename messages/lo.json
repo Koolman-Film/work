@@ -187,6 +187,7 @@
     "leave": {
       "title": "ວັນລາພັກ {year}",
       "remaining": "ເຫຼືອ {d}",
+      "penaltySettled": "ຫັກເປັນຄ່າປັບ {d}",
       "unlimited": "ບໍ່ຈຳກັດ",
       "deducted": "ຫັກເງິນ {amount}"
     },
@@ -490,6 +491,9 @@
       "sso": "ປະກັນສັງຄົມ",
       "advance": "ເບີກລ່ວງໜ້າ",
       "attendance": "ຂາດ/ມາຊ້າ/ອອກກ່ອນ",
+      "settledAbsent": "ຂາດງານ — ຫັກຈາກສິດ{leaveType} {days} ວັນ",
+      "settledLateThreeStrike": "ມາຊ້າຄົບກຳນົດ — ຫັກຈາກສິດ{leaveType} {days} ວັນ",
+      "settledSevereLate": "ມາຊ້າຮ້າຍແຮງ — ຫັກຈາກສິດ{leaveType} {days} ວັນ",
       "leave": "ລາເກີນສິດ",
       "debt": "ໜີ້/ຜ່ອນຊຳລະ",
       "other": "ລາຍການຫັກອື່ນໆ",

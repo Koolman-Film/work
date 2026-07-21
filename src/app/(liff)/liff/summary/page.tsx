@@ -12,6 +12,7 @@ import { formatMoney } from '@/lib/i18n/format';
 import { remainingByTypeForEmployee } from '@/lib/leave/balance';
 import { getLeaveConfig } from '@/lib/leave/leave-config';
 import { localizedLeaveTypeName } from '@/lib/leave/localized-name';
+import { penaltyMinutes } from '@/lib/leave/penalty-minutes';
 import { formatDurationParts, splitDaysHours } from '@/lib/leave/units';
 import { adjacentMonths, resolveReportPeriod } from '@/lib/reports/period';
 import { PeriodPicker } from './period-picker';
@@ -96,6 +97,17 @@ export default async function LiffSummaryPage({
     advanceBalanceFor(employee.id),
   ]);
   const locale = rawLocale as Locale;
+
+  // Minutes settled against an attendance penalty this leave year (see
+  // penalty-minutes.ts). Already subtracted out of `remaining` above but
+  // NOT part of `used` below — fetched per type (matching the per-employee
+  // loop `getOrSeedEntitlements` already uses) so the gap between "used"
+  // and "remaining" can be shown instead of left unexplained.
+  const penaltyByType = new Map(
+    await Promise.all(
+      types.map(async (tp) => [tp.id, await penaltyMinutes(employee.id, tp.id, year)] as const),
+    ),
+  );
 
   const fmtDur = (minutes: number) =>
     formatDurationParts(splitDaysHours(minutes, cfg), {
@@ -197,6 +209,7 @@ export default async function LiffSummaryPage({
             const used = usedBy.get(tp.id);
             const rem = remaining[tp.id];
             const deduct = Number(used?._sum.deductAmount ?? 0);
+            const penalty = penaltyByType.get(tp.id) ?? 0;
             return (
               <li key={tp.id} className="flex items-baseline justify-between gap-2 py-2 text-sm">
                 <span className="text-gray-700">
@@ -209,6 +222,11 @@ export default async function LiffSummaryPage({
                       ? t('leave.unlimited')
                       : t('leave.remaining', { d: fmtDur(Math.max(0, rem)) })}
                   </span>
+                  {penalty > 0 && (
+                    <span className="block text-[11px] text-amber-700">
+                      {t('leave.penaltySettled', { d: fmtDur(penalty) })}
+                    </span>
+                  )}
                   {deduct > 0 && (
                     <span className="block text-[11px] text-amber-700">
                       {t('leave.deducted', { amount: formatMoney(deduct, locale) })}

@@ -48,6 +48,13 @@ import { RunActionForm } from './run-action-form';
 type SearchParams = Promise<{
   m?: string;
   msg?: string;
+  /** 'alert' → render `msg` with the amber/`role="alert"` treatment instead
+   *  of the green success banner. Set by actions.ts for a partial publish or
+   *  an outright failure — anything a skimming admin must not read as a
+   *  clean, complete success (Defect 5). Any other value (including absent)
+   *  renders the green banner, matching every pre-existing caller of `back()`
+   *  that never set severity. */
+  sev?: string;
   branchId?: string;
   departmentId?: string;
   accountingGroupId?: string;
@@ -80,6 +87,7 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
   const {
     m,
     msg,
+    sev,
     branchId: rawBranchId,
     departmentId: rawDepartmentId,
     accountingGroupId: rawAccountingGroupId,
@@ -419,14 +427,31 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
         />
       </div>
 
-      {msg && (
-        <div
-          role="status"
-          className="mb-4 rounded-lg bg-success-soft px-4 py-3 text-sm text-success-deep"
-        >
-          {decodeURIComponent(msg)}
-        </div>
-      )}
+      {msg &&
+        (sev === 'alert' ? (
+          // Same amber/`role="alert"` treatment as the stale-draft warning
+          // below — reused deliberately (Defect 5) rather than inventing a
+          // third variant, so a partial publish or a failure can never read
+          // as the unqualified green success below.
+          <div
+            role="alert"
+            className="mb-4 flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3"
+          >
+            <span aria-hidden="true" className="text-lg leading-none">
+              ⚠️
+            </span>
+            <p className="min-w-0 text-sm font-semibold text-amber-900">
+              {decodeURIComponent(msg)}
+            </p>
+          </div>
+        ) : (
+          <div
+            role="status"
+            className="mb-4 rounded-lg bg-success-soft px-4 py-3 text-sm text-success-deep"
+          >
+            {decodeURIComponent(msg)}
+          </div>
+        ))}
 
       {/* Stale-draft warning — data changed since the last คำนวณ, so the draft
           numbers are out of date until recalculated. Made deliberately loud. */}

@@ -122,6 +122,67 @@ describe('assemblePayslipDocument', () => {
   });
 });
 
+describe('assemblePayslipDocument — settled-with-leave note', () => {
+  // A settled penalty nets its money contribution to zero — sometimes taking
+  // the whole `deductAttendance` bucket to zero too, which omits the
+  // 'attendance' line entirely (see the "omits zero-amount deduction lines"
+  // test above). Without a dedicated line, the employee sees NOTHING for a
+  // fully-settled month and reads that as "no penalty happened," only to find
+  // the leave days missing later. These tests assert on that dedicated line,
+  // not on the whole document, so a fix that puts the text in the wrong
+  // place (or omits it) is caught.
+
+  it('names the leave type on a settled penalty line, with the money at zero', () => {
+    const doc = assemblePayslipDocument({
+      ...base,
+      buckets: { ...base.buckets, deductAttendance: 0, netPay: 19250 },
+      attendance: { absent: 1, late: 0 },
+      settledDays: { Absent: 1, LateThreeStrike: 0, SevereLate: 0 },
+      settledLeaveTypeNames: {
+        Absent: { name: 'ลาพักร้อน', nameByLocale: { en: 'Vacation leave' } },
+      },
+    });
+    const line = doc.deduct.lines.find((l) => l.key === 'settledAbsent');
+    expect(line).toBeDefined();
+    // System-authored text goes through the translation channel (`labelKey`
+    // + `vars`), never a hardcoded literal `label` — see document.ts's
+    // labelKey/label split. The leave-type name travels as raw
+    // name/nameByLocale data (not a pre-formatted string) because this
+    // module has no locale awareness; only the renderer can localize it.
+    expect(line?.label).toBeUndefined();
+    expect(line?.labelKey).toBe('deduct.settledAbsent');
+    expect(line?.vars).toEqual({ days: 1 });
+    expect(line?.leaveType).toEqual({ name: 'ลาพักร้อน', nameByLocale: { en: 'Vacation leave' } });
+    expect(line?.amount).toBe(0);
+  });
+
+  it('falls back to the canonical leave-type name when no settlement name was recorded', () => {
+    const doc = assemblePayslipDocument({
+      ...base,
+      buckets: { ...base.buckets, deductAttendance: 0, netPay: 19250 },
+      attendance: { absent: 1, late: 0 },
+      settledDays: { Absent: 1, LateThreeStrike: 0, SevereLate: 0 },
+      // settledLeaveTypeNames omitted entirely.
+    });
+    const line = doc.deduct.lines.find((l) => l.key === 'settledAbsent');
+    expect(line?.leaveType).toEqual({ name: 'วันลา', nameByLocale: null });
+  });
+
+  it('adds no settled-penalty line when nothing was settled this month', () => {
+    const doc = assemblePayslipDocument({
+      ...base,
+      buckets: { ...base.buckets, deductAttendance: 1000, netPay: 18250 },
+      attendance: { absent: 1, late: 0 },
+      // settledDays / settledLeaveTypeNames omitted — the common case.
+    });
+    const settledLines = doc.deduct.lines.filter((l) => l.key.startsWith('settled'));
+    expect(settledLines).toEqual([]);
+    // And the ordinary attendance line is untouched — no stray note text.
+    const att = doc.deduct.lines.find((l) => l.key === 'attendance');
+    expect(att?.detail).toEqual({ key: 'attendance', vars: { absent: 1, late: 0 } });
+  });
+});
+
 describe('assemblePayslipDocument — letterhead passthrough', () => {
   const baseInput: NormalizedPayslipInput = {
     meta: {
