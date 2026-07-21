@@ -40,11 +40,15 @@ const attendanceUpdate = vi.fn();
 const transactionFn = vi.fn();
 // Defect 1: voidAttendance now checks PayrollConfig to derive the row's
 // payroll month before deciding whether a live settlement would be
-// stranded. Defaulting to `null` (no config row) short-circuits that new
-// guard entirely — see void.ts's `if (payrollCfg)` — so these pre-existing
+// stranded. `payrollConfigFindFirst` resolves to `null` (no config row) —
+// void.ts now falls back to DEFAULT_CUTOFF_DAY (25) rather than skipping the
+// guard, so the query still runs; `attendancePenaltySettlementFindFirst`
+// resolves to `null` (no live settlement anywhere) so the guard's own
+// `liveSettlement` branch is never entered, and these pre-existing
 // branch-scope tests exercise exactly what they did before, unaffected by
-// Defect 1's new query.
+// Defect 1's new queries.
 const payrollConfigFindFirst = vi.fn().mockResolvedValue(null);
+const attendancePenaltySettlementFindFirst = vi.fn().mockResolvedValue(null);
 
 vi.mock('@/lib/db/prisma', () => ({
   prismaRaw: {
@@ -59,6 +63,9 @@ vi.mock('@/lib/db/prisma', () => ({
     },
     payrollConfig: {
       findFirst: (...a: unknown[]) => payrollConfigFindFirst(...a),
+    },
+    attendancePenaltySettlement: {
+      findFirst: (...a: unknown[]) => attendancePenaltySettlementFindFirst(...a),
     },
     $transaction: (...a: unknown[]) => transactionFn(...a),
   },
@@ -134,6 +141,8 @@ describe('voidAttendance — branch-scope gate', () => {
     attendanceFindUniqueRaw.mockResolvedValue({
       id: 'att-1',
       deletedAt: null,
+      employeeId: 'emp-1',
+      date: new Date('2026-01-01'),
       employee: { branchId: 'branch-B', assignedBranchIds: ['branch-A'] },
     });
 
@@ -151,6 +160,8 @@ describe('voidAttendance — branch-scope gate', () => {
     attendanceFindUniqueRaw.mockResolvedValue({
       id: 'att-1',
       deletedAt: null,
+      employeeId: 'emp-1',
+      date: new Date('2026-01-01'),
       employee: { branchId: 'branch-Z', assignedBranchIds: [] },
     });
 

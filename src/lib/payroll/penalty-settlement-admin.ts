@@ -203,12 +203,17 @@ export async function setPenaltySettlement(input: {
         // in the transaction.
         //
         // Deadlock analysis: `approveLeaveRequest` takes ONLY this leave lock,
-        // never `lockPayrollMonth`. `publishPayroll` takes ONLY the month lock,
-        // never this one. This function is the only place that ever holds
-        // both, and it always acquires them in the same order — month lock
-        // (`lockPayrollMonth` above) THEN this leave lock — so no transaction
-        // can be holding this leave lock while waiting on the month lock, which
-        // is what a cycle would require. No deadlock is possible.
+        // never `lockPayrollMonth` — its own stranded-SevereLate-settlement
+        // guard (leave/admin.ts) deliberately reads the payroll-closed state
+        // this lock protects WITHOUT taking the lock; see that guard's
+        // comment for why (taking it there would make an ordinary leave
+        // approval contend with any unrelated settle in the same month).
+        // `publishPayroll` takes ONLY the month lock, never this one. This
+        // function is the only place that ever holds both, and it always
+        // acquires them in the same order — month lock (`lockPayrollMonth`
+        // above) THEN this leave lock — so no transaction can be holding
+        // this leave lock while waiting on the month lock, which is what a
+        // cycle would require. No deadlock is possible.
         //
         // `clearPenaltySettlement` does NOT take this lock: it only ever
         // releases entitlement (soft-deletes the row, crediting minutes back),

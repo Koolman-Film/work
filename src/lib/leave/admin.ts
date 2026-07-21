@@ -28,10 +28,12 @@
  */
 
 import { headers } from 'next/headers';
+import { payrollPeriodFor } from '@/lib/advance/period-earnings';
 import { auditLog, auditLogTx } from '@/lib/audit/log';
 import { canActOnEmployeeBranches, getPermittedBranches } from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
+import { monthLabelTh } from '@/lib/format';
 import { sendNotification } from '@/lib/inngest/events';
 import { notifyAdminsInApp } from '@/lib/notifications/in-app-bell';
 import { lockEntitlement, remainingMinutes, resolveGrantedMinutes, usedMinutes } from './balance';
@@ -81,6 +83,7 @@ export type ApproveResult =
         | 'not-pending'
         | 'short-note'
         | 'over-quota-block'
+        | 'settlement-closed'
         | 'db-error';
       message: string;
     };
@@ -94,6 +97,13 @@ export type RejectResult =
     };
 
 const MIN_NOTE_LENGTH = 1; // approval note can be a single "ok"; rejection note we don't enforce more strictly here either
+
+/** Matches `PayrollConfig.cutoffDay`'s schema default — same fallback
+ *  `voidAttendance` (attendance/void.ts) and the manual attendance form use
+ *  when the singleton config row is missing, so the stranded-settlement
+ *  guard below derives the SAME payroll month as those callers even before
+ *  any config row has ever been saved. */
+const DEFAULT_CUTOFF_DAY = 25;
 
 type Input = {
   leaveRequestId: string;
@@ -257,6 +267,91 @@ export async function approveLeaveRequest(input: Input): Promise<ApproveResult> 
         };
       }
 
+      // ── Stranded-settlement guard (leave-approval half of the defect
+      //    closed on the void side by voidAttendance, attendance/void.ts)
+      //    ────────────────────────────────────────────────────────────────
+      //
+      // `computeLatePenalty` (payroll/calc.ts) exempts a severe late whose
+      // date is in `leaveDates` from its 1-day penalty — that exemption is
+      // intentional and stays intentional. The defect is that it can strike
+      // RETROACTIVELY: if a SevereLate penalty for this employee was already
+      // settled with leave entitlement for a payroll month, and that month
+      // has since left Draft (money frozen — isPeriodClosed,
+      // penalty-settlement-admin.ts), approving a leave request covering one
+      // of that penalty's dates would drop the actual SevereLate day count
+      // to zero on the next recompute, and `clearPenaltySettlement` refuses
+      // a closed period forever — the leave the employee already paid for
+      // the penalty is gone with no way back (no unpublish, no correction
+      // document).
+      //
+      // Scoped to `kind: 'SevereLate'` only: `leaveDates` never exempts an
+      // Absent or a LateThreeStrike (see computeLatePenalty), so a settled
+      // one of those in the same month is unaffected by approving THIS leave
+      // — refusing for one would be a false block on ordinary month-end
+      // leave processing under time pressure.
+      //
+      // A request can span multiple dates and therefore multiple payroll
+      // months — every target date's month is checked (payrollPeriodFor,
+      // SAME cutoff-day arithmetic voidAttendance and the manual attendance
+      // form use, SAME DEFAULT_CUTOFF_DAY fallback), not just the start
+      // date's.
+      //
+      // Deliberately NOT wrapped in `lockPayrollMonth` (payroll/month-lock.ts,
+      // also used by `setPenaltySettlement`/`publishPayroll`), even though
+      // that would close the residual race where a settle and this approval
+      // interleave. Tried it; reverted. `lockPayrollMonth` is keyed on the
+      // MONTH alone, not on (employee, kind) — `setPenaltySettlement` takes
+      // it for every settle, of every kind, for every employee, in that
+      // month. Taking it here too would make an ordinary DeductPay leave
+      // approval — the common case, unrelated to any SevereLate settlement —
+      // contend with, and sometimes lose to (returning a spurious `busy`),
+      // a completely unrelated admin settling a completely unrelated
+      // employee's Absent penalty in the same calendar month. That is a
+      // proven regression, not a hypothetical one: it broke
+      // penalty-settlement.integration.test's
+      // "never lets a concurrent settle and leave approval jointly overdraw
+      // the same (employee, type, year) balance" test, which pins the
+      // invariant that a DeductPay approval racing a settle must always
+      // succeed (only a Block-policy over-quota refuses it outright). The
+      // realistic trigger for THIS guard is an admin approving backdated
+      // leave weeks after the month was published — not a live race against
+      // an in-flight settle — so the residual window (a settle and this
+      // approval's read committing within the same few milliseconds, for
+      // the SAME employee's SevereLate, in the SAME month) is narrow, and
+      // closing it structurally costs more than it's worth. The
+      // entitlement-lock race below (`lockEntitlement`) is unaffected by
+      // this decision — it protects a different invariant (the balance
+      // itself) and was already closed before this guard existed.
+      const payrollCfg = await tx.payrollConfig.findFirst({ select: { cutoffDay: true } });
+      const cutoffDay = payrollCfg?.cutoffDay ?? DEFAULT_CUTOFF_DAY;
+      const monthsCovered = [
+        ...new Set(
+          targetDates.map((d) =>
+            payrollPeriodFor(d.toISOString().slice(0, 10), cutoffDay).end.slice(0, 7),
+          ),
+        ),
+      ];
+
+      for (const month of monthsCovered) {
+        const liveSevereLate = await tx.attendancePenaltySettlement.findFirst({
+          where: { employeeId: req.employeeId, month, kind: 'SevereLate', deletedAt: null },
+          select: { id: true },
+        });
+        if (!liveSevereLate) continue;
+
+        const closed = await tx.payroll.findFirst({
+          where: { employeeId: req.employeeId, month, status: { not: 'Draft' } },
+          select: { id: true },
+        });
+        if (closed) {
+          return {
+            ok: false as const,
+            code: 'settlement-closed' as const,
+            message: `ไม่สามารถอนุมัติคำขอลานี้ได้ — คำขอนี้ครอบคลุมวันที่อยู่ในรอบเงินเดือน${monthLabelTh(month)} ซึ่งปิดไปแล้ว และมีการหักสิทธิวันลาไปชดเชยค่าปรับมาสายรุนแรงในเดือนนั้นไว้แล้ว หากอนุมัติจะทำให้วันลาที่พนักงานจ่ายไปแล้วถูกริบซ้ำ`,
+          };
+        }
+      }
+
       // ── Entitlement check (frozen at approval) ─────────────────────────
       const chargedMinutes = segment.minutes * targetDates.length;
       const year = req.startDate.getUTCFullYear();
@@ -275,9 +370,11 @@ export async function approveLeaveRequest(input: Input): Promise<ApproveResult> 
       // `lockEntitlement`'s doc-comment (leave/balance.ts) for why a shared
       // function (not two copies of a format string) matters, and
       // penalty-settlement-admin.ts for the deadlock analysis: this function
-      // takes ONLY this lock, never the payroll month lock, so it cannot
-      // form a cycle with `setPenaltySettlement` (month, then this) or
-      // `publishPayroll` (month only).
+      // takes ONLY this lock, never the payroll month lock (see the
+      // stranded-settlement guard above for why that guard deliberately does
+      // NOT take `lockPayrollMonth` either), so it cannot form a cycle with
+      // `setPenaltySettlement` (month, then this) or `publishPayroll` (month
+      // only).
       await lockEntitlement(tx, req.employeeId, req.leaveTypeId, year);
       const std = standardDayMinutes(cfg);
       const ent = await tx.leaveEntitlement.findUnique({
