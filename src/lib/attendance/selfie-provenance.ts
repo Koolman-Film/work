@@ -1,43 +1,36 @@
 /**
- * Decide the stored check-in status once the GPS verdict and the selfie's
- * provenance are both known.
+ * How a check-in selfie was captured — reported by the client, recorded in
+ * the audit log, and deliberately NOT used to judge the check-in.
  *
- * The selfie flag can only ever ADD scrutiny, never remove it: when GPS has
- * already disputed the check-in, its reason is kept, because "you were
- * outside the branch" is more specific and more actionable than "the photo
- * may not be live".
+ * ## Why this no longer disputes a check-in
  *
- * The flag is reported by the client, so a determined cheat can lie about
- * it. This is a DETECTION aid, not enforcement — it raises the bar from
- * "tap Deny on the camera prompt" to "tamper with the request". Blocking
- * outright would mean removing the fallback, which is a separate decision.
+ * Until 2026-07-21 a `fallback` capture forced `status = Disputed` with the
+ * reason "the selfie may have been picked from the gallery". Production said
+ * that was wrong:
+ *
+ *   - ~16% of ALL check-ins (7 of 45/day) were auto-disputed on this alone.
+ *   - The split was per-person and sticky, not per-device: 6 of 8 affected
+ *     employees were fallback on 100% of their check-ins, on hardware and
+ *     LINE builds where their colleagues succeeded (Android 42 live/11
+ *     fallback, iOS 33 live/3 fallback). That is a camera permission the OS
+ *     remembers as denied — not a behaviour, and not evidence of anything.
+ *   - The fallback `<input capture="user">` opens the camera app directly on
+ *     most Android phones, so the accusation was frequently impossible: no
+ *     gallery was ever offered.
+ *
+ * So the same honest employees were sent to the admin review queue every
+ * single day, for a phone setting. GPS alone decides Confirmed vs Disputed.
+ *
+ * The signal itself is kept: `submitCheckIn` writes it to
+ * `AuditLog.afterValue.selfieCapture` on every check-in, which is where the
+ * numbers above came from. That is enough to reason about fallback usage
+ * without putting a column on `Attendance` that nothing reads.
+ *
+ * If fallback ever needs to gate check-in again, do it on evidence this
+ * module cannot currently see: `startCamera` (liff/check-in/selfie-step.tsx)
+ * swallows the DOMException, so `NotAllowedError` — permission denied, photo
+ * is still live — is indistinguishable from a device that genuinely cannot
+ * capture. Record the error name first, then decide.
  */
 
 export type SelfieCapture = 'live' | 'fallback';
-
-// LOAD-BEARING, not just display copy: `isGpsRelatedDispute`
-// (admin/attendance/disputed/_dispute-reason.ts) classifies every disputed
-// row by comparing its stored `disputeReason` against this exact string to
-// decide whether the distance is safe to show. Editing this text — even a
-// pure copy fix — silently reclassifies every historical selfie-only dispute
-// as GPS-related the next time that comparison runs. If this ever needs to
-// change, migrate to a stored enum/code instead of comparing display text.
-export const SELFIE_FALLBACK_REASON = 'รูปเซลฟี่ไม่ได้มาจากกล้องสด — อาจเลือกจากแกลเลอรี';
-
-type GpsVerdict = { status: 'Confirmed' } | { status: 'Disputed'; reason: string };
-
-export function resolveCheckInStatus(
-  verdict: GpsVerdict,
-  capture: SelfieCapture | undefined,
-  hasSelfie: boolean,
-): { status: 'Confirmed' | 'Disputed'; disputeReason: string | null } {
-  if (verdict.status === 'Disputed') {
-    return { status: 'Disputed', disputeReason: verdict.reason };
-  }
-  // Only meaningful when a selfie was actually stored — branches that don't
-  // require one must not be flagged.
-  if (capture === 'fallback' && hasSelfie) {
-    return { status: 'Disputed', disputeReason: SELFIE_FALLBACK_REASON };
-  }
-  return { status: 'Confirmed', disputeReason: null };
-}
