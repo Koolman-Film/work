@@ -4,6 +4,15 @@
  * (penalty-settlement-admin.ts) — on the MONTH itself, not on any Payroll
  * row.
  *
+ * NOT used by `approveLeaveRequest`'s stranded-SevereLate-settlement guard
+ * (leave/admin.ts), even though that guard reads the same closed/settled
+ * state this lock protects — see that guard's comment for why: locking here
+ * is keyed on the month alone, not on (employee, kind), so it would make an
+ * everyday leave approval contend with ANY settle in the same month for ANY
+ * employee/kind, which regressed a pinned concurrency invariant when tried
+ * (penalty-settlement.integration.test's entitlement-lock race test). That
+ * guard accepts a narrow residual race instead.
+ *
  * Why not a row lock: `publishPayroll`'s upsert can CREATE a Payroll row
  * that did not exist when a settlement was written — e.g. an employee added
  * or activated between "คำนวณ" and "เผยแพร่", reachable through the manual
