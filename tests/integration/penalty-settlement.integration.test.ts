@@ -116,7 +116,12 @@ async function reset() {
   adminUserHolder.id = adminUser.id;
 }
 
-async function makeEmployee(overrides: { salaryType?: 'Monthly' | 'Daily' | 'Hourly' } = {}) {
+async function makeEmployee(
+  overrides: {
+    salaryType?: 'Monthly' | 'Daily' | 'Hourly';
+    status?: 'Probation' | 'Active' | 'Archived';
+  } = {},
+) {
   const user = await prisma.user.create({ data: {} });
   const branch = await prisma.branch.create({ data: { name: `Branch-${uid().slice(0, 8)}` } });
   return prisma.employee.create({
@@ -127,7 +132,7 @@ async function makeEmployee(overrides: { salaryType?: 'Monthly' | 'Daily' | 'Hou
       branchId: branch.id,
       salaryType: overrides.salaryType ?? 'Monthly',
       baseSalary: new Prisma.Decimal(20_000),
-      status: 'Active',
+      status: overrides.status ?? 'Active',
       hiredAt: new Date('2026-01-01'),
     },
   });
@@ -1058,6 +1063,35 @@ describe('setPenaltySettlement — refuses settlements payroll cannot charge', (
       via: 'reconcile',
     });
     expect(exact).toEqual({ ok: true });
+  });
+});
+
+describe('setPenaltySettlement — refuses an Archived employee (fix-void-guard Defect 3)', () => {
+  it('refuses with employee-archived and writes no row, even though the leave-type/balance checks would otherwise pass', async () => {
+    // gatherAndCalc (run.ts) filters `status: { not: 'Archived' }`, so
+    // actualPenaltyDaysForEmployee returns null for an Archived employee and
+    // the exceeds-penalty ceiling below silently falls through — bounded
+    // only by the leave balance. Neither admin UI can reach this today (both
+    // filter Archived employees from their pickers), but every guard in this
+    // module is enforced server-side regardless of what the UI currently
+    // allows — see the file-level doc-comment.
+    const emp = await makeEmployee({ status: 'Archived' });
+    const vacation = await makeVacationType();
+
+    const r = await setPenaltySettlement({
+      employeeId: emp.id,
+      month: '2026-07',
+      kind: 'Absent',
+      leaveTypeId: vacation.id,
+      days: 1,
+      via: 'reconcile',
+    });
+    expect(r).toEqual({ ok: false, error: 'employee-archived' });
+
+    const rows = await prisma.attendancePenaltySettlement.findMany({
+      where: { employeeId: emp.id },
+    });
+    expect(rows).toHaveLength(0);
   });
 });
 

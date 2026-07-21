@@ -2,16 +2,24 @@
 
 import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
+import { payrollPeriodFor } from '@/lib/advance/period-earnings';
 import { auditLogTx, type Prisma } from '@/lib/audit/log';
 import { canActOnEmployeeBranches, getPermittedBranches } from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma, prismaRaw } from '@/lib/db/prisma';
+import { monthLabelTh } from '@/lib/format';
 
 export type VoidResult =
   | { ok: true }
   | {
       ok: false;
-      code: 'not-found' | 'forbidden' | 'already-voided' | 'reason-required' | 'error';
+      code:
+        | 'not-found'
+        | 'forbidden'
+        | 'already-voided'
+        | 'reason-required'
+        | 'settlement-closed'
+        | 'error';
       message: string;
     };
 
@@ -39,6 +47,8 @@ export async function voidAttendance(id: string, reason: string): Promise<VoidRe
     select: {
       id: true,
       deletedAt: true,
+      employeeId: true,
+      date: true,
       employee: { select: { branchId: true, assignedBranchIds: true } },
     },
   });
@@ -51,6 +61,52 @@ export async function voidAttendance(id: string, reason: string): Promise<VoidRe
     !canActOnEmployeeBranches(permitted, [row.employee.branchId, ...row.employee.assignedBranchIds])
   )
     notFound();
+
+  // Defect 1 (merge blocker): voiding a row whose payroll month already
+  // carries a LIVE penalty settlement, once that month has left Draft, would
+  // permanently strand the settlement — money is frozen at publish
+  // (isPeriodClosed, penalty-settlement-admin.ts) but this void would drop
+  // the actual penalty count straight to zero, and clearPenaltySettlement
+  // refuses a closed period forever. Derives the row's payroll month with
+  // the SAME cutoff-day arithmetic the manual attendance form and the
+  // advance cap use (payrollPeriodFor, advance/period-earnings.ts) rather
+  // than re-deriving it — see that module's doc-comment.
+  //
+  // Conservative on purpose: this checks for ANY live settlement in the
+  // row's payroll month for this employee, not only one whose `kind`
+  // matches this row's attendance type — mirroring how the publish-time
+  // stranded guard (run.ts) and setPenaltySettlement's own guards are also
+  // employee+month scoped rather than trying to prove a causal link between
+  // one attendance row and one settlement kind.
+  //
+  // While the month is still Draft, the void is allowed: the admin can then
+  // fix the settlement on the reconcile page, and if they forget,
+  // publishPayroll's own stranded-settlement guard (run.ts) catches it
+  // before the month is ever frozen.
+  const payrollCfg = await prisma.payrollConfig.findFirst({ select: { cutoffDay: true } });
+  if (payrollCfg) {
+    const dateYmd = row.date.toISOString().slice(0, 10);
+    const month = payrollPeriodFor(dateYmd, payrollCfg.cutoffDay).end.slice(0, 7);
+
+    const liveSettlement = await prisma.attendancePenaltySettlement.findFirst({
+      where: { employeeId: row.employeeId, month, deletedAt: null },
+      select: { id: true },
+    });
+    if (liveSettlement) {
+      const closed = await prisma.payroll.findFirst({
+        where: { employeeId: row.employeeId, month, status: { not: 'Draft' } },
+        select: { id: true },
+      });
+      if (closed) {
+        return {
+          ok: false,
+          code: 'settlement-closed',
+          message: `ไม่สามารถลบรายการนี้ได้ — ปิดรอบเงินเดือน${monthLabelTh(month)}ไปแล้ว และเดือนนี้มีการหักสิทธิวันลาชดเชยค่าปรับอยู่ จึงไม่สามารถปรับสิทธิคืนได้อีก`,
+        };
+      }
+    }
+  }
+
   const meta = await reqMeta();
 
   try {

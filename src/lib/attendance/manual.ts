@@ -67,6 +67,7 @@ export type CreateManualResult =
         | 'bad-note'
         | 'missing-exempt-reason'
         | 'already-checked-in'
+        | 'on-leave'
         | 'duplicate'
         | 'db-error';
       message: string;
@@ -220,6 +221,34 @@ export async function createManualAttendance(
         ok: false,
         code: 'already-checked-in',
         message: 'พนักงานคนนี้มีการเช็คอินของวันนี้อยู่แล้ว จึงบันทึกเป็นขาดงานไม่ได้',
+      };
+    }
+  }
+
+  // Defect 3: an `absent` row on a date the employee already has approved
+  // leave for is not just a duplicate label — calcPayroll (calc.ts) has no
+  // idea `OnLeave` exists at all, so the bogus Absent row would deduct a
+  // FULL day at this employee's day rate on top of the leave entitlement
+  // the approval already spent, and — since settlement is available from
+  // this same form — the admin could then settle that bogus absence with
+  // MORE leave, doubling the cost of a day that was never actually missed.
+  //
+  // Scoped to `kind === 'absent'` only, not `worked` too: `worked` never
+  // deducts money and is not settleable, so it carries none of the double-
+  // charge risk above — an employee who came in despite an approved leave
+  // (e.g. a half-day leave elsewhere that day) is a legitimate, if unusual,
+  // shape this form should still be able to record. Blocking it would only
+  // push admins toward voiding the leave first for no safety benefit.
+  if (input.kind === 'absent') {
+    const existingOnLeave = await prisma.attendance.findFirst({
+      where: { employeeId: emp.id, date, type: 'OnLeave', deletedAt: null },
+      select: { id: true },
+    });
+    if (existingOnLeave) {
+      return {
+        ok: false,
+        code: 'on-leave',
+        message: 'พนักงานคนนี้มีวันลาที่อนุมัติแล้วในวันนี้ จึงบันทึกเป็นขาดงานไม่ได้',
       };
     }
   }

@@ -57,6 +57,11 @@ const SETTLEMENT_ERROR_TH: Record<string, string> = {
   'insufficient-balance': 'สิทธิวันลาคงเหลือไม่พอ',
   'unsupported-salary-type': 'พนักงานประเภทเงินเดือนนี้ยังไม่รองรับการหักค่าปรับ จึงหักสิทธิวันลาแทนไม่ได้',
   'exceeds-penalty': 'หักสิทธิได้ไม่เกินโทษจริงของเดือนนี้',
+  // Defect 3: not reachable from this page today (this form's employee
+  // picker already excludes archived employees) — kept as a label for
+  // defense-in-depth against a stale/refused server round-trip, same
+  // reasoning as 'unsupported-salary-type' above.
+  'employee-archived': 'พนักงานถูกเก็บเข้าคลังแล้ว ไม่สามารถหักสิทธิวันลาได้',
   // Defect 1: same non-blocking lock + short-retry `busy` outcome as
   // reconcile-rows.tsx — see the identical entry there.
   busy: 'มีแอดมินอีกคนกำลังคำนวณหรือเผยแพร่เงินเดือนเดือนนี้อยู่ กรุณาลองใหม่อีกครั้ง',

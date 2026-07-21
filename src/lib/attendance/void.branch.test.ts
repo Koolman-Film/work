@@ -38,6 +38,13 @@ const attendanceFindFirstRaw = vi.fn();
 const attendanceFindUnique = vi.fn();
 const attendanceUpdate = vi.fn();
 const transactionFn = vi.fn();
+// Defect 1: voidAttendance now checks PayrollConfig to derive the row's
+// payroll month before deciding whether a live settlement would be
+// stranded. Defaulting to `null` (no config row) short-circuits that new
+// guard entirely — see void.ts's `if (payrollCfg)` — so these pre-existing
+// branch-scope tests exercise exactly what they did before, unaffected by
+// Defect 1's new query.
+const payrollConfigFindFirst = vi.fn().mockResolvedValue(null);
 
 vi.mock('@/lib/db/prisma', () => ({
   prismaRaw: {
@@ -49,6 +56,9 @@ vi.mock('@/lib/db/prisma', () => ({
   prisma: {
     attendance: {
       findUnique: (...a: unknown[]) => attendanceFindUnique(...a),
+    },
+    payrollConfig: {
+      findFirst: (...a: unknown[]) => payrollConfigFindFirst(...a),
     },
     $transaction: (...a: unknown[]) => transactionFn(...a),
   },
