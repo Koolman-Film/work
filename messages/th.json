@@ -232,6 +232,7 @@
     "leave": {
       "title": "วันลาปี {year}",
       "remaining": "คงเหลือ {d}",
+      "penaltySettled": "หักเป็นค่าปรับ {d}",
       "unlimited": "ไม่จำกัด",
       "deducted": "หักเงิน {amount}"
     },
@@ -535,6 +536,9 @@
       "sso": "ประกันสังคม",
       "advance": "เบิกล่วงหน้า",
       "attendance": "ขาด/สาย/ออกก่อน",
+      "settledAbsent": "ขาดงาน — หักจากสิทธิ{leaveType} {days} วัน",
+      "settledLateThreeStrike": "มาสายครบกำหนด — หักจากสิทธิ{leaveType} {days} วัน",
+      "settledSevereLate": "มาสายรุนแรง — หักจากสิทธิ{leaveType} {days} วัน",
       "leave": "ลาเกินสิทธิ",
       "debt": "หนี้/ผ่อนชำระ",
       "other": "รายการหักอื่นๆ",

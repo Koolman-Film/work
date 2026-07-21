@@ -187,6 +187,7 @@
     "leave": {
       "title": "ច្បាប់ឈប់ {year}",
       "remaining": "នៅសល់ {d}",
+      "penaltySettled": "កាត់ជាទណ្ឌកម្ម {d}",
       "unlimited": "គ្មានកំណត់",
       "deducted": "កាត់ប្រាក់ {amount}"
     },
@@ -490,6 +491,9 @@
       "sso": "ធានារ៉ាប់រងសង្គម",
       "advance": "បើកប្រាក់មុន",
       "attendance": "អវត្តមាន/មកយឺត",
+      "settledAbsent": "អវត្តមាន — កាត់ចេញ {days} ថ្ងៃពី {leaveType}",
+      "settledLateThreeStrike": "មកយឺតដល់កំណត់បីដង — កាត់ចេញ {days} ថ្ងៃពី {leaveType}",
+      "settledSevereLate": "មកយឺតធ្ងន់ធ្ងរ — កាត់ចេញ {days} ថ្ងៃពី {leaveType}",
       "leave": "ច្បាប់ឈប់លើសកំណត់",
       "debt": "បំណុល/បង់រំលស់",
       "other": "ការកាត់ផ្សេងទៀត",

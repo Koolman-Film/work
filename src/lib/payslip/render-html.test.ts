@@ -1,6 +1,8 @@
 // src/lib/payslip/render-html.test.ts
 import { describe, expect, it } from 'vitest';
+import { localizedLeaveTypeName } from '@/lib/leave/localized-name';
 import en from '../../../messages/en.json';
+import my from '../../../messages/my.json';
 import { buildPayslipHtml } from './render-html';
 import type { PayslipDocument } from './types';
 
@@ -214,5 +216,69 @@ describe('buildPayslipHtml — per-branch letterhead + branch localization', () 
       { ...opts, locale: 'th', companyEn: 'X', companyNative: 'Y' },
     );
     expect(th).toContain('เชียงใหม่');
+  });
+});
+
+describe('buildPayslipHtml — settled-with-leave note is locale-aware', () => {
+  // Regression guard for the finding this branch fixes: document.ts used to
+  // bake the whole sentence — including the leave-type name — into a
+  // hardcoded Thai literal `label`, so every employee saw it in Thai
+  // regardless of their own locale. It must now go through `labelKey` +
+  // `vars` (resolved per-locale, like every other system-authored line) with
+  // the leave-type name localized via `localizedLeaveTypeName`.
+  it('renders the my.json translation for a non-Thai employee, not the hardcoded Thai sentence', () => {
+    const leaveType = { name: 'ลาพักร้อน', nameByLocale: { my: 'ခွင့်ရက်အထူး' } };
+    const settledDoc: PayslipDocument = {
+      ...doc,
+      deduct: {
+        lines: [
+          {
+            key: 'settledAbsent',
+            labelKey: 'deduct.settledAbsent',
+            vars: { days: 1 },
+            leaveType,
+            amount: 0,
+            detail: null,
+          },
+        ],
+        total: 0,
+      },
+    };
+
+    const resolveMy = (path: string, vars?: Record<string, string | number>): string => {
+      const v = path
+        .split('.')
+        .reduce<unknown>((o, k) => (o as Record<string, unknown>)?.[k], my as unknown);
+      if (typeof v !== 'string') throw new Error(`missing message: ${path}`);
+      return v.replace(/\{(\w+)\}/g, (_, k) => String(vars?.[k] ?? `{${k}}`));
+    };
+    // Isolate: only the primary (employee-locale) line uses real translations
+    // — the reference line just echoes its key, so any Thai text found in
+    // the output can only have leaked in via the primary line.
+    const echoTRef = (k: string) => k;
+
+    const html = buildPayslipHtml(settledDoc, {
+      locale: 'my',
+      t: resolveMy,
+      tRef: echoTRef,
+      money: (n) => `฿${n.toFixed(2)}`,
+      fontFace: '/*f*/',
+      logoSvg: '<svg/>',
+      periodLabel: 'ယခုလ',
+      generatedAt: '2026-07-01',
+      companyEn: 'Koolman Co., Ltd.',
+      companyNative: 'บริษัท คูลแมน จำกัด',
+    });
+
+    const expectedMyText = resolveMy('payslip.deduct.settledAbsent', {
+      days: 1,
+      leaveType: localizedLeaveTypeName(leaveType.name, leaveType.nameByLocale, 'my'),
+    });
+    expect(expectedMyText).toContain('ခွင့်ရက်အထူး'); // sanity: the localized name was actually used
+    expect(html).toContain(expectedMyText);
+    // Must not be the hardcoded Thai sentence the pre-fix implementation
+    // baked into a literal `label` regardless of the employee's locale.
+    expect(html).not.toContain('ขาดงาน — หักจากสิทธิลาพักร้อน 1 วัน');
+    expect(html).not.toContain('ลาพักร้อน'); // Thai leave-type name must not leak into a my-locale slip
   });
 });

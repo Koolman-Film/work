@@ -248,6 +248,67 @@ describe('createManualAttendance — already-checked-in guard', () => {
   });
 });
 
+describe('createManualAttendance — on-leave guard (Defect 2)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    requirePermission.mockResolvedValue({ user: { id: 'actor-id' } });
+    getUserAssignments.mockResolvedValue(globalActorAssignments());
+    payrollConfigFindFirst.mockResolvedValue(null);
+    holidayFindFirst.mockResolvedValue(null);
+    attendanceCreate.mockImplementation(async (args: { data: { type: string } }) => ({
+      id: `att-${args.data.type}`,
+      type: args.data.type,
+    }));
+    employeeFindUnique.mockResolvedValue({ ...baseEmployee, workSchedule: null });
+  });
+
+  /** No CheckIn (so the earlier guard never fires); an OnLeave row exists
+   *  for whatever `hasOnLeave` says. */
+  function mockOnLeave(hasOnLeave: boolean) {
+    attendanceFindFirst.mockImplementation(async (args: { where: { type: string } }) => {
+      if (args.where.type === 'CheckIn') return null;
+      if (args.where.type === 'OnLeave') return hasOnLeave ? { id: 'existing-leave' } : null;
+      return null;
+    });
+  }
+
+  it('rejects kind:absent when a non-deleted OnLeave row exists for that employee+date', async () => {
+    mockOnLeave(true);
+
+    const result = await createManualAttendance({
+      employeeId: 'emp-1',
+      date: WEDNESDAY,
+      kind: 'absent',
+    });
+
+    expect(result).toEqual({ ok: false, code: 'on-leave', message: expect.any(String) });
+    expect(attendanceCreate).not.toHaveBeenCalled();
+  });
+
+  it('allows kind:absent when no OnLeave row exists', async () => {
+    mockOnLeave(false);
+    attendanceCreate.mockResolvedValue({ id: 'new-absent', type: 'Absent' });
+
+    const result = await createManualAttendance({
+      employeeId: 'emp-1',
+      date: WEDNESDAY,
+      kind: 'absent',
+    });
+
+    expect(result).toEqual({ ok: true, ids: ['new-absent'] });
+    expect(attendanceCreate).toHaveBeenCalledOnce();
+  });
+
+  it('does not block kind:worked when an OnLeave row exists that day (only absent is scoped)', async () => {
+    mockOnLeave(true);
+
+    const result = await createManualAttendance(baseInput); // kind: 'worked'
+
+    expect(result.ok).toBe(true);
+    expect(attendanceCreate).toHaveBeenCalled();
+  });
+});
+
 describe('createManualAttendance — input validation', () => {
   beforeEach(() => {
     vi.clearAllMocks();

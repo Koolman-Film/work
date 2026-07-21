@@ -15,6 +15,7 @@ import {
   type PublishResult,
   payrollRowDetail,
   publishPayroll,
+  type RunResult,
   runPayrollDraft,
 } from '@/lib/payroll/run';
 import { warmPublishedPayslips } from '@/lib/payslip/warm';
@@ -59,16 +60,50 @@ function readMonth(formData: FormData): string {
   return month;
 }
 
-function back(month: string, msg: string): never {
+/**
+ * Redirect back to the payroll page carrying a status message.
+ *
+ * `severity` decides which visual treatment page.tsx renders the message
+ * with: 'success' (default) is the green banner used for a clean, complete
+ * result; 'alert' reuses the SAME amber/`role="alert"` treatment the page
+ * already renders for its stale-draft warning — for a partial result (some
+ * employees held back) or an outright failure, where the green treatment
+ * would read as "everything is fine" to a skimming admin when it isn't.
+ */
+function back(month: string, msg: string, severity: 'success' | 'alert' = 'success'): never {
   revalidatePath('/admin/payroll');
-  redirect(`/admin/payroll?m=${month}&msg=${encodeURIComponent(msg)}`);
+  const sevQs = severity === 'alert' ? '&sev=alert' : '';
+  redirect(`/admin/payroll?m=${month}&msg=${encodeURIComponent(msg)}${sevQs}`);
 }
 
 export async function calculatePayrollAction(formData: FormData) {
   const { user } = await requireGlobalPermission('payroll.run');
   const month = readMonth(formData);
 
-  const result = await runPayrollDraft(month);
+  let result: RunResult;
+  try {
+    result = await runPayrollDraft(month);
+  } catch (err) {
+    // Unhandled, this rejects the server action and surfaces as a generic
+    // error boundary instead of an actionable message — the same gap
+    // publishOnePayrollAction below already closes for its own publish call.
+    // Most likely cause now that runPayrollDraft holds the month's advisory
+    // lock across a full recompute: a concurrent settle/publish/recalculate
+    // for the same month held the lock long enough to exhaust this
+    // transaction's `timeout` (see run.ts's "Transaction timeout" note).
+    console.error('calculatePayrollAction: run failed', err);
+    back(month, 'คำนวณเงินเดือนไม่สำเร็จ ระบบอาจกำลังประมวลผลรายการอื่นอยู่ กรุณาลองใหม่อีกครั้ง', 'alert');
+  }
+
+  // Defect 1: the month's advisory lock (month-lock.ts) is now acquired
+  // non-blocking, so a concurrent settle/publish/recalculate on this same
+  // month returns a clean `busy` result instead of this call queueing for
+  // up to its whole `timeout` and possibly still throwing P2028. Surfaced
+  // as an actionable Thai message rather than falling through to the audit
+  // log below with all-zero counts.
+  if (result.busy) {
+    back(month, 'มีแอดมินอีกคนกำลังคำนวณหรือเผยแพร่เงินเดือนเดือนนี้อยู่ กรุณาลองใหม่อีกครั้ง', 'alert');
+  }
 
   auditLog({
     actorId: user.id,
@@ -106,10 +141,32 @@ export async function publishPayrollAction(formData: FormData) {
   // Publishing stamps sweep rows early — block future months so a
   // mis-clicked navigator can't lock those in ahead of time.
   if (month > currentMonthBkk()) {
-    back(month, 'ยังเผยแพร่เดือนล่วงหน้าไม่ได้ — เผยแพร่ได้ไม่เกินเดือนปัจจุบัน');
+    back(month, 'ยังเผยแพร่เดือนล่วงหน้าไม่ได้ — เผยแพร่ได้ไม่เกินเดือนปัจจุบัน', 'alert');
   }
 
-  const result = await publishPayroll(month);
+  let result: PublishResult;
+  try {
+    result = await publishPayroll(month);
+  } catch (err) {
+    // Unhandled, this rejects the server action and surfaces as a generic
+    // error boundary — the gap Defect 1 closes. publishPayroll now has its
+    // own explicit transaction budget at least as large as
+    // runPayrollDraft's (see run.ts), so this is no longer the routine "lost
+    // the budget race against a concurrent คำนวณ" case it used to be, but a
+    // transaction can still fail (contention, a genuine DB hiccup) and must
+    // not crash the action — mirrors publishOnePayrollAction below.
+    console.error('publishPayrollAction: publish failed', err);
+    back(month, 'เผยแพร่สลิปไม่สำเร็จ กรุณาลองใหม่อีกครั้ง', 'alert');
+  }
+
+  // Defect 1: same non-blocking-lock `busy` outcome as calculatePayrollAction
+  // above — another admin's settle/publish/recalculate holds this month's
+  // lock right now. Nothing was published, so bail before the audit log and
+  // slip-warming below (both would otherwise report a no-op as a success).
+  if (result.busy) {
+    back(month, 'มีแอดมินอีกคนกำลังคำนวณหรือเผยแพร่เงินเดือนเดือนนี้อยู่ กรุณาลองใหม่อีกครั้ง', 'alert');
+  }
+
   // No automatic per-employee LINE push here anymore — employees read
   // their slip from the LINE rich menu instead (quota reduction).
   await scheduleSlipWarming(month, result.published);
@@ -123,8 +180,27 @@ export async function publishPayrollAction(formData: FormData) {
       source: 'admin-ui',
       published: result.published.length,
       skipped: result.skipped,
+      blocked: result.blocked,
     },
   });
+
+  // Defect-3 guard (run.ts): each named employee below carries a live
+  // settlement that outlived the penalty that justified it (a late-penalty
+  // rule toggled off, a voided attendance row, a corrected absence).
+  // Publishing them would freeze that settlement uneditable forever, so
+  // THOSE employees were held back — everyone else above published
+  // normally (this is a per-employee skip, not a whole-month hard stop; see
+  // `blocked` on `PublishResult`). The named employees stay in Draft: clear
+  // or adjust the settlement on the reconcile page, then publish again
+  // (the whole month, or just that row) to pick them up.
+  if (result.blocked.length > 0) {
+    const names = [...new Set(result.blocked.map((b) => b.name))].join(', ');
+    back(
+      month,
+      `เผยแพร่สลิป ${result.published.length} คนแล้ว — ยกเว้น ${names} ที่มีการหักสิทธิวันลาเกินโทษจริง ไปแก้ไขหรือยกเลิกการหักสิทธิที่หน้ากระทบยอดก่อน แล้วเผยแพร่ใหม่อีกครั้ง`,
+      'alert',
+    );
+  }
 
   back(month, `เผยแพร่สลิป ${result.published.length} คนแล้ว`);
 }
@@ -171,9 +247,36 @@ export async function createRowAdjustment(formData: FormData) {
     metadata: { source: 'admin-ui', via: 'payroll-row-modal' },
   });
 
-  await runPayrollDraft(month);
+  // Defect 3: the adjustment above is already committed — a throw (or a
+  // `busy` lock-contention result) from the recalculation below must NEVER
+  // reject this action. `payrollAdjustment` has no idempotency key, so an
+  // admin who sees an error screen after the write already succeeded will
+  // resubmit the same form and create a SECOND adjustment for the same
+  // reason/amount — a real double-charge, not just a confusing message.
+  // Mirrors `recalculateAfterSettlement` (reconcile/actions.ts), which the
+  // wave that added it explicitly cited this function as the precedent for.
+  let recalcPending = false;
+  try {
+    const result = await runPayrollDraft(month);
+    if (result.busy) recalcPending = true; // lock contended — not an error
+  } catch (err) {
+    console.error(
+      'createRowAdjustment: runPayrollDraft failed after adjustment already committed',
+      err,
+    );
+    recalcPending = true;
+  }
+
   revalidatePath('/admin/payroll/adjustments');
-  back(month, `เพิ่ม${data.kind === 'Income' ? 'เงินเพิ่ม' : 'เงินลด'} "${data.reason}" และคำนวณใหม่แล้ว`);
+  const label = `${data.kind === 'Income' ? 'เงินเพิ่ม' : 'เงินลด'} "${data.reason}"`;
+  if (recalcPending) {
+    back(
+      month,
+      `บันทึก${label}เรียบร้อยแล้ว แต่คำนวณฉบับร่างใหม่ไม่สำเร็จ — ไปกด "คำนวณ" อีกครั้งที่หน้าเงินเดือน`,
+      'alert',
+    );
+  }
+  back(month, `เพิ่ม${label}และคำนวณใหม่แล้ว`);
 }
 
 /**
@@ -208,7 +311,30 @@ export async function deleteRowAdjustment(
     metadata: { source: 'admin-ui', via: 'payroll-row-modal' },
   });
 
-  await runPayrollDraft(month);
+  // Defect 3 (same shape as createRowAdjustment above): the soft-delete
+  // already committed — a throw here is not corrupting (a retry finds the
+  // row already gone), but it MUST NOT make this function report a
+  // completed delete as a failure. ConfirmDialog (confirm-dialog.tsx) has
+  // no try/catch around `await action(...)`, so an uncaught rejection here
+  // would surface as a crashed transition instead of the clean `{ok:true}`
+  // this delete actually earned. The Draft numbers simply stay stale until
+  // the admin next presses "คำนวณ" — same fallback `recalcPending` accepts
+  // elsewhere; there is no field on `ActionResult` to surface a pending
+  // note through, so this only logs server-side.
+  try {
+    const result = await runPayrollDraft(month);
+    if (result.busy) {
+      console.warn('deleteRowAdjustment: runPayrollDraft busy after delete already committed', {
+        month,
+      });
+    }
+  } catch (err) {
+    console.error(
+      'deleteRowAdjustment: runPayrollDraft failed after delete already committed',
+      err,
+    );
+  }
+
   revalidatePath('/admin/payroll');
   revalidatePath('/admin/payroll/adjustments');
   return { ok: true };
@@ -330,6 +456,29 @@ export async function publishOnePayrollAction(
   } catch (err) {
     console.error('publishOnePayrollAction: publish failed', err);
     return { ok: false, message: 'เกิดข้อผิดพลาดในการเผยแพร่ กรุณาลองใหม่' };
+  }
+
+  // Defect 1: the month's lock (month-lock.ts) is held by another admin's
+  // settle/publish/recalculate right now. Checked BEFORE the "nothing to
+  // publish" branch below — a `busy` result also has an empty `published`,
+  // and would otherwise be misreported as "already published" instead of
+  // "try again".
+  if (result.busy) {
+    return { ok: false, message: 'มีแอดมินอีกคนกำลังคำนวณหรือเผยแพร่เงินเดือนเดือนนี้อยู่ กรุณาลองใหม่อีกครั้ง' };
+  }
+
+  // Defect-3 guard (run.ts): this call's scope is the ONE target employee —
+  // there is no "everyone else" for it to publish instead, so a non-empty
+  // `blocked` here means THIS employee's live settlement outlived the
+  // penalty that justified it, and refusing them is the whole outcome of
+  // this call (contrast publishPayrollAction above, which still publishes
+  // every other employee in the month around a blocked one).
+  if (result.blocked.length > 0) {
+    return {
+      ok: false,
+      message:
+        'เผยแพร่ไม่สำเร็จ: พนักงานคนนี้มีการหักสิทธิวันลาเกินโทษจริงของเดือนนี้ — ไปแก้ไขหรือยกเลิกการหักสิทธิที่หน้ากระทบยอดก่อนเผยแพร่',
+    };
   }
   if (result.published.length === 0) {
     return { ok: false, message: 'ไม่มีสลิปฉบับร่างให้เผยแพร่ (อาจเผยแพร่ไปแล้ว)' };

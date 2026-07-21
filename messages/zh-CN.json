@@ -187,6 +187,7 @@
     "leave": {
       "title": "{year} 年请假",
       "remaining": "剩余 {d}",
+      "penaltySettled": "已作罚款扣除 {d}",
       "unlimited": "不限",
       "deducted": "扣款 {amount}"
     },
@@ -490,6 +491,9 @@
       "sso": "社会保险",
       "advance": "预支工资",
       "attendance": "缺勤/迟到/早退",
+      "settledAbsent": "缺勤 — 从{leaveType}扣除{days}天",
+      "settledLateThreeStrike": "迟到三次记满 — 从{leaveType}扣除{days}天",
+      "settledSevereLate": "严重迟到 — 从{leaveType}扣除{days}天",
       "leave": "超额请假",
       "debt": "借款/分期",
       "other": "其他扣款",

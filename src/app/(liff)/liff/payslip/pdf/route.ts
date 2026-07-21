@@ -46,7 +46,7 @@ export async function GET(req: Request): Promise<Response> {
           buildPayslipHtml(doc, {
             locale,
             t: (k, v) => t(k as Parameters<typeof t>[0], v as Parameters<typeof t>[1]),
-            tRef: (k) => tRef(k as Parameters<typeof tRef>[0]),
+            tRef: (k, v) => tRef(k as Parameters<typeof tRef>[0], v as Parameters<typeof tRef>[1]),
             money: (n) => formatMoney(n, locale),
             fontFace: fontFaceCss(locale),
             logoSvg: letterhead.logoHtml,

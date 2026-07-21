@@ -90,6 +90,9 @@ export const ACTION_LABELS: Record<AuditAction, string> = {
   'payrollAdjustment.create': 'เพิ่มรายการปรับเงินเดือน',
   'payrollAdjustment.edit': 'แก้ไขรายการปรับเงินเดือน',
   'payrollAdjustment.delete': 'ลบรายการปรับเงินเดือน',
+  'penaltySettlement.create': 'หักสิทธิวันลาชดเชยค่าปรับ',
+  'penaltySettlement.update': 'แก้ไขการหักสิทธิวันลาชดเชยค่าปรับ',
+  'penaltySettlement.clear': 'ยกเลิกการหักสิทธิวันลาชดเชยค่าปรับ',
 };
 
 /** Entity type → Thai noun. */
@@ -114,6 +117,7 @@ export const ENTITY_TYPE_LABELS: Record<AuditEntityType, string> = {
   Payroll: 'เงินเดือน',
   PayrollAdjustment: 'ปรับเงินเดือน',
   RecurringDeduction: 'หักประจำ',
+  AttendancePenaltySettlement: 'การหักสิทธิวันลาชดเชยค่าปรับ',
 };
 
 /** Actions that move money, change access, or destroy data — badged in the UI. */

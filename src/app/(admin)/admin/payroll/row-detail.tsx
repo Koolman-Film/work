@@ -4,6 +4,17 @@ import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { type ActionResult, ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Dialog } from '@/components/ui/dialog';
+import { moneyDaysFor } from '@/lib/payroll/penalty-settlement';
+
+/**
+ * `หักจากสิทธิ{leaveType} {days} วัน` — the same phrase `document.ts` uses on
+ * the employee's LIFF payslip (`payslip.deduct.settled*` in messages/th.json)
+ * for a penalty settled with leave, so the two surfaces read consistently.
+ */
+function settledNote(settledDays: number, leaveTypeName: string | null): string {
+  if (settledDays <= 0) return '';
+  return ` (หักจากสิทธิ${leaveTypeName ?? 'วันลา'} ${settledDays} วัน)`;
+}
 
 export type RowDetailVM = import('@/lib/payroll/run').PayrollRowDetail;
 export type FrozenSlipVM = {
@@ -262,28 +273,31 @@ export function RowDetail({
                       value={`-${detail.breakdown.sso.applied}`}
                     />
                   )}
-                  {detail.breakdown.attendance.absent.money !== '0.00' && (
+                  {(detail.breakdown.attendance.absent.money !== '0.00' ||
+                    detail.breakdown.attendance.absent.settledDays > 0) && (
                     <Line
                       label="ขาดงาน"
-                      formula={`${detail.breakdown.attendance.absent.count} วัน × ${detail.breakdown.attendance.absent.perDay}`}
+                      formula={`${moneyDaysFor(detail.breakdown.attendance.absent.count, detail.breakdown.attendance.absent.settledDays)} วัน × ${detail.breakdown.attendance.absent.perDay}${settledNote(detail.breakdown.attendance.absent.settledDays, detail.breakdown.attendance.absent.leaveTypeName)}`}
                       value={`-${detail.breakdown.attendance.absent.money}`}
                     />
                   )}
-                  {detail.breakdown.attendance.lateTier1.money !== '0.00' && (
+                  {(detail.breakdown.attendance.lateTier1.money !== '0.00' ||
+                    detail.breakdown.attendance.lateTier1.settledDays > 0) && (
                     <Line
                       label="มาสาย"
                       formula={
                         detail.breakdown.attendance.lateTier1.mode === 'threeStrike'
-                          ? `${detail.breakdown.attendance.lateTier1.count} ครั้ง → ${detail.breakdown.attendance.lateTier1.days} วัน × ${detail.breakdown.attendance.lateTier1.perUnit}`
+                          ? `${detail.breakdown.attendance.lateTier1.count} ครั้ง → ${moneyDaysFor(detail.breakdown.attendance.lateTier1.days ?? 0, detail.breakdown.attendance.lateTier1.settledDays)} วัน × ${detail.breakdown.attendance.lateTier1.perUnit}${settledNote(detail.breakdown.attendance.lateTier1.settledDays, detail.breakdown.attendance.lateTier1.leaveTypeName)}`
                           : `${detail.breakdown.attendance.lateTier1.count} ครั้ง × ${detail.breakdown.attendance.lateTier1.perUnit}`
                       }
                       value={`-${detail.breakdown.attendance.lateTier1.money}`}
                     />
                   )}
-                  {detail.breakdown.attendance.lateSevere.money !== '0.00' && (
+                  {(detail.breakdown.attendance.lateSevere.money !== '0.00' ||
+                    detail.breakdown.attendance.lateSevere.settledDays > 0) && (
                     <Line
                       label="มาสายรุนแรง"
-                      formula={`${detail.breakdown.attendance.lateSevere.days} วัน × ${detail.breakdown.attendance.lateSevere.perDay}`}
+                      formula={`${moneyDaysFor(detail.breakdown.attendance.lateSevere.days, detail.breakdown.attendance.lateSevere.settledDays)} วัน × ${detail.breakdown.attendance.lateSevere.perDay}${settledNote(detail.breakdown.attendance.lateSevere.settledDays, detail.breakdown.attendance.lateSevere.leaveTypeName)}`}
                       value={`-${detail.breakdown.attendance.lateSevere.money}`}
                     />
                   )}

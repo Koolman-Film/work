@@ -22,6 +22,22 @@ import { prisma } from '@/lib/db/prisma';
 import { AttendanceTabs } from '../attendance-tabs';
 import { ManualAttendanceForm } from './manual-form';
 
+/**
+ * Defect 2 (run.ts / month-lock.ts): a settlement made from this form
+ * (`setManualAttendanceSettlement`, reconcile/actions.ts) calls
+ * `runPayrollDraft`, which now runs with an explicit `timeout` of up to 10s
+ * plus a 5s `maxWait` pool-acquisition budget (payroll/run.ts). This page
+ * isn't nested under /admin/payroll, so it doesn't inherit that segment's
+ * `maxDuration` — set it here directly, same reasoning and same value (60s,
+ * matching the lighter tier the five existing PDF/zip/export route handlers
+ * already use) as admin/payroll/layout.tsx.
+ */
+export const maxDuration = 60;
+
+/** Matches `PayrollConfig.cutoffDay`'s schema default — same fallback the
+ *  attendance settings page uses when the singleton config row is missing. */
+const DEFAULT_CUTOFF_DAY = 25;
+
 /** Today's Bangkok calendar date, at UTC midnight (matches @db.Date). */
 function holidayWindowEnd(): Date {
   return bangkokDateUtcMidnight(new Date());
@@ -43,7 +59,7 @@ export default async function ManualAttendancePage() {
   const { user } = await requirePermission('attendance.manual-create');
   const permitted = await getPermittedBranches(user, 'attendance.manual-create');
 
-  const [employees, payrollCfg, holidays] = await Promise.all([
+  const [employees, payrollCfg, holidays, canSettle] = await Promise.all([
     prisma.employee.findMany({
       where: {
         archivedAt: null,
@@ -75,6 +91,7 @@ export default async function ManualAttendancePage() {
         earlyLeaveDeduction: true,
         otThresholdMinutes: true,
         workingDaysPerMonth: true,
+        cutoffDay: true,
       },
     }),
     // This form only ever accepts today or an earlier date, so a lookback
@@ -85,7 +102,34 @@ export default async function ManualAttendancePage() {
       where: { archivedAt: null, date: { gte: holidayWindowStart(), lte: holidayWindowEnd() } },
       select: { date: true },
     }),
+    // Settling a penalty with leave needs `payroll.run`, separate from the
+    // `attendance.manual-create` permission that gates this whole page — an
+    // admin may hold one and not the other. When they lack it, the choice
+    // must not render at all (not a disabled control): they record the
+    // absence and someone with payroll rights settles it later on the
+    // reconcile page. Checked the same way the server action's
+    // `requireGlobalPermission('payroll.run')` decides (GLOBAL only) —
+    // `canDo` alone would admit a branch-scoped grant (e.g. the
+    // branch-scoped system Admin role) and render a control the server
+    // then refuses with `notFound()`.
+    getPermittedBranches(user, 'payroll.run').then((permitted) => permitted === 'all'),
   ]);
+
+  // Eligible leave types. Skipped entirely when the admin can't settle — no
+  // point loading data that never renders. Remaining balances are NOT
+  // precomputed here: which leave YEAR a balance is checked against depends
+  // on the entry's own (possibly backdated) date, not today's — so the form
+  // fetches balances itself, per employee/date, via
+  // `getPenaltyLeaveBalance` (penalty-settlement-admin.ts), the same
+  // payroll-year math `setPenaltySettlement` enforces.
+  let penaltyLeaveTypes: { id: string; name: string }[] = [];
+  if (canSettle) {
+    penaltyLeaveTypes = await prisma.leaveType.findMany({
+      where: { archivedAt: null, penaltySettlementAllowed: true },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    });
+  }
 
   return (
     <div className="px-4 py-6 sm:px-6 lg:px-8">
@@ -131,6 +175,12 @@ export default async function ManualAttendancePage() {
               otThresholdMinutes={payrollCfg?.otThresholdMinutes ?? 30}
               // Same fallback dailyRateFor uses when the divisor is missing/invalid.
               workingDaysPerMonth={payrollCfg?.workingDaysPerMonth ?? 30}
+              // Same fallback the attendance settings page uses when the
+              // PayrollConfig row is missing; needed client-side to resolve
+              // which pay-period month a settlement's absence date belongs to.
+              cutoffDay={payrollCfg?.cutoffDay ?? DEFAULT_CUTOFF_DAY}
+              canSettle={canSettle}
+              penaltyLeaveTypes={penaltyLeaveTypes}
             />
           </CardBody>
         </Card>

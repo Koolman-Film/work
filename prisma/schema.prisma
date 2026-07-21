@@ -126,6 +126,12 @@ enum NotifChannel {
   InAppBell
 }
 
+enum PenaltyKind {
+  Absent
+  LateThreeStrike
+  SevereLate
+}
+
 // ─── Identity & roles ──────────────────────────────────────────────────────
 
 /// One row per humans-with-app-access. Mirrors the Supabase auth.users row
@@ -452,6 +458,7 @@ model Employee {
   payrolls            Payroll[]
   recurringDeductions RecurringDeduction[]
   payrollAdjustments  PayrollAdjustment[]
+  penaltySettlements  AttendancePenaltySettlement[]
 
   @@index([branchId])
   @@index([departmentId])
@@ -532,6 +539,17 @@ model LeaveType {
   archivedAt      DateTime?
   requests        LeaveRequest[]
   entitlements    LeaveEntitlement[]
+  penaltySettlements AttendancePenaltySettlement[]
+
+  /// May this leave type be spent to pay an attendance penalty?
+  ///
+  /// Defaults to false so a leave type added later is excluded until an admin
+  /// opts it in. Forgetting to enable a type is a visible inconvenience an
+  /// admin fixes in seconds; forgetting to disable one means the system can
+  /// consume an employee's sick or maternity leave as a punishment. The two
+  /// mistakes do not cost the same, so the default protects against the worse
+  /// one. Seeded true for ลากิจ and ลาพักร้อน only.
+  penaltySettlementAllowed Boolean @default(false)
 }
 
 /// Company-wide leave-unit configuration (singleton — read via findFirst()).
@@ -723,6 +741,50 @@ model Payroll {
   @@unique([employeeId, month])
   @@index([month])
   @@index([status])
+}
+
+/// One admin decision: "this month's <kind> penalty for this employee is paid
+/// with leave entitlement, not money."
+///
+/// No row = paid entirely with money = the behaviour that existed before this
+/// feature. Payroll calculation READS this table and never writes it, which is
+/// what makes recalculating safe: a calculation that wrote entitlement would
+/// consume a day of leave on every run, silently.
+///
+/// `days` and `minutes` describe the same penalty in two units and are BOTH
+/// frozen when the admin decides. `minutes = days * standardDayMinutes` is
+/// computed once, at write time, from the LeaveConfig in force then — never
+/// re-derived on read, so editing LeaveConfig later cannot retroactively change
+/// a settled penalty. The money side reads `days`; the leave side reads
+/// `minutes`; neither is ever computed from the other.
+model AttendancePenaltySettlement {
+  id          String      @id @default(uuid()) @db.Uuid
+  employeeId  String      @db.Uuid
+  employee    Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  /// Pay-period month "YYYY-MM" — the same label as Payroll.month.
+  month       String
+  kind        PenaltyKind
+  leaveTypeId String      @db.Uuid
+  leaveType   LeaveType   @relation(fields: [leaveTypeId], references: [id], onDelete: Restrict)
+  /// Whole days withheld from the money penalty. Decimal to match the payroll
+  /// module's money types, not to allow fractional days.
+  days        Decimal     @db.Decimal(5, 2)
+  /// Minutes charged against the leave entitlement.
+  minutes     Int
+  /// Leave year charged = calendar year of `month`'s label. Stored, never
+  /// re-derived, so a period spanning a year boundary can't be bucketed two
+  /// different ways by two different readers.
+  periodYear  Int
+  note        String?
+  createdById String?     @db.Uuid
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  deletedAt   DateTime?
+
+  @@unique([employeeId, month, kind])
+  @@index([employeeId, periodYear, leaveTypeId])
+  @@index([month])
+  @@index([deletedAt])
 }
 
 /// One overtime record per (employee, date). computedAmount is frozen at

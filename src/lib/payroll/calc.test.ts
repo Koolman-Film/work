@@ -583,6 +583,78 @@ describe('calcPayroll — a day off costs a day of YOUR pay', () => {
   });
 });
 
+describe('penalties settled with leave', () => {
+  /**
+   * Local shorthand matching the task brief's `calcInputWith({ absentDays, baseSalary })`.
+   * Builds on the file's existing `baseInput` fixture: turns `absentDays` into that
+   * many `Absent` attendance rows, and overrides the employee's baseSalary.
+   */
+  function calcInputWith(opts: { absentDays: number; baseSalary: string }): CalcInput {
+    return baseInput({
+      employee: { id: 'emp-1', salaryType: 'Monthly', baseSalary: opts.baseSalary, hasSso: true },
+      attendances: Array.from(
+        { length: opts.absentDays },
+        (_, i): AttendanceForPayroll => ({
+          date: `2026-05-${String(i + 1).padStart(2, '0')}`,
+          type: 'Absent',
+        }),
+      ),
+    });
+  }
+
+  it('charges no money for an absence settled with leave', () => {
+    // Monthly ฿30,000 with workingDaysPerMonth 30 → ฿1,000/day.
+    const base = calcInputWith({ absentDays: 1, baseSalary: '30000' });
+    expect(calcPayroll(base).deductAttendance.toString()).toBe('1000');
+
+    const settled = calcPayroll({
+      ...base,
+      penaltySettlement: { Absent: 1, LateThreeStrike: 0, SevereLate: 0 },
+    });
+    expect(settled.deductAttendance.toString()).toBe('0');
+  });
+
+  it('charges only the unsettled days', () => {
+    const r = calcPayroll({
+      ...calcInputWith({ absentDays: 3, baseSalary: '30000' }),
+      penaltySettlement: { Absent: 1, LateThreeStrike: 0, SevereLate: 0 },
+    });
+    expect(r.deductAttendance.toString()).toBe('2000');
+  });
+
+  it('never pays the employee when the settlement outlives the penalty', () => {
+    const r = calcPayroll({
+      ...calcInputWith({ absentDays: 0, baseSalary: '30000' }),
+      penaltySettlement: { Absent: 1, LateThreeStrike: 0, SevereLate: 0 },
+    });
+    expect(r.deductAttendance.toString()).toBe('0');
+  });
+
+  it('behaves exactly as before when no settlement is supplied', () => {
+    const base = calcInputWith({ absentDays: 2, baseSalary: '30000' });
+    expect(calcPayroll(base).deductAttendance.toString()).toBe('2000');
+  });
+
+  it('reports the settled days in the breakdown so the slip can explain itself', () => {
+    const r = calcPayroll({
+      ...calcInputWith({ absentDays: 1, baseSalary: '30000' }),
+      penaltySettlement: { Absent: 1, LateThreeStrike: 0, SevereLate: 0 },
+    });
+    expect(r.breakdown.attendance.settledDays.Absent).toBe(1);
+  });
+
+  it('breakdown.attendance.absent reflects the net money, not gross', () => {
+    // With 1 absence settled, the breakdown should show zero money
+    // (it was settled with leave, not charged), but still report the day count.
+    const r = calcPayroll({
+      ...calcInputWith({ absentDays: 1, baseSalary: '30000' }),
+      penaltySettlement: { Absent: 1, LateThreeStrike: 0, SevereLate: 0 },
+    });
+    expect(r.breakdown.attendance.absent.money.toString()).toBe('0');
+    expect(r.breakdown.attendance.absent.count).toBe(1);
+  });
+});
+
 describe('calcPayroll — config.workingDaysPerMonth threads through to the absence day rate', () => {
   const absent = [{ date: '2026-05-04', type: 'Absent' as const }];
 

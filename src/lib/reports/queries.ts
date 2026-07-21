@@ -19,6 +19,7 @@ import { advanceBalanceFor } from '@/lib/advance/available';
 import { employeeBranchScope, type PermittedBranches } from '@/lib/auth/branch-scope';
 import { prisma } from '@/lib/db/prisma';
 import { remainingByTypeForEmployees } from '@/lib/leave/balance';
+import { penaltyMinutesBy } from '@/lib/leave/penalty-minutes';
 import { computeLiveLeaveCharges } from '@/lib/leave/recompute';
 
 const utc = (ymd: string) => new Date(`${ymd}T00:00:00.000Z`);
@@ -190,6 +191,12 @@ export type LeaveReportRow = {
   byType: Record<string, LeaveReportCell>;
   /** leaveTypeId → annual remaining minutes (null = unlimited) */
   remainingByType: Record<string, number | null>;
+  /** leaveTypeId → minutes settled against an attendance penalty this year
+   *  (see penalty-minutes.ts). Already subtracted out of remainingByType but
+   *  NOT part of byType[].usedMinutes — surfaced separately so a caller
+   *  showing both used and remaining can display the gap instead of leaving
+   *  it unexplained. Presentation only. */
+  penaltyByType: Record<string, number>;
 };
 
 /**
@@ -253,9 +260,11 @@ export async function leaveReport(
   }
 
   const remainingAll = await remainingByTypeForEmployees(ids, year);
+  const penaltyAll = await penaltyMinutesBy(ids, year);
   const empty: LeaveReportCell = { usedMinutes: 0, overQuotaMinutes: 0, deductAmount: 0 };
   const rows: LeaveReportRow[] = employees.map((e) => {
     const byType: Record<string, LeaveReportCell> = {};
+    const penaltyByType: Record<string, number> = {};
     for (const t of types) {
       const key = `${e.id}:${t.id}`;
       const base = cellBy.get(key) ?? empty;
@@ -269,12 +278,14 @@ export async function leaveReport(
       } else {
         byType[t.id] = base;
       }
+      penaltyByType[t.id] = penaltyAll.get(key) ?? 0;
     }
     return {
       employeeId: e.id,
       name: displayName(e),
       byType,
       remainingByType: remainingAll[e.id] ?? {},
+      penaltyByType,
     };
   });
   return { rows, types: types.map((t) => ({ id: t.id, name: t.name })) };

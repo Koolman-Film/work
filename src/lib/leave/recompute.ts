@@ -18,6 +18,7 @@
 
 import { prisma } from '@/lib/db/prisma';
 import { perMinuteRate, replayOverQuota } from './over-quota';
+import { penaltyMinutesBy } from './penalty-minutes';
 import { segmentFor, standardDayMinutes } from './units';
 import { expandHolidaysWithSubstitutes, workingDaysIn } from './working-days';
 
@@ -128,6 +129,16 @@ export async function computeLiveLeaveCharges(
     else groups.set(key, [r]);
   }
 
+  // Bulk-fetch penalty-settled minutes per year (usually just one year), mirroring
+  // remainingByTypeForEmployees' use of penaltyMinutesBy — one groupBy query per
+  // distinct year instead of one query per employee:type:year group.
+  const allEmployeeIds = [...new Set(rows.map((r) => r.employeeId))];
+  const years = [...new Set(rows.map((r) => r.startDate.getUTCFullYear()))];
+  const penaltyByYear = new Map<number, Map<string, number>>();
+  for (const y of years) {
+    penaltyByYear.set(y, await penaltyMinutesBy(allEmployeeIds, y));
+  }
+
   const out: LiveLeaveCharge[] = [];
   for (const [key, g] of groups) {
     const parts = key.split(':');
@@ -157,12 +168,14 @@ export async function computeLiveLeaveCharges(
     const ordered = [...g].sort(
       (a, b) => (a.reviewedAt ?? a.createdAt).getTime() - (b.reviewedAt ?? b.createdAt).getTime(),
     );
+    const penalty = penaltyByYear.get(year)?.get(`${employeeId}:${leaveTypeId}`) ?? 0;
     const replayed = new Map(
       replayOverQuota(
         {
           grantedMinutes,
           carryoverMinutes: ent?.carryoverMinutes ?? 0,
           adjustmentMinutes: ent?.adjustmentMinutes ?? 0,
+          penaltyMinutes: penalty,
         },
         ordered.map((r) => ({ id: r.id, chargedMinutes: charged.get(r.id) ?? 0 })),
         rate,

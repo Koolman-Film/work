@@ -187,6 +187,7 @@
     "leave": {
       "title": "ခွင့် {year}",
       "remaining": "ကျန် {d}",
+      "penaltySettled": "ဒဏ်ငွေအဖြစ် {d} ဖြတ်တောက်ထားသည်",
       "unlimited": "ကန့်သတ်မရှိ",
       "deducted": "{amount} ဖြတ်တောက်"
     },
@@ -490,6 +491,9 @@
       "sso": "လူမှုဖူလုံရေး",
       "advance": "ကြိုတင်ထုတ်ငွေ",
       "attendance": "ပျက်ကွက်/နောက်ကျ",
+      "settledAbsent": "ပျက်ကွက်မှု — {leaveType} ခွင့်မှ {days} ရက် နုတ်ယူသည်",
+      "settledLateThreeStrike": "သုံးကြိမ်နောက်ကျမှု — {leaveType} ခွင့်မှ {days} ရက် နုတ်ယူသည်",
+      "settledSevereLate": "အလွန်အမင်းနောက်ကျမှု — {leaveType} ခွင့်မှ {days} ရက် နုတ်ယူသည်",
       "leave": "ခွင့်ကျော်လွန်",
       "debt": "အကြွေး/အရစ်ကျ",
       "other": "အခြားဖြတ်တောက်ငွေ",
