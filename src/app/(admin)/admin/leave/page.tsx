@@ -63,13 +63,18 @@ export default async function AdminLeaveInboxPage({
 
   // Branch-scoped inbox read (extracted to `_load-inbox` so it is testable
   // end-to-end), in parallel with the holiday + leave-config lookups.
-  const [{ rows, total }, holidays, leaveCfg] = await Promise.all([
+  const [{ rows, total }, holidays, leaveCfg, correctionTypeOptions] = await Promise.all([
     loadLeaveInbox({ permitted, status, q, isTrash, skip, take }),
     prisma.holiday.findMany({
       where: { archivedAt: null },
       select: { date: true, name: true },
     }),
     getLeaveConfig(),
+    prisma.leaveType.findMany({
+      where: { archivedAt: null, overQuotaPolicy: 'DeductPay' },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    }),
   ]);
 
   const meta = buildPageMeta(total, requestedPage);
@@ -291,7 +296,7 @@ export default async function AdminLeaveInboxPage({
               })}
             </ul>
           ) : (
-            <LeaveInbox rows={vm} />
+            <LeaveInbox rows={vm} correctionTypeOptions={correctionTypeOptions} />
           )}
         </CardBody>
       </Card>

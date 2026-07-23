@@ -5,6 +5,7 @@ import { STATUS_ICON, StatusBadge, type StatusKey } from '@/components/ui/status
 import { TranslatableText } from '@/components/ui/translatable-text';
 import { approveLeaveRequest, rejectLeaveRequest } from '@/lib/leave/admin';
 import { voidLeaveRequest } from '@/lib/leave/void';
+import { CorrectTypeSection } from './correct-type-section';
 
 /** Server-computed over-quota preview for a Pending row (UX only — the
  *  approve server action re-checks and is the real Block guard). */
@@ -64,10 +65,12 @@ export function LeaveReviewModal({
   row,
   onClose,
   onActioned,
+  correctionTypeOptions,
 }: {
   row: LeaveRowVM | null;
   onClose: () => void;
   onActioned?: () => void;
+  correctionTypeOptions?: Array<{ id: string; name: string }>;
 }) {
   const isPending = row?.status === 'Pending';
   return (
@@ -94,12 +97,26 @@ export function LeaveReviewModal({
       }
       onVoid={row ? (reason) => voidLeaveRequest(row.id, reason) : undefined}
     >
-      {row && <LeaveBody row={row} />}
+      {row && (
+        <LeaveBody
+          row={row}
+          correctionTypeOptions={correctionTypeOptions}
+          onActioned={onActioned}
+        />
+      )}
     </ReviewModal>
   );
 }
 
-function LeaveBody({ row }: { row: LeaveRowVM }) {
+function LeaveBody({
+  row,
+  correctionTypeOptions,
+  onActioned,
+}: {
+  row: LeaveRowVM;
+  correctionTypeOptions?: Array<{ id: string; name: string }>;
+  onActioned?: () => void;
+}) {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
@@ -163,6 +180,14 @@ function LeaveBody({ row }: { row: LeaveRowVM }) {
             />
           </a>
         </div>
+      )}
+      {row.correctable && correctionTypeOptions && (
+        <CorrectTypeSection
+          leaveRequestId={row.id}
+          currentTypeId={row.leaveTypeId}
+          options={correctionTypeOptions}
+          onDone={onActioned}
+        />
       )}
       {/* Over-quota preview (Pending only) — sits directly above the note field. */}
       {row.overQuota && (
