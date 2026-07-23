@@ -3,7 +3,11 @@
 import { Prisma } from '@prisma/client';
 import { headers } from 'next/headers';
 import { auditLogTx } from '@/lib/audit/log';
-import { canActOnEmployeeBranches, getPermittedBranches } from '@/lib/auth/branch-scope';
+import {
+  canActOnEmployeeBranches,
+  getPermittedBranches,
+  type PermittedBranches,
+} from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma, prismaRaw } from '@/lib/db/prisma';
 import {
@@ -24,7 +28,6 @@ type Ctx = {
   ripple: CorrectionRipple;
   oldTypeName: string;
   newTypeName: string;
-  employeeBranchIds: string[];
 };
 
 async function reqMeta() {
@@ -55,6 +58,7 @@ const REQ_SELECT = {
 async function loadCorrectionContext(
   leaveRequestId: string,
   newLeaveTypeId: string,
+  permitted: PermittedBranches,
 ): Promise<{ error: string } | Ctx> {
   const req = await prismaRaw.leaveRequest.findUnique({
     where: { id: leaveRequestId },
@@ -78,6 +82,13 @@ async function loadCorrectionContext(
     },
   });
   if (!req || req.deletedAt) return { error: 'ไม่พบคำขอลา' };
+
+  // Branch-scope check MUST happen before any state-specific guard below —
+  // otherwise an out-of-branch admin could learn a request's existence,
+  // paid-state, or policy from which error comes back. Matches void.ts.
+  const employeeBranchIds = [req.employee.branchId, ...req.employee.assignedBranchIds];
+  if (!canActOnEmployeeBranches(permitted, employeeBranchIds)) return { error: 'ไม่พบคำขอลา' };
+
   if (req.status !== 'Approved') return { error: 'แก้ประเภทได้เฉพาะคำขอที่อนุมัติแล้ว' };
   if (req.deductedInPayrollId != null) return { error: 'จ่ายแล้ว — แก้ไขไม่ได้' };
   if (req.leaveType.overQuotaPolicy !== 'DeductPay') return { error: 'ประเภทเดิมไม่รองรับการแก้' };
@@ -201,7 +212,6 @@ async function loadCorrectionContext(
     ripple,
     oldTypeName: req.leaveType.name,
     newTypeName: newType.name,
-    employeeBranchIds: [req.employee.branchId, ...req.employee.assignedBranchIds],
   };
 }
 
@@ -210,11 +220,9 @@ export async function previewLeaveTypeCorrection(
   newLeaveTypeId: string,
 ): Promise<CorrectionPreview> {
   const { user } = await requirePermission('leave.correct-type');
-  const ctx = await loadCorrectionContext(leaveRequestId, newLeaveTypeId);
-  if ('error' in ctx) return { ok: false, message: ctx.error };
   const permitted = await getPermittedBranches(user, 'leave.correct-type');
-  if (!canActOnEmployeeBranches(permitted, ctx.employeeBranchIds))
-    return { ok: false, message: 'ไม่พบคำขอลา' };
+  const ctx = await loadCorrectionContext(leaveRequestId, newLeaveTypeId, permitted);
+  if ('error' in ctx) return { ok: false, message: ctx.error };
   return {
     ok: true,
     ripple: ctx.ripple,
@@ -232,11 +240,9 @@ export async function correctLeaveType(input: {
   if (!note) return { ok: false, message: 'กรุณาระบุเหตุผล' };
 
   const { user } = await requirePermission('leave.correct-type');
-  const ctx = await loadCorrectionContext(input.leaveRequestId, input.newLeaveTypeId);
-  if ('error' in ctx) return { ok: false, message: ctx.error };
   const permitted = await getPermittedBranches(user, 'leave.correct-type');
-  if (!canActOnEmployeeBranches(permitted, ctx.employeeBranchIds))
-    return { ok: false, message: 'ไม่พบคำขอลา' };
+  const ctx = await loadCorrectionContext(input.leaveRequestId, input.newLeaveTypeId, permitted);
+  if ('error' in ctx) return { ok: false, message: ctx.error };
 
   const meta = await reqMeta();
   const { ripple, oldTypeName, newTypeName } = ctx;
