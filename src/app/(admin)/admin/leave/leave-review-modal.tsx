@@ -41,6 +41,11 @@ export type LeaveRowVM = {
   attachmentUrl: string | null;
   /** null for non-Pending rows (no preview computed). */
   overQuota: LeaveOverQuotaVM | null;
+  employeeId: string;
+  leaveTypeId: string;
+  /** Approved, not deleted, not yet paid, and a DeductPay type → an admin may
+   *  correct the type. Drives whether the correction UI renders. */
+  correctable: boolean;
 };
 
 function Badge({ row }: { row: LeaveRowVM }) {
