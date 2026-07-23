@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('next/headers', () => ({ headers: vi.fn().mockResolvedValue(new Map()) }));
@@ -130,6 +131,20 @@ describe('correctLeaveType — guards', () => {
     expect(r.ok).toBe(false);
     expect(leaveRequestUpdate).not.toHaveBeenCalled();
   });
+
+  it('refuses when the CURRENT type has a Block over-quota policy', async () => {
+    leaveRequestFindUnique.mockResolvedValue(
+      baseRequest({ leaveType: { name: 'ลาพักร้อน', overQuotaPolicy: 'Block' } }),
+    );
+    const r = await correctLeaveType({
+      leaveRequestId: 'req-1',
+      newLeaveTypeId: NEW_TYPE,
+      note: 'x',
+    });
+    expect(r).toEqual({ ok: false, message: expect.stringContaining('ประเภทเดิมไม่รองรับการแก้') });
+    expect(leaveRequestUpdate).not.toHaveBeenCalled();
+    expect(auditLogTx).not.toHaveBeenCalled();
+  });
 });
 
 describe('correctLeaveType — apply', () => {
@@ -149,6 +164,29 @@ describe('correctLeaveType — apply', () => {
     expect(movedCall![0].data.overQuotaMinutes).toBe(0);
     expect(auditLogTx).toHaveBeenCalledTimes(1);
     expect(auditLogTx.mock.calls[0]![1].action).toBe('leave.correct-type');
+  });
+
+  it('surfaces the STALE message when the request is paid between load and commit', async () => {
+    leaveRequestFindUnique.mockResolvedValue(baseRequest());
+    // Simulate a concurrent payroll sweep: the extended `where` on the moved
+    // request's update (deductedInPayrollId: null, deletedAt: null) no longer
+    // matches by the time the transaction runs, so Prisma raises P2025.
+    leaveRequestUpdate.mockRejectedValueOnce(
+      new Prisma.PrismaClientKnownRequestError('No record was found for an update.', {
+        code: 'P2025',
+        clientVersion: '5.0.0',
+      }),
+    );
+    const r = await correctLeaveType({
+      leaveRequestId: 'req-1',
+      newLeaveTypeId: NEW_TYPE,
+      note: 'พนักงานป่วยจริง',
+    });
+    expect(r).toEqual({
+      ok: false,
+      message: expect.stringContaining('สถานะเปลี่ยนไประหว่างดำเนินการ — กรุณาเปิดใหม่'),
+    });
+    expect(auditLogTx).not.toHaveBeenCalled();
   });
 });
 
