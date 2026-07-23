@@ -53,6 +53,7 @@ export const PERMISSIONS = {
   'leave.read': 'ดูคำขอลา',
   'leave.approve': 'อนุมัติ/ปฏิเสธคำขอลา',
   'leave.void': 'ลบ/ยกเลิกคำขอลา (รวมรายการลงเวลาที่สร้างอัตโนมัติ)',
+  'leave.correct-type': 'แก้ประเภทของคำขอลาที่อนุมัติแล้ว (คำนวณการหักเงินใหม่)',
   'leave.entitlement.manage': 'จัดการสิทธิวันลาของพนักงาน',
 
   // ─── Cash advance ────────────────────────────────────────────────────
@@ -161,7 +162,13 @@ export const PERMISSION_GROUPS: ReadonlyArray<{
   {
     key: 'leave',
     label: 'การลา',
-    permissions: ['leave.read', 'leave.approve', 'leave.void', 'leave.entitlement.manage'],
+    permissions: [
+      'leave.read',
+      'leave.approve',
+      'leave.void',
+      'leave.correct-type',
+      'leave.entitlement.manage',
+    ],
   },
   {
     key: 'advance',

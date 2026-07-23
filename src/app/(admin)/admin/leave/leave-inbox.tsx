@@ -1,5 +1,6 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { STATUS_ICON, StatusBadge, statusRail } from '@/components/ui/status-badge';
 import { LeaveReviewModal, type LeaveRowVM } from './leave-review-modal';
@@ -14,8 +15,15 @@ function Badge({ row }: { row: LeaveRowVM }) {
   );
 }
 
-export function LeaveInbox({ rows }: { rows: LeaveRowVM[] }) {
+export function LeaveInbox({
+  rows,
+  correctionTypeOptions,
+}: {
+  rows: LeaveRowVM[];
+  correctionTypeOptions: Array<{ id: string; name: string }>;
+}) {
   const [open, setOpen] = useState<LeaveRowVM | null>(null);
+  const router = useRouter();
 
   return (
     <>
@@ -58,7 +66,15 @@ export function LeaveInbox({ rows }: { rows: LeaveRowVM[] }) {
         ))}
       </ul>
 
-      <LeaveReviewModal row={open} onClose={() => setOpen(null)} />
+      <LeaveReviewModal
+        row={open}
+        onClose={() => setOpen(null)}
+        correctionTypeOptions={correctionTypeOptions}
+        onActioned={() => {
+          setOpen(null);
+          router.refresh();
+        }}
+      />
     </>
   );
 }
