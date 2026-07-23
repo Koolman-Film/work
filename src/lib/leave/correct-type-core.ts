@@ -37,7 +37,8 @@ export type CorrectionRipple = {
   moved: { leaveRequestId: string; overQuotaMinutes: number; deductAmount: number | null };
   /** Unswept siblings in either group whose value changed — to persist. */
   siblingWrites: Array<{ id: string; overQuotaMinutes: number; deductAmount: number | null }>;
-  /** Moved + every changed sibling, for the admin preview. */
+  /** The moved request plus every sibling in both groups — changed or not —
+   *  for the admin preview. */
   displayRows: RippleRow[];
   /** Sum of (newDeduct − oldDeduct) over the moved request and all rewritten siblings. */
   netDeductDelta: number;
@@ -81,6 +82,10 @@ export function computeCorrectionRipple(input: RippleInput): CorrectionRipple {
   );
   const newAfter = replayKeepingSwept(newEnt, [...newGroup, moved], ratePerMin);
 
+  // `moved` is caller-guaranteed unswept (paid leave is locked from correction
+  // upstream), so replayKeepingSwept's freeze-override never fires for it here —
+  // if it ever did, it would silently pin the moved request's new-type values
+  // back to its old frozen ones.
   const movedNew = newAfter.get(movedRequestId)!;
   const displayRows: RippleRow[] = [];
   const siblingWrites: CorrectionRipple['siblingWrites'] = [];
@@ -115,6 +120,9 @@ export function computeCorrectionRipple(input: RippleInput): CorrectionRipple {
         newDeduct: a.deduct,
       });
       if (!changed) continue;
+      // Redundant with replayKeepingSwept's override (which makes `changed`
+      // always false for swept rows) — kept as defense-in-depth on money, so a
+      // swept row still can never be written even if `changed` is reworked later.
       if (!r.swept) {
         siblingWrites.push({ id: r.id, overQuotaMinutes: a.over, deductAmount: a.deduct });
         netDeductDelta += (a.deduct ?? 0) - (r.curDeductAmount ?? 0);

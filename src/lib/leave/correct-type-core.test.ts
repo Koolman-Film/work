@@ -105,6 +105,37 @@ describe('computeCorrectionRipple', () => {
     expect(r.moved.deductAmount).toBeNull();
   });
 
+  it('a swept sibling whose frozen value differs from a fresh replay still reports the frozen value', () => {
+    // ลากิจ entitlement is now 0 days (e.g. reduced after S was approved under a
+    // larger entitlement). Swept request S (480 min) was within quota when
+    // approved and is frozen at over 0 / deduct null. A fresh replay of [S]
+    // under ent(0) would put S at 480 over / ฿480 — but the freeze-override in
+    // replayKeepingSwept must keep displayRows reporting S's frozen value.
+    // (Delete the `if (src?.swept)` branch in replayKeepingSwept and this test
+    // fails: displayRows would show S at over 480 / deduct 480.)
+    const S = req({
+      id: 'S',
+      reviewedAtMs: 100,
+      swept: true,
+      chargedMinutes: 480,
+      curOverQuotaMinutes: 0,
+      curDeductAmount: null,
+    });
+    const M = req({ id: 'M', reviewedAtMs: 200, curOverQuotaMinutes: 480, curDeductAmount: 480 });
+    const r = computeCorrectionRipple({
+      movedRequestId: 'M',
+      oldGroup: [S, M],
+      newGroup: [],
+      oldEnt: ent(0),
+      newEnt: ent(30),
+      ratePerMin: RATE,
+    });
+    const sRow = r.displayRows.find((x) => x.leaveRequestId === 'S');
+    expect(sRow?.newOverQuotaMinutes).toBe(0);
+    expect(sRow?.newDeduct).toBeNull();
+    expect(r.siblingWrites.some((w) => w.id === 'S')).toBe(false);
+  });
+
   it('an unlimited target type never deducts', () => {
     const M = req({ id: 'M', reviewedAtMs: 100, curOverQuotaMinutes: 480, curDeductAmount: 480 });
     const r = computeCorrectionRipple({
