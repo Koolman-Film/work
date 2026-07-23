@@ -69,6 +69,7 @@ export const ACTION_LABELS: Record<AuditAction, string> = {
   'leave.void': 'ลบคำขอลา',
   'leave.restore': 'กู้คืนคำขอลา',
   'leave.recompute': 'คำนวณวันลาใหม่',
+  'leave.correct-type': 'แก้ประเภทคำขอลา',
   'advance.submit': 'ส่งคำขอเบิก',
   'advance.admin-create': 'แอดมินสร้างคำขอเบิก',
   'advance.approve': 'อนุมัติคำขอเบิก',
