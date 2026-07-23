@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useRef, useState, useTransition } from 'react';
 import {
   type CorrectionPreview,
   correctLeaveType,
@@ -26,6 +26,7 @@ export function CorrectTypeSection({
   const [note, setNote] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  const requestedIdRef = useRef<string | null>(null);
 
   const targets = options.filter((o) => o.id !== currentTypeId);
 
@@ -33,7 +34,12 @@ export function CorrectTypeSection({
     setTargetId(id);
     setPreview(null);
     setError(null);
-    start(async () => setPreview(await previewLeaveTypeCorrection(leaveRequestId, id)));
+    requestedIdRef.current = id;
+    start(async () => {
+      const result = await previewLeaveTypeCorrection(leaveRequestId, id);
+      if (requestedIdRef.current !== id) return;
+      setPreview(result);
+    });
   }
 
   function confirm() {
@@ -70,7 +76,8 @@ export function CorrectTypeSection({
             key={o.id}
             type="button"
             onClick={() => choose(o.id)}
-            className={`rounded-full border px-3 py-1.5 text-sm ${
+            disabled={pending}
+            className={`rounded-full border px-3 py-1.5 text-sm disabled:opacity-50 ${
               targetId === o.id
                 ? 'border-primary-600 bg-primary-50 text-primary-700'
                 : 'border-gray-300 text-ink-2'
@@ -122,7 +129,13 @@ export function CorrectTypeSection({
           <div className="flex gap-2">
             <button
               type="button"
-              onClick={() => setOpen(false)}
+              onClick={() => {
+                setOpen(false);
+                setTargetId(null);
+                setPreview(null);
+                setNote('');
+                setError(null);
+              }}
               className="rounded-md border border-gray-300 px-3 py-1.5 text-sm text-ink-2"
             >
               ยกเลิก
