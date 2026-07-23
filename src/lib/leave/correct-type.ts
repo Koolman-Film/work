@@ -271,12 +271,26 @@ export async function correctLeaveType(input: {
         }
         throw err;
       }
-      // Unswept siblings whose split shifted.
+      // Unswept siblings whose split shifted. Same atomic guard as the moved
+      // row: if a sibling was swept into a published payroll (or deleted)
+      // between the ripple computation (outside the transaction) and this
+      // commit, its where clause matches zero rows and Prisma raises P2025.
+      // The ripple was computed against a paid-state snapshot that is now
+      // stale, so we must not silently skip that sibling and keep writing the
+      // rest — the whole transaction rolls back and the caller sees STALE,
+      // exactly as if the moved row itself had been swept.
       for (const w of ripple.siblingWrites) {
-        await tx.leaveRequest.update({
-          where: { id: w.id },
-          data: { overQuotaMinutes: w.overQuotaMinutes, deductAmount: w.deductAmount },
-        });
+        try {
+          await tx.leaveRequest.update({
+            where: { id: w.id, deductedInPayrollId: null, deletedAt: null },
+            data: { overQuotaMinutes: w.overQuotaMinutes, deductAmount: w.deductAmount },
+          });
+        } catch (err) {
+          if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {
+            throw new Error('STALE');
+          }
+          throw err;
+        }
       }
       await auditLogTx(tx, {
         actorId: user.id,

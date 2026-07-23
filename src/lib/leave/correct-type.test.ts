@@ -188,6 +188,62 @@ describe('correctLeaveType — apply', () => {
     });
     expect(auditLogTx).not.toHaveBeenCalled();
   });
+
+  it('surfaces the STALE message when a SIBLING is swept between load and commit (paid=locked parity)', async () => {
+    leaveRequestFindUnique.mockResolvedValue(baseRequest());
+    // An unswept sibling in the OLD group whose split will shift once the
+    // moved request leaves the group (unlimited quota here, so the replay
+    // recomputes it to over=0/deduct=null — different from its stored
+    // 50/500 — which is exactly what puts it in ripple.siblingWrites).
+    leaveRequestFindMany
+      .mockResolvedValueOnce([
+        {
+          id: 'sib-1',
+          chargedMinutes: 200,
+          overQuotaMinutes: 50,
+          deductAmount: 500,
+          reviewedAt: new Date('2026-07-05'),
+          createdAt: new Date('2026-07-05'),
+          deductedInPayrollId: null,
+        },
+      ]) // oldRows
+      .mockResolvedValueOnce([]); // newRows
+    leaveRequestUpdate
+      .mockResolvedValueOnce({}) // moved request update succeeds
+      .mockRejectedValueOnce(
+        // Concurrent payroll sweep of the SIBLING: its guarded where no
+        // longer matches by the time the transaction runs, so Prisma raises
+        // P2025 — same shape as the moved-row guard's failure mode.
+        new Prisma.PrismaClientKnownRequestError('No record was found for an update.', {
+          code: 'P2025',
+          clientVersion: '5.0.0',
+        }),
+      );
+
+    const r = await correctLeaveType({
+      leaveRequestId: 'req-1',
+      newLeaveTypeId: NEW_TYPE,
+      note: 'พนักงานป่วยจริง',
+    });
+
+    expect(r).toEqual({
+      ok: false,
+      message: expect.stringContaining('สถานะเปลี่ยนไประหว่างดำเนินการ — กรุณาเปิดใหม่'),
+    });
+    // Transaction rolled back entirely — the audit write must not have landed.
+    expect(auditLogTx).not.toHaveBeenCalled();
+    // The sibling update must carry the SAME atomic paid/deleted guard as the
+    // moved row's update — reverting it to `{ id: w.id }` alone would make
+    // this assertion fail even though the mock above rejects unconditionally.
+    const siblingCall = leaveRequestUpdate.mock.calls.find(
+      (c) => (c[0] as { where: { id: string } }).where.id === 'sib-1',
+    );
+    expect(siblingCall![0].where).toEqual({
+      id: 'sib-1',
+      deductedInPayrollId: null,
+      deletedAt: null,
+    });
+  });
 });
 
 describe('previewLeaveTypeCorrection', () => {
