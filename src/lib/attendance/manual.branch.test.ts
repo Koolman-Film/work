@@ -39,9 +39,11 @@ vi.mock('@/lib/auth/check-permission', () => ({
 // ── prisma mocks ─────────────────────────────────────────────────────────────
 const employeeFindUnique = vi.fn();
 const attendanceFindFirst = vi.fn();
+const attendanceFindMany = vi.fn();
 const attendanceCreate = vi.fn();
 const payrollConfigFindFirst = vi.fn();
 const holidayFindFirst = vi.fn();
+const leaveConfigFindFirst = vi.fn();
 
 vi.mock('@/lib/db/prisma', () => ({
   prismaRaw: {},
@@ -55,8 +57,12 @@ vi.mock('@/lib/db/prisma', () => ({
     holiday: {
       findFirst: (...a: unknown[]) => holidayFindFirst(...a),
     },
+    leaveConfig: {
+      findFirst: (...a: unknown[]) => leaveConfigFindFirst(...a),
+    },
     attendance: {
       findFirst: (...a: unknown[]) => attendanceFindFirst(...a),
+      findMany: (...a: unknown[]) => attendanceFindMany(...a),
       create: (...a: unknown[]) => attendanceCreate(...a),
     },
     $transaction: (cb: (tx: unknown) => unknown) =>
@@ -67,6 +73,18 @@ vi.mock('@/lib/db/prisma', () => ({
       }),
   },
 }));
+
+// This suite is about branch-scope gating, not lateness — default the
+// leave-aware lateness reads so createManualAttendance runs end to end.
+beforeEach(() => {
+  attendanceFindMany.mockResolvedValue([]);
+  leaveConfigFindFirst.mockResolvedValue({
+    morningStart: '09:00',
+    morningEnd: '12:00',
+    afternoonStart: '13:00',
+    afternoonEnd: '17:00',
+  });
+});
 
 import type { CreateManualInput } from './manual';
 import { createManualAttendance } from './manual';

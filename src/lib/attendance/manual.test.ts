@@ -45,9 +45,11 @@ vi.mock('@/lib/auth/check-permission', () => ({
 // ── prisma mocks ─────────────────────────────────────────────────────────────
 const employeeFindUnique = vi.fn();
 const attendanceFindFirst = vi.fn();
+const attendanceFindMany = vi.fn();
 const attendanceCreate = vi.fn();
 const payrollConfigFindFirst = vi.fn();
 const holidayFindFirst = vi.fn();
+const leaveConfigFindFirst = vi.fn();
 
 vi.mock('@/lib/db/prisma', () => ({
   prismaRaw: {},
@@ -61,8 +63,12 @@ vi.mock('@/lib/db/prisma', () => ({
     holiday: {
       findFirst: (...a: unknown[]) => holidayFindFirst(...a),
     },
+    leaveConfig: {
+      findFirst: (...a: unknown[]) => leaveConfigFindFirst(...a),
+    },
     attendance: {
       findFirst: (...a: unknown[]) => attendanceFindFirst(...a),
+      findMany: (...a: unknown[]) => attendanceFindMany(...a),
       create: (...a: unknown[]) => attendanceCreate(...a),
     },
     $transaction: (cb: (tx: unknown) => unknown) =>
@@ -73,6 +79,18 @@ vi.mock('@/lib/db/prisma', () => ({
       }),
   },
 }));
+
+// Sensible defaults so describe blocks that predate the leave-aware lateness
+// don't have to opt in: no leave rows today, standard 12:00–13:00 lunch gap.
+beforeEach(() => {
+  attendanceFindMany.mockResolvedValue([]);
+  leaveConfigFindFirst.mockResolvedValue({
+    morningStart: '09:00',
+    morningEnd: '12:00',
+    afternoonStart: '13:00',
+    afternoonEnd: '17:00',
+  });
+});
 
 import type { CreateManualInput } from './manual';
 import { createManualAttendance } from './manual';
@@ -189,6 +207,53 @@ describe('createManualAttendance — worked past grace', () => {
 
     expect(lateAudit.entityId).toBe('att-Late');
     expect(lateAudit.after.derivedFromCheckInId).toBe('att-CheckIn');
+  });
+});
+
+describe('createManualAttendance — an approved leave excuses lateness', () => {
+  /** A Bangkok (UTC+7) instant for "HH:MM" on WEDNESDAY. */
+  const bkk = (hhmm: string) => new Date(`${WEDNESDAY}T${hhmm}:00+07:00`);
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    requirePermission.mockResolvedValue({ user: { id: 'actor-id' } });
+    getUserAssignments.mockResolvedValue(globalActorAssignments());
+    payrollConfigFindFirst.mockResolvedValue(null); // company default 09:00/15min
+    holidayFindFirst.mockResolvedValue(null);
+    mockExistingCheckIn(null);
+    leaveConfigFindFirst.mockResolvedValue({
+      morningStart: '09:00',
+      morningEnd: '12:00',
+      afternoonStart: '13:00',
+      afternoonEnd: '17:00',
+    });
+    attendanceCreate.mockImplementation(async (args: { data: { type: string } }) => ({
+      id: `att-${args.data.type}`,
+      type: args.data.type,
+    }));
+    employeeFindUnique.mockResolvedValue({ ...baseEmployee, workSchedule: null });
+  });
+
+  it('records only a CheckIn (no Late row) for an afternoon entry after a morning leave', async () => {
+    // Approved morning leave 09:00–12:00; admin records a 12:30 clock-in. From
+    // 09:00 that is 210 min late — the exact shape of the reported bug.
+    attendanceFindMany.mockResolvedValue([{ clockInAt: bkk('09:00'), clockOutAt: bkk('12:00') }]);
+
+    const result = await createManualAttendance({ ...baseInput, clockIn: '12:30' });
+
+    expect(result).toEqual({ ok: true, ids: ['att-CheckIn'] });
+    const types = attendanceCreate.mock.calls.map((c) => c[0]!.data.type);
+    expect(types).toEqual(['CheckIn']);
+  });
+
+  it('still records a Late row when the afternoon entry is genuinely late', async () => {
+    // Same morning leave, but a 13:30 clock-in is 30 min past the 13:00 restart.
+    attendanceFindMany.mockResolvedValue([{ clockInAt: bkk('09:00'), clockOutAt: bkk('12:00') }]);
+
+    await createManualAttendance({ ...baseInput, clockIn: '13:30' });
+
+    const lateCall = attendanceCreate.mock.calls.find((c) => c[0]!.data.type === 'Late');
+    expect(lateCall?.[0].data.durationMinutes).toBe(30);
   });
 });
 
