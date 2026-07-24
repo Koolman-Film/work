@@ -79,6 +79,18 @@ describe('computeManualPreview — lateness', () => {
     expect(types(r)).toEqual(['CheckIn']);
     expect(r.lateMinutes).toBe(45);
   });
+
+  it('an approved morning leave + lunch break moves the late reference point', () => {
+    // Leave 09:00–12:00, lunch 12:00–13:00, admin records a 12:30 clock-in.
+    // Without the context it would be 210 min late; with it, on time.
+    const lateContext = {
+      leaveWindows: [{ startMin: 9 * 60, endMin: 12 * 60 }],
+      breakWindow: { startMin: 12 * 60, endMin: 13 * 60 },
+    };
+    const r = worked({ clockIn: '12:30', lateContext });
+    expect(types(r)).toEqual(['CheckIn']);
+    expect(r.lateMinutes).toBe(0);
+  });
 });
 
 describe('computeManualPreview — clock-out', () => {

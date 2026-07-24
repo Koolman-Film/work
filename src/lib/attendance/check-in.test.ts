@@ -61,9 +61,11 @@ vi.mock('@/lib/notifications/in-app-bell', () => ({
 const employeeFindUnique = vi.fn();
 const branchFindMany = vi.fn();
 const attendanceFindFirst = vi.fn();
+const attendanceFindMany = vi.fn();
 const attendanceCreate = vi.fn();
 const payrollConfigFindFirst = vi.fn();
 const holidayFindFirst = vi.fn();
+const leaveConfigFindFirst = vi.fn();
 
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
@@ -79,13 +81,18 @@ vi.mock('@/lib/db/prisma', () => ({
     holiday: {
       findFirst: (...a: unknown[]) => holidayFindFirst(...a),
     },
+    leaveConfig: {
+      findFirst: (...a: unknown[]) => leaveConfigFindFirst(...a),
+    },
     attendance: {
       findFirst: (...a: unknown[]) => attendanceFindFirst(...a),
+      findMany: (...a: unknown[]) => attendanceFindMany(...a),
       create: (...a: unknown[]) => attendanceCreate(...a),
     },
     $transaction: (cb: (tx: unknown) => unknown) =>
       cb({
         attendance: {
+          findFirst: (...a: unknown[]) => attendanceFindFirst(...a),
           create: (...a: unknown[]) => attendanceCreate(...a),
         },
       }),
@@ -149,10 +156,17 @@ beforeEach(() => {
   requireEmployee.mockResolvedValue({ employee: { id: 'emp-1' } });
   employeeFindUnique.mockResolvedValue(baseEmployee());
   branchFindMany.mockResolvedValue([BRANCH]);
-  attendanceFindFirst.mockResolvedValue(null); // no existing check-in / state row
+  attendanceFindFirst.mockResolvedValue(null); // no existing check-in / state / Late row
+  attendanceFindMany.mockResolvedValue([]); // no OnLeave rows today
   attendanceCreate.mockResolvedValue({ id: 'att-1' });
   payrollConfigFindFirst.mockResolvedValue(null);
   holidayFindFirst.mockResolvedValue(null);
+  leaveConfigFindFirst.mockResolvedValue({
+    morningStart: '09:00',
+    morningEnd: '12:00',
+    afternoonStart: '13:00',
+    afternoonEnd: '17:00',
+  });
 });
 
 describe('submitCheckIn — a fallback selfie never disputes on its own', () => {
@@ -207,6 +221,38 @@ describe('submitCheckIn — GPS is the sole author of a dispute', () => {
       (c) => c[1].action === 'attendance.checkin',
     )![1];
     expect(checkinAudit.after.selfieCapture).toBe('fallback');
+  });
+});
+
+describe('submitCheckIn — an approved leave excuses lateness', () => {
+  // A scheduled day starting 00:00 with zero grace makes ANY check-in late by a
+  // positive amount, deterministically — independent of the wall-clock time the
+  // test happens to run at — so we can prove leave suppresses the Late row.
+  function alwaysLateEmployee() {
+    return {
+      ...baseEmployee(),
+      workSchedule: { lateToleranceMin: 0, days: [{ dayOfWeek: TODAY_DOW, startTime: '00:00' }] },
+    };
+  }
+  const lateRowCreate = () => attendanceCreate.mock.calls.find((c) => c[0]!.data.type === 'Late');
+
+  it('with no approved leave, a late check-in still writes a Late row', async () => {
+    employeeFindUnique.mockResolvedValue(alwaysLateEmployee());
+    attendanceFindMany.mockResolvedValue([]);
+
+    await submitCheckIn(baseInput());
+
+    expect(lateRowCreate()).toBeDefined();
+  });
+
+  it('a full-day approved leave suppresses the Late row entirely', async () => {
+    employeeFindUnique.mockResolvedValue(alwaysLateEmployee());
+    // A FullDay OnLeave row carries null clock bounds (units.ts convention).
+    attendanceFindMany.mockResolvedValue([{ clockInAt: null, clockOutAt: null }]);
+
+    await submitCheckIn(baseInput());
+
+    expect(lateRowCreate()).toBeUndefined();
   });
 });
 

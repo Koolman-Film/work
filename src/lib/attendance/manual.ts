@@ -31,8 +31,10 @@ import { auditLog } from '@/lib/audit/log';
 import { canActOnEmployeeBranches, getPermittedBranches } from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
+import { getLeaveConfig } from '@/lib/leave/leave-config';
 import { isClosedDay } from './date';
 import { latePolicyFrom, resolveLatePolicy } from './late-policy';
+import { buildLateContext } from './leave-late-context';
 import { bangkokDateTime, computeManualPreview } from './manual-preview';
 import { TYPE_LABELS } from './type-labels';
 
@@ -166,11 +168,18 @@ export async function createManualAttendance(
   const scheduleDays = emp.workSchedule?.days ?? null;
   const hasSchedule = !!scheduleDays && scheduleDays.length > 0;
 
-  const [payrollCfg, holiday] = await Promise.all([
+  const [payrollCfg, holiday, onLeaveRows] = await Promise.all([
     prisma.payrollConfig.findFirst({
       select: { workStartTime: true, lateGraceMinutes: true, otThresholdMinutes: true },
     }),
     prisma.holiday.findFirst({ where: { date, archivedAt: null }, select: { id: true } }),
+    // Approved leave already on the books for this date — a morning half-day
+    // leave means an afternoon manual entry isn't late, exactly as the LIFF
+    // check-in path now resolves it. Same context, one helper, no drift.
+    prisma.attendance.findMany({
+      where: { employeeId: emp.id, date, type: 'OnLeave', deletedAt: null },
+      select: { clockInAt: true, clockOutAt: true },
+    }),
   ]);
   const hasHoliday = holiday != null;
 
@@ -182,6 +191,8 @@ export async function createManualAttendance(
   );
   const isOffDay = hasSchedule ? hasHoliday : isClosedDay(date, hasHoliday);
   const scheduledEndTime = scheduleDays?.find((d) => d.dayOfWeek === dow)?.endTime ?? null;
+  const lateContext =
+    onLeaveRows.length > 0 ? buildLateContext(onLeaveRows, await getLeaveConfig()) : undefined;
 
   const preview = computeManualPreview({
     kind: input.kind,
@@ -191,6 +202,7 @@ export async function createManualAttendance(
     latePolicy,
     scheduledEndTime,
     isOffDay,
+    lateContext,
     exemptLate: input.exemptLate,
     recordEarlyLeave: input.recordEarlyLeave,
     // Same fallback as getOtCandidates (src/lib/overtime/candidates.ts) when
