@@ -38,10 +38,12 @@ import { getTranslations } from 'next-intl/server';
 import { auditLogTx } from '@/lib/audit/log';
 import { requireCheckInPermission, requireEmployee } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
+import { getLeaveConfig } from '@/lib/leave/leave-config';
 import { notifyAdminsInApp } from '@/lib/notifications/in-app-bell';
 import { bangkokDateUtcMidnight, isClosedDay } from './date';
 import { type CheckInPoint, disputeReasonText, evaluateCheckIn } from './evaluate';
 import { lateMinutesForCheckIn, latePolicyFrom, resolveLatePolicy } from './late-policy';
+import { buildLateContext } from './leave-late-context';
 import type { SelfieCapture } from './selfie-provenance';
 
 /** Display name for admin bell — prefer nickname. Mirrors leave/actions.ts. */
@@ -235,7 +237,7 @@ export async function submitCheckIn(input: SubmitCheckInInput): Promise<SubmitCh
   // employee's WorkSchedule for today's weekday when assigned, else the
   // company default (PayrollConfig). A check-in on an off-schedule day → never
   // late. Holidays (and Sundays, for the default path) also cancel lateness.
-  const [latePolicyCfg, schedEmp] = await Promise.all([
+  const [latePolicyCfg, schedEmp, onLeaveRows] = await Promise.all([
     prisma.payrollConfig.findFirst({ select: { workStartTime: true, lateGraceMinutes: true } }),
     prisma.employee.findUnique({
       where: { id: employee.id },
@@ -248,6 +250,14 @@ export async function submitCheckIn(input: SubmitCheckInInput): Promise<SubmitCh
         },
       },
     }),
+    // Approved leave already recorded for today. A morning half-day leave means
+    // the employee isn't "late" when they show up for the afternoon — without
+    // this the check-in is measured against 09:00 and records ~3h of lateness
+    // for a day they were legitimately excused from.
+    prisma.attendance.findMany({
+      where: { employeeId: employee.id, date: today, type: 'OnLeave', deletedAt: null },
+      select: { clockInAt: true, clockOutAt: true },
+    }),
   ]);
   const todayDow = today.getUTCDay();
   const scheduleDays = schedEmp?.workSchedule?.days ?? null;
@@ -258,7 +268,11 @@ export async function submitCheckIn(input: SubmitCheckInInput): Promise<SubmitCh
     todayDow,
     latePolicyFrom(latePolicyCfg),
   );
-  let lateMinutes = policy ? lateMinutesForCheckIn(now, policy) : 0;
+  // Only touch the (extra) LeaveConfig read when there's actually leave today —
+  // the common no-leave check-in keeps its original query count.
+  const lateCtx =
+    onLeaveRows.length > 0 ? buildLateContext(onLeaveRows, await getLeaveConfig()) : undefined;
+  let lateMinutes = policy ? lateMinutesForCheckIn(now, policy, lateCtx) : 0;
   if (lateMinutes > 0) {
     const hasHoliday =
       (await prisma.holiday.findFirst({
