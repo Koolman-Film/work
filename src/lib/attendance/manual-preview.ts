@@ -15,7 +15,12 @@
  * than LIFF, which inverts the unfairness this feature exists to fix.
  */
 
-import { hhmmToMinutes, type LatePolicy, lateMinutesForCheckIn } from './late-policy';
+import {
+  hhmmToMinutes,
+  type LateContext,
+  type LatePolicy,
+  lateMinutesForCheckIn,
+} from './late-policy';
 
 export type ManualPreviewInput = {
   kind: 'worked' | 'absent';
@@ -33,6 +38,14 @@ export type ManualPreviewInput = {
   latePolicy: LatePolicy | null;
   /** HH:MM scheduled end of day; null when the employee has no schedule. */
   scheduledEndTime?: string | null;
+  /**
+   * Approved-leave windows + lunch break that shift where lateness starts
+   * counting (a morning half-day leave means the employee isn't late for the
+   * afternoon). Resolved by the caller from that date's OnLeave rows and the
+   * LeaveConfig lunch gap, exactly as check-in.ts does. Omit → measured from
+   * the plain scheduled start, as before.
+   */
+  lateContext?: LateContext;
   /**
    * Public holiday — cancels lateness, mirroring check-in.ts. Also cancels
    * early-leave and OT: both are measured against `scheduledEndTime`, and a
@@ -104,7 +117,7 @@ export function computeManualPreview(input: ManualPreviewInput): ManualPreviewRe
   let lateMinutes = 0;
   const clockInAt = input.clockIn ? bangkokDateTime(input.date, input.clockIn) : null;
   if (clockInAt && input.latePolicy && !input.isOffDay) {
-    lateMinutes = lateMinutesForCheckIn(clockInAt, input.latePolicy);
+    lateMinutes = lateMinutesForCheckIn(clockInAt, input.latePolicy, input.lateContext);
   }
   if (lateMinutes > 0) {
     if (input.exemptLate) {

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   bangkokMinutesOfDay,
   DEFAULT_LATE_POLICY,
+  effectiveLateStartMin,
   hhmmToMinutes,
   lateMinutesForCheckIn,
   latePolicyFrom,
@@ -51,6 +52,71 @@ describe('lateMinutesForCheckIn (default 09:00 + 15 grace)', () => {
   });
   it('honors a custom policy (zero grace flags any minute past start)', () => {
     expect(lateMinutesForCheckIn(bkk('09:03'), { startTime: '09:00', graceMin: 0 })).toBe(3);
+  });
+});
+
+// The lunch break every case below shares: 12:00–13:00, the gap between
+// LeaveConfig.morningEnd and afternoonStart.
+const LUNCH = { startMin: 12 * 60, endMin: 13 * 60 };
+// A morning half-day leave 09:00–12:00, in minutes-of-day.
+const MORNING_LEAVE = { startMin: 9 * 60, endMin: 12 * 60 };
+
+describe('effectiveLateStartMin', () => {
+  it('returns the scheduled start unchanged when nothing covers it', () => {
+    expect(effectiveLateStartMin(540, [], null)).toBe(540); // 09:00
+    expect(effectiveLateStartMin(540, [], LUNCH)).toBe(540); // lunch is later, irrelevant
+  });
+
+  it('a morning leave pushes the start past lunch to the afternoon start', () => {
+    // 09:00 → (leave) 12:00 → (lands in lunch) 13:00
+    expect(effectiveLateStartMin(540, [MORNING_LEAVE], LUNCH)).toBe(780); // 13:00
+  });
+
+  it('a morning leave with no configured lunch stops at the leave end', () => {
+    expect(effectiveLateStartMin(540, [MORNING_LEAVE], null)).toBe(720); // 12:00
+  });
+
+  it('a leave that does NOT cover the scheduled start leaves it alone', () => {
+    // Leave 10:00–12:00 — the 09:00–10:00 slice was still expected work.
+    expect(effectiveLateStartMin(540, [{ startMin: 600, endMin: 720 }], LUNCH)).toBe(540);
+  });
+
+  it('chains a morning leave into a bridging afternoon-hour leave', () => {
+    // 09:00 → (morning) 12:00 → (lunch) 13:00 → (13:00–14:00 leave) 14:00
+    const hourly = { startMin: 780, endMin: 840 };
+    expect(effectiveLateStartMin(540, [MORNING_LEAVE, hourly], LUNCH)).toBe(840); // 14:00
+  });
+});
+
+describe('lateMinutesForCheckIn with approved leave + lunch break', () => {
+  const ctx = { leaveWindows: [MORNING_LEAVE], breakWindow: LUNCH };
+
+  it('morning leave + check-in during lunch → 0 (the reported bug)', () => {
+    // ภัทธริดา: leave 09:00–12:00, checked in 12:16 — was shown "3 ชม. 16 นาที".
+    expect(lateMinutesForCheckIn(bkk('12:16'), DEFAULT_LATE_POLICY, ctx)).toBe(0);
+    // กมล: leave 09:00–12:00, checked in 12:01 — was shown "3 ชม. 1 นาที".
+    expect(lateMinutesForCheckIn(bkk('12:01'), DEFAULT_LATE_POLICY, ctx)).toBe(0);
+  });
+
+  it('morning leave + check-in just after lunch, within grace → 0', () => {
+    expect(lateMinutesForCheckIn(bkk('13:10'), DEFAULT_LATE_POLICY, ctx)).toBe(0); // 10 ≤ 15
+  });
+
+  it('morning leave + check-in well after lunch, past grace → late from 13:00', () => {
+    expect(lateMinutesForCheckIn(bkk('13:20'), DEFAULT_LATE_POLICY, ctx)).toBe(20);
+  });
+
+  it('a full-day leave is never late, whenever they check in', () => {
+    expect(lateMinutesForCheckIn(bkk('15:00'), DEFAULT_LATE_POLICY, { fullDayLeave: true })).toBe(
+      0,
+    );
+  });
+
+  it('no leave context → identical to the plain policy (no regression)', () => {
+    expect(lateMinutesForCheckIn(bkk('09:30'), DEFAULT_LATE_POLICY, { breakWindow: LUNCH })).toBe(
+      30,
+    );
+    expect(lateMinutesForCheckIn(bkk('09:30'))).toBe(30);
   });
 });
 
