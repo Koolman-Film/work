@@ -2,8 +2,18 @@
 
 import { useState, useTransition } from 'react';
 import { Button } from '@/components/ui/button';
+import { DateField } from '@/components/ui/date-field';
 import type { BackfillReport } from '@/lib/attendance/backfill-leave-late';
 import { runBackfillLeaveLateRows } from './actions';
+
+/**
+ * Default scan window. The leave-aware lateness fix landed 2026-07-23 and the
+ * known bad rows are from mid-July, so this covers them while keeping the scan
+ * bounded — it walks one OnLeave row per day per employee and issues per-day
+ * queries, so an all-history run grows without limit. Clear the field to scan
+ * everything.
+ */
+const DEFAULT_SINCE = '2026-07-01';
 
 const ACTION_LABEL: Record<string, string> = {
   delete: 'ลบ (สายทั้งหมดเป็นของปลอม)',
@@ -23,14 +33,24 @@ export function BackfillPanel() {
   const [report, setReport] = useState<BackfillReport | null>(null);
   const [applied, setApplied] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [since, setSince] = useState<string | null>(DEFAULT_SINCE);
   const [pending, startTransition] = useTransition();
+
+  /** Changing the window invalidates the preview: "ยืนยันแก้ไข N รายการ"
+   *  must never apply a window the admin did not just review. */
+  function changeSince(next: string | null) {
+    setSince(next);
+    setReport(null);
+    setApplied(false);
+    setError(null);
+  }
 
   function preview() {
     setError(null);
     setApplied(false);
     startTransition(async () => {
       try {
-        setReport(await runBackfillLeaveLateRows(false));
+        setReport(await runBackfillLeaveLateRows(false, since));
       } catch (e) {
         setError(e instanceof Error ? e.message : 'เกิดข้อผิดพลาด');
       }
@@ -43,7 +63,7 @@ export function BackfillPanel() {
     setError(null);
     startTransition(async () => {
       try {
-        setReport(await runBackfillLeaveLateRows(true));
+        setReport(await runBackfillLeaveLateRows(true, since));
         setApplied(true);
       } catch (e) {
         setError(e instanceof Error ? e.message : 'เกิดข้อผิดพลาด');
@@ -56,7 +76,20 @@ export function BackfillPanel() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="space-y-1">
+          <label htmlFor="backfill-since" className="block text-xs text-ink-4">
+            ตรวจตั้งแต่วันที่
+          </label>
+          <DateField
+            id="backfill-since"
+            value={since}
+            onChange={changeSince}
+            disabled={pending}
+            clearable
+            aria-label="ตรวจตั้งแต่วันที่"
+          />
+        </div>
         <Button type="button" onClick={preview} disabled={pending} variant="secondary">
           {pending && !applied ? 'กำลังตรวจ…' : 'ดูตัวอย่าง (Preview)'}
         </Button>
@@ -66,6 +99,10 @@ export function BackfillPanel() {
           </Button>
         )}
       </div>
+
+      <p className="text-xs text-ink-4">
+        เว้นว่างเพื่อตรวจทั้งหมดตั้งแต่เริ่มระบบ — จะใช้เวลานานขึ้นตามปริมาณข้อมูลย้อนหลัง
+      </p>
 
       {error && (
         <p role="alert" className="rounded-md bg-danger-soft px-3 py-2 text-sm text-danger-deep">
