@@ -21,7 +21,9 @@
  *     that employee — a finalized month's Late count is history. Reported as
  *     action: 'skip-finalized'.
  *   - Soft-delete only (deletedAt + deleteReason), matching the rest of the
- *     app; the row stays auditable. Every mutation writes an AuditLog entry.
+ *     app; the row stays auditable. Every mutation writes an AuditLog entry in
+ *     the SAME transaction, so a row can never be changed without the record
+ *     needed to change it back.
  *
  * Two callers share this one core so they can never disagree:
  *   - scripts/backfill-leave-late-rows.ts — CLI, for a human with real DB
@@ -35,9 +37,8 @@
  * unrelated rows are never touched.
  */
 
-import type { Prisma } from '@prisma/client';
 import { payrollPeriodFor } from '@/lib/advance/period-earnings';
-import type { AuditAction, AuditEntityType } from '@/lib/audit/log';
+import { auditLogTx } from '@/lib/audit/log';
 import { prisma } from '@/lib/db/prisma';
 import { getLeaveConfig } from '@/lib/leave/leave-config';
 import { isClosedDay } from './date';
@@ -46,44 +47,6 @@ import { buildLateContext } from './leave-late-context';
 
 /** Same fallback as void.ts / manual/page.tsx when PayrollConfig has no row. */
 const DEFAULT_CUTOFF_DAY = 25;
-
-/**
- * Awaited audit write (unlike the app-wide `auditLog`, which is deliberately
- * fire-and-forget). This backfill is invoked from a short-lived CLI process
- * that disconnects Prisma right after `main()` resolves — a detached audit
- * write would race that disconnect and could be silently dropped for a
- * money-adjacent mutation. Same non-throwing safety net as `auditLog`: a
- * failed audit write is logged, never allowed to fail the actual mutation.
- */
-async function writeAuditAwaited(params: {
-  actorId: string | null;
-  action: AuditAction;
-  entityType: AuditEntityType;
-  entityId: string;
-  before: Prisma.InputJsonValue;
-  after: Prisma.InputJsonValue;
-  metadata: Prisma.InputJsonValue;
-}): Promise<void> {
-  try {
-    await prisma.auditLog.create({
-      data: {
-        actorId: params.actorId,
-        action: params.action,
-        entityType: params.entityType,
-        entityId: params.entityId,
-        beforeValue: params.before,
-        afterValue: params.after,
-        metadata: params.metadata,
-      },
-    });
-  } catch (err) {
-    console.error('[backfill-leave-late] audit write failed', {
-      action: params.action,
-      entityId: params.entityId,
-      error: err instanceof Error ? err.message : String(err),
-    });
-  }
-}
 
 /** One planned/applied change to a Late row. */
 export type BackfillChange = {
@@ -288,22 +251,55 @@ export async function backfillLeaveLateRows(
       `leave-excused late backfill (recomputed ${stored}→${recomputed} min, ` +
       `approved OnLeave that day; src/lib/attendance/backfill-leave-late.ts)`;
 
-    // Concurrency guard: re-assert `deletedAt: null` in the WHERE. The
-    // soft-delete extension (db/soft-delete-extension.ts) only filters READS,
-    // so a bare `update({ where: { id } })` would happily overwrite a row an
-    // admin voided in the window between our findFirst and this write —
-    // clobbering their deleteReason/deletedById. `updateMany` lets us filter on
-    // a non-unique column and tells us whether we actually hit anything.
-    const { count } = await prisma.attendance.updateMany({
-      where: { id: lateRow.id, deletedAt: null },
-      data:
-        action === 'delete'
-          ? { deletedAt: new Date(), deletedById: actorId ?? undefined, deleteReason: reason }
-          : { durationMinutes: recomputed },
-    });
-    if (count === 0) {
+    // The mutation and its audit row MUST commit together. A `lower` overwrites
+    // durationMinutes in place and leaves no marker on the row, so the audit
+    // entry is the ONLY record of the previous value — written separately, a
+    // failed audit write would make that lateness unrecoverable. (A `delete` is
+    // self-describing via deleteReason, but both take the same path.) This
+    // mirrors void.ts, which wraps the same mutation class in a transaction
+    // with auditLogTx.
+    //
+    // An audit failure therefore aborts the whole run instead of silently
+    // proceeding. That is safe to re-run: nothing was written for this row, and
+    // already-applied rows drop out on the next pass — soft-deleted ones fail
+    // the `deletedAt: null` reads, lowered ones hit the `recomputed >= stored`
+    // guard above.
+    const applied = await prisma.$transaction(async (tx) => {
+      // Concurrency guard: re-assert `deletedAt: null` in the WHERE. The
+      // soft-delete extension (db/soft-delete-extension.ts) only filters READS,
+      // so a bare `update({ where: { id } })` would happily overwrite a row an
+      // admin voided in the window between our findFirst and this write —
+      // clobbering their deleteReason/deletedById. `updateMany` lets us filter
+      // on a non-unique column and tells us whether we actually hit anything.
+      const { count } = await tx.attendance.updateMany({
+        where: { id: lateRow.id, deletedAt: null },
+        data:
+          action === 'delete'
+            ? { deletedAt: new Date(), deletedById: actorId ?? undefined, deleteReason: reason }
+            : { durationMinutes: recomputed },
+      });
       // Voided by someone else mid-run. Benign: the row is already gone from
       // every payroll read, so there is nothing left for us to correct.
+      if (count === 0) return false;
+
+      await auditLogTx(tx, {
+        actorId,
+        action: action === 'delete' ? 'attendance.void' : 'attendance.edit',
+        entityType: 'Attendance',
+        entityId: lateRow.id,
+        // Full prior state, so the row is reconstructable from the audit log
+        // alone — this is what makes the durationMinutes overwrite reversible.
+        before: { durationMinutes: stored, deletedAt: null },
+        after:
+          action === 'delete'
+            ? { deleted: true, durationMinutes: stored, recomputedMinutes: recomputed, reason }
+            : { durationMinutes: recomputed, previousMinutes: stored, reason },
+        metadata: { source: 'backfill-leave-late-rows' },
+      });
+      return true;
+    });
+
+    if (!applied) {
       report.counts.skippedConcurrent++;
       continue;
     }
@@ -311,21 +307,6 @@ export async function backfillLeaveLateRows(
     report.changes.push(change);
     if (action === 'delete') report.counts.delete++;
     else report.counts.lower++;
-
-    await writeAuditAwaited({
-      actorId,
-      action: action === 'delete' ? 'attendance.void' : 'attendance.edit',
-      entityType: 'Attendance',
-      entityId: lateRow.id,
-      // Full prior state, so the row is reconstructable from the audit log
-      // alone — this is what makes the durationMinutes overwrite reversible.
-      before: { durationMinutes: stored, deletedAt: null },
-      after:
-        action === 'delete'
-          ? { deleted: true, durationMinutes: stored, recomputedMinutes: recomputed, reason }
-          : { durationMinutes: recomputed, previousMinutes: stored, reason },
-      metadata: { source: 'backfill-leave-late-rows' },
-    });
   }
 
   return report;
