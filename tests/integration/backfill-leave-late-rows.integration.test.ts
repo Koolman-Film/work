@@ -337,4 +337,61 @@ describe('backfillLeaveLateRows', () => {
       (await prisma.attendance.findUniqueOrThrow({ where: { id: june.id } })).deletedAt,
     ).toBeNull();
   });
+
+  it('records the prior state in AuditLog for every row it changes', async () => {
+    const [a, b] = await Promise.all([makeEmployee(), makeEmployee()]);
+    // Morning leave 09:00–12:00 + lunch 12:00–13:00 → lateness counts from
+    // 13:00. A 12:16 arrival was never late: wholly bogus, deleted.
+    const bogus = await seedDay({
+      employeeId: a.id,
+      date: WED,
+      leave: { start: '09:00', end: '12:00' },
+      checkIn: '12:16',
+      lateMinutes: 196,
+    });
+    // Same leave, but a 13:30 arrival IS 30 min late → lowered, not deleted.
+    const lowered = await seedDay({
+      employeeId: b.id,
+      date: WED,
+      leave: { start: '09:00', end: '12:00' },
+      checkIn: '13:30',
+      lateMinutes: 270,
+    });
+
+    const report = await backfillLeaveLateRows({ apply: true });
+    expect(report.counts.delete).toBe(1);
+    expect(report.counts.lower).toBe(1);
+
+    const logs = await prisma.auditLog.findMany({
+      where: { entityType: 'Attendance', entityId: { in: [bogus.id, lowered.id] } },
+    });
+    expect(logs).toHaveLength(2);
+    const byId = new Map(logs.map((l) => [l.entityId, l]));
+
+    const delLog = byId.get(bogus.id);
+    expect(delLog?.action).toBe('attendance.void');
+    expect((delLog?.beforeValue as unknown as { durationMinutes: number }).durationMinutes).toBe(
+      196,
+    );
+
+    // The `lower` path is the one that REQUIRES this record: durationMinutes is
+    // overwritten in place and the row keeps no marker of the change, so the
+    // audit row is the only surviving copy of the original value. If the write
+    // were not in the same transaction as the mutation, a failure here would
+    // destroy 270 with nothing left to restore it from.
+    const lowLog = byId.get(lowered.id);
+    expect(lowLog?.action).toBe('attendance.edit');
+    expect((lowLog?.beforeValue as unknown as { durationMinutes: number }).durationMinutes).toBe(
+      270,
+    );
+    const after = lowLog?.afterValue as unknown as {
+      durationMinutes: number;
+      previousMinutes: number;
+    };
+    expect(after.previousMinutes).toBe(270);
+    expect(after.durationMinutes).toBe(30);
+    expect(
+      (await prisma.attendance.findUniqueOrThrow({ where: { id: lowered.id } })).durationMinutes,
+    ).toBe(30);
+  });
 });
