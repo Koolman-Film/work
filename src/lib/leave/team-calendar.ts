@@ -28,6 +28,7 @@ import { prisma } from '@/lib/db/prisma';
 import type { Locale } from '@/lib/i18n/config';
 import { localizedLeaveTypeName } from './localized-name';
 import {
+  bangkokDayStart,
   type TeamCalendarAdvance,
   type TeamCalendarBirthday,
   type TeamCalendarData,
@@ -222,12 +223,17 @@ export async function getOrgCalendarData(args: {
   // Cash advances are point-in-time: anchor each to its requestedAt day. Window
   // is [monthStart, firstOfNextMonth) so the whole last day of the month is
   // included. `prisma` (not prismaRaw) already excludes soft-deleted rows.
+  //
+  // Bangkok-aligned, because the anchor below is Bangkok too. With UTC bounds
+  // the two disagreed for the 7 hours after Bangkok midnight, and rows in that
+  // seam vanished from the calendar entirely — fetched under one month,
+  // anchored to a day the other month owns. See bangkokDayStart.
   const nextMonthStart = new Date(monthEnd.getTime() + 86_400_000);
   const advanceRows = await prisma.cashAdvance.findMany({
     where: {
       employeeId: { in: employees.map((e) => e.id) },
       status: { in: ['Pending', 'Approved'] },
-      requestedAt: { gte: monthStart, lt: nextMonthStart },
+      requestedAt: { gte: bangkokDayStart(monthStart), lt: bangkokDayStart(nextMonthStart) },
     },
     select: { id: true, employeeId: true, amount: true, status: true, requestedAt: true },
     orderBy: { requestedAt: 'asc' },
