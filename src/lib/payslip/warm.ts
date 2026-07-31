@@ -1,4 +1,5 @@
 import { getTranslations } from 'next-intl/server';
+import { forEachWithConcurrency } from '@/lib/async/pool';
 import { DEFAULT_LOCALE, isLocale, type Locale } from '@/lib/i18n/config';
 import { formatMoney } from '@/lib/i18n/format';
 import { getPayslipDocument } from './document';
@@ -9,6 +10,21 @@ import { buildPayslipHtml } from './render-html';
 import { getOrRenderPayslipPdf } from './storage';
 
 type WarmTarget = { employeeId: string; locale: string | null };
+
+/**
+ * Slips rendered at once.
+ *
+ * This loop used to be sequential: ~1s of Chromium per slip, so a 46-employee
+ * publish spent ~46s inside the payroll segment's 60s `maxDuration` — close
+ * enough to the ceiling that a slow month would be cut off mid-batch, silently
+ * (warm failures are swallowed by design).
+ *
+ * Renders share one browser (see ./pdf.ts), so extra lanes cost pages, not
+ * browsers — but each open page still holds real memory, which is why this is
+ * bounded rather than a `Promise.all` over the whole batch. Four keeps the
+ * batch several times faster with headroom on a default-memory function.
+ */
+const WARM_CONCURRENCY = 4;
 
 /**
  * Pre-render + cache the freshly-published PDFs so an employee's FIRST LIFF
@@ -49,13 +65,13 @@ export async function warmPublishedPayslips(args: {
     return p;
   };
 
-  for (const target of args.targets) {
+  await forEachWithConcurrency(args.targets, WARM_CONCURRENCY, async (target) => {
     const locale: Locale = isLocale(target.locale) ? target.locale : DEFAULT_LOCALE;
     // Reference (second-line) language: English for Thai slips, Thai otherwise.
     const refLocale: Locale = locale === 'th' ? 'en' : 'th';
     try {
       const doc = await getPayslipDocument(target.employeeId, args.month);
-      if (!doc) continue;
+      if (!doc) return;
       const letterhead = await letterheadFor(doc.meta.letterhead);
       const [t, tRef] = [await translatorFor(locale), await translatorFor(refLocale)];
       await getOrRenderPayslipPdf({
@@ -85,5 +101,5 @@ export async function warmPublishedPayslips(args: {
         error: err instanceof Error ? err.message : String(err),
       });
     }
-  }
+  });
 }
