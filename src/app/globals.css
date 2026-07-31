@@ -152,6 +152,10 @@ body {
 
 /* Utility helpers used by the approvals flagship + primitives. */
 .u-enter-rise { animation: enter-rise var(--duration-base) var(--ease-out-soft) both; }
+/* Whole-page entrance, carried by the (admin)/(owner) template.tsx. Slower than
+   .u-enter-rise: a full page of content needs longer to read as deliberate
+   rather than twitchy. */
+.u-enter-page { animation: enter-rise var(--duration-slow) var(--ease-out-soft) both; }
 .u-moment-in  { animation: moment-in var(--duration-slow) var(--ease-overshoot) both; }
 .u-badge-pop  { animation: badge-pop var(--duration-base) var(--ease-out-soft); }
 /* Row exit: a grid wrapper collapses 1fr→0fr so height animates cheaply. */

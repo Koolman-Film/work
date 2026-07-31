@@ -1,4 +1,5 @@
 import { requireAdminArea } from '@/lib/auth/admin-area';
+import { SectionFade } from '@/lib/motion/page-fade';
 import { SettingsNav } from './settings-nav';
 
 /**
@@ -13,7 +14,9 @@ export default async function SettingsLayout({ children }: { children: React.Rea
       <aside className="border-b border-gray-100 px-4 py-4 sm:px-6 lg:sticky lg:top-4 lg:self-start lg:border-b-0 lg:px-4 lg:py-6">
         <SettingsNav allowedPermissions={[...permissions]} />
       </aside>
-      <div className="min-w-0">{children}</div>
+      <div className="min-w-0">
+        <SectionFade>{children}</SectionFade>
+      </div>
     </div>
   );
 }
