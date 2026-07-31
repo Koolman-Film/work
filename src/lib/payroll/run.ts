@@ -49,6 +49,20 @@ export type SkippedEmployee = {
 
 export type RunResult = {
   calculated: number;
+  /**
+   * `Payroll.id` of every row this call actually wrote.
+   *
+   * Exists for the audit trail. `AuditLog.entityId` is `@db.Uuid`, so the
+   * month string this action used to log was rejected by Postgres and — since
+   * `auditLog` swallows its own errors — dropped silently on every run. A
+   * month-wide operation has no single row to point at, so it logs one entry
+   * per row it touched, which is also what makes the trail answer "whose
+   * payroll changed" rather than just "someone recalculated August".
+   *
+   * Excludes `frozen` rows: those were deliberately left untouched, and an
+   * audit entry claiming otherwise would be a lie in the record.
+   */
+  calculatedPayrollIds: string[];
   /** Rows left untouched because they are already Published/Locked. */
   frozen: number;
   skipped: SkippedEmployee[];
@@ -422,7 +436,14 @@ export async function runPayrollDraft(month: string): Promise<RunResult> {
       // unprotected by the lock this function's whole safety argument rests
       // on.
       const acquired = await lockPayrollMonth(tx, month);
-      if (!acquired) return { calculated: 0, frozen: 0, skipped: [], busy: true as const };
+      if (!acquired)
+        return {
+          calculated: 0,
+          calculatedPayrollIds: [],
+          frozen: 0,
+          skipped: [],
+          busy: true as const,
+        };
 
       const { drafts, skipped } = await gatherAndCalc(tx, month);
 
@@ -434,6 +455,7 @@ export async function runPayrollDraft(month: string): Promise<RunResult> {
 
       let calculated = 0;
       let frozen = 0;
+      const calculatedPayrollIds: string[] = [];
 
       for (const { draft, employee } of drafts) {
         const row = existingByEmp.get(employee.id);
@@ -455,18 +477,21 @@ export async function runPayrollDraft(month: string): Promise<RunResult> {
           });
           if (result.count > 0) {
             calculated++;
+            calculatedPayrollIds.push(row.id);
           } else {
             frozen++;
           }
         } else {
-          await tx.payroll.create({
+          const created = await tx.payroll.create({
             data: { employeeId: employee.id, month, status: 'Draft', ...draftValues(draft) },
+            select: { id: true },
           });
           calculated++;
+          calculatedPayrollIds.push(created.id);
         }
       }
 
-      return { calculated, frozen, skipped };
+      return { calculated, calculatedPayrollIds, frozen, skipped };
     },
     // See "Transaction timeout" above. `maxWait` (5s, the Prisma default) is
     // ONLY the budget to acquire a connection from the pool BEFORE this
@@ -766,12 +791,22 @@ export async function publishPayroll(
 }
 
 /** Flip every Published row of the month to Locked. Returns count. */
-export async function lockPayroll(month: string): Promise<number> {
-  const res = await prisma.payroll.updateMany({
+/**
+ * Flip every Published row for the month to Locked, and return the ids of the
+ * rows actually locked.
+ *
+ * Returns ids rather than a count because the caller audits this, and
+ * `AuditLog.entityId` is `@db.Uuid` — a month string is rejected by Postgres
+ * and silently dropped. `updateManyAndReturn` gets both in one statement, so
+ * there is no window between choosing the rows and writing them.
+ */
+export async function lockPayroll(month: string): Promise<string[]> {
+  const rows = await prisma.payroll.updateManyAndReturn({
     where: { month, status: 'Published' },
     data: { status: 'Locked' },
+    select: { id: true },
   });
-  return res.count;
+  return rows.map((r) => r.id);
 }
 
 export type SerializedBreakdown = {
