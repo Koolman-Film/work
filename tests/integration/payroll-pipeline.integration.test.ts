@@ -468,8 +468,11 @@ describe('lockPayroll', () => {
     await runPayrollDraft(MONTH);
     await publishPayroll(MONTH);
 
+    // Returns the locked rows' ids, not a count — the caller audits them, and
+    // AuditLog.entityId is @db.Uuid.
     const locked = await lockPayroll(MONTH);
-    expect(locked).toBe(1);
+    expect(locked).toHaveLength(1);
+    expect(locked[0]).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
     const rows = await prisma.payroll.findMany({ where: { month: MONTH } });
     expect(rows.every((r) => r.status === 'Locked')).toBe(true);
   });
