@@ -5,7 +5,9 @@
  * Pipeline (each step is a separate Inngest `step.run` so retries are
  * idempotent at each stage; if step 3 fails, steps 1+2 don't re-run):
  *
- *   1. Insert Notification row (channel=LineMessage, sentAt=null)
+ *   1. Insert Notification row (channel=LineMessage, sentAt=null). Skips
+ *      entirely if the recipient User no longer exists — userId is a FK, and
+ *      a queued push can outlive its User.
  *   2. Look up recipient's User.lineUserId via Prisma
  *   3. If no lineUserId → mark notification as "skipped" and return.
  *      Don't retry — the binding will only appear after the employee
@@ -61,6 +63,47 @@ async function alreadyNotifiedQuotaLowToday(): Promise<boolean> {
   return existing != null;
 }
 
+/**
+ * Create the durable Notification row, or report that the recipient is gone.
+ *
+ * Notification.userId is a FK, so a recipient who has been DELETED (not
+ * archived) makes the create throw P2003. That was firing continuously in
+ * production — 96 occurrences across 9 users — because the caller's graceful
+ * handling for missing recipients sat one step BEHIND this write. A queued
+ * notification outliving its User is normal: events are fired, then a User is
+ * deleted before the job drains.
+ *
+ * Returns null instead of throwing so the caller can skip rather than burn its
+ * retries on a state that will never resolve.
+ *
+ * The check-then-insert race (deleted in between) is left deliberately
+ * unguarded: it is self-healing, because the retry re-runs this and takes the
+ * null path. A transaction would buy nothing an FK doesn't already enforce.
+ *
+ * Exported for tests/integration/line-push-missing-user.integration.test.ts —
+ * this only means anything against a database that actually has the FK.
+ */
+export async function insertNotificationRow(
+  recipientUserId: string,
+  payload: Omit<NotificationSendEvent['data'], 'recipientUserId'>,
+): Promise<{ id: string } | null> {
+  const recipientExists = await prisma.user.findUnique({
+    where: { id: recipientUserId },
+    select: { id: true },
+  });
+  if (!recipientExists) return null;
+
+  return await prisma.notification.create({
+    data: {
+      userId: recipientUserId,
+      channel: 'LineMessage',
+      event: payload.kind,
+      payload,
+    },
+    select: { id: true },
+  });
+}
+
 export const linePushNotification = inngest.createFunction(
   {
     id: 'line-push-notification',
@@ -78,18 +121,22 @@ export const linePushNotification = inngest.createFunction(
     const data = event.data as NotificationSendEvent['data'];
     const { recipientUserId, ...payload } = data;
 
-    // Step 1 — durable Notification row
-    const notification = await step.run('insert-notification-row', async () => {
-      return await prisma.notification.create({
-        data: {
-          userId: recipientUserId,
-          channel: 'LineMessage',
-          event: payload.kind,
-          payload,
-        },
-        select: { id: true },
-      });
-    });
+    // Step 1 — durable Notification row.
+    //
+    // Guarded inside this step rather than by resolving the recipient first:
+    // Inngest memoizes by step ID, so reordering the steps would break replay
+    // for runs already in flight. See insertNotificationRow.
+    const notification = await step.run('insert-notification-row', () =>
+      insertNotificationRow(recipientUserId, payload),
+    );
+
+    // Nothing to deliver and nothing to record — the recipient is gone.
+    // A skip, not a failure: throwing would burn all 3 retries and surface
+    // as an Inngest function error for a state that will never resolve.
+    if (!notification) {
+      logger.info(`skipping push: User.${recipientUserId} no longer exists`);
+      return { notificationId: null, delivered: false, reason: 'user-deleted' };
+    }
 
     // Step 2 — look up LINE userId + recipient locale
     const userInfo = await step.run('lookup-line-user-id', async () => {
