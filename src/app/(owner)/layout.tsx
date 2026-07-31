@@ -11,6 +11,7 @@
 
 import { Topbar } from '@/components/admin/topbar';
 import { requireRole } from '@/lib/auth/require-role';
+import { PageFade } from '@/lib/motion/page-fade';
 
 export default async function SuperadminLayout({ children }: { children: React.ReactNode }) {
   const { user } = await requireRole(['Superadmin']);
@@ -18,7 +19,9 @@ export default async function SuperadminLayout({ children }: { children: React.R
   return (
     <div className="flex min-h-dvh flex-col bg-canvas">
       <Topbar userLabel={user.email ?? 'Superadmin'} userId={user.id} />
-      <main className="min-w-0 flex-1">{children}</main>
+      <main className="min-w-0 flex-1">
+        <PageFade>{children}</PageFade>
+      </main>
     </div>
   );
 }
