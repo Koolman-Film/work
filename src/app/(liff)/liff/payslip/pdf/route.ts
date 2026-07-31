@@ -4,6 +4,7 @@ import { auditLog } from '@/lib/audit/log';
 import { requireEmployee } from '@/lib/auth/require-role';
 import { DEFAULT_LOCALE, isLocale, type Locale } from '@/lib/i18n/config';
 import { formatMoney } from '@/lib/i18n/format';
+import { payrollIdFor } from '@/lib/payroll/payroll-id';
 import { getPayslipDocument } from '@/lib/payslip/document';
 import { fontFaceCss } from '@/lib/payslip/fonts';
 import { payslipPeriodLabel, resolveLetterhead } from '@/lib/payslip/letterhead';
@@ -58,13 +59,18 @@ export async function GET(req: Request): Promise<Response> {
         ),
     });
 
-    auditLog({
-      actorId: user.id,
-      action: 'payslip.download',
-      entityType: 'Payroll',
-      entityId: `${employee.id}:${month}`,
-      metadata: { source: 'liff', month, fromCache },
-    });
+    // entityId must be the Payroll row's UUID (AuditLog.entityId is @db.Uuid).
+    // The employee + month that used to be crammed into it live in metadata.
+    const payrollId = await payrollIdFor(employee.id, month);
+    if (payrollId) {
+      auditLog({
+        actorId: user.id,
+        action: 'payslip.download',
+        entityType: 'Payroll',
+        entityId: payrollId,
+        metadata: { source: 'liff', month, employeeId: employee.id, fromCache },
+      });
+    }
 
     return NextResponse.redirect(signedUrl, 302);
   } catch (err) {

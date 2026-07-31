@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { auditLog } from '@/lib/audit/log';
 import { requireGlobalPermission } from '@/lib/auth/require-global-permission';
+import { payrollIdFor } from '@/lib/payroll/payroll-id';
 import { buildPayslipRenderClosure } from '@/lib/payslip/render-closure';
 import { getOrRenderPayslipPdf } from '@/lib/payslip/storage';
 
@@ -31,13 +32,18 @@ export async function GET(req: NextRequest): Promise<Response> {
       month,
       render: rc.render,
     });
-    auditLog({
-      actorId: user.id,
-      action: 'payslip.download',
-      entityType: 'Payroll',
-      entityId: `${employeeId}:${month}`,
-      metadata: { source: 'admin-ui', month, fromCache },
-    });
+    // entityId must be the Payroll row's UUID (AuditLog.entityId is @db.Uuid).
+    // The employee + month that used to be crammed into it live in metadata.
+    const payrollId = await payrollIdFor(employeeId, month);
+    if (payrollId) {
+      auditLog({
+        actorId: user.id,
+        action: 'payslip.download',
+        entityType: 'Payroll',
+        entityId: payrollId,
+        metadata: { source: 'admin-ui', month, employeeId, fromCache },
+      });
+    }
     return NextResponse.redirect(signedUrl, 302);
   } catch (err) {
     console.error('[admin payslip-pdf] failed', { employeeId, month, err });

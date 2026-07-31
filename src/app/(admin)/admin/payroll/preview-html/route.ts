@@ -36,11 +36,18 @@ export async function GET(req: Request): Promise<Response> {
   }
 
   let doc: Awaited<ReturnType<typeof buildPreviewPayslipDocument>>;
+  // Hoisted out of the try for the audit write below. Null when previewing a
+  // month with no Payroll row yet (a live Draft recompute) — there is no
+  // entity to point at, so that preview is not audited.
+  let payrollId: string | null = null;
   try {
     const row = await prisma.payroll.findFirst({
       where: { employeeId, month },
-      select: { status: true },
+      // `id` is for the audit write below — AuditLog.entityId is @db.Uuid, so
+      // it needs the real Payroll UUID, not a composite `<employeeId>:<month>`.
+      select: { id: true, status: true },
     });
+    payrollId = row?.id ?? null;
     // Published/Locked → render the frozen slip (what the employee received);
     // Draft (or no row yet) → recompute live.
     doc =
@@ -87,13 +94,15 @@ export async function GET(req: Request): Promise<Response> {
       screen: true,
     });
 
-    auditLog({
-      actorId: user.id,
-      action: 'payslip.preview',
-      entityType: 'Payroll',
-      entityId: `${employeeId}:${month}`,
-      metadata: { source: 'admin-ui', month, employeeId, format: 'html' },
-    });
+    if (payrollId) {
+      auditLog({
+        actorId: user.id,
+        action: 'payslip.preview',
+        entityType: 'Payroll',
+        entityId: payrollId,
+        metadata: { source: 'admin-ui', month, employeeId, format: 'html' },
+      });
+    }
 
     return new NextResponse(html, {
       status: 200,

@@ -2,7 +2,6 @@
 
 import { revalidatePath } from 'next/cache';
 import { type BackfillReport, backfillLeaveLateRows } from '@/lib/attendance/backfill-leave-late';
-import { auditLog } from '@/lib/audit/log';
 import { requireRole } from '@/lib/auth/require-role';
 
 /**
@@ -41,18 +40,11 @@ export async function runBackfillLeaveLateRows(
   const since = parseSince(sinceYmd);
   const report = await backfillLeaveLateRows({ apply, actorId: user.id, since });
   if (apply && (report.counts.delete > 0 || report.counts.lower > 0)) {
-    auditLog({
-      actorId: user.id,
-      action: 'attendance.edit',
-      entityType: 'Attendance',
-      entityId: 'bulk',
-      after: {
-        source: 'backfill-leave-late-rows',
-        since: sinceYmd ?? null,
-        counts: report.counts,
-      },
-      metadata: { source: 'admin-tool' },
-    });
+    // No aggregate audit row here. `backfillLeaveLateRows` already writes one
+    // per mutated Attendance row, in the same transaction as the mutation and
+    // keyed by that row's real UUID, carrying the same actorId — so a summary
+    // row adds only counts that are derivable from those rows. It also could
+    // not be written: AuditLog.entityId is @db.Uuid and this passed 'bulk'.
     revalidatePath('/admin/attendance');
   }
   return report;
