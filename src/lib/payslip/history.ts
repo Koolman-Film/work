@@ -19,7 +19,7 @@ export async function loadEmployeePayslipHistory(
 export async function loadMonthPayslipTargets(
   month: string,
   permitted: PermittedBranches,
-): Promise<{ employeeId: string; name: string }[]> {
+): Promise<{ employeeId: string; payrollId: string; name: string }[]> {
   const rows = await prisma.payroll.findMany({
     where: {
       month,
@@ -27,10 +27,17 @@ export async function loadMonthPayslipTargets(
       ...viaEmployeeBranchScope(permitted),
     },
     orderBy: { employee: { firstName: 'asc' } },
-    select: { employeeId: true, employee: { select: { firstName: true, lastName: true } } },
+    // `id` feeds the ZIP route's per-payslip audit rows — AuditLog.entityId is
+    // @db.Uuid, so each access needs the real Payroll UUID.
+    select: {
+      id: true,
+      employeeId: true,
+      employee: { select: { firstName: true, lastName: true } },
+    },
   });
   return rows.map((r) => ({
     employeeId: r.employeeId,
+    payrollId: r.id,
     name: `${r.employee.firstName} ${r.employee.lastName}`,
   }));
 }

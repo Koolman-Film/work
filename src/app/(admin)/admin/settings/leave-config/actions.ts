@@ -34,17 +34,18 @@ export async function updateLeaveConfig(formData: FormData) {
   }
 
   const before = await prisma.leaveConfig.findFirst();
-  if (before) {
-    await prisma.leaveConfig.update({ where: { id: before.id }, data: parsed.data });
-  } else {
-    await prisma.leaveConfig.create({ data: parsed.data });
-  }
+  // Capture the saved row's id: on first-ever save there is no `before`, and
+  // the old `'new'` sentinel is not a UUID, so AuditLog.entityId rejected it
+  // and the very first config change went unrecorded.
+  const saved = before
+    ? await prisma.leaveConfig.update({ where: { id: before.id }, data: parsed.data })
+    : await prisma.leaveConfig.create({ data: parsed.data });
 
   auditLog({
     actorId: user.id,
     action: 'leaveConfig.update',
     entityType: 'LeaveConfig',
-    entityId: before?.id ?? 'new',
+    entityId: saved.id,
     ...(before
       ? {
           before: {
