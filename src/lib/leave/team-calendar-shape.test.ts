@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  bangkokDayStart,
   buildMonthGrid,
   currentMonthYM,
   formatThaiMonthLabel,
@@ -171,5 +172,49 @@ describe('formatThaiMonthLabel', () => {
 describe('currentMonthYM', () => {
   it('returns a well-formed YYYY-MM', () => {
     expect(currentMonthYM()).toMatch(/^\d{4}-(0[1-9]|1[0-2])$/);
+  });
+});
+
+describe('bangkokDayStart', () => {
+  it('starts the day 7 hours before UTC midnight', () => {
+    // 2026-08-01 in Bangkok begins at 2026-07-31T17:00Z.
+    expect(bangkokDayStart(new Date('2026-08-01T00:00:00.000Z')).toISOString()).toBe(
+      '2026-07-31T17:00:00.000Z',
+    );
+  });
+
+  it('brackets the seam that used to swallow advances', () => {
+    // An advance at 00:25 Bangkok on 1 Aug is 2026-07-31T17:25Z. Under UTC
+    // bounds it fell outside August's window while being anchored to 1 Aug —
+    // fetched for July, drawn on a day July has no cell for, so invisible in
+    // both months. It must now fall inside August.
+    const augStart = bangkokDayStart(new Date('2026-08-01T00:00:00.000Z'));
+    const sepStart = bangkokDayStart(new Date('2026-09-01T00:00:00.000Z'));
+    const advance = new Date('2026-07-31T17:25:00.000Z');
+
+    expect(advance >= augStart).toBe(true);
+    expect(advance < sepStart).toBe(true);
+    // And the anchor the loader computes for it agrees.
+    expect(advance.toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' })).toBe('2026-08-01');
+  });
+
+  it('excludes the instant just before the Bangkok day begins', () => {
+    const augStart = bangkokDayStart(new Date('2026-08-01T00:00:00.000Z'));
+    const lastMomentOfJuly = new Date('2026-07-31T16:59:59.999Z');
+
+    expect(lastMomentOfJuly < augStart).toBe(true);
+    expect(lastMomentOfJuly.toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' })).toBe(
+      '2026-07-31',
+    );
+  });
+
+  it('is unaffected by DST, because Bangkok has none', () => {
+    // Same offset in January and July — the reason the literal +07:00 is safe.
+    expect(bangkokDayStart(new Date('2026-01-01T00:00:00.000Z')).toISOString()).toBe(
+      '2025-12-31T17:00:00.000Z',
+    );
+    expect(bangkokDayStart(new Date('2026-07-01T00:00:00.000Z')).toISOString()).toBe(
+      '2026-06-30T17:00:00.000Z',
+    );
   });
 });
