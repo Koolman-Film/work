@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { loginAsAdmin } from './helpers/auth';
+import { isoMonthsAhead, pickDate } from './helpers/date-field';
 import { cleanupE2eRecords, e2eId } from './helpers/db';
 
 /**
@@ -24,8 +25,13 @@ import { cleanupE2eRecords, e2eId } from './helpers/db';
 
 type Field = {
   label: string | RegExp;
-  /** YYYY-MM-DD for date inputs, anything else for text/textarea. */
+  /** YYYY-MM-DD when `kind` is 'date', anything else for text/textarea. */
   value: string;
+  /**
+   * 'date' fields render a <DateField> — a trigger button plus a popover, not
+   * an input — and must be driven through helpers/date-field.
+   */
+  kind?: 'text' | 'date';
 };
 
 type CrudConfig = {
@@ -62,7 +68,9 @@ const CRUDS: CrudConfig[] = [
     addButtonText: /\+ เพิ่มสาขา/,
     submitCreateText: 'สร้างสาขา',
     submitEditText: 'บันทึก',
-    createFields: [{ label: 'ชื่อสาขา', value: '' /* filled at runtime */ }],
+    // Anchored: getByLabel matches substrings, and the form also has
+    // "ชื่อสาขา (อังกฤษ)". The optional `*` is FormField's required marker.
+    createFields: [{ label: /^ชื่อสาขา\*?$/, value: '' /* filled at runtime */ }],
     editValueForFirstField: (suffix) => `e2e-Branch-Edit-${suffix}`,
     rowMatcherForEditedValue: (v) => new RegExp(v),
     duplicateErrorText: /สาขาชื่อนี้อยู่แล้ว/,
@@ -103,7 +111,10 @@ const CRUDS: CrudConfig[] = [
     // edits (changing it would create a different conceptual entity).
     createFields: [
       { label: 'ชื่อวันหยุด', value: '' }, // FIRST — becomes the row matcher
-      { label: 'วันที่', value: '2030-07-15' }, // arbitrary future date unlikely to collide
+      // Near-future rather than 2030: the picker steps one month per click, so
+      // a date years out costs ~50 clicks to reach. Day 23 of two months from
+      // now is well clear of the seeded Thai public holidays.
+      { label: 'วันที่', value: isoMonthsAhead(2, 23), kind: 'date' },
     ],
     editValueForFirstField: (suffix) => `e2e-Holiday-Edit-${suffix}`,
     rowMatcherForEditedValue: (v) => new RegExp(v),
@@ -112,9 +123,8 @@ const CRUDS: CrudConfig[] = [
 ];
 
 /**
- * Fill a field by label, switching between input/textarea/date-input.
- * Playwright's getByLabel handles all three transparently when the label
- * is associated via htmlFor/id.
+ * Fill a field by label. Text and textarea are interchangeable to
+ * `getByLabel().fill()`; a DateField is not, and needs the popover driven.
  */
 async function fillField(
   page: import('@playwright/test').Page,
@@ -122,7 +132,13 @@ async function fillField(
   overrideValue?: string,
 ) {
   const target = overrideValue ?? field.value;
-  await page.getByLabel(field.label).fill(target);
+  const control = page.getByLabel(field.label);
+
+  if (field.kind === 'date') {
+    await pickDate(page, control, target);
+    return;
+  }
+  await control.fill(target);
 }
 
 for (const cfg of CRUDS) {
