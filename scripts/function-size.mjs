@@ -28,8 +28,25 @@ const limit = args.includes('--limit') ? Number(args[args.indexOf('--limit') + 1
 
 /** Vercel's hard cap on an uncompressed function. */
 const CAP_MB = 250;
-/** Our own ceiling, leaving room to grow before the cap becomes a deploy failure. */
-const BUDGET_MB = 200;
+/**
+ * Our own ceiling — a slow-drift alarm, not the real limit.
+ *
+ * Measure on Linux, not your laptop: the same build is ~9% heavier there,
+ * because `@next/swc` and `sharp` ship platform-specific binaries. The payroll
+ * page measured 175.44 MB on macOS and 190.86 MB in CI, and the Linux figure
+ * is the one that matches what Vercel enforces (it read 257.76 MB where macOS
+ * said 241.86 MB — the same offset).
+ *
+ * 220 leaves ~29 MB of room above the real number and still fails well before
+ * Vercel's 250 MB cap, while catching the 241.86 MB duplication regression
+ * that prompted all this. It was briefly 200, which passed CI by 9 MB — close
+ * enough that an ordinary `pnpm add` would have turned main red and blamed
+ * whichever PR happened to cross the line.
+ *
+ * The duplication and missing-binary assertions below do the precise work;
+ * this threshold only catches gradual growth nobody is watching.
+ */
+const BUDGET_MB = 220;
 
 /**
  * The runtime-loaded binary payload, matched at either the symlinked or the
