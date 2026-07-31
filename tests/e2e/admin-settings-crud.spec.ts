@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { loginAsAdmin } from './helpers/auth';
-import { isoMonthsAhead, pickDate } from './helpers/date-field';
+import { pickDate, unusedFutureDateIso } from './helpers/date-field';
 import { cleanupE2eRecords, e2eId } from './helpers/db';
 
 /**
@@ -111,10 +111,10 @@ const CRUDS: CrudConfig[] = [
     // edits (changing it would create a different conceptual entity).
     createFields: [
       { label: 'ชื่อวันหยุด', value: '' }, // FIRST — becomes the row matcher
-      // Near-future rather than 2030: the picker steps one month per click, so
-      // a date years out costs ~50 clicks to reach. Day 23 of two months from
-      // now is well clear of the seeded Thai public holidays.
-      { label: 'วันที่', value: isoMonthsAhead(2, 23), kind: 'date' },
+      // Holiday's uniqueness axis is `date`, so this must be a date nothing
+      // else holds. "Two months out, day 23" was not: it landed on
+      // วันปิยมหาราช once the month rolled over. See unusedFutureDateIso.
+      { label: 'วันที่', value: unusedFutureDateIso(), kind: 'date' },
     ],
     editValueForFirstField: (suffix) => `e2e-Holiday-Edit-${suffix}`,
     rowMatcherForEditedValue: (v) => new RegExp(v),

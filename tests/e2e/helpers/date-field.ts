@@ -42,6 +42,26 @@ export function isoMonthsAhead(months: number, day: number): string {
 }
 
 /**
+ * A future date nothing else occupies — for tests that create a row on a
+ * date with a uniqueness constraint.
+ *
+ * Two ways a fixed date bites, both of which it already has:
+ *   - The holiday seed covers 2026 only, and "two months out, day 23" landed
+ *     exactly on วันปิยมหาราช once the month rolled over. Any fixed day
+ *     eventually collides with a public holiday as the window slides.
+ *   - Archiving is a soft delete, so a row from a previous run still holds
+ *     the date against the uniqueness constraint.
+ *
+ * So: far enough out that the seed can't reach (2027+), on a day that varies
+ * per run. The picker walks a month per click, which is milliseconds — the
+ * distance costs far less than the flakiness did.
+ */
+export function unusedFutureDateIso(): string {
+  const day = (Math.floor(Date.now() / 1000) % 28) + 1;
+  return isoMonthsAhead(14, day);
+}
+
+/**
  * Pick `iso` (YYYY-MM-DD) in the DateField whose trigger is `trigger`.
  *
  * The popover opens on the field's current value, or today's month when empty.
