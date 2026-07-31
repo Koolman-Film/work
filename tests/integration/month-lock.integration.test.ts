@@ -112,7 +112,13 @@ describe('runPayrollDraft / publishPayroll — surface `busy` under contention (
     const result: RunResult = await runPayrollDraft(month);
     const elapsedMs = Date.now() - start;
 
-    expect(result).toEqual({ calculated: 0, frozen: 0, skipped: [], busy: true });
+    expect(result).toEqual({
+      calculated: 0,
+      calculatedPayrollIds: [],
+      frozen: 0,
+      skipped: [],
+      busy: true,
+    });
     // The property that matters (Defect 3): a non-blocking try-lock plus a
     // short bounded retry returns well before the holder releases — not a
     // tight absolute bound (200ms of budgeted sleeps plus round trips) that
