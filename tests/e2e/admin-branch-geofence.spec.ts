@@ -13,6 +13,14 @@ import { cleanupE2eRecords, e2eId } from './helpers/db';
  * value like 13.736700 round-trips to exactly "13.736700".
  */
 
+/**
+ * Anchored, because getByLabel matches substrings: once the form gained
+ * "ชื่อสาขา (อังกฤษ)", a bare 'ชื่อสาขา' matched both fields and every fill
+ * here died on a strict-mode violation. The optional `*` is the required
+ * marker FormField appends to the accessible name.
+ */
+const BRANCH_NAME = /^ชื่อสาขา\*?$/;
+
 test.afterAll(async () => {
   await cleanupE2eRecords();
 });
@@ -24,7 +32,7 @@ test.describe('Branch geofence lat/long fields', () => {
     const name = `e2e-Branch-Geo-${e2eId()}`;
     await page.goto('/admin/settings/branches/new');
 
-    await page.getByLabel('ชื่อสาขา').fill(name);
+    await page.getByLabel(BRANCH_NAME).fill(name);
     await page.getByLabel(/ละติจูด/).fill('13.736700');
     await page.getByLabel(/ลองติจูด/).fill('100.523200');
     await page.getByRole('button', { name: 'สร้างสาขา' }).click();
@@ -50,7 +58,7 @@ test.describe('Branch geofence lat/long fields', () => {
     const name = `e2e-Branch-GeoBad-${e2eId()}`;
     await page.goto('/admin/settings/branches/new');
 
-    await page.getByLabel('ชื่อสาขา').fill(name);
+    await page.getByLabel(BRANCH_NAME).fill(name);
     // Client marks it invalid but does NOT block submit (non-blocking
     // validation by design); the server's coordSchema must reject it.
     await page.getByLabel(/ละติจูด/).fill('999');

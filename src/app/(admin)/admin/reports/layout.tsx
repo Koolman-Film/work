@@ -6,6 +6,7 @@
 
 import { PageHeader } from '@/components/ui/page-header';
 import { requirePermission } from '@/lib/auth/check-permission';
+import { SectionFade } from '@/lib/motion/page-fade';
 import { ReportTabs } from './tabs';
 
 export default async function ReportsLayout({ children }: { children: React.ReactNode }) {
@@ -18,7 +19,7 @@ export default async function ReportsLayout({ children }: { children: React.Reac
         subtitle="สรุปการลงเวลา วันลา และการเบิกเงิน — เลือกเดือนหรือกำหนดช่วงเอง"
       />
       <ReportTabs />
-      {children}
+      <SectionFade>{children}</SectionFade>
     </div>
   );
 }
