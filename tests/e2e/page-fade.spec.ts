@@ -70,6 +70,49 @@ test.describe('admin page entrance', () => {
   });
 });
 
+test.describe('sections that own their chrome', () => {
+  test('switching settings tabs fades the content but not the sticky sub-nav', async ({ page }) => {
+    await loginAsAdmin(page);
+    await page.goto('/admin/settings/branches');
+
+    const inner = page.locator(`${WRAPPER} .u-enter-page`);
+    await expect(inner).toBeAttached();
+
+    await page.evaluate((selector) => {
+      // The area wrapper and the settings sub-nav must both survive; only the
+      // inner wrapper — the content column — should be replaced.
+      document.querySelector(selector)?.setAttribute('data-e2e-area', '1');
+      document.querySelector('main aside')?.setAttribute('data-e2e-subnav', '1');
+      document.querySelector(`${selector} .u-enter-page`)?.setAttribute('data-e2e-inner', '1');
+    }, WRAPPER);
+
+    await page.getByRole('link', { name: 'แผนก' }).click();
+    await page.waitForURL(/\/admin\/settings\/departments/);
+    await expect(inner).toBeAttached();
+
+    await expect(page.locator(WRAPPER)).toHaveAttribute('data-e2e-area', '1');
+    await expect(page.locator('main aside')).toHaveAttribute('data-e2e-subnav', '1');
+    await expect(inner).not.toHaveAttribute('data-e2e-inner', '1');
+  });
+
+  test('entering a section from outside it still fades', async ({ page }) => {
+    await loginAsAdmin(page);
+    await page.goto('/admin');
+
+    await page.evaluate((selector) => {
+      document.querySelector(selector)?.setAttribute('data-e2e-area', '1');
+    }, WRAPPER);
+
+    // /admin → /admin/settings/* changes the area key, so the whole area
+    // (sub-nav included) is replaced and fades in. Only *within* the section
+    // does the sub-nav hold still.
+    await page.goto('/admin/settings/branches');
+    await page.waitForURL(/\/admin\/settings\/branches/);
+
+    await expect(page.locator(WRAPPER)).not.toHaveAttribute('data-e2e-area', '1');
+  });
+});
+
 test.describe('admin page entrance under reduced motion', () => {
   // Playwright 1.60 takes this via contextOptions, not as a top-level option.
   test.use({ contextOptions: { reducedMotion: 'reduce' } });

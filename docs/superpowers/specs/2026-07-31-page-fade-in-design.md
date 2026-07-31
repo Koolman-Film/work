@@ -9,7 +9,7 @@
 Give every `(admin)` and `(owner)` page a subtle fade-and-rise entrance on
 navigation, matching the POS prototype's `.fade-page`.
 
-Four files, no new dependency. The animation already exists in `globals.css` —
+Six files, no new dependency. The animation already exists in `globals.css` —
 this spec is about **where it attaches** so it replays on route change without
 disturbing the sidebar, topbar, or toasts.
 
@@ -94,19 +94,22 @@ and a fresh DOM node restarts the CSS animation — POS's `view`-switch mechanis
 expressed in App Router terms.
 
 ```
-(admin)/layout.tsx          Sidebar, Topbar, ToastProvider, NextIntlClientProvider
-  └─ <PageFade>             NEW — keyed div, replaced per navigation
-       └─ admin/**/layout.tsx    section sub-navs
-            └─ page.tsx
+(admin)/layout.tsx           Sidebar, Topbar, ToastProvider, NextIntlClientProvider
+  └─ <PageFade>              NEW — keyed div, replaced per navigation
+       └─ settings/layout.tsx     sticky sub-nav — held still
+            └─ <SectionFade>      NEW — keyed div, fades the content column
+                 └─ page.tsx
 ```
 
-Three files:
+Six files:
 
 ```
-src/app/globals.css          +4 lines   .u-enter-page
-src/lib/motion/page-fade.tsx new        the keyed wrapper
-(admin)/layout.tsx           +2 lines   covers 58 pages
-(owner)/layout.tsx           +2 lines   covers 1 page
+src/app/globals.css            +4 lines   .u-enter-page
+src/lib/motion/page-fade.tsx   new        PageFade + SectionFade
+(admin)/layout.tsx             +2 lines   covers 58 pages
+(owner)/layout.tsx             +2 lines   covers 1 page
+admin/settings/layout.tsx      +2 lines   sub-nav holds still
+admin/reports/layout.tsx       +2 lines   sub-nav holds still
 ```
 
 Every future page under either group inherits the entrance with no further work.
@@ -173,9 +176,32 @@ Both layouts wrap their `{children}` with it:
 </main>
 ```
 
-The key is the full pathname, so `/admin/employees/1` → `/admin/employees/2`
-re-announces itself. Query-string changes (filters, pagination) leave the
-pathname alone and stay silent — see the trade-offs below.
+Query-string changes (filters, pagination) leave the pathname alone and stay
+silent — see the trade-offs below.
+
+### Sections that own their chrome
+
+Two sections render a sticky sub-nav from their *layout*, which should hold
+still while you move between its tabs:
+
+| Section | Layout chrome |
+|---|---|
+| `/admin/settings` | sticky `SettingsNav` aside |
+| `/admin/reports` | `PageHeader` + `ReportTabs` strip |
+
+`attendance` and `payroll` look like they belong here but do not: their layouts
+are pass-throughs, and those tab strips are rendered by the pages, so they are
+content and correctly fade with it.
+
+For the two that qualify, `PageFade` collapses its key to the section prefix —
+so the area node survives tab switches — and a `SectionFade` inside that
+layout, keyed on the full pathname, fades only the content column beside the
+sub-nav. Arriving from outside the section still changes the area key, so the
+whole thing including the sub-nav fades in on entry.
+
+Each entry in `SECTIONS_WITH_OWN_CHROME` must be paired with a `<SectionFade>`
+in that layout. Forget the pairing and the section's pages stop animating
+entirely; `page-fade.spec.ts` holds the pairing for `/admin/settings`.
 
 ### Why not the alternatives
 
@@ -199,7 +225,7 @@ forgetting it.
 
 ## Testing
 
-One new spec, `tests/e2e/page-fade.spec.ts`, three tests — all passing.
+One new spec, `tests/e2e/page-fade.spec.ts`, five tests — all passing.
 
 **The chrome/content split holds.** Stamp a marker on the sidebar DOM node,
 client-side navigate between two admin pages, then assert the marker survived
@@ -209,6 +235,12 @@ whole design, and it is the test that caught `template.tsx` not working.
 
 **An animation is actually attached**, asserted as a duration over 100ms rather
 than pinning the exact token, so retuning `--duration-slow` doesn't fail here.
+
+**Sections keep their chrome.** Switching `/admin/settings/branches` →
+`/admin/settings/departments` must leave both the area wrapper and the sticky
+sub-nav marked, while replacing the inner content wrapper. A companion test
+navigates *into* the section from `/admin` and asserts the area wrapper IS
+replaced, so collapsing the key can't silently kill the entrance on entry.
 
 **Reduced motion still wins.** The same page under `reducedMotion: 'reduce'`
 (passed via `contextOptions` — Playwright 1.60 dropped the top-level option),
@@ -220,11 +252,8 @@ No unit tests — there is no logic here.
 
 - **No exit animation.** The outgoing page vanishes instantly. This is what
   makes the pattern feel fast rather than laggy, and it is what POS shipped.
-- **Sub-nav re-fades in four sections.** `settings`, `payroll`, `reports` and
-  `attendance` have sticky sub-navs inside the wrapper, so switching tabs
-  within a section fades the sub-nav alongside the content. Known wart, known
-  upgrade path (per-section keyed wrapper). Revisit only if it irritates in
-  review.
+- ~~Sub-nav re-fades in four sections.~~ **Fixed** — see below. The count was
+  also wrong: only two sections have layout-level chrome, not four.
 - **In-page changes stay silent.** Filter and pagination updates re-render
   without remounting, so they do not fade. Deliberate: re-fading a table on
   every keystroke is how this pattern turns annoying.
