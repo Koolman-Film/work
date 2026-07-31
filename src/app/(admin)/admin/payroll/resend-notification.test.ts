@@ -7,7 +7,9 @@ vi.mock('next/navigation', () => ({
   },
 }));
 vi.mock('next/server', () => ({ after: (fn: () => void) => fn() }));
-vi.mock('@/lib/audit/log', () => ({ auditLog: vi.fn() }));
+// auditLogMany too: actions.ts imports both, and a mock missing one leaves it
+// undefined — a confusing "not a function" from an unrelated action later.
+vi.mock('@/lib/audit/log', () => ({ auditLog: vi.fn(), auditLogMany: vi.fn() }));
 
 const requirePermission = vi.fn();
 const canDo = vi.fn();

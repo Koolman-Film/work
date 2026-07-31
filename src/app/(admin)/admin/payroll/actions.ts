@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { after } from 'next/server';
 import type { ActionResult } from '@/components/ui/confirm-dialog';
-import { auditLog } from '@/lib/audit/log';
+import { auditLog, auditLogMany } from '@/lib/audit/log';
 import { requireGlobalPermission } from '@/lib/auth/require-global-permission';
 import { prisma } from '@/lib/db/prisma';
 import { sendNotification } from '@/lib/inngest/events';
@@ -105,18 +105,25 @@ export async function calculatePayrollAction(formData: FormData) {
     back(month, 'มีแอดมินอีกคนกำลังคำนวณหรือเผยแพร่เงินเดือนเดือนนี้อยู่ กรุณาลองใหม่อีกครั้ง', 'alert');
   }
 
-  auditLog({
-    actorId: user.id,
-    action: 'payroll.run',
-    entityType: 'Payroll',
-    entityId: month,
-    metadata: {
-      source: 'admin-ui',
-      calculated: result.calculated,
-      frozen: result.frozen,
-      skipped: result.skipped,
-    },
-  });
+  // One row per Payroll actually recalculated. A month-wide action has no
+  // single entity to point at, and `entityId` is @db.Uuid — passing `month`
+  // here made Postgres reject every one of these writes, silently, because
+  // auditLog swallows its own errors.
+  auditLogMany(
+    result.calculatedPayrollIds.map((payrollId) => ({
+      actorId: user.id,
+      action: 'payroll.run' as const,
+      entityType: 'Payroll',
+      entityId: payrollId,
+      metadata: {
+        source: 'admin-ui',
+        month,
+        calculated: result.calculated,
+        frozen: result.frozen,
+        skipped: result.skipped,
+      },
+    })),
+  );
 
   const parts = [`คำนวณแล้ว ${result.calculated} คน`];
   if (result.frozen > 0) parts.push(`ข้าม ${result.frozen} คนที่เผยแพร่แล้ว`);
@@ -171,18 +178,26 @@ export async function publishPayrollAction(formData: FormData) {
   // their slip from the LINE rich menu instead (quota reduction).
   await scheduleSlipWarming(month, result.published);
 
-  auditLog({
-    actorId: user.id,
-    action: 'payroll.publish',
-    entityType: 'Payroll',
-    entityId: month,
-    metadata: {
-      source: 'admin-ui',
-      published: result.published.length,
-      skipped: result.skipped,
-      blocked: result.blocked,
-    },
-  });
+  // One row per slip published. PublishedSlip already carries the real
+  // Payroll UUID, so the trail says whose pay was published rather than only
+  // that a month was — and `entityId` is @db.Uuid, which the month string
+  // this used to pass could never satisfy.
+  auditLogMany(
+    result.published.map((slip) => ({
+      actorId: user.id,
+      action: 'payroll.publish' as const,
+      entityType: 'Payroll',
+      entityId: slip.payrollId,
+      metadata: {
+        source: 'admin-ui',
+        month,
+        employeeId: slip.employeeId,
+        published: result.published.length,
+        skipped: result.skipped,
+        blocked: result.blocked,
+      },
+    })),
+  );
 
   // Defect-3 guard (run.ts): each named employee below carries a live
   // settlement that outlived the penalty that justified it (a late-penalty
@@ -410,8 +425,10 @@ export async function resendPayslipNotificationAction(
     actorId: user.id,
     action: 'payroll.publish',
     entityType: 'Payroll',
-    entityId: month,
-    metadata: { source: 'admin-ui', via: 'resend', employeeId, payrollId: payroll.id },
+    // The Payroll row itself, which this action already had in hand — it was
+    // sitting in metadata while `month` went into the @db.Uuid column.
+    entityId: payroll.id,
+    metadata: { source: 'admin-ui', via: 'resend', month, employeeId },
   });
 
   return { ok: true };
@@ -421,17 +438,19 @@ export async function lockPayrollAction(formData: FormData) {
   const { user } = await requireGlobalPermission('payroll.publish');
   const month = readMonth(formData);
 
-  const count = await lockPayroll(month);
+  const lockedIds = await lockPayroll(month);
 
-  auditLog({
-    actorId: user.id,
-    action: 'payroll.publish',
-    entityType: 'Payroll',
-    entityId: month,
-    metadata: { source: 'admin-ui', phase: 'lock', locked: count },
-  });
+  auditLogMany(
+    lockedIds.map((payrollId) => ({
+      actorId: user.id,
+      action: 'payroll.publish' as const,
+      entityType: 'Payroll',
+      entityId: payrollId,
+      metadata: { source: 'admin-ui', phase: 'lock', month, locked: lockedIds.length },
+    })),
+  );
 
-  back(month, `ล็อกสลิป ${count} คน`);
+  back(month, `ล็อกสลิป ${lockedIds.length} คน`);
 }
 
 /**
@@ -488,18 +507,24 @@ export async function publishOnePayrollAction(
   // their slip from the LINE rich menu instead (quota reduction).
   await scheduleSlipWarming(month, result.published);
 
-  auditLog({
-    actorId: user.id,
-    action: 'payroll.publish',
-    entityType: 'Payroll',
-    entityId: month,
-    metadata: {
-      source: 'admin-ui',
-      via: 'per-employee',
-      employeeId,
-      published: result.published.length,
-    },
-  });
+  // Normally exactly one slip, but publishPayroll returns a list either way —
+  // map it rather than assuming, so a future multi-row call still audits
+  // every row it wrote.
+  auditLogMany(
+    result.published.map((slip) => ({
+      actorId: user.id,
+      action: 'payroll.publish' as const,
+      entityType: 'Payroll',
+      entityId: slip.payrollId,
+      metadata: {
+        source: 'admin-ui',
+        via: 'per-employee',
+        month,
+        employeeId,
+        published: result.published.length,
+      },
+    })),
+  );
 
   revalidatePath('/admin/payroll');
   return { ok: true };
