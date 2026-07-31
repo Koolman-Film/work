@@ -150,13 +150,29 @@ body {
   to   { background-position: 250% 0; }
 }
 
-/* Utility helpers used by the approvals flagship + primitives. */
-.u-enter-rise { animation: enter-rise var(--duration-base) var(--ease-out-soft) both; }
-/* Whole-page entrance, carried by the (admin)/(owner) template.tsx. Slower than
-   .u-enter-rise: a full page of content needs longer to read as deliberate
-   rather than twitchy. */
-.u-enter-page { animation: enter-rise var(--duration-slow) var(--ease-out-soft) both; }
-.u-moment-in  { animation: moment-in var(--duration-slow) var(--ease-overshoot) both; }
+/* Utility helpers used by the approvals flagship + primitives.
+ *
+ * `backwards`, NOT `both`. These animations end where the element naturally
+ * sits — opacity 1, no offset — so `forwards` persists a transform that buys
+ * nothing and costs a great deal: `transform: translateY(0)` is not `none`,
+ * and any non-none transform makes the element a containing block for every
+ * `position: fixed` descendant.
+ *
+ * <Dialog> renders inline with `fixed inset-0` (no portal). With `both` on the
+ * page wrapper, every admin dialog resolved against <main> instead of the
+ * viewport: the backdrop began at the sidebar's right edge (left ≈ 272px), so
+ * the sidebar sat undimmed beside a panel centred in the content column.
+ * Nothing threw and no test failed — see tests/e2e/dialog-viewport.spec.ts.
+ *
+ * `backwards` keeps the only part that mattered: the from-state applies before
+ * the first frame, so there is no flash of un-animated content.
+ */
+.u-enter-rise { animation: enter-rise var(--duration-base) var(--ease-out-soft) backwards; }
+/* Whole-page entrance, carried by <PageFade>. Slower than .u-enter-rise: a
+   full page of content needs longer to read as deliberate rather than
+   twitchy. */
+.u-enter-page { animation: enter-rise var(--duration-slow) var(--ease-out-soft) backwards; }
+.u-moment-in  { animation: moment-in var(--duration-slow) var(--ease-overshoot) backwards; }
 .u-badge-pop  { animation: badge-pop var(--duration-base) var(--ease-out-soft); }
 /* Row exit: a grid wrapper collapses 1fr→0fr so height animates cheaply. */
 .u-collapse-wrap { display: grid; grid-template-rows: 1fr; transition: grid-template-rows var(--duration-base) var(--ease-out-soft), opacity var(--duration-base) var(--ease-out-soft); }
