@@ -176,6 +176,31 @@ export interface AuditLogParams {
   };
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * `AuditLog.entityId` is `@db.Uuid` (schema.prisma), so anything that is not a
+ * UUID — a composite key like `<employeeId>:<month>`, a sentinel like 'bulk' or
+ * 'new' — makes Postgres reject the INSERT. Because `auditLog` is
+ * fire-and-forget and swallows its own errors, such a call site fails silently
+ * and 100% of the time: `payslip.download` wrote nothing for six weeks (306
+ * failures) before anyone noticed, leaving no record of who read whose payslip.
+ *
+ * Fail LOUDLY outside production so the first test or dev run catches it, and
+ * stay silent in production, where an audit write must never break a request
+ * (the catch below still logs it). Every ID a caller passes must be the real
+ * UUID of a real row; a discriminator like a month belongs in `metadata`.
+ */
+function assertUuidEntityId(params: AuditLogParams): void {
+  if (process.env.NODE_ENV === 'production') return;
+  if (UUID_RE.test(params.entityId)) return;
+  throw new Error(
+    `[audit] entityId must be a UUID — AuditLog.entityId is @db.Uuid, so ` +
+      `"${params.entityId}" (action "${params.action}") would be rejected by ` +
+      `Postgres and silently dropped. Pass the row's id; put month//scope in metadata.`,
+  );
+}
+
 /**
  * Fire-and-forget audit write. Returns immediately; the underlying Promise
  * is logged on failure but never awaited from the caller's perspective.
@@ -184,6 +209,7 @@ export interface AuditLogParams {
  * with audit as part of the same DB transaction), use `auditLogTx` instead.
  */
 export function auditLog(params: AuditLogParams): void {
+  assertUuidEntityId(params);
   void prisma.auditLog
     .create({
       data: {
@@ -220,6 +246,7 @@ export async function auditLogTx(
   tx: AuditTransactionClient,
   params: AuditLogParams,
 ): Promise<void> {
+  assertUuidEntityId(params);
   await tx.auditLog.create({
     data: {
       actorId: params.actorId,
@@ -231,6 +258,39 @@ export async function auditLogTx(
       metadata: params.metadata ?? Prisma.JsonNull,
     },
   });
+}
+
+/**
+ * Fire-and-forget batch write — one INSERT for many rows.
+ *
+ * For actions that touch many entities at once (a payslip ZIP is N separate
+ * accesses to N employees' salary documents; a recompute rewrites N leave
+ * requests). Writing one row per entity is what makes the trail answer "who
+ * touched WHOSE record", and keeps every `entityId` a real UUID — the
+ * alternative, one summary row, has no single entity to point at.
+ */
+export function auditLogMany(rows: ReadonlyArray<AuditLogParams>): void {
+  if (rows.length === 0) return;
+  for (const r of rows) assertUuidEntityId(r);
+  void prisma.auditLog
+    .createMany({
+      data: rows.map((params) => ({
+        actorId: params.actorId,
+        action: params.action,
+        entityType: params.entityType,
+        entityId: params.entityId,
+        beforeValue: params.before ?? Prisma.JsonNull,
+        afterValue: params.after ?? Prisma.JsonNull,
+        metadata: params.metadata ?? Prisma.JsonNull,
+      })),
+    })
+    .catch((err: unknown) => {
+      console.error('[audit] batch write failed', {
+        action: rows[0]?.action,
+        count: rows.length,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    });
 }
 
 // Re-export Prisma so callers don't need a second import for JsonNull
