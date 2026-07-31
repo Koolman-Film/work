@@ -106,7 +106,7 @@ jobs:
       - run: pnpm test:integration
 
   build:
-    name: Build (Next.js)
+    name: Build (Next.js) + function-size check
     runs-on: ubuntu-latest
     # Don't burn CI minutes on a build if the earlier jobs already failed.
     needs: [lint, typecheck, test, integration]
@@ -128,3 +128,21 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: 'placeholder-anon-key-for-build-only'
           NEXT_PUBLIC_LIFF_ID: 'placeholder-liff-id'
           PAIRING_JWT_SECRET: 'placeholder-secret-32chars-for-build-only-xx'
+
+      # Size-check the serverless functions from the build we just produced.
+      #
+      # This exists because a deploy failed at 257.76 MB against Vercel's
+      # 250 MB cap, and nothing before the deploy could have caught it: the
+      # cause was outputFileTracingIncludes shipping chromium under two globs,
+      # which is invisible to lint, tsc and every test — they all run against
+      # local node_modules where both paths exist.
+      #
+      # It asserts BOTH directions. Over-inclusion fails the deploy loudly;
+      # under-inclusion (a PDF route losing the binary) fails *silently* at
+      # runtime, which is how the payslip warm stayed broken for 53
+      # occurrences without anyone noticing.
+      #
+      # Runs in this job, not its own, because it reads .next/server — moving
+      # it elsewhere would mean rebuilding or uploading the output as an
+      # artifact for no benefit.
+      - run: pnpm check:bundle
