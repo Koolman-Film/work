@@ -6,6 +6,28 @@ import createNextIntlPlugin from 'next-intl/plugin';
 // resolved locale + messages to the React tree via NextIntlClientProvider.
 const withNextIntl = createNextIntlPlugin('./src/lib/i18n/request.ts');
 
+/**
+ * The chromium binary, globbed at its ONE real location.
+ *
+ * This used to list two globs — the symlinked `node_modules/@sparticuz/chromium`
+ * path as well as the `.pnpm` store path — on the theory that tracing should
+ * resolve "regardless of layout". Both matched, so every rendering route shipped
+ * TWO copies of a 66 MB payload: measured 132.83 MB of chromium in a function
+ * whose unique chromium content is 66.43 MB. That is what pushed
+ * /admin/payroll over Vercel's 250 MB cap and failed the deploy.
+ *
+ * The `.pnpm` path is the load-bearing one and the symlink is redundant:
+ * `require.resolve('@sparticuz/chromium')` returns the `.pnpm` path (Node
+ * resolves symlinks unless --preserve-symlinks), and the package computes its
+ * binary location as `../bin` relative to its own `build/` directory — so the
+ * only copy it can ever load is the one under `.pnpm`.
+ *
+ * `pnpm check:bundle` measures this against the build output and fails if the
+ * duplication returns — or if a PDF route ever loses the binary entirely.
+ */
+const CHROMIUM_BIN =
+  './node_modules/.pnpm/@sparticuz+chromium@*/node_modules/@sparticuz/chromium/bin/**';
+
 const config: NextConfig = {
   reactStrictMode: true,
 
@@ -49,24 +71,10 @@ const config: NextConfig = {
   // be force-included per rendering route, or the function 500s with
   // "input directory .../@sparticuz/chromium/bin does not exist". The project's
   // own webfonts (loaded via fontFaceCss) are runtime-read too, so include both.
-  // pnpm stores the real files under .pnpm/<name>@<version>/… — glob both the
-  // symlinked path and the .pnpm path so tracing resolves regardless of layout.
   outputFileTracingIncludes: {
-    '/liff/payslip/pdf': [
-      './src/lib/payslip/fonts/**',
-      './node_modules/@sparticuz/chromium/bin/**',
-      './node_modules/.pnpm/@sparticuz+chromium@*/node_modules/@sparticuz/chromium/bin/**',
-    ],
-    '/admin/payroll/payslip-pdf': [
-      './src/lib/payslip/fonts/**',
-      './node_modules/@sparticuz/chromium/bin/**',
-      './node_modules/.pnpm/@sparticuz+chromium@*/node_modules/@sparticuz/chromium/bin/**',
-    ],
-    '/admin/payroll/payslips-zip': [
-      './src/lib/payslip/fonts/**',
-      './node_modules/@sparticuz/chromium/bin/**',
-      './node_modules/.pnpm/@sparticuz+chromium@*/node_modules/@sparticuz/chromium/bin/**',
-    ],
+    '/liff/payslip/pdf': ['./src/lib/payslip/fonts/**', CHROMIUM_BIN],
+    '/admin/payroll/payslip-pdf': ['./src/lib/payslip/fonts/**', CHROMIUM_BIN],
+    '/admin/payroll/payslips-zip': ['./src/lib/payslip/fonts/**', CHROMIUM_BIN],
     // Reports export route renders PDF via the same chromium path and reads
     // the IBM Plex Thai webfonts at runtime — include both, like the routes above.
     //
@@ -75,11 +83,7 @@ const config: NextConfig = {
     // real route, and this entry silently did nothing. Verified against the
     // build's .nft.json: with the bracket key the binary was absent from this
     // route's trace; with `*` it is present.
-    '/admin/reports/*/export': [
-      './src/lib/export/fonts/**',
-      './node_modules/@sparticuz/chromium/bin/**',
-      './node_modules/.pnpm/@sparticuz+chromium@*/node_modules/@sparticuz/chromium/bin/**',
-    ],
+    '/admin/reports/*/export': ['./src/lib/export/fonts/**', CHROMIUM_BIN],
     // The payroll PAGE renders PDFs too — not in a request, but in the publish
     // action's `after()` hook, which pre-warms every freshly-published slip
     // (lib/payslip/warm.ts → renderPayslipPdf). Because no route handler is
@@ -91,13 +95,9 @@ const config: NextConfig = {
     // feature had simply never worked in production.
     //
     // `/page` pins this to the page itself. A bare `/admin/payroll` key also
-    // matches every nested route, which put the ~50 MB binary into reconcile,
+    // matches every nested route, which put the 66 MB binary into reconcile,
     // adjustments/*, and preview-html — none of which render a PDF.
-    '/admin/payroll/page': [
-      './src/lib/payslip/fonts/**',
-      './node_modules/@sparticuz/chromium/bin/**',
-      './node_modules/.pnpm/@sparticuz+chromium@*/node_modules/@sparticuz/chromium/bin/**',
-    ],
+    '/admin/payroll/page': ['./src/lib/payslip/fonts/**', CHROMIUM_BIN],
   },
 
   // Permanent redirects for the W2-IA URL move (pre-existing local URLs only;
