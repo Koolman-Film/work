@@ -1,6 +1,6 @@
 import JSZip from 'jszip';
 import { type NextRequest, NextResponse } from 'next/server';
-import { auditLog } from '@/lib/audit/log';
+import { auditLogMany } from '@/lib/audit/log';
 import { requireGlobalPermission } from '@/lib/auth/require-global-permission';
 import { loadMonthPayslipTargets } from '@/lib/payslip/history';
 import { buildPayslipRenderClosure } from '@/lib/payslip/render-closure';
@@ -25,7 +25,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   try {
     const zip = new JSZip();
     const seen = new Set<string>();
-    let count = 0;
+    const included: { payrollId: string; employeeId: string }[] = [];
     for (const target of targets) {
       const rc = await buildPayslipRenderClosure(target.employeeId, month);
       if (!rc) continue; // frozen slip vanished between select and render
@@ -35,17 +35,30 @@ export async function GET(req: NextRequest): Promise<Response> {
         render: rc.render,
       });
       zip.file(payslipZipEntryName(target.name, month, seen), bytes);
-      count += 1;
+      included.push({ payrollId: target.payrollId, employeeId: target.employeeId });
     }
+    const count = included.length;
     const buf = await zip.generateAsync({ type: 'nodebuffer' });
 
-    auditLog({
-      actorId: user.id,
-      action: 'payslip.download',
-      entityType: 'Payroll',
-      entityId: `bulk:${month}`,
-      metadata: { source: 'admin-ui-bulk', month, count },
-    });
+    // One audit row per payslip actually in the ZIP, not one summary row. A ZIP
+    // of N slips is N separate reads of N employees' salary documents, and the
+    // trail has to answer "who read WHOSE payslip" — a single row cannot, and
+    // had no real entity to point at (it used `bulk:<month>`, which is not a
+    // UUID, so AuditLog.entityId rejected it and the write was dropped).
+    auditLogMany(
+      included.map((p) => ({
+        actorId: user.id,
+        action: 'payslip.download' as const,
+        entityType: 'Payroll' as const,
+        entityId: p.payrollId,
+        metadata: {
+          source: 'admin-ui-bulk',
+          month,
+          employeeId: p.employeeId,
+          zipCount: count,
+        },
+      })),
+    );
 
     const filename = `สลิปเงินเดือน_${month}.zip`;
     return new NextResponse(new Uint8Array(buf), {
