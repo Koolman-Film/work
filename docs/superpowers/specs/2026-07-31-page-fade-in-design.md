@@ -1,7 +1,7 @@
 # Page fade-in on admin navigation — Design
 
 **Date:** 2026-07-31
-**Status:** Approved (design), pending implementation
+**Status:** Implemented
 **Author:** brainstormed with Claude
 
 ## Summary
@@ -9,9 +9,13 @@
 Give every `(admin)` and `(owner)` page a subtle fade-and-rise entrance on
 navigation, matching the POS prototype's `.fade-page`.
 
-Three files, no new dependency, no JavaScript. The animation already exists in
-`globals.css` — this spec is about **where it attaches** so it replays on route
-change without disturbing the sidebar, topbar, or toasts.
+Four files, no new dependency. The animation already exists in `globals.css` —
+this spec is about **where it attaches** so it replays on route change without
+disturbing the sidebar, topbar, or toasts.
+
+The design originally aimed for zero JavaScript via `template.tsx`; that was
+measured not to work on Next 16 (see below) and the shipped version is a
+one-hook client wrapper instead.
 
 ## Context
 
@@ -84,13 +88,14 @@ stack on top of LINE's own screen-push animation.
 
 ## Architecture
 
-Next.js re-instantiates `template.tsx` on every navigation — unlike
-`layout.tsx`, which persists. That gives us a fresh DOM node per route change,
-which is precisely POS's `view`-switch mechanism expressed in App Router terms.
+A client component wraps the layout's `{children}` in a `<div>` keyed on the
+pathname. When the key changes React drops the old node and mounts a new one,
+and a fresh DOM node restarts the CSS animation — POS's `view`-switch mechanism
+expressed in App Router terms.
 
 ```
 (admin)/layout.tsx          Sidebar, Topbar, ToastProvider, NextIntlClientProvider
-  └─ (admin)/template.tsx   NEW — remounts per navigation, carries the fade
+  └─ <PageFade>             NEW — keyed div, replaced per navigation
        └─ admin/**/layout.tsx    section sub-navs
             └─ page.tsx
 ```
@@ -98,12 +103,36 @@ which is precisely POS's `view`-switch mechanism expressed in App Router terms.
 Three files:
 
 ```
-src/app/globals.css              +4 lines   .u-enter-page
-src/app/(admin)/template.tsx     new        covers 58 pages
-src/app/(owner)/template.tsx     new        covers 1 page
+src/app/globals.css          +4 lines   .u-enter-page
+src/lib/motion/page-fade.tsx new        the keyed wrapper
+(admin)/layout.tsx           +2 lines   covers 58 pages
+(owner)/layout.tsx           +2 lines   covers 1 page
 ```
 
 Every future page under either group inherits the entrance with no further work.
+
+### Why not `template.tsx` — measured, not assumed
+
+This design originally specified `template.tsx`, which Next documents as
+re-instantiating on every navigation. **It does not work here, and it fails
+silently:** the animation plays on first load and never again, so clicking
+around casually looks correct.
+
+Measured on Next 16.0 / React 19 by stamping the wrapper node before a
+`/admin` → `/admin/employees` navigation:
+
+```
+BEFORE:    data-probe="A"   enter-rise currentTime 108ms   (mid-flight)
+AFTER NAV: data-probe="A"   enter-rise currentTime 320ms   (finished, same node)
+```
+
+The marker survived, so the node was never replaced. A template placed at a
+route-group level is re-keyed only when its own segment changes, and `(admin)`
+never changes while navigating within the admin area.
+
+The keyed wrapper does not depend on that behaviour — we own the key. The cost
+is one client component, with `children` passed as a prop so the server
+components inside are unaffected by the boundary.
 
 ### The CSS
 
@@ -123,16 +152,30 @@ page of content.
 Only `opacity` and `transform` animate. Both are compositor-only, so there is
 no layout or paint cost.
 
-### The templates
+### The wrapper
 
 ```tsx
-// src/app/(admin)/template.tsx
-export default function Template({ children }: { children: React.ReactNode }) {
-  return <div className="u-enter-page">{children}</div>;
+// src/lib/motion/page-fade.tsx
+'use client';
+import { usePathname } from 'next/navigation';
+
+export function PageFade({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  return <div key={pathname} className="u-enter-page">{children}</div>;
 }
 ```
 
-Server components — no `'use client'`. `(owner)/template.tsx` is identical.
+Both layouts wrap their `{children}` with it:
+
+```tsx
+<main className="min-w-0 flex-1">
+  <PageFade>{children}</PageFade>
+</main>
+```
+
+The key is the full pathname, so `/admin/employees/1` → `/admin/employees/2`
+re-announces itself. Query-string changes (filters, pagination) leave the
+pathname alone and stay silent — see the trade-offs below.
 
 ### Why not the alternatives
 
@@ -140,15 +183,13 @@ Server components — no `'use client'`. `(owner)/template.tsx` is identical.
 effects, but a 59-file mechanical diff with nothing stopping the 60th page from
 forgetting it.
 
-**Pathname-keyed client wrapper**: fixes the sub-nav wart below, at the cost of
-~6 files, a client boundary, and a keying convention. Held in reserve as the
-upgrade path rather than paid for up front.
+**`template.tsx`**: measured not to work — see above.
 
 ## Preconditions verified
 
 - All 11 layouts under `(admin)` are server components with **zero** client
-  hooks (`useState`/`useReducer`/`useRef`), so the template's remount of nested
-  layouts destroys no state.
+  hooks (`useState`/`useReducer`/`useRef`), so remounting them inside the keyed
+  wrapper destroys no state.
 - **No `loading.tsx` anywhere** in `(admin)` or `(owner)`, and the only
   `Suspense` is inside `employee-filters.tsx`, not a page boundary. Pages
   therefore commit fully-rendered and the fade plays on real content, never on
@@ -158,18 +199,20 @@ upgrade path rather than paid for up front.
 
 ## Testing
 
-One new spec, `tests/e2e/page-fade.spec.ts`, covering the two things that can
-actually break.
+One new spec, `tests/e2e/page-fade.spec.ts`, three tests — all passing.
 
 **The chrome/content split holds.** Stamp a marker on the sidebar DOM node,
 client-side navigate between two admin pages, then assert the marker survived
 (layout persisted, chrome didn't flash) while the `.u-enter-page` wrapper is a
-different node (template remounted, fade replayed). That assertion pair is the
-whole design.
+different node (wrapper replaced, fade replayed). That assertion pair is the
+whole design, and it is the test that caught `template.tsx` not working.
 
-**Reduced motion still wins.** The same navigation under Playwright's
-`reducedMotion: 'reduce'`, asserting the computed `animation-duration` is
-effectively zero.
+**An animation is actually attached**, asserted as a duration over 100ms rather
+than pinning the exact token, so retuning `--duration-slow` doesn't fail here.
+
+**Reduced motion still wins.** The same page under `reducedMotion: 'reduce'`
+(passed via `contextOptions` — Playwright 1.60 dropped the top-level option),
+asserting the computed `animation-duration` collapses to ≤1ms.
 
 No unit tests — there is no logic here.
 
@@ -178,7 +221,7 @@ No unit tests — there is no logic here.
 - **No exit animation.** The outgoing page vanishes instantly. This is what
   makes the pattern feel fast rather than laggy, and it is what POS shipped.
 - **Sub-nav re-fades in four sections.** `settings`, `payroll`, `reports` and
-  `attendance` have sticky sub-navs inside the template, so switching tabs
+  `attendance` have sticky sub-navs inside the wrapper, so switching tabs
   within a section fades the sub-nav alongside the content. Known wart, known
   upgrade path (per-section keyed wrapper). Revisit only if it irritates in
   review.
