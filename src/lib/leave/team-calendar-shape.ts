@@ -81,6 +81,27 @@ export function ymd(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
+/**
+ * The instant Bangkok's calendar day begins, for the day a UTC-midnight Date
+ * names.
+ *
+ * The calendar's date-only columns (Holiday.date, LeaveRequest.startDate) are
+ * stored at UTC midnight, so querying them with UTC-midnight bounds is right.
+ * A TIMESTAMP column is different: `CashAdvance.requestedAt` is an instant, and
+ * it is anchored to a grid cell by its **Bangkok** day. Windowing it with UTC
+ * bounds mixes the two, and the seam swallows rows whole — an advance created
+ * between 00:00 and 07:00 Bangkok on the 1st has a UTC instant on the last day
+ * of the previous month, so it is fetched under the previous month but anchored
+ * to a cell the previous month's grid does not contain. It appears in neither.
+ *
+ * Bangkok is UTC+7 year-round with no DST, so the offset is written literally
+ * rather than resolved per-date, matching bangkokTodayStart() in
+ * inngest/functions/line-push.ts.
+ */
+export function bangkokDayStart(utcMidnight: Date): Date {
+  return new Date(`${ymd(utcMidnight)}T00:00:00+07:00`);
+}
+
 // ─── Month math helpers ───────────────────────────────────────────────────
 
 /** Parse `YYYY-MM` to UTC-midnight start/end of that month. Returns null on bad input. */
