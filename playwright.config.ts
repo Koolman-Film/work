@@ -18,6 +18,9 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests/e2e',
+  // Suppresses the What's New modal, whose backdrop otherwise intercepts every
+  // click on a freshly-seeded database. See the file for the full story.
+  globalSetup: './tests/e2e/global-setup.ts',
   // LIFF specs drive flows that authenticate against a real LINE channel —
   // LIFF_ID, the messaging channel secret, the registered redirect URI. CI has
   // none of those (they are production credentials, not test fixtures), so
