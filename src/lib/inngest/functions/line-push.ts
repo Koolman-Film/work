@@ -34,8 +34,8 @@ import { prisma } from '@/lib/db/prisma';
 import { DEFAULT_LOCALE, isLocale } from '@/lib/i18n/config';
 import { appBaseUrl, buildFlexMessage } from '@/lib/line/flex-templates';
 import { getLineMessagingClient } from '@/lib/line/messaging-client';
-import { hasQuotaHeadroom } from '@/lib/line/quota';
-import { notifyAdminsInApp } from '@/lib/notifications/in-app-bell';
+import { hasQuotaHeadroom, isAtWarnThreshold, quotaSnapshot } from '@/lib/line/quota';
+import { type AdminBellEvent, notifyAdminsInApp } from '@/lib/notifications/in-app-bell';
 import { inngest } from '../client';
 import type { NotificationSendEvent } from '../events';
 
@@ -48,14 +48,15 @@ function bangkokTodayStart(): Date {
   return new Date(`${ymd}T00:00:00+07:00`);
 }
 
-/** Whether an admin bell for the quota-exhausted event has already fired
- *  today. Keeps a whole day of skipped pushes to a single bell ping instead
- *  of one per message. */
-async function alreadyNotifiedQuotaLowToday(): Promise<boolean> {
+/** Whether an admin bell of this kind has already fired today. Keeps a whole
+ *  day of quota events to a single bell ping instead of one per message.
+ *  The two quota kinds dedup independently, so crossing 75% and later running
+ *  out on the same day still produces both bells — they say different things. */
+async function alreadyBelledToday(event: AdminBellEvent['kind']): Promise<boolean> {
   const existing = await prisma.notification.findFirst({
     where: {
       channel: 'InAppBell',
-      event: 'system.line-quota-low',
+      event,
       createdAt: { gte: bangkokTodayStart() },
     },
     select: { id: true },
@@ -186,7 +187,7 @@ export const linePushNotification = inngest.createFunction(
         });
         // At most one bell/day — a whole day of skipped pushes shouldn't
         // spam the bell once per declined message.
-        if (await alreadyNotifiedQuotaLowToday()) return;
+        if (await alreadyBelledToday('system.line-quota-low')) return;
         await notifyAdminsInApp({
           kind: 'system.line-quota-low',
           notificationId: notification.id,
@@ -194,6 +195,36 @@ export const linePushNotification = inngest.createFunction(
       });
       return { notificationId: notification.id, delivered: false, reason: 'quota-exhausted' };
     }
+
+    // Early warning. There IS room and this send is going out — but consumption
+    // has crossed QUOTA_WARN_RATIO, so tell the admins while ~70 messages of
+    // runway remain, rather than at 295/300 when the only remaining option is
+    // to wait for the month to turn over. Reads the snapshot hasQuotaHeadroom()
+    // just cached, so it costs no extra LINE call.
+    //
+    // Everything here is swallowed on failure: this is an alarm, never a gate.
+    // A broken alarm must not cost a delivery, which is the failure mode the
+    // whole quota branch exists to prevent. console.error rather than
+    // logger.error so a thin logger can't turn the rescue into a second throw.
+    await step.run('check-quota-warning', async () => {
+      try {
+        const snapshot = await quotaSnapshot();
+        if (!snapshot || !isAtWarnThreshold(snapshot)) return;
+        if (await alreadyBelledToday('system.line-quota-warning')) return;
+        logger.warn(
+          `LINE quota at ${snapshot.used}/${snapshot.limit} — warning admins on the bell`,
+        );
+        await notifyAdminsInApp({
+          kind: 'system.line-quota-warning',
+          used: snapshot.used,
+          limit: snapshot.limit,
+        });
+      } catch (err) {
+        console.error('[line-push] quota warning check failed (non-fatal)', {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    });
 
     // Step 5 — push to LINE.
     // If this throws, Inngest retries with exponential backoff (3 retries

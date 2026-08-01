@@ -31,8 +31,30 @@ import 'server-only';
  *  there is no path that would ever spend this reserve. */
 export const QUOTA_RESERVE = 5;
 
+/**
+ * Consumption fraction at which admins get an early warning on the in-app bell.
+ *
+ * Distinct from QUOTA_RESERVE, and deliberately far from it. The reserve is
+ * where sending STOPS (295/300) — by then nothing can be done but wait for the
+ * month to roll over. This is where someone is TOLD (225/300), while ~70
+ * messages of runway remain: enough to unlink an admin, postpone a payslip
+ * resend, or move to a paid plan before the system goes quiet.
+ *
+ * A guard that only speaks once it has already failed is not a warning.
+ */
+export const QUOTA_WARN_RATIO = 0.75;
+
+export type QuotaSnapshot = {
+  /** Monthly message allowance for the plan. */
+  limit: number;
+  /** Messages consumed so far this month. */
+  used: number;
+  /** limit − used. */
+  remaining: number;
+};
+
 const CACHE_MS = 5 * 60 * 1000;
-let cache: { at: number; remaining: number | null } | null = null;
+let cache: { at: number; snapshot: QuotaSnapshot | null } | null = null;
 
 /** Test-only: clear the module-level cache between cases. */
 export function __resetQuotaCache(): void {
@@ -51,10 +73,20 @@ async function fetchJson(path: string, token: string): Promise<unknown | null> {
   }
 }
 
-/** Remaining sends this month, or null when it cannot be determined. */
-export async function remainingQuota(): Promise<number | null> {
-  if (cache && Date.now() - cache.at < CACHE_MS) return cache.remaining;
+/**
+ * Full quota reading — limit, used and remaining — or null when any part of it
+ * is unreadable. Cached for CACHE_MS; every other export in this file reads
+ * through here, so one LINE round-trip serves the send guard and the warning.
+ */
+export async function quotaSnapshot(): Promise<QuotaSnapshot | null> {
+  if (cache && Date.now() - cache.at < CACHE_MS) return cache.snapshot;
 
+  const snapshot = await readQuota();
+  cache = { at: Date.now(), snapshot };
+  return snapshot;
+}
+
+async function readQuota(): Promise<QuotaSnapshot | null> {
   const token = process.env.LINE_MESSAGING_CHANNEL_ACCESS_TOKEN;
   if (!token) {
     // Fail-open, but audibly: an unreadable quota must not look identical to
@@ -97,9 +129,13 @@ export async function remainingQuota(): Promise<number | null> {
     );
   }
 
-  const remaining = limit != null && used != null ? limit - used : null;
-  cache = { at: Date.now(), remaining };
-  return remaining;
+  if (limit == null || used == null) return null;
+  return { limit, used, remaining: limit - used };
+}
+
+/** Remaining sends this month, or null when it cannot be determined. */
+export async function remainingQuota(): Promise<number | null> {
+  return (await quotaSnapshot())?.remaining ?? null;
 }
 
 /** True when there is room to send. Unknown quota → true (fail open). */
@@ -107,4 +143,16 @@ export async function hasQuotaHeadroom(): Promise<boolean> {
   const remaining = await remainingQuota();
   if (remaining == null) return true;
   return remaining > QUOTA_RESERVE;
+}
+
+/**
+ * True once consumption has reached QUOTA_WARN_RATIO of the plan's allowance.
+ *
+ * Pure so the threshold is testable without a LINE round-trip. A limit of 0
+ * (or a nonsense negative) has no meaningful ratio — treat it as "no warning"
+ * rather than dividing by zero and warning forever on NaN.
+ */
+export function isAtWarnThreshold(snapshot: QuotaSnapshot): boolean {
+  if (snapshot.limit <= 0) return false;
+  return snapshot.used / snapshot.limit >= QUOTA_WARN_RATIO;
 }
