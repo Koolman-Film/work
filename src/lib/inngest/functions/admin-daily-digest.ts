@@ -1,5 +1,5 @@
 /**
- * Daily 09:30 digest of what is waiting for each admin.
+ * Daily 08:30 digest of what is waiting for each admin.
  *
  * Replaces the per-event LINE fan-out, which cost one message per admin per
  * request and was 65% of July's 464-message spend against a 300/month cap

@@ -80,11 +80,15 @@ vi.mock('@/lib/line/flex-templates', () => ({
 
 vi.mock('@/lib/line/quota', () => ({
   hasQuotaHeadroom: vi.fn(),
+  quotaSnapshot: vi.fn(),
+  isAtWarnThreshold: vi.fn(),
 }));
 
 // Imports AFTER vi.mock so the mocks intercept the module graph.
 import { prisma } from '@/lib/db/prisma';
-import { hasQuotaHeadroom } from '@/lib/line/quota';
+import { getLineMessagingClient } from '@/lib/line/messaging-client';
+import { hasQuotaHeadroom, isAtWarnThreshold, quotaSnapshot } from '@/lib/line/quota';
+import { notifyAdminsInApp } from '@/lib/notifications/in-app-bell';
 import { adminDailyDigest } from './admin-daily-digest';
 import { advanceApprovalNotify } from './advance-approval-notify';
 import { attendanceForceCheckoutEod } from './attendance-force-checkout-eod';
@@ -136,12 +140,16 @@ const mockedPrisma = prisma as unknown as {
 };
 
 const mockedHasQuotaHeadroom = hasQuotaHeadroom as ReturnType<typeof vi.fn>;
+const mockedQuotaSnapshot = quotaSnapshot as ReturnType<typeof vi.fn>;
+const mockedIsAtWarnThreshold = isAtWarnThreshold as ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
   vi.clearAllMocks();
-  // Default every test to "quota is fine" — the quota-exhausted branch is
-  // exercised explicitly in its own test below.
+  // Default every test to "quota is fine, nowhere near the warn line" — the
+  // exhausted and warning branches are each exercised in their own test below.
   mockedHasQuotaHeadroom.mockResolvedValue(true);
+  mockedQuotaSnapshot.mockResolvedValue({ limit: 300, used: 10, remaining: 290 });
+  mockedIsAtWarnThreshold.mockReturnValue(false);
 });
 
 afterEach(() => {
@@ -502,5 +510,84 @@ describe('line-push-notification', () => {
         payload: expect.objectContaining({ kind: 'leave.approved', skipped: 'quota' }),
       },
     });
+  });
+
+  // ─── Early quota warning (75%) ───────────────────────────────────────────
+  //
+  // The point of these: the quota-low bell above only fires once sending has
+  // ALREADY stopped. These cover the bell that fires while there is still
+  // runway — which is the whole reason it exists.
+
+  /** Wire up a push that will succeed, so the warning path is reached. */
+  function arrangeDeliverablePush(): void {
+    mockedPrisma.notification.create.mockResolvedValue({ id: 'n1' });
+    mockedPrisma.user.findUnique.mockResolvedValue({ lineUserId: 'Uabc123', archivedAt: null });
+    mockedPrisma.notification.update.mockResolvedValue({ id: 'n1' });
+    (getLineMessagingClient as ReturnType<typeof vi.fn>).mockReturnValue({
+      pushMessage: vi.fn().mockResolvedValue(undefined),
+    });
+  }
+
+  it('rings the admin bell when consumption reaches the warn threshold', async () => {
+    arrangeDeliverablePush();
+    mockedQuotaSnapshot.mockResolvedValue({ limit: 300, used: 225, remaining: 75 });
+    mockedIsAtWarnThreshold.mockReturnValue(true);
+    mockedPrisma.notification.findFirst.mockResolvedValue(null); // not yet rung today
+
+    const result = (await handler({
+      event: { data: samplePayload },
+      step: fakeStep(),
+      logger: { info: () => {}, warn: () => {} },
+    })) as { delivered: boolean };
+
+    // The warning must NOT cost the delivery — it is an alarm, not a gate.
+    expect(result.delivered).toBe(true);
+    expect(notifyAdminsInApp).toHaveBeenCalledWith({
+      kind: 'system.line-quota-warning',
+      used: 225,
+      limit: 300,
+    });
+  });
+
+  it('rings it at most once per day — a busy day must not spam the bell', async () => {
+    arrangeDeliverablePush();
+    mockedQuotaSnapshot.mockResolvedValue({ limit: 300, used: 240, remaining: 60 });
+    mockedIsAtWarnThreshold.mockReturnValue(true);
+    mockedPrisma.notification.findFirst.mockResolvedValue({ id: 'bell-today' });
+
+    await handler({
+      event: { data: samplePayload },
+      step: fakeStep(),
+      logger: { info: () => {}, warn: () => {} },
+    });
+
+    expect(notifyAdminsInApp).not.toHaveBeenCalled();
+  });
+
+  it('stays silent below the threshold', async () => {
+    arrangeDeliverablePush();
+    mockedPrisma.notification.findFirst.mockResolvedValue(null);
+    // beforeEach already defaults isAtWarnThreshold to false (10/300).
+
+    await handler({
+      event: { data: samplePayload },
+      step: fakeStep(),
+      logger: { info: () => {} },
+    });
+
+    expect(notifyAdminsInApp).not.toHaveBeenCalled();
+  });
+
+  it('still delivers when the warning check itself blows up', async () => {
+    arrangeDeliverablePush();
+    mockedQuotaSnapshot.mockRejectedValue(new Error('LINE insight API down'));
+
+    const result = (await handler({
+      event: { data: samplePayload },
+      step: fakeStep(),
+      logger: { info: () => {}, warn: () => {} },
+    })) as { delivered: boolean };
+
+    expect(result.delivered).toBe(true);
   });
 });
