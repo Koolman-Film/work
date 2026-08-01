@@ -22,6 +22,62 @@ import { cleanupE2eRecords, e2eId, prisma } from './helpers/db';
  * of which property reintroduces a containing block.
  */
 
+/**
+ * Returns every `position: fixed` element that sits inside an ancestor which
+ * has taken over as its containing block.
+ *
+ * transform/filter/backdrop-filter/perspective/contain/will-change all do
+ * that, so asserting the invariant catches whichever property does it next
+ * rather than only the one that did it last.
+ *
+ * It sees only what is MOUNTED, which is a real limit worth stating: run
+ * against the CSS that caused the original bug, this passed — no dialog was
+ * open, and the toast container and drawer sit above <PageFade> in the layout
+ * so nothing captured them. The dialog case needs the geometric test above,
+ * which opens one. Neither test subsumes the other.
+ *
+ * Run only at rest: the page entrance legitimately holds a transform for its
+ * 320ms, so callers wait for animations to finish first.
+ */
+async function capturedFixedElements(page: import('@playwright/test').Page) {
+  return page.evaluate(() => {
+    const PROPS = [
+      'transform',
+      'filter',
+      'backdropFilter',
+      'perspective',
+      'willChange',
+      'contain',
+    ] as const;
+    const describe = (el: Element) =>
+      `${el.tagName.toLowerCase()}.${(el.className || '').toString().split(' ').slice(0, 3).join('.')}`;
+
+    const out: Array<{ fixed: string; ancestor: string; prop: string; value: string }> = [];
+    for (const el of Array.from(document.querySelectorAll('*'))) {
+      if (getComputedStyle(el).position !== 'fixed') continue;
+      for (let p = el.parentElement; p; p = p.parentElement) {
+        const s = getComputedStyle(p);
+        const hit = PROPS.find((prop) => {
+          const v = s[prop];
+          return v && v !== 'none' && v !== 'auto' && v !== 'normal';
+        });
+        if (hit) {
+          out.push({ fixed: describe(el), ancestor: describe(p), prop: hit, value: s[hit] });
+          break;
+        }
+      }
+    }
+    return out;
+  });
+}
+
+/** Wait for the page entrance to finish so its transform is gone. */
+async function settle(page: import('@playwright/test').Page) {
+  await page.waitForFunction(() =>
+    document.getAnimations().every((a) => a.playState !== 'running'),
+  );
+}
+
 test.describe('dialog backdrop covers the viewport', () => {
   test.afterAll(async () => {
     await cleanupE2eRecords();
@@ -96,5 +152,33 @@ test.describe('dialog backdrop covers the viewport', () => {
       return aside.contains(midpoint) ? 'sidebar' : 'covered';
     });
     expect(sidebarCovered).toBe('covered');
+  });
+});
+
+test.describe('no fixed element is captured by a transformed ancestor', () => {
+  test('desktop: admin shell at rest', async ({ page }) => {
+    await loginAsAdmin(page);
+    await page.goto('/admin/approvals');
+    await settle(page);
+
+    // Covers the toast container (always rendered, empty or not) and every
+    // other fixed element present on the page.
+    expect(await capturedFixedElements(page)).toEqual([]);
+  });
+
+  test('mobile: with the nav drawer open @mobile', async ({ page }) => {
+    await loginAsAdmin(page);
+    await page.goto('/admin');
+    await settle(page);
+
+    // The drawer's scrim only exists while open, so it has to be opened to be
+    // checked at all.
+    await page.getByRole('button', { name: 'เปิดเมนู' }).click();
+    await expect
+      .poll(async () => (await page.locator('aside').boundingBox())?.x ?? -999)
+      .toBeGreaterThanOrEqual(-1);
+    await settle(page);
+
+    expect(await capturedFixedElements(page)).toEqual([]);
   });
 });
