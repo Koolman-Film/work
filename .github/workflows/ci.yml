@@ -216,11 +216,17 @@ jobs:
 
       - run: pnpm exec playwright install --with-deps chromium
 
-      # playwright.config's webServer builds and starts the app itself; under
-      # CI it uses `next build && next start` rather than `next dev`.
-      - run: pnpm exec playwright test
-        env:
-          NODE_OPTIONS: '--import ./tests/e2e/fix-next-subpath-resolution.mjs'
+      # `pnpm test:e2e`, not a hand-rolled `playwright test`. The script wraps
+      # the run in `dotenv -e .env.local`, which the TEST RUNNER needs: specs
+      # seed their fixtures through Prisma in the runner's own process, and
+      # Prisma reads DATABASE_URL from its environment. Next loads .env.local
+      # by itself, so the app under test looked fine while every spec that
+      # seeds died on "Environment variable not found: DATABASE_URL" — 35 of
+      # them, on the first CI run.
+      #
+      # playwright.config's webServer builds and starts the app; under CI it
+      # uses `next build && next start` rather than `next dev`.
+      - run: pnpm test:e2e
 
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
