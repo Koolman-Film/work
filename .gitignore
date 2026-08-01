@@ -80,7 +80,11 @@ playwright/.cache/
 /scripts/sample-payslip-pdf.mjs
 
 # Supabase CLI local scaffolding (untracked dev state, not part of the project)
-supabase/
+# — except config.toml, which CI needs to `supabase start` for the e2e job.
+# It declares ports and feature flags only; every credential in it is an
+# `env(...)` reference, never a literal.
+supabase/*
+!supabase/config.toml
 
 # Vitest coverage output
 /coverage
