@@ -18,6 +18,15 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests/e2e',
+  // LIFF specs drive flows that authenticate against a real LINE channel —
+  // LIFF_ID, the messaging channel secret, the registered redirect URI. CI has
+  // none of those (they are production credentials, not test fixtures), so
+  // those specs would fail on the environment rather than on the code. They
+  // still run locally against .env.local, which has the real values.
+  //
+  // Everything else — the admin suite, where the regression tests live — needs
+  // only Supabase + Postgres, both of which CI can stand up.
+  testIgnore: process.env.CI ? ['**/liff-*.spec.ts'] : [],
   // Don't bail the whole suite on a single failure; we want the full
   // picture, not a stop-on-first-error.
   fullyParallel: false,
@@ -49,15 +58,17 @@ export default defineConfig({
     },
   ],
   webServer: {
-    // Use the production-mode dev server output for stability — `next dev`
-    // hot-reloads can race tests. But for now we accept that; W5 polish
-    // pass might switch this to `next build && next start`.
-    command: 'pnpm dev',
+    // Locally `next dev` keeps the edit-run loop fast and its hot-reload races
+    // are tolerable. CI builds first: `next dev` compiles each route on first
+    // request, so the opening test of every spec pays a multi-second compile
+    // and trips its own timeout on a cold runner. Build once, serve fast.
+    command: process.env.CI ? 'pnpm build && pnpm start' : 'pnpm dev',
     url: 'http://localhost:3000',
     // Skip reuseCheck in CI (where the server is fresh) but allow locally
     // so devs can keep `pnpm dev` running in another terminal.
     reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
+    // CI builds the app first, so it needs materially longer than a dev boot.
+    timeout: process.env.CI ? 420_000 : 120_000,
     stdout: 'pipe',
     stderr: 'pipe',
     // Enable the test-only /api/test/session login route (used by the LIFF

@@ -146,3 +146,87 @@ jobs:
       # it elsewhere would mean rebuilding or uploading the output as an
       # artifact for no benefit.
       - run: pnpm check:bundle
+
+  e2e:
+    name: E2E (Playwright + Supabase)
+    runs-on: ubuntu-latest
+    # Last and gated: it is the slowest job by far, and there is no value in
+    # standing up Supabase to exercise code that does not compile.
+    needs: [lint, typecheck, test, integration]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm prisma generate
+
+      # The e2e specs sign in through the real /login form, which performs a
+      # Supabase password grant — a bare Postgres service (what the integration
+      # job uses) cannot serve that. So CI runs the same local stack developers
+      # do, from the committed supabase/config.toml.
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - run: supabase start
+
+      # Reconstruct .env.local from the stack the CLI just brought up. The seed
+      # scripts read it via `dotenv -e .env.local`, and Next picks it up for the
+      # server Playwright starts, so writing it once feeds both.
+      #
+      # The keys are local-only defaults the CLI derives from its default JWT
+      # secret — identical on every machine, and worthless against anything but
+      # this throwaway container. Read from `supabase status` rather than
+      # hardcoded so a CLI change cannot silently desync them.
+      - name: Write .env.local from the local stack
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          DB="postgresql://postgres:postgres@127.0.0.1:54422/postgres"
+          cat > .env.local <<EOF
+          DATABASE_URL="$DB"
+          DIRECT_URL="$DB"
+          NEXT_PUBLIC_SUPABASE_URL="$API_URL"
+          NEXT_PUBLIC_SUPABASE_ANON_KEY="$ANON_KEY"
+          SUPABASE_URL="$API_URL"
+          SUPABASE_SECRET_KEY="$SERVICE_ROLE_KEY"
+          SUPABASE_PUBLISHABLE_KEY="$ANON_KEY"
+          PAIRING_JWT_SECRET="ci-only-pairing-secret-32-chars-minimum-xx"
+          NEXT_PUBLIC_LIFF_ID="ci-placeholder-liff-id"
+          E2E_TEST_LOGIN="1"
+          EOF
+          echo "wrote .env.local (${API_URL})"
+
+      - run: pnpm db:deploy
+
+      # Seed order matters: db:seed creates the auth users every spec logs in
+      # as, and the rest layer demo data that forms rely on (a branch to pick,
+      # a bank, a work schedule). Skipping any of them fails specs on missing
+      # <option>s rather than on the behaviour under test.
+      - name: Seed
+        run: |
+          set -euo pipefail
+          pnpm db:seed
+          pnpm db:seed:banks
+          pnpm db:seed:employees
+          pnpm db:seed:leave-advance
+          pnpm db:seed:attendance
+
+      - run: pnpm exec playwright install --with-deps chromium
+
+      # playwright.config's webServer builds and starts the app itself; under
+      # CI it uses `next build && next start` rather than `next dev`.
+      - run: pnpm exec playwright test
+        env:
+          NODE_OPTIONS: '--import ./tests/e2e/fix-next-subpath-resolution.mjs'
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
