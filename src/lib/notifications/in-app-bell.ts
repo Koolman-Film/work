@@ -97,6 +97,19 @@ export type AdminBellEvent =
       kind: 'system.line-quota-low';
       /** Notification.id of the LINE push that was skipped. */
       notificationId: string;
+    }
+  | {
+      // Fired by line-push.ts on the first send of a Bangkok day that finds
+      // consumption at or above QUOTA_WARN_RATIO — while sending is still
+      // working. Its sibling above reports that delivery has ALREADY stopped;
+      // this one exists so somebody hears about it while there is still
+      // runway to act. Same one-per-day dedup.
+      kind: 'system.line-quota-warning';
+      /** Messages consumed this month at the moment the warning fired. */
+      used: number;
+      /** The plan's monthly allowance, so the bell can show "225/300"
+       *  without assuming the free tier's 300. */
+      limit: number;
     };
 
 /**

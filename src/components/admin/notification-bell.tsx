@@ -282,6 +282,23 @@ function renderNotification(n: BellNotification): RenderedKind {
         subtitle: 'ระบบหยุดส่งการแจ้งเตือนผ่าน LINE ชั่วคราวจนกว่าโควตาจะรีเซ็ตเดือนถัดไป',
         href: '/admin',
       };
+    case 'system.line-quota-warning': {
+      // Shows the real percentage rather than the threshold: this bell fires
+      // at most once a day, so by the next one consumption has moved on.
+      const used = Number(payload.used);
+      const limit = Number(payload.limit);
+      const readable = Number.isFinite(used) && Number.isFinite(limit) && limit > 0;
+      return {
+        emoji: '⚠️',
+        title: readable
+          ? `โควตาส่งข้อความ LINE ใช้ไปแล้ว ${Math.round((used / limit) * 100)}%`
+          : 'โควตาส่งข้อความ LINE ใกล้ถึงเพดาน',
+        subtitle: readable
+          ? `ใช้ไป ${used}/${limit} ข้อความในเดือนนี้ — เหลืออีก ${limit - used} ก่อนระบบหยุดส่ง`
+          : 'ระบบยังส่งได้อยู่ แต่โควตาเดือนนี้ใกล้ถึงเพดานแล้ว',
+        href: '/admin',
+      };
+    }
     default:
       return {
         emoji: '🔔',

@@ -5,7 +5,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 // this stays a plain unit test — same pattern as audit/query.test.ts.
 vi.mock('server-only', () => ({}));
 
-import { __resetQuotaCache, hasQuotaHeadroom, QUOTA_RESERVE, remainingQuota } from './quota';
+import {
+  __resetQuotaCache,
+  hasQuotaHeadroom,
+  isAtWarnThreshold,
+  QUOTA_RESERVE,
+  QUOTA_WARN_RATIO,
+  quotaSnapshot,
+  remainingQuota,
+} from './quota';
 
 const mockFetch = (quota: number, used: number) =>
   vi.fn(async (url: string) =>
@@ -72,6 +80,48 @@ describe('remainingQuota', () => {
     );
     expect(await remainingQuota()).toBeNull();
     expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('unexpected shape'));
+  });
+});
+
+describe('quotaSnapshot', () => {
+  it('reports limit, used and remaining together', async () => {
+    vi.stubGlobal('fetch', mockFetch(300, 225));
+    expect(await quotaSnapshot()).toEqual({ limit: 300, used: 225, remaining: 75 });
+  });
+
+  it('returns null when the quota cannot be read', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: false, status: 500 })) as unknown as typeof fetch,
+    );
+    expect(await quotaSnapshot()).toBeNull();
+  });
+});
+
+describe('isAtWarnThreshold', () => {
+  it('false while consumption is below the warn ratio', async () => {
+    // 224/300 = 74.7%
+    expect(isAtWarnThreshold({ limit: 300, used: 224, remaining: 76 })).toBe(false);
+  });
+
+  it('true exactly at the warn ratio — 225 of 300 is the first message that warns', async () => {
+    expect(isAtWarnThreshold({ limit: 300, used: 225, remaining: 75 })).toBe(true);
+  });
+
+  it('true above the warn ratio', async () => {
+    expect(isAtWarnThreshold({ limit: 300, used: 280, remaining: 20 })).toBe(true);
+  });
+
+  it('false when the limit is zero — no ratio exists, must not divide by zero', async () => {
+    expect(isAtWarnThreshold({ limit: 0, used: 0, remaining: 0 })).toBe(false);
+  });
+
+  it('warns strictly before the send guard trips, so the bell is an early warning', async () => {
+    // The guard blocks at remaining <= QUOTA_RESERVE. The warn threshold must
+    // fire well before that or it is not a warning, it is an obituary.
+    const guardTripsAtUsed = 300 - QUOTA_RESERVE;
+    const warnStartsAtUsed = Math.ceil(300 * QUOTA_WARN_RATIO);
+    expect(warnStartsAtUsed).toBeLessThan(guardTripsAtUsed);
   });
 });
 
