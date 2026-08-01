@@ -196,6 +196,7 @@ jobs:
           PAIRING_JWT_SECRET="ci-only-pairing-secret-32-chars-minimum-xx"
           NEXT_PUBLIC_LIFF_ID="ci-placeholder-liff-id"
           E2E_TEST_LOGIN="1"
+          INNGEST_DEV="1"
           EOF
           echo "wrote .env.local (${API_URL})"
 
@@ -213,6 +214,34 @@ jobs:
           pnpm db:seed:employees
           pnpm db:seed:leave-advance
           pnpm db:seed:attendance
+
+      # Approving anything publishes an Inngest event, and the SDK refuses to
+      # send without an event key once NODE_ENV is production — which the CI
+      # build is. Seven approval specs failed on
+      # "We couldn't find an event key" before this existed.
+      #
+      # INNGEST_DEV points the SDK at a local dev server instead of the cloud,
+      # so no credentials are involved. --no-discovery keeps it from syncing
+      # and executing the functions: the tests only need the send to be
+      # accepted, and running line-push for real would just fail on the LINE
+      # credentials CI equally does not have.
+      #
+      # The alternative — catching send failures so an approval survives an
+      # unreachable Inngest — would be a product decision, not a test fix, and
+      # this codebase has already been bitten three times by errors swallowed
+      # in a catch.
+      - name: Start Inngest dev server
+        run: |
+          set -euo pipefail
+          npx --yes inngest-cli@latest dev --no-discovery --port 8288 \
+            > /tmp/inngest-dev.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -sf -o /dev/null http://127.0.0.1:8288/; then
+              echo "inngest dev server up after ${i}s"; exit 0
+            fi
+            sleep 1
+          done
+          echo "inngest dev server did not come up"; cat /tmp/inngest-dev.log; exit 1
 
       - run: pnpm exec playwright install --with-deps chromium
 
