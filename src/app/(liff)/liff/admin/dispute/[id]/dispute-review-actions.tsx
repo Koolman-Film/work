@@ -69,7 +69,7 @@ export function DisputeReviewActions({ attendanceId }: { attendanceId: string })
 
   return (
     <section className="mt-3 rounded-xl border border-line bg-surface p-4 shadow-sm">
-      <label htmlFor="dispute-note" className="text-xs font-medium text-gray-500">
+      <label htmlFor="dispute-note" className="text-xs font-medium text-ink-3">
         {t('noteLabel')}
       </label>
       <textarea

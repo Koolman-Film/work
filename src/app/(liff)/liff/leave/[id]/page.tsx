@@ -27,7 +27,7 @@ const STATUS_CLS: Record<string, string> = {
   Pending: 'bg-amber-100 text-amber-800',
   Approved: 'bg-green-100 text-green-800',
   Rejected: 'bg-red-100 text-red-800',
-  Cancelled: 'bg-surface-sunken text-gray-700',
+  Cancelled: 'bg-surface-sunken text-ink-2',
 };
 
 function formatDateTime(d: Date, locale: Locale): string {
@@ -74,11 +74,11 @@ export default async function LeaveDetailPage({ params }: { params: Params }) {
   return (
     <main className="mx-auto max-w-md px-4 pt-8 pb-12">
       <header className="mb-6">
-        <Link href="/liff/leave" className="text-sm text-gray-500 hover:text-gray-700">
+        <Link href="/liff/leave" className="text-sm text-ink-3 hover:text-ink-2">
           {t('detail.back')}
         </Link>
         <div className="mt-3 flex items-center justify-between gap-3">
-          <h1 className="text-2xl font-semibold text-gray-900">{t('detail.title')}</h1>
+          <h1 className="text-2xl font-semibold text-ink-1">{t('detail.title')}</h1>
           <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${cls}`}>
             {statusLabel}
           </span>
@@ -89,7 +89,7 @@ export default async function LeaveDetailPage({ params }: { params: Params }) {
         <DataRow label={t('detail.field.type')}>
           {localizedLeaveTypeName(row.leaveType.name, row.leaveType.nameByLocale, locale as Locale)}
           {!row.leaveType.isPaid && (
-            <span className="ml-2 text-xs text-gray-500">{t('detail.unpaid')}</span>
+            <span className="ml-2 text-xs text-ink-3">{t('detail.unpaid')}</span>
           )}
         </DataRow>
         <DataRow label={t('detail.field.from')}>
@@ -102,15 +102,15 @@ export default async function LeaveDetailPage({ params }: { params: Params }) {
       </section>
 
       <section className="mt-4 rounded-2xl border border-line bg-surface p-6 shadow-sm">
-        <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">
+        <h2 className="text-xs font-medium uppercase tracking-wide text-ink-3">
           {t('detail.reasonHeading')}
         </h2>
-        <p className="mt-2 whitespace-pre-wrap text-sm text-gray-800">{row.reason}</p>
+        <p className="mt-2 whitespace-pre-wrap text-sm text-ink-1">{row.reason}</p>
       </section>
 
       {resolvedAttachmentUrl && (
         <section className="mt-4 rounded-2xl border border-line bg-surface p-6 shadow-sm">
-          <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">
+          <h2 className="text-xs font-medium uppercase tracking-wide text-ink-3">
             {t('detail.attachmentHeading')}
           </h2>
           <a
@@ -133,12 +133,12 @@ export default async function LeaveDetailPage({ params }: { params: Params }) {
       {/* Admin review feedback, if any. */}
       {row.reviewNote && (
         <section className="mt-4 rounded-2xl border border-line bg-surface-muted p-6">
-          <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">
+          <h2 className="text-xs font-medium uppercase tracking-wide text-ink-3">
             {t('detail.adminNoteHeading')}
           </h2>
-          <p className="mt-2 whitespace-pre-wrap text-sm text-gray-800">{row.reviewNote}</p>
+          <p className="mt-2 whitespace-pre-wrap text-sm text-ink-1">{row.reviewNote}</p>
           {row.reviewedAt && (
-            <p className="mt-2 text-xs text-gray-400">
+            <p className="mt-2 text-xs text-ink-4">
               {formatDateTime(row.reviewedAt, locale as Locale)}
             </p>
           )}
@@ -158,8 +158,8 @@ export default async function LeaveDetailPage({ params }: { params: Params }) {
 function DataRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-baseline justify-between py-2 first:pt-0 last:pb-0">
-      <span className="text-xs text-gray-500">{label}</span>
-      <span className="text-right text-sm font-medium text-gray-900">{children}</span>
+      <span className="text-xs text-ink-3">{label}</span>
+      <span className="text-right text-sm font-medium text-ink-1">{children}</span>
     </div>
   );
 }

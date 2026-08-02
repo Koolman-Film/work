@@ -9,10 +9,8 @@ export default async function ResetPasswordPage({ searchParams }: { searchParams
   if (sent === '1') {
     return (
       <div className="space-y-4 text-center">
-        <h2 className="text-lg font-semibold text-gray-900">ส่งลิงก์รีเซ็ตแล้ว</h2>
-        <p className="text-sm text-gray-600">
-          ถ้าอีเมลที่กรอกมีในระบบ คุณจะได้รับลิงก์ตั้งรหัสผ่านใหม่ภายในไม่กี่นาที.
-        </p>
+        <h2 className="text-lg font-semibold text-ink-1">ส่งลิงก์รีเซ็ตแล้ว</h2>
+        <p className="text-sm text-ink-2">ถ้าอีเมลที่กรอกมีในระบบ คุณจะได้รับลิงก์ตั้งรหัสผ่านใหม่ภายในไม่กี่นาที.</p>
         <Link
           href="/login"
           className="inline-block text-sm text-primary-600 hover:text-primary-700"
@@ -26,12 +24,12 @@ export default async function ResetPasswordPage({ searchParams }: { searchParams
   return (
     <form action={requestPasswordReset} className="space-y-4">
       <div>
-        <h2 className="text-lg font-semibold text-gray-900">ลืมรหัสผ่าน</h2>
-        <p className="mt-1 text-sm text-gray-500">กรอกอีเมลที่ใช้ลงทะเบียน เราจะส่งลิงก์ตั้งรหัสผ่านใหม่ให้</p>
+        <h2 className="text-lg font-semibold text-ink-1">ลืมรหัสผ่าน</h2>
+        <p className="mt-1 text-sm text-ink-3">กรอกอีเมลที่ใช้ลงทะเบียน เราจะส่งลิงก์ตั้งรหัสผ่านใหม่ให้</p>
       </div>
 
       <div>
-        <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+        <label htmlFor="email" className="block text-sm font-medium text-ink-2">
           อีเมล
         </label>
         <input

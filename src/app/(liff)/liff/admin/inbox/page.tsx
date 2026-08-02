@@ -110,21 +110,21 @@ export default async function LiffAdminInboxPage() {
     <main className="px-4 pt-4 pb-12">
       {empty ? (
         <div className="rounded-2xl border border-dashed border-line-strong bg-surface p-12 text-center">
-          <p className="text-sm text-gray-500">{t('empty')}</p>
+          <p className="text-sm text-ink-3">{t('empty')}</p>
         </div>
       ) : (
         <div className="space-y-6">
           <Section title={t('leaveRequests')} count={leaves.length}>
             {leaves.map((r) => (
               <ItemCard key={r.id} href={`/liff/admin/leave/${r.id}`}>
-                <p className="text-sm font-medium text-gray-900">{fullName(r.employee)}</p>
-                <p className="mt-0.5 text-xs text-gray-500">
+                <p className="text-sm font-medium text-ink-1">{fullName(r.employee)}</p>
+                <p className="mt-0.5 text-xs text-ink-3">
                   {r.leaveType.name} • {formatBkkDate(r.startDate, locale)}
                   {r.endDate.getTime() !== r.startDate.getTime()
                     ? ` – ${formatBkkDate(r.endDate, locale)}`
                     : ''}
                 </p>
-                <p className="mt-0.5 text-[10px] text-gray-400">
+                <p className="mt-0.5 text-[10px] text-ink-4">
                   {t('submittedAt', { datetime: formatBkk(r.createdAt, locale) })}
                 </p>
               </ItemCard>
@@ -134,11 +134,11 @@ export default async function LiffAdminInboxPage() {
           <Section title={t('advanceRequests')} count={advances.length}>
             {advances.map((r) => (
               <ItemCard key={r.id} href={`/liff/admin/advance/${r.id}`}>
-                <p className="text-sm font-medium text-gray-900">{fullName(r.employee)}</p>
-                <p className="mt-0.5 text-lg font-semibold tabular-nums text-gray-900">
+                <p className="text-sm font-medium text-ink-1">{fullName(r.employee)}</p>
+                <p className="mt-0.5 text-lg font-semibold tabular-nums text-ink-1">
                   ฿{Number(r.amount).toLocaleString('th-TH')}
                 </p>
-                <p className="mt-0.5 text-[10px] text-gray-400">
+                <p className="mt-0.5 text-[10px] text-ink-4">
                   {t('submittedAt', { datetime: formatBkk(r.requestedAt, locale) })}
                 </p>
               </ItemCard>
@@ -148,13 +148,13 @@ export default async function LiffAdminInboxPage() {
           <Section title={t('disputedCheckins')} count={disputes.length}>
             {disputes.map((r) => (
               <ItemCard key={r.id} href={`/liff/admin/dispute/${r.id}`}>
-                <p className="text-sm font-medium text-gray-900">{fullName(r.employee)}</p>
-                <p className="mt-0.5 text-xs text-gray-500">
+                <p className="text-sm font-medium text-ink-1">{fullName(r.employee)}</p>
+                <p className="mt-0.5 text-xs text-ink-3">
                   {r.clockInAt
                     ? t('checkedInAt', { datetime: formatBkk(r.clockInAt, locale) })
                     : t('noCheckinTime')}
                 </p>
-                <p className="mt-0.5 text-[10px] text-gray-400">{t('tapToReview')}</p>
+                <p className="mt-0.5 text-[10px] text-ink-4">{t('tapToReview')}</p>
               </ItemCard>
             ))}
           </Section>
@@ -176,7 +176,7 @@ function Section({
   if (count === 0) return null;
   return (
     <section>
-      <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold text-gray-700">
+      <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold text-ink-2">
         {title}
         <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800">
           {count}

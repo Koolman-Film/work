@@ -4,9 +4,9 @@ import { cn } from '@/lib/utils';
 
 const inputClasses = cn(
   'block w-full rounded-md border border-line-strong px-3 py-2 text-sm shadow-sm',
-  'placeholder:text-gray-400',
+  'placeholder:text-ink-4',
   'focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30',
-  'disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-gray-500',
+  'disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-ink-3',
   'aria-[invalid="true"]:border-red-500 aria-[invalid="true"]:focus:ring-red-500/30',
   // date/time/month pickers: iOS Safari renders them with a squashed
   // intrinsic height and left-aligned value — normalize to match text

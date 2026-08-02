@@ -75,19 +75,19 @@ export default async function LiffAdminDashboardPage() {
   return (
     <main className="px-4 pt-4 pb-12">
       <section>
-        <h2 className="mb-2 text-sm font-semibold text-gray-700">{t('attendanceToday')}</h2>
+        <h2 className="mb-2 text-sm font-semibold text-ink-2">{t('attendanceToday')}</h2>
         <div className="grid grid-cols-3 gap-2">
           <StatCard label={t('checkedIn')} value={checkedIn} />
           <StatCard label={t('notCheckedIn')} value={notCheckedIn} />
           <StatCard label={t('onLeave')} value={onLeave} />
         </div>
-        <p className="mt-2 text-[11px] text-gray-400">
+        <p className="mt-2 text-[11px] text-ink-4">
           {t('totalCheckinEmployees', { count: activeCount })}
         </p>
       </section>
 
       <section className="mt-6">
-        <h2 className="mb-2 text-sm font-semibold text-gray-700">{t('pendingApprovals')}</h2>
+        <h2 className="mb-2 text-sm font-semibold text-ink-2">{t('pendingApprovals')}</h2>
         <div className="grid grid-cols-2 gap-2">
           <Link href="/liff/admin/inbox" className="block">
             <StatCard label={t('leaveRequests')} value={pendingLeave} hint={t('tapToView')} />

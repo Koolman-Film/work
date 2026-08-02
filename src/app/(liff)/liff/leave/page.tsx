@@ -20,7 +20,7 @@ const STATUS_CLS: Record<string, string> = {
   Pending: 'bg-amber-100 text-amber-800',
   Approved: 'bg-green-100 text-green-800',
   Rejected: 'bg-red-100 text-red-800',
-  Cancelled: 'bg-surface-sunken text-gray-700',
+  Cancelled: 'bg-surface-sunken text-ink-2',
 };
 
 function formatRange(start: Date, end: Date, locale: Locale): string {
@@ -92,8 +92,8 @@ export default async function LiffLeaveListPage({
     <main className="mx-auto max-w-md px-4 pt-8 pb-12">
       <header className="mb-6 flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">{t('list.title')}</h1>
-          <p className="mt-0.5 text-sm text-gray-500">{t('list.count', { n: meta.total })}</p>
+          <h1 className="text-2xl font-semibold text-ink-1">{t('list.title')}</h1>
+          <p className="mt-0.5 text-sm text-ink-3">{t('list.count', { n: meta.total })}</p>
         </div>
         <Link
           href="/liff/leave/new"
@@ -105,7 +105,7 @@ export default async function LiffLeaveListPage({
 
       {rows.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-line-strong bg-surface p-12 text-center">
-          <p className="text-sm text-gray-500">{t('list.empty')}</p>
+          <p className="text-sm text-ink-3">{t('list.empty')}</p>
           <Link
             href="/liff/leave/new"
             className="mt-3 inline-block text-sm font-medium text-primary-700 hover:text-primary-800"
@@ -126,14 +126,14 @@ export default async function LiffLeaveListPage({
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-gray-900">
+                      <p className="text-sm font-medium text-ink-1">
                         {localizedLeaveTypeName(
                           r.leaveType.name,
                           r.leaveType.nameByLocale,
                           locale as Locale,
                         )}
                         {r.unit !== 'FullDay' && (
-                          <span className="font-normal text-gray-500">
+                          <span className="font-normal text-ink-3">
                             {' · '}
                             {r.unit === 'Hourly' && r.startTime && r.endTime
                               ? `${r.startTime}–${r.endTime}`
@@ -141,10 +141,10 @@ export default async function LiffLeaveListPage({
                           </span>
                         )}
                       </p>
-                      <p className="mt-1 text-xs text-gray-600">
+                      <p className="mt-1 text-xs text-ink-2">
                         {formatRange(r.startDate, r.endDate, locale as Locale)}
                       </p>
-                      <p className="mt-1 line-clamp-2 text-xs text-gray-500">{r.reason}</p>
+                      <p className="mt-1 line-clamp-2 text-xs text-ink-3">{r.reason}</p>
                     </div>
                     <span
                       className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${cls}`}
@@ -171,10 +171,10 @@ export default async function LiffLeaveListPage({
       />
 
       <nav className="mt-8 flex justify-center gap-4 text-xs">
-        <Link href="/liff/check-in" className="text-gray-500 hover:text-gray-700">
+        <Link href="/liff/check-in" className="text-ink-3 hover:text-ink-2">
           {t('list.backToCheckin')}
         </Link>
-        <Link href="/liff/calendar" className="text-gray-500 hover:text-gray-700">
+        <Link href="/liff/calendar" className="text-ink-3 hover:text-ink-2">
           {t('list.teamCalendar')}
         </Link>
       </nav>

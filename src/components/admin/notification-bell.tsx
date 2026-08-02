@@ -138,8 +138,8 @@ export function NotificationBell({ userId }: Props) {
         className={cn(
           'relative grid size-9 place-items-center rounded-full transition',
           open
-            ? 'bg-surface-sunken text-gray-700'
-            : 'text-gray-500 hover:bg-surface-sunken hover:text-gray-700',
+            ? 'bg-surface-sunken text-ink-2'
+            : 'text-ink-3 hover:bg-surface-sunken hover:text-ink-2',
         )}
       >
         <Icon
@@ -162,7 +162,7 @@ export function NotificationBell({ userId }: Props) {
         >
           {/* Header */}
           <div className="flex items-center justify-between border-b border-line-soft px-4 py-3">
-            <p className="text-sm font-semibold text-gray-900">การแจ้งเตือน</p>
+            <p className="text-sm font-semibold text-ink-1">การแจ้งเตือน</p>
             {unreadCount > 0 && (
               <button
                 type="button"
@@ -177,8 +177,8 @@ export function NotificationBell({ userId }: Props) {
           {/* Body */}
           {notifications.length === 0 ? (
             <div className="px-4 py-10 text-center">
-              <p className="text-sm text-gray-500">ยังไม่มีการแจ้งเตือน</p>
-              <p className="mt-1 text-xs text-gray-400">ระบบจะแจ้งเตือนเมื่อพนักงานส่งคำขอ</p>
+              <p className="text-sm text-ink-3">ยังไม่มีการแจ้งเตือน</p>
+              <p className="mt-1 text-xs text-ink-4">ระบบจะแจ้งเตือนเมื่อพนักงานส่งคำขอ</p>
             </div>
           ) : (
             <ul className="max-h-[420px] divide-y divide-line-soft overflow-y-auto">
@@ -355,16 +355,11 @@ function NotificationRow({
           {r.emoji}
         </span>
         <div className="min-w-0 flex-1">
-          <p
-            className={cn(
-              'truncate text-sm',
-              unread ? 'font-semibold text-gray-900' : 'text-gray-700',
-            )}
-          >
+          <p className={cn('truncate text-sm', unread ? 'font-semibold text-ink-1' : 'text-ink-2')}>
             {r.title}
           </p>
-          {r.subtitle && <p className="mt-0.5 truncate text-xs text-gray-500">{r.subtitle}</p>}
-          <p className="mt-0.5 text-[10px] text-gray-400">{relativeTime(notification.createdAt)}</p>
+          {r.subtitle && <p className="mt-0.5 truncate text-xs text-ink-3">{r.subtitle}</p>}
+          <p className="mt-0.5 text-[10px] text-ink-4">{relativeTime(notification.createdAt)}</p>
         </div>
         {unread && (
           <span

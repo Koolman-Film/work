@@ -49,15 +49,15 @@ export function PeriodPicker({ month, monthLabel, prev, next, from, to, todayYmd
           <Link
             href={monthUrl(prev)}
             aria-label={labels.prevMonth}
-            className="grid size-8 place-items-center rounded-md text-gray-500 hover:bg-surface-sunken hover:text-gray-700"
+            className="grid size-8 place-items-center rounded-md text-ink-3 hover:bg-surface-sunken hover:text-ink-2"
           >
             ‹
           </Link>
-          <p className="text-sm font-semibold text-gray-900">{monthLabel}</p>
+          <p className="text-sm font-semibold text-ink-1">{monthLabel}</p>
           <Link
             href={monthUrl(next)}
             aria-label={labels.nextMonth}
-            className="grid size-8 place-items-center rounded-md text-gray-500 hover:bg-surface-sunken hover:text-gray-700"
+            className="grid size-8 place-items-center rounded-md text-ink-3 hover:bg-surface-sunken hover:text-ink-2"
           >
             ›
           </Link>
@@ -100,7 +100,7 @@ export function PeriodPicker({ month, monthLabel, prev, next, from, to, todayYmd
           // `||` — not `??` — is what actually falls back to today.
           <Link
             href={monthUrl((range.from || todayYmd).slice(0, 7))}
-            className="rounded-md px-3 py-2 text-xs font-medium text-gray-600 hover:bg-surface-sunken"
+            className="rounded-md px-3 py-2 text-xs font-medium text-ink-2 hover:bg-surface-sunken"
           >
             {labels.backToMonthly}
           </Link>
@@ -112,7 +112,7 @@ export function PeriodPicker({ month, monthLabel, prev, next, from, to, todayYmd
           <button
             type="button"
             onClick={() => setCustom(false)}
-            className="rounded-md px-3 py-2 text-xs font-medium text-gray-600 hover:bg-surface-sunken"
+            className="rounded-md px-3 py-2 text-xs font-medium text-ink-2 hover:bg-surface-sunken"
           >
             {labels.backToMonthly}
           </button>

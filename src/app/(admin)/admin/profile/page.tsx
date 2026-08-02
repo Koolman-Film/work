@@ -88,7 +88,7 @@ function RoleBadge({ tier }: { tier: 'Admin' | 'Superadmin' | 'Staff' | null }) 
       </span>
     );
   return (
-    <span className="rounded-full bg-surface-sunken px-2 py-0.5 text-xs font-medium text-gray-700">
+    <span className="rounded-full bg-surface-sunken px-2 py-0.5 text-xs font-medium text-ink-2">
       บทบาทกำหนดเอง
     </span>
   );

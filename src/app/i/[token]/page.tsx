@@ -92,9 +92,9 @@ export default async function PairingLandingPage({ params }: { params: Params })
     <div className="grid min-h-dvh place-items-center bg-surface-muted px-4 py-12">
       <div className="w-full max-w-sm space-y-6 rounded-xl border border-line bg-surface p-8 shadow-sm">
         <div className="text-center">
-          <p className="text-sm text-gray-500">Koolman Work</p>
-          <h1 className="mt-1 text-xl font-semibold text-gray-900">สวัสดี, {emp.firstName}</h1>
-          <p className="mt-2 text-sm text-gray-600">เปิดลิงก์นี้ในแอป LINE เพื่อเริ่มเชื่อมบัญชี</p>
+          <p className="text-sm text-ink-3">Koolman Work</p>
+          <h1 className="mt-1 text-xl font-semibold text-ink-1">สวัสดี, {emp.firstName}</h1>
+          <p className="mt-2 text-sm text-ink-2">เปิดลิงก์นี้ในแอป LINE เพื่อเริ่มเชื่อมบัญชี</p>
         </div>
 
         <div className="space-y-3 text-sm">
@@ -104,13 +104,13 @@ export default async function PairingLandingPage({ params }: { params: Params })
           <div className="flex justify-center gap-2">
             <a
               href="https://apps.apple.com/app/line/id443904275"
-              className="rounded-md border border-line-strong px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-surface-muted"
+              className="rounded-md border border-line-strong px-3 py-1.5 text-xs font-medium text-ink-2 hover:bg-surface-muted"
             >
               App Store
             </a>
             <a
               href="https://play.google.com/store/apps/details?id=jp.naver.line.android"
-              className="rounded-md border border-line-strong px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-surface-muted"
+              className="rounded-md border border-line-strong px-3 py-1.5 text-xs font-medium text-ink-2 hover:bg-surface-muted"
             >
               Google Play
             </a>
@@ -162,9 +162,9 @@ function ExpiredLink({
   return (
     <div className="grid min-h-dvh place-items-center bg-surface-muted px-4 py-12">
       <div className="w-full max-w-sm space-y-3 rounded-xl border border-line bg-surface p-8 text-center shadow-sm">
-        <p className="text-sm text-gray-500">Koolman Work</p>
-        <h1 className="text-xl font-semibold text-gray-900">{m.title}</h1>
-        <p className="text-sm text-gray-600">{m.body}</p>
+        <p className="text-sm text-ink-3">Koolman Work</p>
+        <h1 className="text-xl font-semibold text-ink-1">{m.title}</h1>
+        <p className="text-sm text-ink-2">{m.body}</p>
       </div>
     </div>
   );

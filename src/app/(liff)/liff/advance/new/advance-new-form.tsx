@@ -64,8 +64,8 @@ export function AdvanceNewForm({ available }: { available: number | null }) {
 
   return (
     <main className="mx-auto max-w-md px-4 pt-8 pb-12">
-      <h1 className="text-2xl font-semibold text-gray-900">{t('new.title')}</h1>
-      <p className="mt-1 text-sm text-gray-500">{t('new.subtitle')}</p>
+      <h1 className="text-2xl font-semibold text-ink-1">{t('new.title')}</h1>
+      <p className="mt-1 text-sm text-ink-3">{t('new.subtitle')}</p>
 
       <form
         onSubmit={onSubmit}
@@ -78,11 +78,11 @@ export function AdvanceNewForm({ available }: { available: number | null }) {
         )}
 
         <div>
-          <label htmlFor="amount" className="mb-1.5 block text-sm font-medium text-gray-700">
+          <label htmlFor="amount" className="mb-1.5 block text-sm font-medium text-ink-2">
             {t('new.field.amount')} <span className="text-red-600">*</span>
           </label>
           <div className="relative">
-            <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-lg font-medium text-gray-400">
+            <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-lg font-medium text-ink-4">
               ฿
             </span>
             <input
@@ -107,7 +107,7 @@ export function AdvanceNewForm({ available }: { available: number | null }) {
 
         {/* Quick-amount chips */}
         <div>
-          <p className="mb-2 text-xs text-gray-500">{t('new.quickAmounts')}</p>
+          <p className="mb-2 text-xs text-ink-3">{t('new.quickAmounts')}</p>
           <div className="flex flex-wrap gap-2">
             {QUICK_AMOUNTS.map((n) => (
               <button
@@ -115,7 +115,7 @@ export function AdvanceNewForm({ available }: { available: number | null }) {
                 type="button"
                 onClick={() => setAmount(n.toString())}
                 disabled={pending}
-                className="rounded-full border border-line bg-surface px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-surface-muted"
+                className="rounded-full border border-line bg-surface px-3 py-1.5 text-xs font-medium text-ink-2 hover:bg-surface-muted"
               >
                 {formatMoney(n, locale)}
               </button>
@@ -132,7 +132,7 @@ export function AdvanceNewForm({ available }: { available: number | null }) {
             type="button"
             onClick={() => router.back()}
             disabled={pending}
-            className="text-sm text-gray-500 hover:text-gray-700"
+            className="text-sm text-ink-3 hover:text-ink-2"
           >
             {t('new.cancel')}
           </button>

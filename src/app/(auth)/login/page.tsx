@@ -51,7 +51,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Search
         </Link>
       </div>
 
-      <div className="text-center text-xs text-gray-400">พนักงาน: เข้าสู่ระบบผ่านแอป LINE</div>
+      <div className="text-center text-xs text-ink-4">พนักงาน: เข้าสู่ระบบผ่านแอป LINE</div>
     </form>
   );
 }

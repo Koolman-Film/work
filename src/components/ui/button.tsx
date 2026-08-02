@@ -15,9 +15,9 @@ const variantClasses: Record<Variant, string> = {
   primary:
     'bg-primary-600 text-white shadow-sm hover:bg-primary-700 focus-visible:ring-primary-500/50',
   secondary:
-    'border border-line-strong bg-surface text-gray-700 hover:bg-surface-muted focus-visible:ring-primary-500/30',
+    'border border-line-strong bg-surface text-ink-2 hover:bg-surface-muted focus-visible:ring-primary-500/30',
   destructive: 'bg-red-600 text-white shadow-sm hover:bg-red-700 focus-visible:ring-red-500/50',
-  ghost: 'text-gray-700 hover:bg-surface-sunken focus-visible:ring-primary-500/30',
+  ghost: 'text-ink-2 hover:bg-surface-sunken focus-visible:ring-primary-500/30',
   // Approve = positive/confirming action (green gradient CTA, per mockups).
   approve:
     'bg-gradient-to-b from-success to-success-deep text-white shadow-cta hover:brightness-105 focus-visible:ring-success/40',

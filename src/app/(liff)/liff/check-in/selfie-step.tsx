@@ -270,7 +270,7 @@ export function SelfieStep({ onConfirm, onCancel }: Props) {
             {cameraFailed && (
               <label
                 htmlFor={fileInputId}
-                className="mt-8 cursor-pointer rounded-full bg-surface px-8 py-3 text-base font-semibold text-gray-900 shadow-lg active:scale-95"
+                className="mt-8 cursor-pointer rounded-full bg-surface px-8 py-3 text-base font-semibold text-ink-1 shadow-lg active:scale-95"
               >
                 {t('selfie.openCamera')}
               </label>

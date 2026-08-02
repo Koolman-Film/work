@@ -94,7 +94,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       lang={locale}
       className={`${inter.variable} ${plexThai.variable} ${plexMono.variable} ${notoMyanmar.variable} ${notoKhmer.variable} ${notoLao.variable}`}
     >
-      <body className="min-h-dvh bg-surface text-gray-900 antialiased">
+      <body className="min-h-dvh bg-surface text-ink-1 antialiased">
         <NextIntlClientProvider>{children}</NextIntlClientProvider>
         <SpeedInsights />
         <Analytics />

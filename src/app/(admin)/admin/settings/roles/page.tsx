@@ -78,7 +78,7 @@ export default async function RoleListPage({ searchParams }: { searchParams: Sea
             ระบบ
           </span>
         ) : (
-          <span className="rounded-full bg-surface-sunken px-2 py-0.5 text-xs font-medium text-gray-600">
+          <span className="rounded-full bg-surface-sunken px-2 py-0.5 text-xs font-medium text-ink-2">
             กำหนดเอง
           </span>
         ),

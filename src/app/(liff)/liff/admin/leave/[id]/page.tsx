@@ -35,7 +35,7 @@ const STATUS_CLS: Record<string, string> = {
   Pending: 'bg-amber-100 text-amber-800',
   Approved: 'bg-green-100 text-green-800',
   Rejected: 'bg-red-100 text-red-800',
-  Cancelled: 'bg-surface-sunken text-gray-700',
+  Cancelled: 'bg-surface-sunken text-ink-2',
 };
 
 export default async function LiffAdminLeaveDetailPage({ params }: { params: Params }) {
@@ -74,11 +74,11 @@ export default async function LiffAdminLeaveDetailPage({ params }: { params: Par
   return (
     <main className="px-4 pt-4 pb-12">
       <header className="mb-4">
-        <Link href="/liff/admin/inbox" className="text-sm text-gray-500 hover:text-gray-700">
+        <Link href="/liff/admin/inbox" className="text-sm text-ink-3 hover:text-ink-2">
           {t('back')}
         </Link>
         <div className="mt-3 flex items-center justify-between gap-3">
-          <h1 className="text-2xl font-semibold text-gray-900">{t('title')}</h1>
+          <h1 className="text-2xl font-semibold text-ink-1">{t('title')}</h1>
           <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${cls}`}>
             {statusLabel}
           </span>
@@ -86,11 +86,11 @@ export default async function LiffAdminLeaveDetailPage({ params }: { params: Par
       </header>
 
       <section className="rounded-xl border border-line bg-surface p-4 shadow-sm">
-        <p className="text-sm font-medium text-gray-900">
+        <p className="text-sm font-medium text-ink-1">
           {vm.name}
-          {vm.nickname && <span className="text-gray-500"> ({vm.nickname})</span>}
+          {vm.nickname && <span className="text-ink-3"> ({vm.nickname})</span>}
         </p>
-        <p className="mt-0.5 text-xs text-gray-500">
+        <p className="mt-0.5 text-xs text-ink-3">
           {vm.branch}
           {vm.department ? ` • ${vm.department}` : ''}
         </p>
@@ -108,7 +108,7 @@ export default async function LiffAdminLeaveDetailPage({ params }: { params: Par
 
       {vm.overQuota && (
         <section className="mt-3 rounded-xl border border-line bg-surface p-4 shadow-sm">
-          <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">
+          <h2 className="text-xs font-medium uppercase tracking-wide text-ink-3">
             {t('quotaTitle')}
           </h2>
           <dl className="mt-2 space-y-2 text-sm">
@@ -136,7 +136,7 @@ export default async function LiffAdminLeaveDetailPage({ params }: { params: Par
 
       {vm.attachmentUrl && (
         <section className="mt-3 rounded-xl border border-line bg-surface-muted p-4">
-          <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">
+          <h2 className="text-xs font-medium uppercase tracking-wide text-ink-3">
             {t('attachment')}
           </h2>
           <a
@@ -158,7 +158,7 @@ export default async function LiffAdminLeaveDetailPage({ params }: { params: Par
         />
       ) : (
         <section className="mt-3 rounded-xl border border-line bg-surface p-4 shadow-sm">
-          <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">
+          <h2 className="text-xs font-medium uppercase tracking-wide text-ink-3">
             {t('reviewResult')}
           </h2>
           <dl className="mt-2 space-y-2 text-sm">
@@ -174,8 +174,8 @@ export default async function LiffAdminLeaveDetailPage({ params }: { params: Par
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-start justify-between gap-4">
-      <dt className="shrink-0 text-xs text-gray-500">{label}</dt>
-      <dd className="text-right text-gray-900">{children}</dd>
+      <dt className="shrink-0 text-xs text-ink-3">{label}</dt>
+      <dd className="text-right text-ink-1">{children}</dd>
     </div>
   );
 }

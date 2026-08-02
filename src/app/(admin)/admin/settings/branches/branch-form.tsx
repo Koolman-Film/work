@@ -119,7 +119,7 @@ export function BranchForm({ mode, action, initial, error, extraActions }: Props
             </FormField>
 
             <div>
-              <label className="flex items-center gap-2 text-sm text-gray-700">
+              <label className="flex items-center gap-2 text-sm text-ink-2">
                 <input
                   type="checkbox"
                   name="requireGps"
@@ -128,14 +128,14 @@ export function BranchForm({ mode, action, initial, error, extraActions }: Props
                 />
                 <span>ตรวจสอบตำแหน่ง GPS ตอนเช็คอิน</span>
               </label>
-              <p className="ml-6 mt-0.5 text-xs text-gray-500">
+              <p className="ml-6 mt-0.5 text-xs text-ink-3">
                 เปิดเพื่อให้เช็คอินนอกพื้นที่สาขาถูกตั้งสถานะเป็น "ต้องตรวจสอบ" — ปิดเมื่อพนักงานทำงาน นอกสถานที่
                 และไม่ต้องการตรวจพิกัด
               </p>
             </div>
 
             <div>
-              <label className="flex items-center gap-2 text-sm text-gray-700">
+              <label className="flex items-center gap-2 text-sm text-ink-2">
                 <input
                   type="checkbox"
                   name="requireSelfie"
@@ -144,13 +144,13 @@ export function BranchForm({ mode, action, initial, error, extraActions }: Props
                 />
                 <span>ต้องถ่ายเซลฟี่ตอนเช็คอิน</span>
               </label>
-              <p className="ml-6 mt-0.5 text-xs text-gray-500">
+              <p className="ml-6 mt-0.5 text-xs text-ink-3">
                 เพิ่มความน่าเชื่อถือ — ป้องกันการให้คนอื่นเช็คอินแทน
               </p>
             </div>
 
             <div>
-              <label className="flex items-center gap-2 text-sm text-gray-700">
+              <label className="flex items-center gap-2 text-sm text-ink-2">
                 <input
                   type="checkbox"
                   name="requireCheckOut"
@@ -159,7 +159,7 @@ export function BranchForm({ mode, action, initial, error, extraActions }: Props
                 />
                 <span>ต้องเช็คเอาท์ตอนเลิกงาน</span>
               </label>
-              <p className="ml-6 mt-0.5 text-xs text-gray-500">
+              <p className="ml-6 mt-0.5 text-xs text-ink-3">
                 เปิดเพื่อบังคับให้พนักงานเช็คเอาท์เมื่อเลิกงาน — ปิดเพื่อให้เช็คอินอย่างเดียวก็พอ
                 (ระบบจะปิดเวลาออกอัตโนมัติให้ตอน 22:00)
               </p>
@@ -167,7 +167,7 @@ export function BranchForm({ mode, action, initial, error, extraActions }: Props
             <div className="space-y-4 border-t border-line-soft pt-5">
               <div>
                 <h3 className="text-sm font-semibold text-ink-1">หัวกระดาษสลิปเงินเดือน</h3>
-                <p className="mt-0.5 text-xs text-gray-500">
+                <p className="mt-0.5 text-xs text-ink-3">
                   ชื่อบริษัทและโลโก้ที่แสดงบนสลิปของพนักงานสาขานี้ — เว้นว่างเพื่อใช้ค่าเริ่มต้น (Koolman)
                 </p>
               </div>

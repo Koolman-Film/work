@@ -99,7 +99,7 @@ export function TeamCreateForm({ action, error, email, roles, branches }: Props)
 
           {/* ─── Assignment rows ─────────────────────────────────────────── */}
           <div className="space-y-2">
-            <p className="text-sm font-medium text-gray-700">
+            <p className="text-sm font-medium text-ink-2">
               บทบาท <span className="text-red-500">*</span>
             </p>
 
@@ -145,7 +145,7 @@ export function TeamCreateForm({ action, error, email, roles, branches }: Props)
                     onClick={() => removeRow(row.uid)}
                     aria-label="เอาออก"
                     disabled={rows.length === 1}
-                    className="grid size-8 shrink-0 place-items-center rounded-md text-gray-400 transition hover:bg-red-50 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-30"
+                    className="grid size-8 shrink-0 place-items-center rounded-md text-ink-4 transition hover:bg-red-50 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-30"
                   >
                     ✕
                   </button>

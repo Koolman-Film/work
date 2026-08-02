@@ -69,16 +69,14 @@ export default function PairAdminClient({ pairingToken }: { pairingToken: string
   return (
     <div className="grid min-h-dvh place-items-center px-4 py-12">
       <div className="w-full max-w-sm rounded-xl border border-line bg-surface p-8 shadow-sm">
-        <p className="text-center text-sm text-gray-500">Koolman Work</p>
-        <h1 className="mt-1 text-center text-xl font-semibold text-gray-900">
-          เชื่อมต่อ LINE สำหรับผู้ดูแล
-        </h1>
+        <p className="text-center text-sm text-ink-3">Koolman Work</p>
+        <h1 className="mt-1 text-center text-xl font-semibold text-ink-1">เชื่อมต่อ LINE สำหรับผู้ดูแล</h1>
 
         <div className="mt-6">
           {state.phase === 'working' ? (
             <div className="flex flex-col items-center gap-4 text-center">
               <Spinner />
-              <p className="text-sm text-gray-600">{state.message}</p>
+              <p className="text-sm text-ink-2">{state.message}</p>
             </div>
           ) : state.phase === 'success' ? (
             <div className="flex flex-col items-center gap-3 text-center">
@@ -96,8 +94,8 @@ export default function PairAdminClient({ pairingToken }: { pairingToken: string
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
               </div>
-              <p className="text-base font-medium text-gray-900">เชื่อมต่อสำเร็จ</p>
-              <p className="text-sm text-gray-600">เมนูแอดมินจะปรากฏในแชท OA ภายในไม่กี่วินาที</p>
+              <p className="text-base font-medium text-ink-1">เชื่อมต่อสำเร็จ</p>
+              <p className="text-sm text-ink-2">เมนูแอดมินจะปรากฏในแชท OA ภายในไม่กี่วินาที</p>
             </div>
           ) : (
             <div className="flex flex-col items-center gap-3 text-center">
@@ -117,8 +115,8 @@ export default function PairAdminClient({ pairingToken }: { pairingToken: string
                   <line x1="12" y1="16" x2="12.01" y2="16" />
                 </svg>
               </div>
-              <p className="text-base font-medium text-gray-900">เชื่อมต่อไม่สำเร็จ</p>
-              <p className="text-sm text-gray-600">{state.message}</p>
+              <p className="text-base font-medium text-ink-1">เชื่อมต่อไม่สำเร็จ</p>
+              <p className="text-sm text-ink-2">{state.message}</p>
               {state.canRetry && (
                 <button
                   type="button"

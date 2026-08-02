@@ -320,14 +320,14 @@ export default function PairClient({
   return (
     <div className="grid min-h-dvh place-items-center px-4 py-12">
       <div className="w-full max-w-sm rounded-xl border border-line bg-surface p-8 shadow-sm">
-        <p className="text-center text-sm text-gray-500">Koolman Work</p>
+        <p className="text-center text-sm text-ink-3">Koolman Work</p>
         {/* The "Link your LINE account" heading only belongs to the actual
             first-time binding — a returning user tapping a rich-menu button
             just navigates through here, so during the loading/redirect phases
             we show a neutral loader (each result block below has its own
             heading). */}
         {!isProgress && (
-          <h1 className="mt-1 text-center text-xl font-semibold text-gray-900">{t('title')}</h1>
+          <h1 className="mt-1 text-center text-xl font-semibold text-ink-1">{t('title')}</h1>
         )}
 
         <div className={isProgress ? 'mt-4' : 'mt-6'}>
@@ -350,7 +350,7 @@ function ProgressBlock({ label }: { label: string }) {
   return (
     <div className="flex flex-col items-center gap-4 text-center">
       <Spinner />
-      <p className="text-sm text-gray-600">{label}</p>
+      <p className="text-sm text-ink-2">{label}</p>
     </div>
   );
 }
@@ -373,10 +373,10 @@ function SuccessBlock({ employeeName }: { employeeName: string }) {
           <polyline points="20 6 9 17 4 12" />
         </svg>
       </div>
-      <p className="text-base font-medium text-gray-900">{t('success.title')}</p>
-      <p className="text-sm text-gray-600">{t('success.welcome', { name: employeeName })}</p>
-      <p className="text-xs text-gray-500">{t('success.lastStep')}</p>
-      <p className="text-xs text-gray-400">{t('success.redirecting')}</p>
+      <p className="text-base font-medium text-ink-1">{t('success.title')}</p>
+      <p className="text-sm text-ink-2">{t('success.welcome', { name: employeeName })}</p>
+      <p className="text-xs text-ink-3">{t('success.lastStep')}</p>
+      <p className="text-xs text-ink-4">{t('success.redirecting')}</p>
     </div>
   );
 }
@@ -398,9 +398,9 @@ function AdminSuccessBlock() {
           <polyline points="20 6 9 17 4 12" />
         </svg>
       </div>
-      <p className="text-base font-medium text-gray-900">เชื่อมต่อบัญชีแอดมินสำเร็จ</p>
-      <p className="text-sm text-gray-600">เมนูแอดมินจะปรากฏในแชท OA ภายในไม่กี่วินาที</p>
-      <p className="text-xs text-gray-400">กำลังพาไปเพิ่มเพื่อน OA...</p>
+      <p className="text-base font-medium text-ink-1">เชื่อมต่อบัญชีแอดมินสำเร็จ</p>
+      <p className="text-sm text-ink-2">เมนูแอดมินจะปรากฏในแชท OA ภายในไม่กี่วินาที</p>
+      <p className="text-xs text-ink-4">กำลังพาไปเพิ่มเพื่อน OA...</p>
     </div>
   );
 }
@@ -425,8 +425,8 @@ function ErrorBlock({ message, canRetry }: { message: string; canRetry: boolean 
           <line x1="12" y1="16" x2="12.01" y2="16" />
         </svg>
       </div>
-      <p className="text-base font-medium text-gray-900">{t('error.title')}</p>
-      <p className="text-sm text-gray-600">{message}</p>
+      <p className="text-base font-medium text-ink-1">{t('error.title')}</p>
+      <p className="text-sm text-ink-2">{message}</p>
       {canRetry && (
         <button
           type="button"

@@ -85,7 +85,7 @@ export function MonthPicker({ id, name, defaultValue, min, max, className }: Pro
         }}
         aria-haspopup="dialog"
         aria-expanded={open}
-        className="flex w-full items-center justify-between gap-2 rounded-lg border border-line-strong bg-surface px-3 py-2 text-left text-sm text-gray-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+        className="flex w-full items-center justify-between gap-2 rounded-lg border border-line-strong bg-surface px-3 py-2 text-left text-sm text-ink-1 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
       >
         <span>{monthLabelTh(value)}</span>
         <svg
@@ -98,7 +98,7 @@ export function MonthPicker({ id, name, defaultValue, min, max, className }: Pro
           strokeLinecap="round"
           strokeLinejoin="round"
           aria-hidden="true"
-          className="shrink-0 text-gray-400"
+          className="shrink-0 text-ink-4"
         >
           <rect x="3" y="4" width="18" height="18" rx="2" />
           <path d="M16 2v4M8 2v4M3 10h18" />
@@ -117,7 +117,7 @@ export function MonthPicker({ id, name, defaultValue, min, max, className }: Pro
               type="button"
               onClick={() => setViewYear((y) => y - 1)}
               aria-label="ปีก่อนหน้า"
-              className="grid size-7 place-items-center rounded-md text-gray-500 hover:bg-surface-sunken hover:text-gray-700"
+              className="grid size-7 place-items-center rounded-md text-ink-3 hover:bg-surface-sunken hover:text-ink-2"
             >
               ‹
             </button>
@@ -126,7 +126,7 @@ export function MonthPicker({ id, name, defaultValue, min, max, className }: Pro
               type="button"
               onClick={() => setViewYear((y) => y + 1)}
               aria-label="ปีถัดไป"
-              className="grid size-7 place-items-center rounded-md text-gray-500 hover:bg-surface-sunken hover:text-gray-700"
+              className="grid size-7 place-items-center rounded-md text-ink-3 hover:bg-surface-sunken hover:text-ink-2"
             >
               ›
             </button>
@@ -152,8 +152,8 @@ export function MonthPicker({ id, name, defaultValue, min, max, className }: Pro
                     isSelected
                       ? 'bg-primary-600 font-semibold text-white'
                       : isDisabled
-                        ? 'cursor-not-allowed text-gray-300'
-                        : 'text-gray-700 hover:bg-primary-50 hover:text-primary-700',
+                        ? 'cursor-not-allowed text-ink-5'
+                        : 'text-ink-2 hover:bg-primary-50 hover:text-primary-700',
                   )}
                 >
                   {label}

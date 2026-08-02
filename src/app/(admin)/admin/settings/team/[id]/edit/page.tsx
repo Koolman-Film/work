@@ -143,7 +143,7 @@ export default async function EditTeamMemberPage({
                   className="font-mono"
                 />
               </FormField>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-ink-3">
                 ผู้ใช้ที่เปิดอยู่จะออกจากระบบทันทีเมื่อคุณบันทึก — ต้องล็อกอินใหม่ด้วยรหัสผ่านใหม่
               </p>
             </CardBody>
@@ -164,7 +164,7 @@ export default async function EditTeamMemberPage({
             <strong>ลบถาวร</strong>: ลบบัญชีออกจากระบบทั้งหมด (Supabase auth + database) — ย้อนกลับไม่ได้
           </p>
           <div className="mt-3 flex items-center justify-between gap-3">
-            <p className="text-xs text-gray-600">
+            <p className="text-xs text-ink-2">
               {isSelf ? 'คุณไม่สามารถระงับหรือลบบัญชีตัวเองได้' : `จัดการบัญชี ${target.email}`}
             </p>
             <DangerActions
