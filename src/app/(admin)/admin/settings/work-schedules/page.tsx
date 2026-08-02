@@ -111,7 +111,7 @@ function DaySummary({
   days: Array<{ dayOfWeek: number; startTime: string; endTime: string }>;
 }) {
   if (days.length === 0) {
-    return <span className="text-xs text-gray-400">ไม่มีวันทำงาน</span>;
+    return <span className="text-xs text-ink-4">ไม่มีวันทำงาน</span>;
   }
 
   // Check if all days have identical times (the common case).
@@ -126,9 +126,9 @@ function DaySummary({
 
   if (uniform) {
     return (
-      <span className="text-sm text-gray-700">
+      <span className="text-sm text-ink-2">
         <span className="font-medium">{chips}</span>{' '}
-        <span className="tabular-nums text-gray-500">
+        <span className="tabular-nums text-ink-3">
           {firstStart}-{firstEnd}
         </span>
       </span>
@@ -136,9 +136,9 @@ function DaySummary({
   }
 
   return (
-    <span className="text-sm text-gray-700">
+    <span className="text-sm text-ink-2">
       <span className="font-medium">{chips}</span>{' '}
-      <span className="text-xs text-gray-500">(เวลาต่างกันต่อวัน)</span>
+      <span className="text-xs text-ink-3">(เวลาต่างกันต่อวัน)</span>
     </span>
   );
 }

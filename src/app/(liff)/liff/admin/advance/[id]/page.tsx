@@ -29,7 +29,7 @@ const STATUS_INFO: Record<string, { labelKey: string; cls: string }> = {
   Pending: { labelKey: 'statusPending', cls: 'bg-amber-100 text-amber-800' },
   Approved: { labelKey: 'statusApproved', cls: 'bg-green-100 text-green-800' },
   Rejected: { labelKey: 'statusRejected', cls: 'bg-red-100 text-red-800' },
-  Cancelled: { labelKey: 'statusCancelled', cls: 'bg-surface-sunken text-gray-700' },
+  Cancelled: { labelKey: 'statusCancelled', cls: 'bg-surface-sunken text-ink-2' },
 };
 
 function formatBkk(d: Date, locale: Locale): string {
@@ -72,7 +72,7 @@ export default async function LiffAdminAdvanceDetailPage({ params }: { params: P
   ]);
 
   const statusInfo = STATUS_INFO[row.status];
-  const statusCls = statusInfo?.cls ?? 'bg-surface-sunken text-gray-700';
+  const statusCls = statusInfo?.cls ?? 'bg-surface-sunken text-ink-2';
   const statusLabel = statusInfo ? t(statusInfo.labelKey) : row.status;
   const name = `${row.employee.firstName} ${row.employee.lastName}`.trim();
 
@@ -93,12 +93,12 @@ export default async function LiffAdminAdvanceDetailPage({ params }: { params: P
               ? '/liff/admin/advance?filter=awaiting-slip'
               : '/liff/admin/advance'
           }
-          className="text-sm text-gray-500 hover:text-gray-700"
+          className="text-sm text-ink-3 hover:text-ink-2"
         >
           {t('back')}
         </Link>
         <div className="mt-3 flex items-center justify-between gap-3">
-          <h1 className="text-2xl font-semibold text-gray-900">{t('title')}</h1>
+          <h1 className="text-2xl font-semibold text-ink-1">{t('title')}</h1>
           <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${statusCls}`}>
             {paid ? t('statusTransferred') : statusLabel}
           </span>
@@ -106,18 +106,16 @@ export default async function LiffAdminAdvanceDetailPage({ params }: { params: P
       </header>
 
       <section className="rounded-xl border border-line bg-surface p-4 text-center shadow-sm">
-        <p className="text-sm font-medium text-gray-900">
+        <p className="text-sm font-medium text-ink-1">
           {name}
-          {row.employee.nickname && (
-            <span className="text-gray-500"> ({row.employee.nickname})</span>
-          )}
+          {row.employee.nickname && <span className="text-ink-3"> ({row.employee.nickname})</span>}
         </p>
-        <p className="mt-2 text-3xl font-bold tabular-nums text-gray-900">{baht(amount)}</p>
-        <p className="mt-1 text-xs text-gray-500">
+        <p className="mt-2 text-3xl font-bold tabular-nums text-ink-1">{baht(amount)}</p>
+        <p className="mt-1 text-xs text-ink-3">
           {t('submittedAt', { datetime: formatBkk(row.requestedAt, locale) })}
         </p>
         {row.approvedAt && (
-          <p className="mt-0.5 text-xs text-gray-500">
+          <p className="mt-0.5 text-xs text-ink-3">
             {t('approvedAt', { datetime: formatBkk(row.approvedAt, locale) })}
           </p>
         )}
@@ -129,7 +127,7 @@ export default async function LiffAdminAdvanceDetailPage({ params }: { params: P
       </section>
 
       <section className="mt-3 rounded-xl border border-line bg-surface p-4 shadow-sm">
-        <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">
+        <h2 className="text-xs font-medium uppercase tracking-wide text-ink-3">
           {t('creditTitle')}
         </h2>
         <dl className="mt-2 space-y-2 text-sm">
@@ -145,7 +143,7 @@ export default async function LiffAdminAdvanceDetailPage({ params }: { params: P
             {balance.available === null ? (
               '—'
             ) : (
-              <span className={balance.available < 0 ? 'text-red-600' : 'text-gray-900'}>
+              <span className={balance.available < 0 ? 'text-red-600' : 'text-ink-1'}>
                 {baht(balance.available)}
               </span>
             )}
@@ -163,23 +161,23 @@ export default async function LiffAdminAdvanceDetailPage({ params }: { params: P
           now, before anyone has approved it. */}
       {(awaitingSlip || paid) && (
         <section className="mt-3 rounded-xl border border-line bg-surface p-4">
-          <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">
+          <h2 className="text-xs font-medium uppercase tracking-wide text-ink-3">
             {t('payoutAccount')}
           </h2>
           {row.employee.bankAccountNumber ? (
             <dl className="mt-2 space-y-1 text-sm">
               <div className="flex justify-between gap-4">
-                <dt className="text-gray-500">{t('payoutBank')}</dt>
+                <dt className="text-ink-3">{t('payoutBank')}</dt>
                 <dd className="font-medium">
                   {row.employee.bank?.nameTh ?? row.employee.bank?.shortName ?? '—'}
                 </dd>
               </div>
               <div className="flex justify-between gap-4">
-                <dt className="text-gray-500">{t('payoutAccountNo')}</dt>
+                <dt className="text-ink-3">{t('payoutAccountNo')}</dt>
                 <dd className="font-medium tabular-nums">{row.employee.bankAccountNumber}</dd>
               </div>
               <div className="flex justify-between gap-4">
-                <dt className="text-gray-500">{t('payoutAccountName')}</dt>
+                <dt className="text-ink-3">{t('payoutAccountName')}</dt>
                 <dd className="font-medium">{row.employee.bankAccountName ?? '—'}</dd>
               </div>
             </dl>
@@ -207,7 +205,7 @@ export default async function LiffAdminAdvanceDetailPage({ params }: { params: P
       {paid && (
         <>
           <section className="mt-3 rounded-xl border border-line bg-surface-muted p-4">
-            <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">
+            <h2 className="text-xs font-medium uppercase tracking-wide text-ink-3">
               {t('slipSection')}
             </h2>
             {receiptIsExternal && resolvedReceiptUrl ? (
@@ -233,12 +231,12 @@ export default async function LiffAdminAdvanceDetailPage({ params }: { params: P
             ) : row.receiptUrl ? (
               // A slip key IS on record but failed to resolve to a viewable
               // URL — that's genuinely broken, distinct from "never attached".
-              <p className="mt-2 text-sm text-gray-500">{t('noSlipFile')}</p>
+              <p className="mt-2 text-sm text-ink-3">{t('noSlipFile')}</p>
             ) : (
               // Paid-with-no-slip is a normal, possibly permanent state (the
               // slip is optional) — must read as "nothing here yet", not
               // "the screen is broken".
-              <p className="mt-2 text-sm text-gray-500">{t('noSlipYet')}</p>
+              <p className="mt-2 text-sm text-ink-3">{t('noSlipYet')}</p>
             )}
           </section>
           <SlipUploadBlock
@@ -255,8 +253,8 @@ export default async function LiffAdminAdvanceDetailPage({ params }: { params: P
 function BalanceRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-start justify-between gap-4">
-      <dt className="shrink-0 text-xs text-gray-500">{label}</dt>
-      <dd className="text-right tabular-nums text-gray-900">{children}</dd>
+      <dt className="shrink-0 text-xs text-ink-3">{label}</dt>
+      <dd className="text-right tabular-nums text-ink-1">{children}</dd>
     </div>
   );
 }

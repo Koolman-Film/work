@@ -49,9 +49,9 @@ export default async function EditRolePage({
             // System roles can never be archived — hide the button entirely
             // rather than rendering it disabled. Less visual noise.
             role.isSystem ? (
-              <p className="text-xs text-gray-500">บทบาทระบบไม่สามารถลบได้ — มีไว้เป็นค่าตั้งต้น</p>
+              <p className="text-xs text-ink-3">บทบาทระบบไม่สามารถลบได้ — มีไว้เป็นค่าตั้งต้น</p>
             ) : role._count.assignments > 0 ? (
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-ink-3">
                 ลบไม่ได้ — มีผู้ใช้ {role._count.assignments} รายการ ใช้บทบาทนี้อยู่
               </p>
             ) : (

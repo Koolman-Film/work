@@ -162,7 +162,7 @@ export function AdminLeaveForm({ employees, leaveTypes }: Props) {
                 className={
                   unit === u.value
                     ? 'rounded-md border border-primary-600 bg-primary-50 px-3 py-1.5 text-sm font-medium text-primary-700'
-                    : 'rounded-md border border-line-strong px-3 py-1.5 text-sm text-gray-700'
+                    : 'rounded-md border border-line-strong px-3 py-1.5 text-sm text-ink-2'
                 }
               >
                 {u.label}

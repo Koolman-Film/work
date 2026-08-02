@@ -94,7 +94,7 @@ export function AdvanceReviewActions({ cashAdvanceId }: { cashAdvanceId: string 
               : t('reject')}
         </button>
       </div>
-      <p className="mt-2 text-[10px] text-gray-400">{t('hint')}</p>
+      <p className="mt-2 text-[10px] text-ink-4">{t('hint')}</p>
     </section>
   );
 }
@@ -147,7 +147,7 @@ export function SlipUploadBlock({
 
   return (
     <section className="mt-3 rounded-xl border border-line bg-surface p-4 shadow-sm">
-      <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">{heading}</h2>
+      <h2 className="text-xs font-medium uppercase tracking-wide text-ink-3">{heading}</h2>
       {doneOnce && (
         <p className="mt-2 rounded-lg bg-green-50 p-2 text-xs text-green-800">{t('slipDone')}</p>
       )}

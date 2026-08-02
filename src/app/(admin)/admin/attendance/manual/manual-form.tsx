@@ -415,7 +415,7 @@ export function ManualAttendanceForm({
       <fieldset className="m-0 min-w-0 space-y-1.5 border-0 p-0">
         {/* px-0 strips the UA's default 2px legend padding so this label
             lines up with the plain <label>s on the fields above. */}
-        <legend className="block px-0 text-sm font-medium text-gray-700">
+        <legend className="block px-0 text-sm font-medium text-ink-2">
           วันนั้นมาทำงานหรือไม่
           <span className="ml-0.5 text-red-500">*</span>
         </legend>
@@ -431,7 +431,7 @@ export function ManualAttendanceForm({
               className={`flex cursor-pointer items-center justify-center rounded-md border px-3 py-2 text-sm font-medium transition ${
                 kind === value
                   ? 'border-primary-500 bg-primary-50 text-primary-700'
-                  : 'border-line bg-surface text-gray-700 hover:border-primary-200'
+                  : 'border-line bg-surface text-ink-2 hover:border-primary-200'
               }`}
             >
               <input
@@ -504,7 +504,7 @@ export function ManualAttendanceForm({
 
       {showSettleChoice && (
         <fieldset className="m-0 min-w-0 space-y-2 border-0 p-0">
-          <legend className="block px-0 text-sm font-medium text-gray-700">วิธีหัก</legend>
+          <legend className="block px-0 text-sm font-medium text-ink-2">วิธีหัก</legend>
           <div className="space-y-2">
             <label className="flex items-center gap-2 text-sm text-ink-1">
               <input

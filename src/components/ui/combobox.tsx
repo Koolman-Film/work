@@ -118,7 +118,7 @@ export function Combobox({
         aria-expanded={open}
         className="flex w-full items-center justify-between gap-2 rounded-md border border-line-strong bg-surface px-3 py-2 text-left text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
       >
-        <span className={cn('truncate', value ? 'text-gray-900' : 'text-gray-400')}>
+        <span className={cn('truncate', value ? 'text-ink-1' : 'text-ink-4')}>
           {value || placeholder}
         </span>
         <svg
@@ -131,7 +131,7 @@ export function Combobox({
           strokeLinecap="round"
           strokeLinejoin="round"
           aria-hidden="true"
-          className={cn('shrink-0 text-gray-400 transition', open && 'rotate-180')}
+          className={cn('shrink-0 text-ink-4 transition', open && 'rotate-180')}
         >
           <path d="m6 9 6 6 6-6" />
         </svg>
@@ -167,7 +167,7 @@ export function Combobox({
                     onMouseEnter={() => setActiveIdx(i)}
                     className={cn(
                       'flex w-full items-center justify-between rounded-md px-2.5 py-1.5 text-left text-sm transition',
-                      isActive ? 'bg-primary-50 text-primary-700' : 'text-gray-700',
+                      isActive ? 'bg-primary-50 text-primary-700' : 'text-ink-2',
                       isSelected && 'font-semibold',
                     )}
                   >
@@ -186,9 +186,7 @@ export function Combobox({
                   onMouseEnter={() => setActiveIdx(filtered.length)}
                   className={cn(
                     'flex w-full items-center gap-1.5 rounded-md px-2.5 py-1.5 text-left text-sm transition',
-                    activeIdx === filtered.length
-                      ? 'bg-primary-50 text-primary-700'
-                      : 'text-gray-700',
+                    activeIdx === filtered.length ? 'bg-primary-50 text-primary-700' : 'text-ink-2',
                   )}
                 >
                   <span className="text-primary-600">+</span>
@@ -200,7 +198,7 @@ export function Combobox({
             )}
 
             {rowCount === 0 && (
-              <div className="px-2.5 py-2 text-center text-sm text-gray-400">ไม่พบรายการ</div>
+              <div className="px-2.5 py-2 text-center text-sm text-ink-4">ไม่พบรายการ</div>
             )}
           </div>
         </div>

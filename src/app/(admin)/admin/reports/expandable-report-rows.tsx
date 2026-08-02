@@ -47,7 +47,7 @@ export function ExpandableReportRows({ rows }: { rows: ExpandableRow[] }) {
               }
               onClick={hasDetail ? () => toggle(r.id) : undefined}
             >
-              <td className="w-6 px-2 py-2.5 align-top text-gray-400">
+              <td className="w-6 px-2 py-2.5 align-top text-ink-4">
                 {hasDetail ? (
                   isOpen ? (
                     <ChevronDown size={16} aria-label="ย่อรายละเอียด" />

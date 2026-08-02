@@ -215,8 +215,8 @@ export function LeaveNewForm({
 
   return (
     <main className="mx-auto max-w-md px-4 pt-8 pb-12">
-      <h1 className="text-2xl font-semibold text-gray-900">{t('new.title')}</h1>
-      <p className="mt-1 text-sm text-gray-500">{t('new.subtitle')}</p>
+      <h1 className="text-2xl font-semibold text-ink-1">{t('new.title')}</h1>
+      <p className="mt-1 text-sm text-ink-3">{t('new.subtitle')}</p>
 
       <form
         onSubmit={onSubmit}
@@ -230,7 +230,7 @@ export function LeaveNewForm({
 
         {/* Leave type */}
         <div>
-          <label htmlFor="leaveTypeId" className="mb-1.5 block text-sm font-medium text-gray-700">
+          <label htmlFor="leaveTypeId" className="mb-1.5 block text-sm font-medium text-ink-2">
             {t('new.field.leaveType')} <span className="text-red-600">*</span>
           </label>
           <select
@@ -256,7 +256,7 @@ export function LeaveNewForm({
         {/* Unit (granularity) — only offered when the type allows >1 option */}
         {allowedUnits.length > 1 && (
           <div>
-            <span className="mb-1.5 block text-sm font-medium text-gray-700">
+            <span className="mb-1.5 block text-sm font-medium text-ink-2">
               {t('new.field.unit')}
             </span>
             <div className="flex flex-wrap gap-2">
@@ -268,7 +268,7 @@ export function LeaveNewForm({
                   className={
                     unit === u.value
                       ? 'rounded-md border border-primary-600 bg-primary-50 px-3 py-1.5 text-sm font-medium text-primary-700'
-                      : 'rounded-md border border-line-strong px-3 py-1.5 text-sm text-gray-700'
+                      : 'rounded-md border border-line-strong px-3 py-1.5 text-sm text-ink-2'
                   }
                 >
                   {u.label}
@@ -282,7 +282,7 @@ export function LeaveNewForm({
         {unit === 'FullDay' ? (
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label htmlFor="startDate" className="mb-1.5 block text-sm font-medium text-gray-700">
+              <label htmlFor="startDate" className="mb-1.5 block text-sm font-medium text-ink-2">
                 {t('new.field.startDate')} <span className="text-red-600">*</span>
               </label>
               <Input
@@ -299,7 +299,7 @@ export function LeaveNewForm({
               />
             </div>
             <div>
-              <label htmlFor="endDate" className="mb-1.5 block text-sm font-medium text-gray-700">
+              <label htmlFor="endDate" className="mb-1.5 block text-sm font-medium text-ink-2">
                 {t('new.field.endDate')} <span className="text-red-600">*</span>
               </label>
               <Input
@@ -314,7 +314,7 @@ export function LeaveNewForm({
           </div>
         ) : (
           <div>
-            <label htmlFor="startDate" className="mb-1.5 block text-sm font-medium text-gray-700">
+            <label htmlFor="startDate" className="mb-1.5 block text-sm font-medium text-ink-2">
               {t('new.field.date')} <span className="text-red-600">*</span>
             </label>
             <Input
@@ -332,7 +332,7 @@ export function LeaveNewForm({
         {unit === 'Hourly' && (
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label htmlFor="startTime" className="mb-1.5 block text-sm font-medium text-gray-700">
+              <label htmlFor="startTime" className="mb-1.5 block text-sm font-medium text-ink-2">
                 {t('new.field.startTime')} <span className="text-red-600">*</span>
               </label>
               <Input
@@ -344,7 +344,7 @@ export function LeaveNewForm({
               />
             </div>
             <div>
-              <label htmlFor="endTime" className="mb-1.5 block text-sm font-medium text-gray-700">
+              <label htmlFor="endTime" className="mb-1.5 block text-sm font-medium text-ink-2">
                 {t('new.field.endTime')} <span className="text-red-600">*</span>
               </label>
               <Input
@@ -376,7 +376,7 @@ export function LeaveNewForm({
 
         {/* Remaining balance + over-balance soft-warn */}
         {remaining != null && (
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-ink-3">
             {t('new.remaining')} <strong>{fmtDuration(remaining)}</strong>
           </p>
         )}
@@ -393,7 +393,7 @@ export function LeaveNewForm({
 
         {/* Reason */}
         <div>
-          <label htmlFor="reason" className="mb-1.5 block text-sm font-medium text-gray-700">
+          <label htmlFor="reason" className="mb-1.5 block text-sm font-medium text-ink-2">
             {t('new.field.reason')} <span className="text-red-600">*</span>
           </label>
           <textarea
@@ -407,27 +407,27 @@ export function LeaveNewForm({
             placeholder={t('new.reasonPlaceholder')}
             className="w-full rounded-md border border-line-strong px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
           />
-          <p className="mt-1 text-right text-[10px] text-gray-400">{reason.length}/500</p>
+          <p className="mt-1 text-right text-[10px] text-ink-4">{reason.length}/500</p>
         </div>
 
         {/* Optional attachment — typically a medical certificate */}
         <div>
-          <label htmlFor="attachment" className="mb-1.5 block text-sm font-medium text-gray-700">
+          <label htmlFor="attachment" className="mb-1.5 block text-sm font-medium text-ink-2">
             {t('new.field.attachment')}{' '}
-            <span className="text-gray-400">{t('new.attachmentHint')}</span>
+            <span className="text-ink-4">{t('new.attachmentHint')}</span>
           </label>
 
           {!attachmentPreviewUrl ? (
             <label
               htmlFor="attachment"
-              className="flex w-full cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-line-strong bg-surface px-4 py-6 text-center text-sm text-gray-500 hover:border-primary-300 hover:bg-primary-50/30"
+              className="flex w-full cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-line-strong bg-surface px-4 py-6 text-center text-sm text-ink-3 hover:border-primary-300 hover:bg-primary-50/30"
             >
               <svg
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
                 strokeWidth={1.5}
-                className="h-8 w-8 text-gray-400"
+                className="h-8 w-8 text-ink-4"
                 aria-hidden="true"
               >
                 <path
@@ -436,7 +436,7 @@ export function LeaveNewForm({
                   d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"
                 />
               </svg>
-              <span className="mt-2 font-medium text-gray-700">{t('new.attachmentDropLabel')}</span>
+              <span className="mt-2 font-medium text-ink-2">{t('new.attachmentDropLabel')}</span>
               <span className="text-xs">{t('new.attachmentFormats')}</span>
             </label>
           ) : (
@@ -448,8 +448,8 @@ export function LeaveNewForm({
                 className="h-20 w-20 rounded object-cover"
               />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-xs font-medium text-gray-900">{attachmentFile?.name}</p>
-                <p className="mt-0.5 text-[10px] text-gray-500">
+                <p className="truncate text-xs font-medium text-ink-1">{attachmentFile?.name}</p>
+                <p className="mt-0.5 text-[10px] text-ink-3">
                   {attachmentFile
                     ? t('new.attachmentSizeHint', { kb: Math.round(attachmentFile.size / 1024) })
                     : ''}
@@ -481,7 +481,7 @@ export function LeaveNewForm({
             type="button"
             onClick={() => router.back()}
             disabled={pending}
-            className="text-sm text-gray-500 hover:text-gray-700"
+            className="text-sm text-ink-3 hover:text-ink-2"
           >
             {t('new.cancel')}
           </button>

@@ -56,11 +56,11 @@ export function ProfileView({
           <div className="flex items-center gap-3">
             <Avatar name={displayName} src={employee.photoUrl} size="lg" />
             <div className="min-w-0 flex-1">
-              <p className="truncate text-base font-semibold text-gray-900">
+              <p className="truncate text-base font-semibold text-ink-1">
                 {employee.firstName} {employee.lastName}
-                {employee.nickname && <span className="text-gray-500"> ({employee.nickname})</span>}
+                {employee.nickname && <span className="text-ink-3"> ({employee.nickname})</span>}
               </p>
-              <p className="mt-0.5 truncate text-xs text-gray-500">
+              <p className="mt-0.5 truncate text-xs text-ink-3">
                 EMP-{employee.shortId} • {employee.branchName}
                 {employee.departmentName && ` · ${employee.departmentName}`}
               </p>
@@ -84,9 +84,7 @@ export function ProfileView({
         <CardHeader>
           <CardTitle>
             {t('jobInfo')}
-            <span className="ml-2 text-xs font-normal text-gray-500">
-              {t('contactAdminToEdit')}
-            </span>
+            <span className="ml-2 text-xs font-normal text-ink-3">{t('contactAdminToEdit')}</span>
           </CardTitle>
         </CardHeader>
         <CardBody className="space-y-2 text-sm">
@@ -108,7 +106,7 @@ export function ProfileView({
       </Card>
 
       <nav className="mt-6 flex justify-center gap-4 text-xs">
-        <a href="/liff/check-in" className="text-gray-500 hover:text-gray-700">
+        <a href="/liff/check-in" className="text-ink-3 hover:text-ink-2">
           {t('backToCheckin')}
         </a>
       </nav>
@@ -119,8 +117,8 @@ export function ProfileView({
 function ReadOnlyRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-baseline justify-between gap-3">
-      <span className="text-xs text-gray-500">{label}</span>
-      <span className="text-right text-sm text-gray-800">{value}</span>
+      <span className="text-xs text-ink-3">{label}</span>
+      <span className="text-right text-sm text-ink-1">{value}</span>
     </div>
   );
 }

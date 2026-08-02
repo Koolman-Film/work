@@ -71,7 +71,7 @@ export function LeaveReviewActions({
 
   return (
     <section className="mt-3 rounded-xl border border-line bg-surface p-4 shadow-sm">
-      <label htmlFor="review-note" className="text-xs font-medium text-gray-500">
+      <label htmlFor="review-note" className="text-xs font-medium text-ink-3">
         {t('noteLabel')}
       </label>
       <textarea
@@ -112,9 +112,7 @@ export function LeaveReviewActions({
               : t('reject')}
         </button>
       </div>
-      {approveBlocked && (
-        <p className="mt-2 text-[10px] text-gray-400">{t('approveBlockedHint')}</p>
-      )}
+      {approveBlocked && <p className="mt-2 text-[10px] text-ink-4">{t('approveBlockedHint')}</p>}
     </section>
   );
 }

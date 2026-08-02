@@ -194,8 +194,8 @@ export function AdjustmentForm({
                       className="mt-1 h-4 w-4 border-line-strong text-primary-600 focus:ring-primary-500"
                     />
                     <span className="text-sm">
-                      <span className="font-medium text-gray-900">{c.label}</span>
-                      <span className="block text-xs text-gray-500">{c.hint}</span>
+                      <span className="font-medium text-ink-1">{c.label}</span>
+                      <span className="block text-xs text-ink-3">{c.hint}</span>
                     </span>
                   </label>
                 ))}
