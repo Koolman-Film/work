@@ -58,7 +58,7 @@ export function Tabs({
               <span
                 className={cn(
                   'rounded-full px-1.5 text-[10px] tabular',
-                  on ? 'bg-primary-600 text-white' : 'bg-line text-gray-600',
+                  on ? 'bg-primary-600 text-white' : 'bg-line text-ink-2',
                 )}
               >
                 {it.badge}

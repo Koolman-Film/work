@@ -263,15 +263,15 @@ export default function CheckInClient({
       <main className="mx-auto max-w-md px-4 pt-8 pb-12">
         {/* Greeting */}
         <div className="space-y-1">
-          <p className="text-sm text-gray-500">{dateLine}</p>
-          <h1 className="text-2xl font-semibold text-gray-900">
+          <p className="text-sm text-ink-3">{dateLine}</p>
+          <h1 className="text-2xl font-semibold text-ink-1">
             {t('greeting', { firstName: employeeFirstName, lastName: employeeLastName })}
           </h1>
         </div>
 
         {/* Today's status card */}
         <section className="mt-6 rounded-2xl border border-line bg-surface p-6 shadow-sm">
-          <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">
+          <h2 className="text-xs font-medium uppercase tracking-wide text-ink-3">
             {t('status.heading')}
           </h2>
           <div className="mt-3 space-y-2 text-sm">
@@ -327,7 +327,7 @@ export default function CheckInClient({
                   type="button"
                   onClick={onCheckOut}
                   disabled={isBusy}
-                  className="mt-3 w-full rounded-lg border border-line bg-surface px-4 py-2.5 text-sm text-gray-600 transition hover:border-line-strong hover:text-gray-800 disabled:opacity-60"
+                  className="mt-3 w-full rounded-lg border border-line bg-surface px-4 py-2.5 text-sm text-ink-2 transition hover:border-line-strong hover:text-ink-1 disabled:opacity-60"
                 >
                   {isBusy ? '...' : t('button.checkOutOptional')}
                 </button>
@@ -336,7 +336,7 @@ export default function CheckInClient({
           )}
 
           {/* Live phase feedback under the button */}
-          <div className="mt-3 min-h-[1.5rem] text-center text-xs text-gray-500">
+          <div className="mt-3 min-h-[1.5rem] text-center text-xs text-ink-3">
             {phase.kind === 'uploading-selfie' && t('phase.uploadingSelfie')}
             {phase.kind === 'locating' && t('phase.locating')}
             {phase.kind === 'submitting' && t('phase.submitting')}
@@ -354,31 +354,31 @@ export default function CheckInClient({
         <section className="mt-6 grid grid-cols-2 gap-2.5">
           <a
             href="/liff/leave"
-            className="rounded-xl border border-line bg-surface px-3 py-3 text-center text-sm font-medium text-gray-700 shadow-sm transition hover:border-primary-200 hover:text-primary-700"
+            className="rounded-xl border border-line bg-surface px-3 py-3 text-center text-sm font-medium text-ink-2 shadow-sm transition hover:border-primary-200 hover:text-primary-700"
           >
             {t('quickAction.leave')}
           </a>
           <a
             href="/liff/advance"
-            className="rounded-xl border border-line bg-surface px-3 py-3 text-center text-sm font-medium text-gray-700 shadow-sm transition hover:border-primary-200 hover:text-primary-700"
+            className="rounded-xl border border-line bg-surface px-3 py-3 text-center text-sm font-medium text-ink-2 shadow-sm transition hover:border-primary-200 hover:text-primary-700"
           >
             {t('quickAction.advance')}
           </a>
           <a
             href="/liff/calendar"
-            className="rounded-xl border border-line bg-surface px-3 py-3 text-center text-sm font-medium text-gray-700 shadow-sm transition hover:border-primary-200 hover:text-primary-700"
+            className="rounded-xl border border-line bg-surface px-3 py-3 text-center text-sm font-medium text-ink-2 shadow-sm transition hover:border-primary-200 hover:text-primary-700"
           >
             {t('quickAction.calendar')}
           </a>
           <a
             href="/liff/profile"
-            className="rounded-xl border border-line bg-surface px-3 py-3 text-center text-sm font-medium text-gray-700 shadow-sm transition hover:border-primary-200 hover:text-primary-700"
+            className="rounded-xl border border-line bg-surface px-3 py-3 text-center text-sm font-medium text-ink-2 shadow-sm transition hover:border-primary-200 hover:text-primary-700"
           >
             {t('quickAction.profile')}
           </a>
           <a
             href="/liff/summary"
-            className="rounded-xl border border-line bg-surface px-3 py-3 text-center text-sm font-medium text-gray-700 shadow-sm transition hover:border-primary-200 hover:text-primary-700"
+            className="rounded-xl border border-line bg-surface px-3 py-3 text-center text-sm font-medium text-ink-2 shadow-sm transition hover:border-primary-200 hover:text-primary-700"
           >
             {t('quickAction.summary')}
           </a>
@@ -387,10 +387,10 @@ export default function CheckInClient({
         {/* Assigned branches list (helps employee orient themselves) */}
         {branches.length > 0 && (
           <section className="mt-8">
-            <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">
+            <h2 className="text-xs font-medium uppercase tracking-wide text-ink-3">
               {t('branches.heading')}
             </h2>
-            <ul className="mt-2 space-y-1 text-sm text-gray-700">
+            <ul className="mt-2 space-y-1 text-sm text-ink-2">
               {branches.map((b) => (
                 <li key={b.id} className="rounded-md bg-surface-muted px-3 py-2">
                   {b.name}
@@ -417,11 +417,9 @@ function StatusRow({
 }) {
   return (
     <div className="flex items-center justify-between">
-      <span className="text-gray-500">{label}</span>
+      <span className="text-ink-3">{label}</span>
       <span className="flex items-center gap-2 text-right">
-        <span className={tone === 'on' ? 'font-medium text-gray-900' : 'text-gray-400'}>
-          {value}
-        </span>
+        <span className={tone === 'on' ? 'font-medium text-ink-1' : 'text-ink-4'}>{value}</span>
         {badge && (
           <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800">
             {badge}
@@ -448,7 +446,7 @@ function PrimaryButton({
   const cls =
     tone === 'primary'
       ? `${base} bg-primary-600 text-white hover:bg-primary-700`
-      : `${base} border border-line-strong bg-surface text-gray-900 hover:bg-surface-muted`;
+      : `${base} border border-line-strong bg-surface text-ink-1 hover:bg-surface-muted`;
   return (
     <button type="button" onClick={onClick} disabled={disabled} className={cls}>
       {label}

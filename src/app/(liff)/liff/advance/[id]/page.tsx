@@ -22,7 +22,7 @@ const STATUS_CLS: Record<string, string> = {
   Pending: 'bg-amber-100 text-amber-800',
   Approved: 'bg-green-100 text-green-800',
   Rejected: 'bg-red-100 text-red-800',
-  Cancelled: 'bg-surface-sunken text-gray-700',
+  Cancelled: 'bg-surface-sunken text-ink-2',
 };
 
 function formatDateTime(d: Date, locale: Locale): string {
@@ -69,11 +69,11 @@ export default async function AdvanceDetailPage({ params }: { params: Params }) 
   return (
     <main className="mx-auto max-w-md px-4 pt-8 pb-12">
       <header className="mb-6">
-        <Link href="/liff/advance" className="text-sm text-gray-500 hover:text-gray-700">
+        <Link href="/liff/advance" className="text-sm text-ink-3 hover:text-ink-2">
           {t('detail.back')}
         </Link>
         <div className="mt-3 flex items-center justify-between gap-3">
-          <h1 className="text-2xl font-semibold text-gray-900">{t('detail.title')}</h1>
+          <h1 className="text-2xl font-semibold text-ink-1">{t('detail.title')}</h1>
           {paid ? (
             <span className="rounded-full bg-green-100 px-2.5 py-1 text-xs font-medium text-green-800">
               {t('detail.paid')}
@@ -89,8 +89,8 @@ export default async function AdvanceDetailPage({ params }: { params: Params }) 
       </header>
 
       <section className="rounded-2xl border border-line bg-surface p-6 text-center shadow-sm">
-        <p className="text-xs text-gray-500">{t('detail.amountLabel')}</p>
-        <p className="mt-2 text-3xl font-bold tabular-nums text-gray-900">
+        <p className="text-xs text-ink-3">{t('detail.amountLabel')}</p>
+        <p className="mt-2 text-3xl font-bold tabular-nums text-ink-1">
           {formatMoney(row.amount.toString(), locale as Locale)}
         </p>
       </section>
@@ -112,7 +112,7 @@ export default async function AdvanceDetailPage({ params }: { params: Params }) 
         {row.status === 'Approved' && (
           <DataRow label={t('detail.field.deductFromSalary')}>
             {row.isDeducted ? (
-              <span className="text-gray-700">{t('detail.deducted')}</span>
+              <span className="text-ink-2">{t('detail.deducted')}</span>
             ) : (
               <span className="text-amber-700">{t('detail.notDeducted')}</span>
             )}
@@ -122,7 +122,7 @@ export default async function AdvanceDetailPage({ params }: { params: Params }) 
 
       {resolvedReceiptUrl && (
         <section className="mt-4 rounded-2xl border border-line bg-surface-muted p-6">
-          <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">
+          <h2 className="text-xs font-medium uppercase tracking-wide text-ink-3">
             {paid ? t('detail.slip') : t('detail.receiptHeading')}
           </h2>
           {receiptIsExternal ? (
@@ -176,8 +176,8 @@ export default async function AdvanceDetailPage({ params }: { params: Params }) 
 function DataRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-baseline justify-between py-2 first:pt-0 last:pb-0">
-      <span className="text-xs text-gray-500">{label}</span>
-      <span className="text-right text-sm font-medium text-gray-900">{children}</span>
+      <span className="text-xs text-ink-3">{label}</span>
+      <span className="text-right text-sm font-medium text-ink-1">{children}</span>
     </div>
   );
 }

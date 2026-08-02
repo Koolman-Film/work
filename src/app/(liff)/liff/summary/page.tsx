@@ -126,7 +126,7 @@ export default async function LiffSummaryPage({
   return (
     <main className="mx-auto max-w-md space-y-4 px-4 pt-8 pb-12">
       <header className="flex items-center justify-between gap-2">
-        <h1 className="text-2xl font-semibold text-gray-900">{t('title')}</h1>
+        <h1 className="text-2xl font-semibold text-ink-1">{t('title')}</h1>
         {period.month !== todayYm && (
           // "This month" jump — lets the user return after scrubbing months
           // *or* after picking a custom range. Compares the real
@@ -135,7 +135,7 @@ export default async function LiffSummaryPage({
           // `todayYm` in custom mode and wrongly hide the shortcut.
           <Link
             href="/liff/summary"
-            className="rounded-md border border-line bg-surface px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-surface-muted"
+            className="rounded-md border border-line bg-surface px-2.5 py-1 text-xs font-medium text-ink-2 hover:bg-surface-muted"
           >
             {t('thisMonth')}
           </Link>
@@ -172,7 +172,7 @@ export default async function LiffSummaryPage({
           the heading must agree with whichever mode produced that window
           (see period.month === null check elsewhere on this page). */}
       <section className={cardCls}>
-        <h2 className="text-sm font-semibold text-gray-900">
+        <h2 className="text-sm font-semibold text-ink-1">
           {period.month !== null ? t('attendance.title') : t('attendance.titleRange')}
         </h2>
         <dl className="mt-3 grid grid-cols-3 gap-3 text-center">
@@ -186,10 +186,10 @@ export default async function LiffSummaryPage({
             const g = attBy.get(type);
             return (
               <div key={type} className="rounded-lg bg-surface-muted p-3">
-                <dt className="text-xs text-gray-500">{label}</dt>
-                <dd className="mt-1 text-lg font-semibold text-gray-900">{g?._count._all ?? 0}</dd>
+                <dt className="text-xs text-ink-3">{label}</dt>
+                <dd className="mt-1 text-lg font-semibold text-ink-1">{g?._count._all ?? 0}</dd>
                 {type !== 'Absent' && (
-                  <dd className="text-[11px] text-gray-500">
+                  <dd className="text-[11px] text-ink-3">
                     {t('attendance.minutes', { n: g?._sum.durationMinutes ?? 0 })}
                   </dd>
                 )}
@@ -201,7 +201,7 @@ export default async function LiffSummaryPage({
 
       {/* Leave balances (annual) */}
       <section className={cardCls}>
-        <h2 className="text-sm font-semibold text-gray-900">
+        <h2 className="text-sm font-semibold text-ink-1">
           {t('leave.title', { year: displayYear })}
         </h2>
         <ul className="mt-3 divide-y divide-line-soft">
@@ -212,12 +212,12 @@ export default async function LiffSummaryPage({
             const penalty = penaltyByType.get(tp.id) ?? 0;
             return (
               <li key={tp.id} className="flex items-baseline justify-between gap-2 py-2 text-sm">
-                <span className="text-gray-700">
+                <span className="text-ink-2">
                   {localizedLeaveTypeName(tp.name, tp.nameByLocale, locale)}
                 </span>
                 <span className="text-right">
-                  <span className="text-gray-900">{fmtDur(used?._sum.chargedMinutes ?? 0)}</span>
-                  <span className="block text-[11px] text-gray-500">
+                  <span className="text-ink-1">{fmtDur(used?._sum.chargedMinutes ?? 0)}</span>
+                  <span className="block text-[11px] text-ink-3">
                     {rem == null
                       ? t('leave.unlimited')
                       : t('leave.remaining', { d: fmtDur(Math.max(0, rem)) })}
@@ -241,22 +241,22 @@ export default async function LiffSummaryPage({
 
       {/* Advance balance */}
       <section className={cardCls}>
-        <h2 className="text-sm font-semibold text-gray-900">{t('advance.title')}</h2>
+        <h2 className="text-sm font-semibold text-ink-1">{t('advance.title')}</h2>
         <dl className="mt-3 space-y-1.5 text-sm">
           <div className="flex justify-between">
-            <dt className="text-gray-500">{t('advance.outstanding')}</dt>
-            <dd className="text-gray-900">{formatMoney(balance.reserved, locale)}</dd>
+            <dt className="text-ink-3">{t('advance.outstanding')}</dt>
+            <dd className="text-ink-1">{formatMoney(balance.reserved, locale)}</dd>
           </div>
           {balance.kind === 'rate-based' && balance.earnings != null && (
             <div className="flex justify-between">
-              <dt className="text-gray-500">{t('advance.earned')}</dt>
-              <dd className="text-gray-900">{formatMoney(balance.earnings, locale)}</dd>
+              <dt className="text-ink-3">{t('advance.earned')}</dt>
+              <dd className="text-ink-1">{formatMoney(balance.earnings, locale)}</dd>
             </div>
           )}
           {balance.available != null && (
             <div className="flex justify-between font-medium">
-              <dt className="text-gray-700">{t('advance.available')}</dt>
-              <dd className="text-gray-900">{formatMoney(balance.available, locale)}</dd>
+              <dt className="text-ink-2">{t('advance.available')}</dt>
+              <dd className="text-ink-1">{formatMoney(balance.available, locale)}</dd>
             </div>
           )}
         </dl>
@@ -271,7 +271,7 @@ export default async function LiffSummaryPage({
         >
           {t('payslipLink')}
         </Link>
-        <Link href="/liff/check-in" className="text-gray-500 hover:text-gray-700">
+        <Link href="/liff/check-in" className="text-ink-3 hover:text-ink-2">
           {t('backToCheckin')}
         </Link>
       </nav>

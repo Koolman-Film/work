@@ -26,7 +26,7 @@ export function TH({ className, scope = 'col', ...rest }: ThHTMLAttributes<HTMLT
     <th
       scope={scope}
       className={cn(
-        'px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-gray-500',
+        'px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-ink-3',
         className,
       )}
       {...rest}
@@ -35,5 +35,5 @@ export function TH({ className, scope = 'col', ...rest }: ThHTMLAttributes<HTMLT
 }
 
 export function TD({ className, ...rest }: TdHTMLAttributes<HTMLTableCellElement>) {
-  return <td className={cn('px-4 py-3 text-sm text-gray-700', className)} {...rest} />;
+  return <td className={cn('px-4 py-3 text-sm text-ink-2', className)} {...rest} />;
 }

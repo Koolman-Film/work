@@ -138,7 +138,7 @@ export function WorkScheduleForm({ mode, action, initial, error, extraActions }:
             <CardTitle>เวลาทำงานต่อวัน</CardTitle>
           </CardHeader>
           <CardBody>
-            <p className="mb-3 text-xs text-gray-500">
+            <p className="mb-3 text-xs text-ink-3">
               เลือกวันทำงาน + ตั้งเวลาเริ่ม-เลิกงานสำหรับแต่ละวัน (ต้องเลือกอย่างน้อย 1 วัน)
             </p>
 
@@ -151,7 +151,7 @@ export function WorkScheduleForm({ mode, action, initial, error, extraActions }:
                     className="grid grid-cols-[7rem_auto_1fr_1fr] items-center gap-3 py-3"
                   >
                     {/* Day name */}
-                    <span className="text-sm font-medium text-gray-700">{label}</span>
+                    <span className="text-sm font-medium text-ink-2">{label}</span>
 
                     {/* Enabled checkbox */}
                     <label className="inline-flex items-center gap-2">
@@ -161,13 +161,13 @@ export function WorkScheduleForm({ mode, action, initial, error, extraActions }:
                         defaultChecked={d.enabled}
                         className="size-4 rounded border-line-strong text-primary-600 focus:ring-primary-500/30"
                       />
-                      <span className="text-xs text-gray-500">ทำงาน</span>
+                      <span className="text-xs text-ink-3">ทำงาน</span>
                     </label>
 
                     {/* Start time — label wraps input for accessibility
                         without needing a unique htmlFor on every row. */}
                     <label className="block">
-                      <span className="block text-[10px] uppercase tracking-wider text-gray-400">
+                      <span className="block text-[10px] uppercase tracking-wider text-ink-4">
                         เริ่ม
                       </span>
                       <input
@@ -180,7 +180,7 @@ export function WorkScheduleForm({ mode, action, initial, error, extraActions }:
 
                     {/* End time */}
                     <label className="block">
-                      <span className="block text-[10px] uppercase tracking-wider text-gray-400">
+                      <span className="block text-[10px] uppercase tracking-wider text-ink-4">
                         เลิก
                       </span>
                       <input

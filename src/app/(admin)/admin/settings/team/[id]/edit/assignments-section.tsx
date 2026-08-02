@@ -67,7 +67,7 @@ export async function AssignmentsSection({ userId, actorRole, actorId }: Props) 
         <CardTitle>การมอบหมายบทบาท</CardTitle>
       </CardHeader>
       <CardBody className="space-y-4">
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-ink-3">
           ผู้ใช้คนหนึ่งสามารถมีบทบาทหลายบทบาท แยกตามสาขาได้ — เช่น "Admin ที่สาขา A + Staff ที่สาขา B"
           {actorRole !== 'Superadmin' && (
             <>
@@ -81,7 +81,7 @@ export async function AssignmentsSection({ userId, actorRole, actorId }: Props) 
 
         {/* ─── Existing assignments list ──────────────────────────────── */}
         {assignments.length === 0 ? (
-          <p className="rounded-md border border-dashed border-line px-4 py-6 text-center text-sm text-gray-400">
+          <p className="rounded-md border border-dashed border-line px-4 py-6 text-center text-sm text-ink-4">
             ยังไม่มีการมอบหมายบทบาท
           </p>
         ) : (
@@ -100,8 +100,8 @@ export async function AssignmentsSection({ userId, actorRole, actorId }: Props) 
                   className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm"
                 >
                   <div className="min-w-0">
-                    <span className="font-medium text-gray-900">{a.role.name}</span>
-                    <span className="ml-2 text-gray-500">
+                    <span className="font-medium text-ink-1">{a.role.name}</span>
+                    <span className="ml-2 text-ink-3">
                       @{' '}
                       {a.branch ? (
                         <span>{a.branch.name}</span>
@@ -122,13 +122,13 @@ export async function AssignmentsSection({ userId, actorRole, actorId }: Props) 
                       <button
                         type="submit"
                         aria-label="เอาบทบาทออก"
-                        className="grid size-8 place-items-center rounded-md text-gray-400 transition hover:bg-red-50 hover:text-red-700"
+                        className="grid size-8 place-items-center rounded-md text-ink-4 transition hover:bg-red-50 hover:text-red-700"
                       >
                         <Trash2 size={16} aria-hidden="true" />
                       </button>
                     </form>
                   ) : (
-                    <span className="text-xs text-gray-400" title="ไม่มีสิทธิ์เอาออก">
+                    <span className="text-xs text-ink-4" title="ไม่มีสิทธิ์เอาออก">
                       —
                     </span>
                   )}
@@ -140,9 +140,7 @@ export async function AssignmentsSection({ userId, actorRole, actorId }: Props) 
 
         {/* ─── Add-assignment form ────────────────────────────────────── */}
         <form action={addBound} className="space-y-3 rounded-md border border-line p-4">
-          <p className="text-xs font-medium uppercase tracking-wider text-gray-500">
-            มอบหมายบทบาทใหม่
-          </p>
+          <p className="text-xs font-medium uppercase tracking-wider text-ink-3">มอบหมายบทบาทใหม่</p>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <FormField label="บทบาท" htmlFor="roleId" required>
@@ -184,7 +182,7 @@ export async function AssignmentsSection({ userId, actorRole, actorId }: Props) 
             </FormField>
           </div>
 
-          <p className="text-[11px] text-gray-400">
+          <p className="text-[11px] text-ink-4">
             Phase 1: ขอบเขตสาขายังไม่ถูกบังคับใช้ — ระบบบันทึกไว้แต่ตอนนี้ยังให้ผ่านทุกสาขา (ดูเอกสาร
             docs/v2/permissions.md)
           </p>
@@ -196,7 +194,7 @@ export async function AssignmentsSection({ userId, actorRole, actorId }: Props) 
           </div>
         </form>
       </CardBody>
-      <CardFooter className="text-xs text-gray-500">
+      <CardFooter className="text-xs text-ink-3">
         บทบาทของผู้ใช้คำนวณอัตโนมัติจากการมอบหมายด้านบน — สิทธิ์สูงสุดจะถูกใช้
       </CardFooter>
     </Card>

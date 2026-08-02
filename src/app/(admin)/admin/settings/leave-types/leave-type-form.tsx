@@ -78,7 +78,7 @@ export function LeaveTypeForm({ mode, action, initial, error, extraActions }: Pr
               <div className="space-y-2">
                 {WORKER_LOCALES.map((l) => (
                   <div key={l.code} className="flex items-center gap-3">
-                    <span className="w-28 shrink-0 text-xs text-gray-500">{l.label}</span>
+                    <span className="w-28 shrink-0 text-xs text-ink-3">{l.label}</span>
                     <Input
                       id={`name_${l.code}`}
                       name={`name_${l.code}`}
@@ -101,8 +101,8 @@ export function LeaveTypeForm({ mode, action, initial, error, extraActions }: Pr
                   className="mt-1 h-4 w-4 rounded border-line-strong text-primary-600 focus:ring-primary-500"
                 />
                 <span className="text-sm">
-                  <span className="font-medium text-gray-900">ลาแบบจ่ายเงิน</span>
-                  <span className="block text-xs text-gray-500">
+                  <span className="font-medium text-ink-1">ลาแบบจ่ายเงิน</span>
+                  <span className="block text-xs text-ink-3">
                     ติ๊กถูกหากการลาประเภทนี้ไม่หักเงินเดือน เช่น ลาป่วย, ลาพักร้อน. ปิดสำหรับลาที่ไม่จ่าย เช่น
                     ลาไม่รับเงิน.
                   </span>
@@ -166,7 +166,7 @@ export function LeaveTypeForm({ mode, action, initial, error, extraActions }: Pr
                       defaultChecked={u.def}
                       className="h-4 w-4 rounded border-line-strong text-primary-600 focus:ring-primary-500"
                     />
-                    <span className="text-gray-900">{u.label}</span>
+                    <span className="text-ink-1">{u.label}</span>
                   </label>
                 ))}
               </div>

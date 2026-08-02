@@ -92,12 +92,12 @@ export default async function LiffCalendarPage({ searchParams }: { searchParams:
   return (
     <main className="mx-auto max-w-md px-4 pt-6 pb-12">
       <header className="mb-4 flex items-center justify-between gap-2">
-        <h1 className="text-xl font-semibold text-gray-900">{t('title')}</h1>
+        <h1 className="text-xl font-semibold text-ink-1">{t('title')}</h1>
         {requestedYm !== todayYm && (
           // "Today" jump — preserves muscle memory after scrubbing months.
           <Link
             href="/liff/calendar"
-            className="rounded-md border border-line bg-surface px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-surface-muted"
+            className="rounded-md border border-line bg-surface px-2.5 py-1 text-xs font-medium text-ink-2 hover:bg-surface-muted"
           >
             {t('today')}
           </Link>
@@ -109,15 +109,15 @@ export default async function LiffCalendarPage({ searchParams }: { searchParams:
         <Link
           href={`/liff/calendar?ym=${prevYm}`}
           aria-label={t('nav.prevMonth')}
-          className="grid size-8 place-items-center rounded-md text-gray-500 hover:bg-surface-sunken hover:text-gray-700"
+          className="grid size-8 place-items-center rounded-md text-ink-3 hover:bg-surface-sunken hover:text-ink-2"
         >
           ‹
         </Link>
-        <p className="text-sm font-semibold text-gray-900">{monthLabel}</p>
+        <p className="text-sm font-semibold text-ink-1">{monthLabel}</p>
         <Link
           href={`/liff/calendar?ym=${nextYm}`}
           aria-label={t('nav.nextMonth')}
-          className="grid size-8 place-items-center rounded-md text-gray-500 hover:bg-surface-sunken hover:text-gray-700"
+          className="grid size-8 place-items-center rounded-md text-ink-3 hover:bg-surface-sunken hover:text-ink-2"
         >
           ›
         </Link>
@@ -125,13 +125,13 @@ export default async function LiffCalendarPage({ searchParams }: { searchParams:
 
       <CalendarGrid grid={grid} entries={entries} holidays={holidays} locale={locale as Locale} />
 
-      <p className="mt-4 text-center text-[11px] text-gray-400">{t('footer.note')}</p>
+      <p className="mt-4 text-center text-[11px] text-ink-4">{t('footer.note')}</p>
 
       <nav className="mt-6 flex justify-center gap-4 text-xs">
-        <Link href="/liff/leave" className="text-gray-500 hover:text-gray-700">
+        <Link href="/liff/leave" className="text-ink-3 hover:text-ink-2">
           {t('links.myLeave')}
         </Link>
-        <Link href="/liff/check-in" className="text-gray-500 hover:text-gray-700">
+        <Link href="/liff/check-in" className="text-ink-3 hover:text-ink-2">
           {t('links.checkin')}
         </Link>
       </nav>

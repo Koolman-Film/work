@@ -94,7 +94,7 @@ export function MergePromptCard() {
   if (qr) {
     return (
       <div className={cn(CARD, 'flex flex-col items-center text-center')}>
-        <p className="text-sm font-semibold text-gray-900">{t('scanHint')}</p>
+        <p className="text-sm font-semibold text-ink-1">{t('scanHint')}</p>
         <div className="mt-4 rounded-2xl border border-line bg-surface p-3 shadow-sm">
           {/* biome-ignore lint/performance/noImgElement: inline data: URL (QR), not a storage asset */}
           <img src={qr.qrDataUrl} alt="QR code" width={208} height={208} className="rounded-lg" />
@@ -136,7 +136,7 @@ export function MergePromptCard() {
   // ── Picker ───────────────────────────────────────────────────────────────
   return (
     <div className={CARD}>
-      <label htmlFor="merge-search" className="block text-sm font-semibold text-gray-900">
+      <label htmlFor="merge-search" className="block text-sm font-semibold text-ink-1">
         {t('pickerLabel')}
       </label>
       <input
@@ -166,9 +166,9 @@ export function MergePromptCard() {
               >
                 <RowAvatar name={name} src={emp.photoUrl} />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium text-gray-900">{name}</span>
+                  <span className="block truncate text-sm font-medium text-ink-1">{name}</span>
                   {emp.nickname && (
-                    <span className="block truncate text-xs text-gray-500">{emp.nickname}</span>
+                    <span className="block truncate text-xs text-ink-3">{emp.nickname}</span>
                   )}
                 </span>
                 {isSelected && (
@@ -184,7 +184,7 @@ export function MergePromptCard() {
           );
         })}
         {filtered.length === 0 && (
-          <li className="px-3 py-4 text-center text-sm text-gray-400">ไม่พบรายการ</li>
+          <li className="px-3 py-4 text-center text-sm text-ink-4">ไม่พบรายการ</li>
         )}
       </ul>
 

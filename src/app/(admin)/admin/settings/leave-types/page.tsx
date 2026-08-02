@@ -38,7 +38,7 @@ export default async function LeaveTypeListPage({ searchParams }: { searchParams
             จ่ายเงิน
           </span>
         ) : (
-          <span className="rounded-full bg-surface-sunken px-2 py-0.5 text-xs font-medium text-gray-700">
+          <span className="rounded-full bg-surface-sunken px-2 py-0.5 text-xs font-medium text-ink-2">
             ไม่จ่าย
           </span>
         ),

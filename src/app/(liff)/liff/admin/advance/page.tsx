@@ -43,11 +43,11 @@ export default async function LiffAdminAwaitingSlipPage() {
 
   return (
     <main className="px-4 pt-4 pb-12">
-      <p className="mb-4 text-sm text-gray-500">{t('intro')}</p>
+      <p className="mb-4 text-sm text-ink-3">{t('intro')}</p>
 
       {rows.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-line-strong bg-surface p-12 text-center">
-          <p className="text-sm text-gray-500">{t('empty')}</p>
+          <p className="text-sm text-ink-3">{t('empty')}</p>
         </div>
       ) : (
         <ul className="space-y-2">
@@ -68,17 +68,17 @@ export default async function LiffAdminAwaitingSlipPage() {
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-gray-900">
+                      <p className="text-sm font-medium text-ink-1">
                         {name}
                         {r.employee.nickname && (
-                          <span className="text-gray-500"> ({r.employee.nickname})</span>
+                          <span className="text-ink-3"> ({r.employee.nickname})</span>
                         )}
                       </p>
-                      <p className="mt-0.5 text-lg font-semibold tabular-nums text-gray-900">
+                      <p className="mt-0.5 text-lg font-semibold tabular-nums text-ink-1">
                         ฿{Number(r.amount).toLocaleString('th-TH')}
                       </p>
                       {r.approvedAt && (
-                        <p className="mt-0.5 text-[10px] text-gray-400">
+                        <p className="mt-0.5 text-[10px] text-ink-4">
                           {t('approvedAt', { datetime: formatBkk(r.approvedAt, locale) })}
                         </p>
                       )}

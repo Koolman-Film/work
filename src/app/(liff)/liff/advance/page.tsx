@@ -17,7 +17,7 @@ const STATUS_CLS: Record<string, string> = {
   Pending: 'bg-amber-100 text-amber-800',
   Approved: 'bg-green-100 text-green-800',
   Rejected: 'bg-red-100 text-red-800',
-  Cancelled: 'bg-surface-sunken text-gray-700',
+  Cancelled: 'bg-surface-sunken text-ink-2',
 };
 
 function formatDateTime(d: Date, locale: Locale): string {
@@ -70,8 +70,8 @@ export default async function LiffAdvanceListPage({
     <main className="mx-auto max-w-md px-4 pt-8 pb-12">
       <header className="mb-6 flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">{t('list.title')}</h1>
-          <p className="mt-0.5 text-sm text-gray-500">{t('list.count', { n: meta.total })}</p>
+          <h1 className="text-2xl font-semibold text-ink-1">{t('list.title')}</h1>
+          <p className="mt-0.5 text-sm text-ink-3">{t('list.count', { n: meta.total })}</p>
         </div>
         <Link
           href="/liff/advance/new"
@@ -91,7 +91,7 @@ export default async function LiffAdvanceListPage({
 
       {rows.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-line-strong bg-surface p-12 text-center">
-          <p className="text-sm text-gray-500">{t('list.empty')}</p>
+          <p className="text-sm text-ink-3">{t('list.empty')}</p>
           <Link
             href="/liff/advance/new"
             className="mt-3 inline-block text-sm font-medium text-primary-700 hover:text-primary-800"
@@ -111,16 +111,16 @@ export default async function LiffAdvanceListPage({
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-lg font-semibold tabular-nums text-gray-900">
+                      <p className="text-lg font-semibold tabular-nums text-ink-1">
                         {formatMoney(r.amount.toString(), locale as Locale)}
                       </p>
-                      <p className="mt-0.5 text-xs text-gray-500">
+                      <p className="mt-0.5 text-xs text-ink-3">
                         {t('list.submittedAt', {
                           datetime: formatDateTime(r.requestedAt, locale as Locale),
                         })}
                       </p>
                       {r.status === 'Approved' && r.isDeducted && (
-                        <p className="mt-1 text-[10px] text-gray-400">{t('list.deducted')}</p>
+                        <p className="mt-1 text-[10px] text-ink-4">{t('list.deducted')}</p>
                       )}
                     </div>
                     {cls && (
@@ -150,7 +150,7 @@ export default async function LiffAdvanceListPage({
       />
 
       <nav className="mt-8 flex justify-center text-xs">
-        <Link href="/liff/check-in" className="text-gray-500 hover:text-gray-700">
+        <Link href="/liff/check-in" className="text-ink-3 hover:text-ink-2">
           {t('list.backToCheckin')}
         </Link>
       </nav>

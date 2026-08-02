@@ -152,7 +152,7 @@ export function RoleForm({ mode, action, initial, error, extraActions }: Props) 
         <CardHeader>
           <CardTitle>
             สิทธิ์การใช้งาน{' '}
-            <span className="text-sm font-normal text-gray-500">
+            <span className="text-sm font-normal text-ink-3">
               ({selected.size} / {totalCount} ติ๊ก)
             </span>
           </CardTitle>
@@ -175,7 +175,7 @@ export function RoleForm({ mode, action, initial, error, extraActions }: Props) 
               return (
                 <fieldset key={group.key} className="rounded-lg border border-line p-3">
                   <legend className="px-2">
-                    <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-800">
+                    <label className="inline-flex items-center gap-2 text-sm font-medium text-ink-1">
                       <input
                         type="checkbox"
                         checked={allChecked}
@@ -187,7 +187,7 @@ export function RoleForm({ mode, action, initial, error, extraActions }: Props) 
                       />
                       <span>
                         {group.label}{' '}
-                        <span className="text-xs font-normal text-gray-500">
+                        <span className="text-xs font-normal text-ink-3">
                           ({checkedCount}/{group.permissions.length})
                         </span>
                       </span>
@@ -197,7 +197,7 @@ export function RoleForm({ mode, action, initial, error, extraActions }: Props) 
                     {group.permissions.map((p) => (
                       <label
                         key={p}
-                        className="flex items-start gap-2 rounded-md px-2 py-1.5 text-sm text-gray-700 transition hover:bg-surface-muted"
+                        className="flex items-start gap-2 rounded-md px-2 py-1.5 text-sm text-ink-2 transition hover:bg-surface-muted"
                       >
                         <input
                           type="checkbox"
@@ -209,7 +209,7 @@ export function RoleForm({ mode, action, initial, error, extraActions }: Props) 
                         />
                         <span className="min-w-0">
                           <span className="block leading-snug">{PERMISSIONS[p]}</span>
-                          <code className="block text-[10px] text-gray-400">{p}</code>
+                          <code className="block text-[10px] text-ink-4">{p}</code>
                         </span>
                       </label>
                     ))}

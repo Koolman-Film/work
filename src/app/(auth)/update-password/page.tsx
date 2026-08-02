@@ -21,12 +21,12 @@ export default async function UpdatePasswordPage({ searchParams }: { searchParam
   return (
     <form action={updatePassword} className="space-y-4">
       <div>
-        <h2 className="text-lg font-semibold text-gray-900">ตั้งรหัสผ่านใหม่</h2>
-        <p className="mt-1 text-sm text-gray-500">รหัสผ่านอย่างน้อย 8 ตัวอักษร</p>
+        <h2 className="text-lg font-semibold text-ink-1">ตั้งรหัสผ่านใหม่</h2>
+        <p className="mt-1 text-sm text-ink-3">รหัสผ่านอย่างน้อย 8 ตัวอักษร</p>
       </div>
 
       <div>
-        <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+        <label htmlFor="password" className="block text-sm font-medium text-ink-2">
           รหัสผ่านใหม่
         </label>
         <input
@@ -41,7 +41,7 @@ export default async function UpdatePasswordPage({ searchParams }: { searchParam
       </div>
 
       <div>
-        <label htmlFor="confirm" className="block text-sm font-medium text-gray-700">
+        <label htmlFor="confirm" className="block text-sm font-medium text-ink-2">
           ยืนยันรหัสผ่าน
         </label>
         <input

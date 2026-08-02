@@ -79,8 +79,8 @@ export function HolidayForm({ mode, action, initial, error, extraActions }: Prop
                   className="mt-1 h-4 w-4 rounded border-line-strong text-primary-600 focus:ring-primary-500"
                 />
                 <span className="text-sm">
-                  <span className="font-medium text-gray-900">เป็นวันหยุดชดเชย</span>
-                  <span className="block text-xs text-gray-500">
+                  <span className="font-medium text-ink-1">เป็นวันหยุดชดเชย</span>
+                  <span className="block text-xs text-ink-3">
                     ติ๊กถูกหากเป็นวันหยุดชดเชยจาก ครม. หรือเลื่อนจากวันหยุดที่ตรงกับวันอาทิตย์
                   </span>
                 </span>

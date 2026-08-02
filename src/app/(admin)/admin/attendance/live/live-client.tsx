@@ -177,7 +177,7 @@ export function LiveBoardClient({
       <div className="flex flex-wrap items-center gap-3 text-[11px] text-ink-4">
         <Legend color="bg-emerald-400" label="กำลังทำงาน" />
         <Legend color="bg-amber-400" label="ตรวจสอบ" />
-        <Legend color="bg-slate-300" label="ออกแล้ว" />
+        <Legend color="bg-ink-5" label="ออกแล้ว" />
         <Legend color="bg-red-400" label="ปฏิเสธ" />
         <span className="ml-auto text-ink-5">realtime · supabase channel + 30s polling</span>
       </div>
@@ -336,7 +336,7 @@ function StatusPill({ status }: { status: Status }) {
   if (status.kind === 'realtime' && status.channelStatus === 'connecting') {
     return (
       <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-muted px-2.5 py-1 text-[11px] font-medium text-ink-3">
-        <span className="size-1.5 rounded-full bg-gray-400" aria-hidden="true" />
+        <span className="size-1.5 rounded-full bg-ink-4" aria-hidden="true" />
         กำลังเชื่อมต่อ...
       </span>
     );

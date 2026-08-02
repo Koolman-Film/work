@@ -13,7 +13,7 @@ import { requireRole } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
 
 const tileCls =
-  'flex flex-col items-center justify-center gap-2 rounded-xl border border-line bg-surface px-2 py-4 text-center text-sm font-medium text-gray-700 shadow-sm transition hover:border-primary-200 hover:text-primary-700';
+  'flex flex-col items-center justify-center gap-2 rounded-xl border border-line bg-surface px-2 py-4 text-center text-sm font-medium text-ink-2 shadow-sm transition hover:border-primary-200 hover:text-primary-700';
 
 export default async function LiffHomePage() {
   const { user, employee } = await requireRole(['Staff', 'Admin', 'Superadmin']);
@@ -36,7 +36,7 @@ export default async function LiffHomePage() {
 
   return (
     <main className="mx-auto max-w-md space-y-6 px-4 pt-8 pb-12">
-      <h1 className="text-2xl font-semibold text-gray-900">{t('greeting', { name })}</h1>
+      <h1 className="text-2xl font-semibold text-ink-1">{t('greeting', { name })}</h1>
 
       {hasEmployee && (
         <section>
