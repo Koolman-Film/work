@@ -178,6 +178,14 @@ export default async function EmployeeListPage({ searchParams }: { searchParams:
   type Emp = (typeof employees)[number];
   const noFilters = !q && !branchId && !departmentId && status !== 'archived';
 
+  // The per-row `ไม่มีตารางงาน` badge only earns its place when it tells rows
+  // apart. On a company that has never configured schedules it lands on EVERY
+  // row — the densest column of the table repeating one fact the banner above
+  // already states and names people for. A badge on 9 of 9 rows discriminates
+  // nothing; on 2 of 9 it points straight at the work.
+  const missingOnPage = employees.filter((e) => missingIds.has(e.id)).length;
+  const showMissingScheduleBadge = missingOnPage > 0 && missingOnPage < employees.length;
+
   const columns: Column<Emp>[] = [
     {
       key: 'name',
@@ -190,7 +198,7 @@ export default async function EmployeeListPage({ searchParams }: { searchParams:
             <div>
               <div className="font-medium text-ink-1">
                 {e.firstName} {e.lastName}
-                {missingIds.has(e.id) && (
+                {showMissingScheduleBadge && missingIds.has(e.id) && (
                   <span className="ml-2 whitespace-nowrap rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-800">
                     ไม่มีตารางงาน
                   </span>

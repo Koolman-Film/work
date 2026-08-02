@@ -57,6 +57,12 @@ export default async function AdminLeaveInboxPage({
   const isTrash = trash === '1';
   const q = qRaw?.trim() ?? '';
   const requestedPage = parsePageParam(pageRaw);
+  // Reuses FILTER_OPTIONS so the card header and the chip that produced it can
+  // never drift apart. Unknown ?status= falls back to the same default the
+  // query does (รออนุมัติ).
+  const activeFilterLabel = isTrash
+    ? 'ถังขยะ'
+    : (FILTER_OPTIONS.find((o) => o.value === (status ?? ''))?.label ?? FILTER_OPTIONS[0].label);
 
   const permitted = await getPermittedBranches(user, 'leave.read');
   const { skip, take } = pageArgs(requestedPage);
@@ -191,8 +197,12 @@ export default async function AdminLeaveInboxPage({
 
       <Card>
         <CardHeader>
+          {/* Name the ACTIVE filter, not "ทั้งหมด". The default view is
+              รออนุมัติ, so the header claimed "All (4)" while showing 4 of a
+              possibly much larger set — the one number an admin reads to judge
+              their queue, labelled as the wrong thing. */}
           <CardTitle>
-            ทั้งหมด <span className="tabular-nums text-ink-3">({meta.total})</span>
+            {activeFilterLabel} <span className="tabular-nums text-ink-3">({meta.total})</span>
           </CardTitle>
         </CardHeader>
         <CardBody className="!p-0">
