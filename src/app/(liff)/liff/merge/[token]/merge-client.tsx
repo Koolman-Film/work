@@ -79,7 +79,7 @@ export default function MergeClient({ mergeToken }: { mergeToken: string }) {
 
   return (
     <div className="grid min-h-dvh place-items-center px-4 py-12">
-      <div className="w-full max-w-sm rounded-xl border border-gray-200 bg-white p-8 shadow-sm">
+      <div className="w-full max-w-sm rounded-xl border border-line bg-surface p-8 shadow-sm">
         <p className="text-center text-sm text-gray-500">Koolman Work</p>
         <div className="mt-6">
           {(state.phase === 'working' || state.phase === 'merging') && (
@@ -93,7 +93,7 @@ export default function MergeClient({ mergeToken }: { mergeToken: string }) {
             <div className="flex flex-col gap-4">
               <p className="text-center text-base font-medium text-gray-900">{t('confirmTitle')}</p>
               {/* Both identities, explicit, so a wrong scan is obvious. */}
-              <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm">
+              <div className="rounded-lg border border-line bg-surface-muted px-4 py-3 text-sm">
                 <Row label={t('confirmAdmin')} value={state.adminEmail} />
                 <Row label={t('confirmEmployee')} value={state.employeeName} />
               </div>
@@ -102,7 +102,7 @@ export default function MergeClient({ mergeToken }: { mergeToken: string }) {
                 <button
                   type="button"
                   onClick={() => setState({ phase: 'cancelled' })}
-                  className="flex-1 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  className="flex-1 rounded-md border border-line-strong bg-surface px-4 py-2 text-sm font-medium text-gray-700 hover:bg-surface-muted"
                 >
                   {t('cancel')}
                 </button>
@@ -190,7 +190,7 @@ export default function MergeClient({ mergeToken }: { mergeToken: string }) {
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-gray-100 py-1.5 last:border-b-0">
+    <div className="flex items-center justify-between gap-3 border-b border-line-soft py-1.5 last:border-b-0">
       <span className="text-gray-500">{label}</span>
       <span className="min-w-0 truncate font-medium text-gray-900">{value}</span>
     </div>

@@ -74,7 +74,7 @@ type Props =
     };
 
 const selectClasses = cn(
-  'block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm',
+  'block w-full rounded-md border border-line-strong bg-surface px-3 py-2 text-sm shadow-sm',
   'focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30',
 );
 
@@ -264,7 +264,7 @@ export function EmployeeForm({
                       id="defaultOtRateType"
                       name="defaultOtRateType"
                       defaultValue={initial?.defaultOtRateType ?? ''}
-                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                      className="w-full rounded-md border border-line-strong px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
                     >
                       <option value="">— ไม่กำหนด —</option>
                       <option value="PerHourAmount">฿/ชม.</option>
@@ -300,7 +300,7 @@ export function EmployeeForm({
                       type="checkbox"
                       name="hasSso"
                       defaultChecked={initial?.hasSso ?? false}
-                      className="size-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500/30"
+                      className="size-4 rounded border-line-strong text-primary-600 focus:ring-primary-500/30"
                     />
                     <span>ประกันสังคม</span>
                   </label>
@@ -315,7 +315,7 @@ export function EmployeeForm({
                       type="checkbox"
                       name="canCheckIn"
                       defaultChecked={initial?.canCheckIn ?? true}
-                      className="size-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500/30"
+                      className="size-4 rounded border-line-strong text-primary-600 focus:ring-primary-500/30"
                     />
                     <span>อนุญาตให้เช็คอินผ่าน LINE LIFF</span>
                   </label>
@@ -374,7 +374,7 @@ export function EmployeeForm({
                       return (
                         <label
                           key={b.id}
-                          className="inline-flex items-center gap-2 rounded-md border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm text-ink-2 hover:bg-gray-100"
+                          className="inline-flex items-center gap-2 rounded-md border border-line bg-surface-muted px-3 py-1.5 text-sm text-ink-2 hover:bg-surface-sunken"
                         >
                           <input
                             type="checkbox"
@@ -382,7 +382,7 @@ export function EmployeeForm({
                             value={b.id}
                             defaultChecked={checked}
                             disabled={branchReadOnly}
-                            className="size-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500/30"
+                            className="size-4 rounded border-line-strong text-primary-600 focus:ring-primary-500/30"
                           />
                           <span>{b.name}</span>
                         </label>

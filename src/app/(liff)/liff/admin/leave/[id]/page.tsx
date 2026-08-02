@@ -35,7 +35,7 @@ const STATUS_CLS: Record<string, string> = {
   Pending: 'bg-amber-100 text-amber-800',
   Approved: 'bg-green-100 text-green-800',
   Rejected: 'bg-red-100 text-red-800',
-  Cancelled: 'bg-gray-100 text-gray-700',
+  Cancelled: 'bg-surface-sunken text-gray-700',
 };
 
 export default async function LiffAdminLeaveDetailPage({ params }: { params: Params }) {
@@ -85,7 +85,7 @@ export default async function LiffAdminLeaveDetailPage({ params }: { params: Par
         </div>
       </header>
 
-      <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+      <section className="rounded-xl border border-line bg-surface p-4 shadow-sm">
         <p className="text-sm font-medium text-gray-900">
           {vm.name}
           {vm.nickname && <span className="text-gray-500"> ({vm.nickname})</span>}
@@ -94,7 +94,7 @@ export default async function LiffAdminLeaveDetailPage({ params }: { params: Par
           {vm.branch}
           {vm.department ? ` • ${vm.department}` : ''}
         </p>
-        <dl className="mt-3 space-y-2 border-t border-gray-100 pt-3 text-sm">
+        <dl className="mt-3 space-y-2 border-t border-line-soft pt-3 text-sm">
           <Row label={t('type')}>
             {vm.leaveType}
             {vm.isPaid ? '' : t('unpaidSuffix')}
@@ -107,7 +107,7 @@ export default async function LiffAdminLeaveDetailPage({ params }: { params: Par
       </section>
 
       {vm.overQuota && (
-        <section className="mt-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+        <section className="mt-3 rounded-xl border border-line bg-surface p-4 shadow-sm">
           <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">
             {t('quotaTitle')}
           </h2>
@@ -135,7 +135,7 @@ export default async function LiffAdminLeaveDetailPage({ params }: { params: Par
       )}
 
       {vm.attachmentUrl && (
-        <section className="mt-3 rounded-xl border border-gray-200 bg-gray-50 p-4">
+        <section className="mt-3 rounded-xl border border-line bg-surface-muted p-4">
           <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">
             {t('attachment')}
           </h2>
@@ -143,7 +143,7 @@ export default async function LiffAdminLeaveDetailPage({ params }: { params: Par
             href={vm.attachmentUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-2 block overflow-hidden rounded-lg border border-gray-200 transition hover:opacity-90"
+            className="mt-2 block overflow-hidden rounded-lg border border-line transition hover:opacity-90"
           >
             {/* biome-ignore lint/performance/noImgElement: signed URL, short TTL — next/image can't optimize it */}
             <img src={vm.attachmentUrl} alt={t('attachmentAlt')} className="w-full" />
@@ -157,7 +157,7 @@ export default async function LiffAdminLeaveDetailPage({ params }: { params: Par
           approveBlocked={vm.overQuota?.blocksApproval ?? false}
         />
       ) : (
-        <section className="mt-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+        <section className="mt-3 rounded-xl border border-line bg-surface p-4 shadow-sm">
           <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">
             {t('reviewResult')}
           </h2>

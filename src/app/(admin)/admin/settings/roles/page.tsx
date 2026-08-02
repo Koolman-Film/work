@@ -36,7 +36,7 @@ export default async function RoleListPage({ searchParams }: { searchParams: Sea
       cell: (r) => (
         <span className="font-medium text-ink-1">
           {r.name}
-          <code className="ml-2 rounded bg-gray-50 px-1.5 py-0.5 text-[10px] font-normal text-ink-3">
+          <code className="ml-2 rounded bg-surface-muted px-1.5 py-0.5 text-[10px] font-normal text-ink-3">
             {r.key}
           </code>
         </span>
@@ -78,7 +78,7 @@ export default async function RoleListPage({ searchParams }: { searchParams: Sea
             ระบบ
           </span>
         ) : (
-          <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
+          <span className="rounded-full bg-surface-sunken px-2 py-0.5 text-xs font-medium text-gray-600">
             กำหนดเอง
           </span>
         ),

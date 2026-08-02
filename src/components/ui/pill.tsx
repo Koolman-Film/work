@@ -9,7 +9,7 @@ const variants = {
   pending: 'bg-accent-400/20 text-accent-600',
   approved: 'bg-success-soft text-success-deep',
   leave: 'border border-primary-100 bg-primary-50 text-primary-700',
-  neutral: 'bg-gray-100 text-gray-600',
+  neutral: 'bg-surface-sunken text-gray-600',
   danger: 'bg-danger-soft text-danger-deep',
 } as const;
 

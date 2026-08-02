@@ -319,7 +319,7 @@ export default function PairClient({
 
   return (
     <div className="grid min-h-dvh place-items-center px-4 py-12">
-      <div className="w-full max-w-sm rounded-xl border border-gray-200 bg-white p-8 shadow-sm">
+      <div className="w-full max-w-sm rounded-xl border border-line bg-surface p-8 shadow-sm">
         <p className="text-center text-sm text-gray-500">Koolman Work</p>
         {/* The "Link your LINE account" heading only belongs to the actual
             first-time binding — a returning user tapping a rich-menu button

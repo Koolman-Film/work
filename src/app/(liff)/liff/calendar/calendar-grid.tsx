@@ -298,9 +298,7 @@ export function CalendarGrid({
                   'relative flex aspect-square flex-col rounded-md border p-1 text-left transition',
                   // Out-of-month cells: muted background + ghost text.
                   !cell.inMonth && 'border-transparent bg-transparent text-gray-300',
-                  cell.inMonth &&
-                    !isSelected &&
-                    'border-gray-200 bg-white hover:border-primary-200',
+                  cell.inMonth && !isSelected && 'border-line bg-surface hover:border-primary-200',
                   isSelected && 'border-primary-500 bg-primary-50 ring-2 ring-primary-200',
                   holiday && cell.inMonth && !isSelected && 'border-red-100 bg-red-50/40',
                 )}
@@ -389,11 +387,11 @@ export function CalendarGrid({
       {/* Detail panel — beside the grid on lg in 'right' mode, below otherwise */}
       <section
         className={cn(
-          'rounded-xl border border-gray-200 bg-white',
+          'rounded-xl border border-line bg-surface',
           detailPosition === 'right' ? 'mt-4 lg:mt-0' : 'mt-4',
         )}
       >
-        <header className="border-b border-gray-100 px-4 py-3">
+        <header className="border-b border-line-soft px-4 py-3">
           <p className="text-sm font-semibold text-gray-900">{formatFullDate(selected, locale)}</p>
           {selectedHoliday && (
             <p className="mt-0.5 text-xs font-medium text-red-700">
@@ -412,7 +410,7 @@ export function CalendarGrid({
             )}
           </div>
         ) : (
-          <ul className="divide-y divide-gray-100">
+          <ul className="divide-y divide-line-soft">
             {selectedBirthdays.map((b) => (
               <li key={`b:${b.employeeId}`}>
                 <div className="flex items-start gap-3 px-4 py-3">
@@ -435,7 +433,9 @@ export function CalendarGrid({
                   <span
                     className={cn(
                       'grid size-8 shrink-0 place-items-center rounded-full text-xs font-bold',
-                      e.isMine ? 'bg-primary-100 text-primary-700' : 'bg-gray-100 text-gray-600',
+                      e.isMine
+                        ? 'bg-primary-100 text-primary-700'
+                        : 'bg-surface-sunken text-gray-600',
                     )}
                   >
                     {(e.shortLabel[0] ?? '?').toUpperCase()}
@@ -479,7 +479,7 @@ export function CalendarGrid({
                       type="button"
                       disabled={busyId === e.leaveRequestId}
                       onClick={() => onLeaveClick(e.leaveRequestId)}
-                      className="flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-gray-50 disabled:opacity-60"
+                      className="flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-surface-muted disabled:opacity-60"
                     >
                       {body}
                     </button>
@@ -512,7 +512,7 @@ export function CalendarGrid({
                       type="button"
                       disabled={busyId === a.cashAdvanceId}
                       onClick={() => onAdvanceClick(a.cashAdvanceId)}
-                      className="flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-gray-50 disabled:opacity-60"
+                      className="flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-surface-muted disabled:opacity-60"
                     >
                       {body}
                     </button>

@@ -56,7 +56,7 @@ export default async function LineSettingsPage() {
             mergedInto={mergedInto}
           />
         ) : (
-          <div className="rounded-xl border border-gray-200 bg-gray-50 px-5 py-4 text-sm text-ink-3">
+          <div className="rounded-xl border border-line bg-surface-muted px-5 py-4 text-sm text-ink-3">
             ฟีเจอร์เชื่อมต่อ LINE สำหรับผู้ดูแลถูกปิดใช้งานชั่วคราว
           </div>
         )}

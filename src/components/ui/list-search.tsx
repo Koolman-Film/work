@@ -48,7 +48,7 @@ export function ListSearch({
         onKeyDown={(e) => {
           if (e.key === 'Enter') go(e.currentTarget.value);
         }}
-        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs shadow-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100"
+        className="w-full rounded-lg border border-line-strong bg-surface px-3 py-1.5 text-xs shadow-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100"
       />
     </div>
   );

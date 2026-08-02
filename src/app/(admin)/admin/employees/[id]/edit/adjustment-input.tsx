@@ -62,7 +62,7 @@ export function AdjustmentInput({
         step="any"
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        className="w-20 rounded-md border border-gray-300 px-2 py-1"
+        className="w-20 rounded-md border border-line-strong px-2 py-1"
       />
       <select
         form={formId}
@@ -70,7 +70,7 @@ export function AdjustmentInput({
         aria-label="หน่วยของค่าปรับปรุง"
         value={unit}
         onChange={(e) => switchUnit(e.target.value as AdjustmentUnit)}
-        className="rounded-md border border-gray-300 px-1 py-1 text-sm"
+        className="rounded-md border border-line-strong px-1 py-1 text-sm"
       >
         <option value="day">วัน</option>
         <option value="hour">ชม.</option>

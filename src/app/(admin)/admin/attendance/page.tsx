@@ -181,20 +181,20 @@ export default async function AttendanceRecordsPage({
       {/* Filters */}
       <div className="mb-4 flex flex-wrap items-center gap-2">
         {/* Month nav */}
-        <div className="inline-flex items-center rounded-lg border border-gray-200 bg-white">
+        <div className="inline-flex items-center rounded-lg border border-line bg-surface">
           <Link
             href={urlWith({ ym: shiftMonth(ym, -1) })}
-            className="px-2 py-1.5 text-sm text-ink-3 transition hover:bg-gray-50 hover:text-ink-1"
+            className="px-2 py-1.5 text-sm text-ink-3 transition hover:bg-surface-muted hover:text-ink-1"
             aria-label="เดือนก่อน"
           >
             ‹
           </Link>
-          <span className="border-x border-gray-200 px-3 py-1.5 text-xs font-semibold text-ink-1">
+          <span className="border-x border-line px-3 py-1.5 text-xs font-semibold text-ink-1">
             {monthLabel}
           </span>
           <Link
             href={urlWith({ ym: shiftMonth(ym, 1) })}
-            className="px-2 py-1.5 text-sm text-ink-3 transition hover:bg-gray-50 hover:text-ink-1"
+            className="px-2 py-1.5 text-sm text-ink-3 transition hover:bg-surface-muted hover:text-ink-1"
             aria-label="เดือนถัดไป"
           >
             ›
@@ -217,13 +217,13 @@ export default async function AttendanceRecordsPage({
           </Link>
         )}
 
-        <span className="mx-1 h-4 w-px bg-gray-200" aria-hidden="true" />
+        <span className="mx-1 h-4 w-px bg-line" aria-hidden="true" />
         <Link
           href={urlWith({ trash: null })}
           className={
             !isTrash
               ? 'rounded-lg bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-700 ring-1 ring-primary-200'
-              : 'rounded-lg px-3 py-1.5 text-xs font-semibold text-ink-4 hover:bg-gray-50 hover:text-ink-2'
+              : 'rounded-lg px-3 py-1.5 text-xs font-semibold text-ink-4 hover:bg-surface-muted hover:text-ink-2'
           }
         >
           รายการปัจจุบัน
@@ -233,7 +233,7 @@ export default async function AttendanceRecordsPage({
           className={
             isTrash
               ? 'rounded-lg bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-700 ring-1 ring-primary-200'
-              : 'rounded-lg px-3 py-1.5 text-xs font-semibold text-ink-4 hover:bg-gray-50 hover:text-ink-2'
+              : 'rounded-lg px-3 py-1.5 text-xs font-semibold text-ink-4 hover:bg-surface-muted hover:text-ink-2'
           }
         >
           🗑️ ถังขยะ
@@ -278,15 +278,15 @@ function EmployeeSelect({
   const label = selected ? `${selected.firstName} ${selected.lastName}` : 'ทั้งหมด';
   return (
     <details className="relative inline-block">
-      <summary className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-ink-2 hover:bg-gray-50 [&::-webkit-details-marker]:hidden">
+      <summary className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-line bg-surface px-3 py-1.5 text-xs font-medium text-ink-2 hover:bg-surface-muted [&::-webkit-details-marker]:hidden">
         พนักงาน:
         <span className="font-medium text-ink-1">{label}</span>
         <span className="text-ink-4">▾</span>
       </summary>
-      <div className="absolute left-0 z-20 mt-1 max-h-[60vh] w-64 overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-card">
+      <div className="absolute left-0 z-20 mt-1 max-h-[60vh] w-64 overflow-y-auto rounded-lg border border-line bg-surface py-1 shadow-card">
         <Link
           href={urlFor('all')}
-          className="block px-3 py-1.5 text-sm text-ink-2 hover:bg-gray-50"
+          className="block px-3 py-1.5 text-sm text-ink-2 hover:bg-surface-muted"
         >
           ทั้งหมด
         </Link>
@@ -294,7 +294,7 @@ function EmployeeSelect({
           <Link
             key={e.id}
             href={urlFor(e.id)}
-            className="block px-3 py-1.5 text-sm text-ink-2 hover:bg-gray-50"
+            className="block px-3 py-1.5 text-sm text-ink-2 hover:bg-surface-muted"
           >
             {e.firstName} {e.lastName}
             {e.nickname && <span className="text-ink-3"> ({e.nickname})</span>}
@@ -314,17 +314,17 @@ function TypeSelect({
 }) {
   return (
     <details className="relative inline-block">
-      <summary className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-ink-2 hover:bg-gray-50 [&::-webkit-details-marker]:hidden">
+      <summary className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-line bg-surface px-3 py-1.5 text-xs font-medium text-ink-2 hover:bg-surface-muted [&::-webkit-details-marker]:hidden">
         ประเภท:
         <span className="font-medium text-ink-1">
           {selectedType ? TYPE_LABELS[selectedType]?.label : 'ทั้งหมด'}
         </span>
         <span className="text-ink-4">▾</span>
       </summary>
-      <div className="absolute left-0 z-20 mt-1 w-44 rounded-lg border border-gray-200 bg-white py-1 shadow-card">
+      <div className="absolute left-0 z-20 mt-1 w-44 rounded-lg border border-line bg-surface py-1 shadow-card">
         <Link
           href={urlFor('all')}
-          className="block px-3 py-1.5 text-sm text-ink-2 hover:bg-gray-50"
+          className="block px-3 py-1.5 text-sm text-ink-2 hover:bg-surface-muted"
         >
           ทั้งหมด
         </Link>
@@ -332,7 +332,7 @@ function TypeSelect({
           <Link
             key={k}
             href={urlFor(k)}
-            className="block px-3 py-1.5 text-sm text-ink-2 hover:bg-gray-50"
+            className="block px-3 py-1.5 text-sm text-ink-2 hover:bg-surface-muted"
           >
             {v.label}
           </Link>

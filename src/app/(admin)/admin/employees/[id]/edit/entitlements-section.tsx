@@ -77,7 +77,7 @@ export async function EntitlementsSection({
                         max="366"
                         defaultValue={r.grantedMinutes == null ? '' : days(r.grantedMinutes)}
                         placeholder="ไม่จำกัด"
-                        className="w-20 rounded-md border border-gray-300 px-2 py-1"
+                        className="w-20 rounded-md border border-line-strong px-2 py-1"
                       />
                     </form>
                   </td>
@@ -90,7 +90,7 @@ export async function EntitlementsSection({
                       min="0"
                       max="366"
                       defaultValue={days(r.carryoverMinutes)}
-                      className="w-20 rounded-md border border-gray-300 px-2 py-1"
+                      className="w-20 rounded-md border border-line-strong px-2 py-1"
                     />
                   </td>
                   <td className="px-2">
@@ -129,7 +129,7 @@ export async function EntitlementsSection({
                       type="text"
                       maxLength={200}
                       defaultValue={r.note ?? ''}
-                      className="w-40 rounded-md border border-gray-300 px-2 py-1"
+                      className="w-40 rounded-md border border-line-strong px-2 py-1"
                     />
                   </td>
                   <td className="px-2">

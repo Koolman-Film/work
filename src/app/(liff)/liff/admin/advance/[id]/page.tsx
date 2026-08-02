@@ -29,7 +29,7 @@ const STATUS_INFO: Record<string, { labelKey: string; cls: string }> = {
   Pending: { labelKey: 'statusPending', cls: 'bg-amber-100 text-amber-800' },
   Approved: { labelKey: 'statusApproved', cls: 'bg-green-100 text-green-800' },
   Rejected: { labelKey: 'statusRejected', cls: 'bg-red-100 text-red-800' },
-  Cancelled: { labelKey: 'statusCancelled', cls: 'bg-gray-100 text-gray-700' },
+  Cancelled: { labelKey: 'statusCancelled', cls: 'bg-surface-sunken text-gray-700' },
 };
 
 function formatBkk(d: Date, locale: Locale): string {
@@ -72,7 +72,7 @@ export default async function LiffAdminAdvanceDetailPage({ params }: { params: P
   ]);
 
   const statusInfo = STATUS_INFO[row.status];
-  const statusCls = statusInfo?.cls ?? 'bg-gray-100 text-gray-700';
+  const statusCls = statusInfo?.cls ?? 'bg-surface-sunken text-gray-700';
   const statusLabel = statusInfo ? t(statusInfo.labelKey) : row.status;
   const name = `${row.employee.firstName} ${row.employee.lastName}`.trim();
 
@@ -105,7 +105,7 @@ export default async function LiffAdminAdvanceDetailPage({ params }: { params: P
         </div>
       </header>
 
-      <section className="rounded-xl border border-gray-200 bg-white p-4 text-center shadow-sm">
+      <section className="rounded-xl border border-line bg-surface p-4 text-center shadow-sm">
         <p className="text-sm font-medium text-gray-900">
           {name}
           {row.employee.nickname && (
@@ -128,7 +128,7 @@ export default async function LiffAdminAdvanceDetailPage({ params }: { params: P
         )}
       </section>
 
-      <section className="mt-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+      <section className="mt-3 rounded-xl border border-line bg-surface p-4 shadow-sm">
         <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">
           {t('creditTitle')}
         </h2>
@@ -162,7 +162,7 @@ export default async function LiffAdminAdvanceDetailPage({ params }: { params: P
           heading with an account number reads as an instruction to transfer
           now, before anyone has approved it. */}
       {(awaitingSlip || paid) && (
-        <section className="mt-3 rounded-xl border border-gray-200 bg-white p-4">
+        <section className="mt-3 rounded-xl border border-line bg-surface p-4">
           <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">
             {t('payoutAccount')}
           </h2>
@@ -206,7 +206,7 @@ export default async function LiffAdminAdvanceDetailPage({ params }: { params: P
 
       {paid && (
         <>
-          <section className="mt-3 rounded-xl border border-gray-200 bg-gray-50 p-4">
+          <section className="mt-3 rounded-xl border border-line bg-surface-muted p-4">
             <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">
               {t('slipSection')}
             </h2>
@@ -225,7 +225,7 @@ export default async function LiffAdminAdvanceDetailPage({ params }: { params: P
                 href={resolvedReceiptUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-2 block overflow-hidden rounded-lg border border-gray-200 transition hover:opacity-90"
+                className="mt-2 block overflow-hidden rounded-lg border border-line transition hover:opacity-90"
               >
                 {/* biome-ignore lint/performance/noImgElement: signed URL, short TTL — next/image can't optimize it */}
                 <img src={resolvedReceiptUrl} alt={t('slipAlt')} className="w-full" />

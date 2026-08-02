@@ -127,7 +127,7 @@ export function RoleForm({ mode, action, initial, error, extraActions }: Props) 
               htmlFor="key"
               hint="กำหนดอัตโนมัติตอนสร้าง — ไม่สามารถแก้ไขได้"
             >
-              <Input id="key" value={initial.key} readOnly className="bg-gray-50 font-mono" />
+              <Input id="key" value={initial.key} readOnly className="bg-surface-muted font-mono" />
             </FormField>
           )}
 
@@ -173,7 +173,7 @@ export function RoleForm({ mode, action, initial, error, extraActions }: Props) 
               const someChecked = checkedCount > 0 && !allChecked;
 
               return (
-                <fieldset key={group.key} className="rounded-lg border border-gray-200 p-3">
+                <fieldset key={group.key} className="rounded-lg border border-line p-3">
                   <legend className="px-2">
                     <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-800">
                       <input
@@ -183,7 +183,7 @@ export function RoleForm({ mode, action, initial, error, extraActions }: Props) 
                           if (el) el.indeterminate = someChecked;
                         }}
                         onChange={() => toggleGroup([...groupSet] as Permission[], allChecked)}
-                        className="size-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500/30"
+                        className="size-4 rounded border-line-strong text-primary-600 focus:ring-primary-500/30"
                       />
                       <span>
                         {group.label}{' '}
@@ -197,7 +197,7 @@ export function RoleForm({ mode, action, initial, error, extraActions }: Props) 
                     {group.permissions.map((p) => (
                       <label
                         key={p}
-                        className="flex items-start gap-2 rounded-md px-2 py-1.5 text-sm text-gray-700 transition hover:bg-gray-50"
+                        className="flex items-start gap-2 rounded-md px-2 py-1.5 text-sm text-gray-700 transition hover:bg-surface-muted"
                       >
                         <input
                           type="checkbox"
@@ -205,7 +205,7 @@ export function RoleForm({ mode, action, initial, error, extraActions }: Props) 
                           value={p}
                           checked={selected.has(p)}
                           onChange={(e) => togglePermission(p, e.target.checked)}
-                          className="mt-0.5 size-4 shrink-0 rounded border-gray-300 text-primary-600 focus:ring-primary-500/30"
+                          className="mt-0.5 size-4 shrink-0 rounded border-line-strong text-primary-600 focus:ring-primary-500/30"
                         />
                         <span className="min-w-0">
                           <span className="block leading-snug">{PERMISSIONS[p]}</span>

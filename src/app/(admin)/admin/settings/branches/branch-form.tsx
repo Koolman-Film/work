@@ -124,7 +124,7 @@ export function BranchForm({ mode, action, initial, error, extraActions }: Props
                   type="checkbox"
                   name="requireGps"
                   defaultChecked={initial?.requireGps ?? false}
-                  className="size-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500/30"
+                  className="size-4 rounded border-line-strong text-primary-600 focus:ring-primary-500/30"
                 />
                 <span>ตรวจสอบตำแหน่ง GPS ตอนเช็คอิน</span>
               </label>
@@ -140,7 +140,7 @@ export function BranchForm({ mode, action, initial, error, extraActions }: Props
                   type="checkbox"
                   name="requireSelfie"
                   defaultChecked={initial?.requireSelfie ?? false}
-                  className="size-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500/30"
+                  className="size-4 rounded border-line-strong text-primary-600 focus:ring-primary-500/30"
                 />
                 <span>ต้องถ่ายเซลฟี่ตอนเช็คอิน</span>
               </label>
@@ -155,7 +155,7 @@ export function BranchForm({ mode, action, initial, error, extraActions }: Props
                   type="checkbox"
                   name="requireCheckOut"
                   defaultChecked={initial?.requireCheckOut ?? false}
-                  className="size-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500/30"
+                  className="size-4 rounded border-line-strong text-primary-600 focus:ring-primary-500/30"
                 />
                 <span>ต้องเช็คเอาท์ตอนเลิกงาน</span>
               </label>
@@ -164,7 +164,7 @@ export function BranchForm({ mode, action, initial, error, extraActions }: Props
                 (ระบบจะปิดเวลาออกอัตโนมัติให้ตอน 22:00)
               </p>
             </div>
-            <div className="space-y-4 border-t border-gray-100 pt-5">
+            <div className="space-y-4 border-t border-line-soft pt-5">
               <div>
                 <h3 className="text-sm font-semibold text-ink-1">หัวกระดาษสลิปเงินเดือน</h3>
                 <p className="mt-0.5 text-xs text-gray-500">

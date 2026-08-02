@@ -39,10 +39,10 @@ export function PeriodPicker({
 
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <div className="flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-1 py-1">
+      <div className="flex items-center gap-1 rounded-lg border border-line bg-surface px-1 py-1">
         <Link
           href={withParams({ m: prev, from: null, to: null })}
-          className="rounded px-2 py-1 text-sm text-ink-3 hover:bg-gray-50 hover:text-ink-1"
+          className="rounded px-2 py-1 text-sm text-ink-3 hover:bg-surface-muted hover:text-ink-1"
           aria-label="เดือนก่อนหน้า"
         >
           ←
@@ -52,7 +52,7 @@ export function PeriodPicker({
         </span>
         <Link
           href={withParams({ m: next, from: null, to: null })}
-          className="rounded px-2 py-1 text-sm text-ink-3 hover:bg-gray-50 hover:text-ink-1"
+          className="rounded px-2 py-1 text-sm text-ink-3 hover:bg-surface-muted hover:text-ink-1"
           aria-label="เดือนถัดไป"
         >
           →

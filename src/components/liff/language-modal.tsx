@@ -61,7 +61,7 @@ export function LanguageModal({ preselect, onClose }: { preselect: Locale; onClo
         if (e.key === 'Escape') onClose?.();
       }}
     >
-      <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl">
+      <div className="w-full max-w-sm rounded-2xl bg-surface p-5 shadow-xl">
         <h2 className="text-center text-base font-semibold text-gray-900">{chrome.title}</h2>
         <div className="mt-4 grid grid-cols-1 gap-2">
           {LOCALES.map((code) => (
@@ -73,7 +73,7 @@ export function LanguageModal({ preselect, onClose }: { preselect: Locale; onClo
                 'w-full rounded-xl border px-4 py-3 text-left text-base',
                 code === selected
                   ? 'border-primary-500 bg-primary-50 font-semibold text-primary-700'
-                  : 'border-gray-200 text-gray-800',
+                  : 'border-line text-gray-800',
               )}
             >
               {LOCALE_LABELS[code]}

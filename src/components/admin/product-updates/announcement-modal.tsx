@@ -47,7 +47,7 @@ export function AnnouncementModal() {
                 dismiss();
                 openPanel();
               }}
-              className="rounded-lg px-3 py-2 text-sm text-ink-2 transition hover:bg-gray-100"
+              className="rounded-lg px-3 py-2 text-sm text-ink-2 transition hover:bg-surface-sunken"
             >
               {pickText(UI.seeAllUpdates, locale)}
             </button>
@@ -59,7 +59,7 @@ export function AnnouncementModal() {
                   dismiss();
                   startTour(tourId);
                 }}
-                className="rounded-lg border border-[var(--border-color)] px-3 py-2 text-sm font-medium text-ink-1 transition hover:bg-gray-50"
+                className="rounded-lg border border-[var(--border-color)] px-3 py-2 text-sm font-medium text-ink-1 transition hover:bg-surface-muted"
               >
                 {pickText(UI.takeTheTour, locale)}
               </button>

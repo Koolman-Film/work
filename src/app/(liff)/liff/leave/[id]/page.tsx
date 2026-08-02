@@ -27,7 +27,7 @@ const STATUS_CLS: Record<string, string> = {
   Pending: 'bg-amber-100 text-amber-800',
   Approved: 'bg-green-100 text-green-800',
   Rejected: 'bg-red-100 text-red-800',
-  Cancelled: 'bg-gray-100 text-gray-700',
+  Cancelled: 'bg-surface-sunken text-gray-700',
 };
 
 function formatDateTime(d: Date, locale: Locale): string {
@@ -85,7 +85,7 @@ export default async function LeaveDetailPage({ params }: { params: Params }) {
         </div>
       </header>
 
-      <section className="space-y-1 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+      <section className="space-y-1 rounded-2xl border border-line bg-surface p-6 shadow-sm">
         <DataRow label={t('detail.field.type')}>
           {localizedLeaveTypeName(row.leaveType.name, row.leaveType.nameByLocale, locale as Locale)}
           {!row.leaveType.isPaid && (
@@ -101,7 +101,7 @@ export default async function LeaveDetailPage({ params }: { params: Params }) {
         </DataRow>
       </section>
 
-      <section className="mt-4 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+      <section className="mt-4 rounded-2xl border border-line bg-surface p-6 shadow-sm">
         <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">
           {t('detail.reasonHeading')}
         </h2>
@@ -109,7 +109,7 @@ export default async function LeaveDetailPage({ params }: { params: Params }) {
       </section>
 
       {resolvedAttachmentUrl && (
-        <section className="mt-4 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+        <section className="mt-4 rounded-2xl border border-line bg-surface p-6 shadow-sm">
           <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">
             {t('detail.attachmentHeading')}
           </h2>
@@ -117,7 +117,7 @@ export default async function LeaveDetailPage({ params }: { params: Params }) {
             href={resolvedAttachmentUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-3 block overflow-hidden rounded-lg border border-gray-200 transition hover:opacity-90"
+            className="mt-3 block overflow-hidden rounded-lg border border-line transition hover:opacity-90"
           >
             {/* biome-ignore lint/performance/noImgElement: signed-URL preview can't use next/image */}
             <img
@@ -132,7 +132,7 @@ export default async function LeaveDetailPage({ params }: { params: Params }) {
 
       {/* Admin review feedback, if any. */}
       {row.reviewNote && (
-        <section className="mt-4 rounded-2xl border border-gray-200 bg-gray-50 p-6">
+        <section className="mt-4 rounded-2xl border border-line bg-surface-muted p-6">
           <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">
             {t('detail.adminNoteHeading')}
           </h2>

@@ -50,7 +50,7 @@ export function Tabs({
               'inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-display text-xs font-semibold transition',
               on
                 ? 'bg-primary-50 text-primary-700 ring-1 ring-primary-200'
-                : 'text-ink-4 hover:bg-gray-50 hover:text-ink-2',
+                : 'text-ink-4 hover:bg-surface-muted hover:text-ink-2',
             )}
           >
             {it.label}
@@ -58,7 +58,7 @@ export function Tabs({
               <span
                 className={cn(
                   'rounded-full px-1.5 text-[10px] tabular',
-                  on ? 'bg-primary-600 text-white' : 'bg-gray-200 text-gray-600',
+                  on ? 'bg-primary-600 text-white' : 'bg-line text-gray-600',
                 )}
               >
                 {it.badge}

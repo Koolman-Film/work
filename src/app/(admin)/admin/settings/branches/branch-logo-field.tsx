@@ -64,7 +64,7 @@ export function BranchLogoField({ branchId, initialKey, initialUrl }: Props) {
     <div className="space-y-3">
       <input type="hidden" name="payslipLogoKey" value={key} />
       <div className="flex items-center gap-4">
-        <div className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-full bg-gray-100 text-ink-3">
+        <div className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-full bg-surface-sunken text-ink-3">
           {preview ? (
             // biome-ignore lint/performance/noImgElement: client preview is an object-URL / signed URL next/image can't optimize
             <img src={preview} alt="โลโก้สาขา" className="size-full object-contain" />
@@ -73,7 +73,7 @@ export function BranchLogoField({ branchId, initialKey, initialUrl }: Props) {
           )}
         </div>
         <div className="space-y-2">
-          <label className="inline-flex cursor-pointer items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm shadow-sm hover:bg-gray-50">
+          <label className="inline-flex cursor-pointer items-center rounded-md border border-line-strong bg-surface px-3 py-1.5 text-sm shadow-sm hover:bg-surface-muted">
             <input
               type="file"
               accept="image/png,image/jpeg"

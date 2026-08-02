@@ -89,8 +89,8 @@ export default async function PairingLandingPage({ params }: { params: Params })
     : '#';
 
   return (
-    <div className="grid min-h-dvh place-items-center bg-gray-50 px-4 py-12">
-      <div className="w-full max-w-sm space-y-6 rounded-xl border border-gray-200 bg-white p-8 shadow-sm">
+    <div className="grid min-h-dvh place-items-center bg-surface-muted px-4 py-12">
+      <div className="w-full max-w-sm space-y-6 rounded-xl border border-line bg-surface p-8 shadow-sm">
         <div className="text-center">
           <p className="text-sm text-gray-500">Koolman Work</p>
           <h1 className="mt-1 text-xl font-semibold text-gray-900">สวัสดี, {emp.firstName}</h1>
@@ -104,13 +104,13 @@ export default async function PairingLandingPage({ params }: { params: Params })
           <div className="flex justify-center gap-2">
             <a
               href="https://apps.apple.com/app/line/id443904275"
-              className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+              className="rounded-md border border-line-strong px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-surface-muted"
             >
               App Store
             </a>
             <a
               href="https://play.google.com/store/apps/details?id=jp.naver.line.android"
-              className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+              className="rounded-md border border-line-strong px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-surface-muted"
             >
               Google Play
             </a>
@@ -160,8 +160,8 @@ function ExpiredLink({
   const m = messages[reason];
 
   return (
-    <div className="grid min-h-dvh place-items-center bg-gray-50 px-4 py-12">
-      <div className="w-full max-w-sm space-y-3 rounded-xl border border-gray-200 bg-white p-8 text-center shadow-sm">
+    <div className="grid min-h-dvh place-items-center bg-surface-muted px-4 py-12">
+      <div className="w-full max-w-sm space-y-3 rounded-xl border border-line bg-surface p-8 text-center shadow-sm">
         <p className="text-sm text-gray-500">Koolman Work</p>
         <h1 className="text-xl font-semibold text-gray-900">{m.title}</h1>
         <p className="text-sm text-gray-600">{m.body}</p>

@@ -116,7 +116,7 @@ export function Combobox({
         }}
         aria-haspopup="listbox"
         aria-expanded={open}
-        className="flex w-full items-center justify-between gap-2 rounded-md border border-gray-300 bg-white px-3 py-2 text-left text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
+        className="flex w-full items-center justify-between gap-2 rounded-md border border-line-strong bg-surface px-3 py-2 text-left text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
       >
         <span className={cn('truncate', value ? 'text-gray-900' : 'text-gray-400')}>
           {value || placeholder}
@@ -138,7 +138,7 @@ export function Combobox({
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-30 mt-1 w-full rounded-xl border border-gray-200 bg-white p-1.5 shadow-lg">
+        <div className="absolute left-0 top-full z-30 mt-1 w-full rounded-xl border border-line bg-surface p-1.5 shadow-lg">
           {/* Search box */}
           <input
             ref={searchRef}
@@ -151,7 +151,7 @@ export function Combobox({
             }}
             onKeyDown={onKeyDown}
             placeholder="ค้นหา หรือพิมพ์เพื่อเพิ่มใหม่…"
-            className="mb-1.5 block w-full rounded-md border border-gray-300 px-2.5 py-1.5 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
+            className="mb-1.5 block w-full rounded-md border border-line-strong px-2.5 py-1.5 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
           />
 
           {/* Options */}

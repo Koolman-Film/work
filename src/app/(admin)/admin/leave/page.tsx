@@ -167,20 +167,20 @@ export default async function AdminLeaveInboxPage({
               className={
                 active
                   ? 'rounded-lg bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-700 ring-1 ring-primary-200'
-                  : 'rounded-lg px-3 py-1.5 text-xs font-semibold text-ink-4 hover:bg-gray-50 hover:text-ink-2'
+                  : 'rounded-lg px-3 py-1.5 text-xs font-semibold text-ink-4 hover:bg-surface-muted hover:text-ink-2'
               }
             >
               {opt.label}
             </Link>
           );
         })}
-        <span className="mx-1 h-4 w-px bg-gray-200" aria-hidden="true" />
+        <span className="mx-1 h-4 w-px bg-line" aria-hidden="true" />
         <Link
           href="/admin/leave?trash=1"
           className={
             isTrash
               ? 'rounded-lg bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-700 ring-1 ring-primary-200'
-              : 'rounded-lg px-3 py-1.5 text-xs font-semibold text-ink-4 hover:bg-gray-50 hover:text-ink-2'
+              : 'rounded-lg px-3 py-1.5 text-xs font-semibold text-ink-4 hover:bg-surface-muted hover:text-ink-2'
           }
         >
           🗑️ ถังขยะ
@@ -220,7 +220,7 @@ export default async function AdminLeaveInboxPage({
               hint={isTrash ? 'ไม่มีคำขอลาที่ถูกลบ' : undefined}
             />
           ) : isTrash ? (
-            <ul className="divide-y divide-gray-100">
+            <ul className="divide-y divide-line-soft">
               {rows.map((r) => {
                 const info = LEAVE_STATUS_INFO[r.status] ?? {
                   label: r.status,
@@ -270,7 +270,7 @@ export default async function AdminLeaveInboxPage({
                         href={attachment}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="mt-2 inline-block overflow-hidden rounded-lg border border-gray-200 transition hover:opacity-90"
+                        className="mt-2 inline-block overflow-hidden rounded-lg border border-line transition hover:opacity-90"
                       >
                         {/* biome-ignore lint/performance/noImgElement: signed-URL preview */}
                         <img
@@ -281,7 +281,7 @@ export default async function AdminLeaveInboxPage({
                         />
                       </a>
                     )}
-                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-gray-50 px-3 py-2 text-xs text-ink-3">
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-surface-muted px-3 py-2 text-xs text-ink-3">
                       <span>
                         {r.deleteReason && (
                           <>

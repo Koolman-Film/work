@@ -30,7 +30,7 @@ export function Dropzone({
       type="button"
       onClick={() => inputRef.current?.click()}
       className={cn(
-        'flex w-full flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-[var(--border-strong)] bg-gray-50/50 px-3 py-4 text-center transition hover:bg-gray-50',
+        'flex w-full flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-[var(--border-strong)] bg-surface-muted/50 px-3 py-4 text-center transition hover:bg-surface-muted',
         className,
       )}
     >

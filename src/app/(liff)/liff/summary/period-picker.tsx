@@ -40,7 +40,7 @@ export function PeriodPicker({ month, monthLabel, prev, next, from, to, todayYmd
 
   if (!custom) {
     return (
-      <div className="rounded-xl border border-gray-200 bg-white px-3 py-2.5">
+      <div className="rounded-xl border border-line bg-surface px-3 py-2.5">
         <div className="flex items-center justify-between">
           {/* next/link Link, not <a> — a soft transition so scrubbing
            *  through months doesn't cost a full page reload. That's what
@@ -49,7 +49,7 @@ export function PeriodPicker({ month, monthLabel, prev, next, from, to, todayYmd
           <Link
             href={monthUrl(prev)}
             aria-label={labels.prevMonth}
-            className="grid size-8 place-items-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+            className="grid size-8 place-items-center rounded-md text-gray-500 hover:bg-surface-sunken hover:text-gray-700"
           >
             ‹
           </Link>
@@ -57,7 +57,7 @@ export function PeriodPicker({ month, monthLabel, prev, next, from, to, todayYmd
           <Link
             href={monthUrl(next)}
             aria-label={labels.nextMonth}
-            className="grid size-8 place-items-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+            className="grid size-8 place-items-center rounded-md text-gray-500 hover:bg-surface-sunken hover:text-gray-700"
           >
             ›
           </Link>
@@ -76,7 +76,7 @@ export function PeriodPicker({ month, monthLabel, prev, next, from, to, todayYmd
   const target = rangeUrl(range.from, range.to);
 
   return (
-    <div className="space-y-2 rounded-xl border border-gray-200 bg-white px-3 py-2.5">
+    <div className="space-y-2 rounded-xl border border-line bg-surface px-3 py-2.5">
       <DateRangeField
         value={range}
         onChange={(v) => setRange({ from: v.from ?? '', to: v.to ?? '' })}
@@ -100,7 +100,7 @@ export function PeriodPicker({ month, monthLabel, prev, next, from, to, todayYmd
           // `||` — not `??` — is what actually falls back to today.
           <Link
             href={monthUrl((range.from || todayYmd).slice(0, 7))}
-            className="rounded-md px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-100"
+            className="rounded-md px-3 py-2 text-xs font-medium text-gray-600 hover:bg-surface-sunken"
           >
             {labels.backToMonthly}
           </Link>
@@ -112,7 +112,7 @@ export function PeriodPicker({ month, monthLabel, prev, next, from, to, todayYmd
           <button
             type="button"
             onClick={() => setCustom(false)}
-            className="rounded-md px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-100"
+            className="rounded-md px-3 py-2 text-xs font-medium text-gray-600 hover:bg-surface-sunken"
           >
             {labels.backToMonthly}
           </button>

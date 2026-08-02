@@ -31,9 +31,9 @@ const TYPES = [
 ];
 
 const selectClassName =
-  'max-w-[200px] rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100';
+  'max-w-[200px] rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm shadow-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100';
 const inputClassName =
-  'rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100';
+  'rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm shadow-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100';
 
 export function ApprovalsFilters({ initial, branches }: ApprovalsFiltersProps) {
   const router = useRouter();

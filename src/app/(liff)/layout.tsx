@@ -21,7 +21,7 @@ import { LiffLocaleGate } from '@/components/liff/liff-locale-gate';
 
 export default function LiffLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-dvh bg-gray-50">
+    <div className="min-h-dvh bg-surface-muted">
       {/* Slim utility bar instead of a floating button: several LIFF pages
           already put their own action buttons in the top-right corner, so a
           fixed overlay would collide. In-flow keeps it collision-free. */}

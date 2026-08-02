@@ -42,7 +42,9 @@ export function ExpandableReportRows({ rows }: { rows: ExpandableRow[] }) {
         return (
           <Fragment key={r.id}>
             <tr
-              className={hasDetail ? 'cursor-pointer hover:bg-gray-50' : 'hover:bg-gray-50'}
+              className={
+                hasDetail ? 'cursor-pointer hover:bg-surface-muted' : 'hover:bg-surface-muted'
+              }
               onClick={hasDetail ? () => toggle(r.id) : undefined}
             >
               <td className="w-6 px-2 py-2.5 align-top text-gray-400">
@@ -57,7 +59,7 @@ export function ExpandableReportRows({ rows }: { rows: ExpandableRow[] }) {
               {r.cells}
             </tr>
             {isOpen && (
-              <tr className="bg-gray-50/60">
+              <tr className="bg-surface-muted/60">
                 <td />
                 <td colSpan={r.colSpan - 1} className="px-4 pb-3">
                   {r.detail}
