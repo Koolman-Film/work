@@ -244,7 +244,7 @@ export function GeofencePicker({
           the form's latitude/longitude names (WYSIWYG submission). */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
-          <label htmlFor="geofence-lat" className="mb-1 block text-xs font-medium text-gray-600">
+          <label htmlFor="geofence-lat" className="mb-1 block text-xs font-medium text-ink-2">
             ละติจูด (Latitude)
           </label>
           <Input
@@ -266,7 +266,7 @@ export function GeofencePicker({
         </div>
 
         <div>
-          <label htmlFor="geofence-lng" className="mb-1 block text-xs font-medium text-gray-600">
+          <label htmlFor="geofence-lng" className="mb-1 block text-xs font-medium text-ink-2">
             ลองติจูด (Longitude)
           </label>
           <Input
@@ -289,7 +289,7 @@ export function GeofencePicker({
       </div>
 
       <div className="flex items-center justify-between text-xs">
-        <p className="text-gray-500">คลิกบนแผนที่เพื่อปักหมุด ลากหมุดเพื่อปรับ หรือกรอกพิกัดด้านบน</p>
+        <p className="text-ink-3">คลิกบนแผนที่เพื่อปักหมุด ลากหมุดเพื่อปรับ หรือกรอกพิกัดด้านบน</p>
         {hasAnyValue && (
           <button
             type="button"

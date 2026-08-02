@@ -16,7 +16,7 @@ export const GeofencePicker = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="grid h-72 place-items-center rounded-md border border-line bg-surface-muted text-sm text-gray-500">
+      <div className="grid h-72 place-items-center rounded-md border border-line bg-surface-muted text-sm text-ink-3">
         กำลังโหลดแผนที่…
       </div>
     ),

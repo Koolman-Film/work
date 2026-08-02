@@ -50,8 +50,8 @@ export function LanguageSwitcher({ variant = 'standalone' }: Props) {
     // Compact: just the dropdown with a globe icon inline. Sits inside
     // the user-menu popover above the sign-out button.
     return (
-      <div className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700">
-        <Languages size={16} className="text-gray-400" aria-hidden="true" />
+      <div className="flex items-center gap-2 px-3 py-2 text-sm text-ink-2">
+        <Languages size={16} className="text-ink-4" aria-hidden="true" />
         <select
           value={currentLocale}
           onChange={onChange}
@@ -76,7 +76,7 @@ export function LanguageSwitcher({ variant = 'standalone' }: Props) {
   // Standalone: full-row label + select for a settings page.
   return (
     <div>
-      <label htmlFor="locale-select" className="block text-sm font-medium text-gray-700">
+      <label htmlFor="locale-select" className="block text-sm font-medium text-ink-2">
         ภาษา / Language
       </label>
       <select
@@ -96,9 +96,7 @@ export function LanguageSwitcher({ variant = 'standalone' }: Props) {
           </option>
         ))}
       </select>
-      <p className="mt-1 text-xs text-gray-500">
-        การตั้งค่าจะถูกบันทึกในอุปกรณ์นี้ และซิงค์ข้ามอุปกรณ์เมื่อล็อกอินใหม่
-      </p>
+      <p className="mt-1 text-xs text-ink-3">การตั้งค่าจะถูกบันทึกในอุปกรณ์นี้ และซิงค์ข้ามอุปกรณ์เมื่อล็อกอินใหม่</p>
     </div>
   );
 }

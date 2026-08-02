@@ -51,12 +51,10 @@ export default async function LiffAdminReportsPage() {
 
   return (
     <main className="px-4 pt-4 pb-12">
-      <p className="mb-3 text-xs text-gray-500">
-        {t('period', { from: period.from, to: period.to })}
-      </p>
+      <p className="mb-3 text-xs text-ink-3">{t('period', { from: period.from, to: period.to })}</p>
 
       <section>
-        <h2 className="mb-2 text-sm font-semibold text-gray-700">{t('attendance')}</h2>
+        <h2 className="mb-2 text-sm font-semibold text-ink-2">{t('attendance')}</h2>
         <div className="grid grid-cols-3 gap-2">
           <StatCard label={t('lateCount')} value={lateCount} />
           <StatCard label={t('absentDays')} value={absentDays} />
@@ -65,7 +63,7 @@ export default async function LiffAdminReportsPage() {
       </section>
 
       <section className="mt-6">
-        <h2 className="mb-2 text-sm font-semibold text-gray-700">{t('advances')}</h2>
+        <h2 className="mb-2 text-sm font-semibold text-ink-2">{t('advances')}</h2>
         <div className="grid grid-cols-2 gap-2">
           <StatCard label={t('approvedThisPeriod')} value={baht(approved)} />
           <StatCard label={t('outstanding')} value={baht(outstanding)} />

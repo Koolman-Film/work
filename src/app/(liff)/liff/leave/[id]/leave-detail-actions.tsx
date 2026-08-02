@@ -58,7 +58,7 @@ export function LeaveDetailActions({ leaveRequestId }: { leaveRequestId: string 
           type="button"
           onClick={() => setConfirming(false)}
           disabled={pending}
-          className="flex-1 rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm font-medium text-gray-700 hover:bg-surface-muted"
+          className="flex-1 rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm font-medium text-ink-2 hover:bg-surface-muted"
         >
           {t('actions.keepRequest')}
         </button>

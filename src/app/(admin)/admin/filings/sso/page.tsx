@@ -109,7 +109,7 @@ export default async function SsoFilingPage({ searchParams }: { searchParams: Se
                 <Download size={16} /> ดาวน์โหลด Excel (สปส.1-10)
               </Link>
             ) : (
-              <span className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-lg bg-line px-4 py-2 text-sm font-medium text-gray-500">
+              <span className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-lg bg-line px-4 py-2 text-sm font-medium text-ink-3">
                 <Download size={16} /> ดาวน์โหลด Excel (สปส.1-10)
               </span>
             )}

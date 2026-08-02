@@ -73,7 +73,7 @@ export function LiffSessionGate({ children }: { children: React.ReactNode }) {
   }, [router]);
 
   if (state === 'checking') {
-    return <div className="px-4 py-16 text-center text-sm text-gray-500">{t('signingIn')}</div>;
+    return <div className="px-4 py-16 text-center text-sm text-ink-3">{t('signingIn')}</div>;
   }
   if (state === 'error') {
     return <div className="px-4 py-16 text-center text-sm text-red-600">{t(errorKey)}</div>;

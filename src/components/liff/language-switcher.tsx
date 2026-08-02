@@ -26,9 +26,9 @@ export function LanguageSwitcher() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-surface-muted"
+        className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1.5 text-sm font-medium text-ink-2 shadow-sm hover:bg-surface-muted"
       >
-        <Languages className="h-4 w-4 text-gray-500" aria-hidden="true" />
+        <Languages className="h-4 w-4 text-ink-3" aria-hidden="true" />
         {LOCALE_LABELS[locale]}
       </button>
       {open && <LanguageModal preselect={locale} onClose={() => setOpen(false)} />}

@@ -92,7 +92,7 @@ export default async function TeamListPage({ searchParams }: { searchParams: Sea
               </span>
             )}
             {m.id === actor.id && (
-              <span className="ml-2 rounded bg-surface-sunken px-1.5 py-0.5 text-[10px] font-medium text-gray-600">
+              <span className="ml-2 rounded bg-surface-sunken px-1.5 py-0.5 text-[10px] font-medium text-ink-2">
                 คุณ
               </span>
             )}

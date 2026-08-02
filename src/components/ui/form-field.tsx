@@ -27,7 +27,7 @@ export function FormField({ label, htmlFor, children, hint, error, required, cla
   const hasError = Boolean(error);
   return (
     <div className={cn('space-y-1.5', className)}>
-      <label htmlFor={htmlFor} className="block text-sm font-medium text-gray-700">
+      <label htmlFor={htmlFor} className="block text-sm font-medium text-ink-2">
         {label}
         {required && <span className="ml-0.5 text-red-500">*</span>}
       </label>
@@ -37,7 +37,7 @@ export function FormField({ label, htmlFor, children, hint, error, required, cla
           {error}
         </p>
       ) : hint ? (
-        <p className="text-xs text-gray-500">{hint}</p>
+        <p className="text-xs text-ink-3">{hint}</p>
       ) : null}
     </div>
   );

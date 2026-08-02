@@ -62,7 +62,7 @@ export default async function LeaveReportPage({
           <EmptyState icon={<Calendar size={28} />} title="ไม่มีข้อมูลในช่วงนี้" />
         ) : (
           <table className="min-w-full divide-y divide-line text-sm">
-            <thead className="bg-surface-muted text-left text-xs text-gray-500">
+            <thead className="bg-surface-muted text-left text-xs text-ink-3">
               <tr>
                 <th className="w-6 px-2 py-2.5" />
                 <th className="px-4 py-2.5">พนักงาน</th>
@@ -90,7 +90,7 @@ export default async function LeaveReportPage({
                           return (
                             <td key={t.id} className="px-4 py-2.5 text-right align-top">
                               <div>{cell ? formatDaysHours(cell.usedMinutes, cfg) : '—'}</div>
-                              <div className="text-xs text-gray-500">
+                              <div className="text-xs text-ink-3">
                                 คงเหลือ{' '}
                                 {remaining === undefined || remaining === null
                                   ? 'ไม่จำกัด'
@@ -114,7 +114,7 @@ export default async function LeaveReportPage({
                     ),
                     detail:
                       items.length === 0 ? null : (
-                        <ul className="space-y-1 text-xs text-gray-600">
+                        <ul className="space-y-1 text-xs text-ink-2">
                           {items.map((it) => {
                             const range =
                               it.startDate.getTime() === it.endDate.getTime()
@@ -125,7 +125,7 @@ export default async function LeaveReportPage({
                                 <span>
                                   {it.leaveTypeName} · {range}
                                 </span>
-                                <span className="text-gray-800">
+                                <span className="text-ink-1">
                                   {formatDaysHours(it.chargedMinutes, cfg)}
                                   {it.overQuotaMinutes > 0 && (
                                     <span className="ml-1 text-amber-600">
@@ -145,7 +145,7 @@ export default async function LeaveReportPage({
           </table>
         )}
       </div>
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-ink-3">
         * &quot;ใช้ไป&quot; นับเฉพาะช่วงเวลาที่เลือก — &quot;คงเหลือ&quot; เป็นสิทธิคงเหลือของทั้งปี {year + 543}
       </p>
     </div>

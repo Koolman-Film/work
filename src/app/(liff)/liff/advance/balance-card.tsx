@@ -37,19 +37,19 @@ export async function BalanceCard({ balance, locale }: Props) {
           balance.overdrawn ? 'border-red-300' : 'border-line',
         ].join(' ')}
       >
-        <p className="text-xs font-medium uppercase tracking-wider text-gray-500">
+        <p className="text-xs font-medium uppercase tracking-wider text-ink-3">
           {t('balance.monthlyTitle')}
         </p>
 
         <p
           className={[
             'mt-2 text-3xl font-semibold tabular-nums',
-            balance.overdrawn ? 'text-red-700' : 'text-gray-900',
+            balance.overdrawn ? 'text-red-700' : 'text-ink-1',
           ].join(' ')}
         >
           {formatMoney(balance.available, locale)}
         </p>
-        <p className="mt-0.5 text-xs text-gray-500">
+        <p className="mt-0.5 text-xs text-ink-3">
           {t('balance.fromBaseSalary', { amount: formatMoney(balance.baseSalary, locale) })}
         </p>
 
@@ -76,13 +76,13 @@ export async function BalanceCard({ balance, locale }: Props) {
         {/* Breakdown */}
         <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
           <div>
-            <dt className="text-xs text-gray-500">{t('balance.pending')}</dt>
+            <dt className="text-xs text-ink-3">{t('balance.pending')}</dt>
             <dd className="mt-0.5 font-medium tabular-nums text-amber-700">
               {formatMoney(balance.pending, locale)}
             </dd>
           </div>
           <div>
-            <dt className="text-xs text-gray-500">{t('balance.approvedNotDeducted')}</dt>
+            <dt className="text-xs text-ink-3">{t('balance.approvedNotDeducted')}</dt>
             <dd className="mt-0.5 font-medium tabular-nums text-green-700">
               {formatMoney(balance.approvedNotDeducted, locale)}
             </dd>
@@ -95,7 +95,7 @@ export async function BalanceCard({ balance, locale }: Props) {
           </p>
         )}
 
-        <p className="mt-3 text-[11px] text-gray-400">{t('balance.autoDeductNote')}</p>
+        <p className="mt-3 text-[11px] text-ink-4">{t('balance.autoDeductNote')}</p>
       </section>
     );
   }
@@ -112,24 +112,24 @@ export async function BalanceCard({ balance, locale }: Props) {
         balance.overdrawn ? 'border-red-300' : 'border-line',
       ].join(' ')}
     >
-      <p className="text-xs font-medium uppercase tracking-wider text-gray-500">
+      <p className="text-xs font-medium uppercase tracking-wider text-ink-3">
         {t('balance.rateTitle')}
       </p>
-      <p className="mt-2 text-3xl font-semibold tabular-nums text-gray-900">
+      <p className="mt-2 text-3xl font-semibold tabular-nums text-ink-1">
         {formatMoney(balance.ratePerPeriod, locale)}
-        <span className="ml-1 text-sm font-normal text-gray-500">{rateLabel}</span>
+        <span className="ml-1 text-sm font-normal text-ink-3">{rateLabel}</span>
       </p>
-      <p className="mt-1 text-xs text-gray-500">{t('balance.rateNote')}</p>
+      <p className="mt-1 text-xs text-ink-3">{t('balance.rateNote')}</p>
 
       <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
         <div>
-          <dt className="text-xs text-gray-500">{t('balance.pending')}</dt>
+          <dt className="text-xs text-ink-3">{t('balance.pending')}</dt>
           <dd className="mt-0.5 font-medium tabular-nums text-amber-700">
             {formatMoney(balance.pending, locale)}
           </dd>
         </div>
         <div>
-          <dt className="text-xs text-gray-500">{t('balance.approvedNotDeducted')}</dt>
+          <dt className="text-xs text-ink-3">{t('balance.approvedNotDeducted')}</dt>
           <dd className="mt-0.5 font-medium tabular-nums text-green-700">
             {formatMoney(balance.approvedNotDeducted, locale)}
           </dd>
@@ -137,18 +137,18 @@ export async function BalanceCard({ balance, locale }: Props) {
         {balance.earnings != null && (
           <>
             <div>
-              <dt className="text-xs text-gray-500">{t('balance.earned')}</dt>
-              <dd className="mt-0.5 font-medium tabular-nums text-gray-900">
+              <dt className="text-xs text-ink-3">{t('balance.earned')}</dt>
+              <dd className="mt-0.5 font-medium tabular-nums text-ink-1">
                 {formatMoney(balance.earnings, locale)}
               </dd>
             </div>
             {balance.available != null && (
               <div>
-                <dt className="text-xs text-gray-500">{t('balance.available')}</dt>
+                <dt className="text-xs text-ink-3">{t('balance.available')}</dt>
                 <dd
                   className={[
                     'mt-0.5 font-medium tabular-nums',
-                    balance.overdrawn ? 'text-red-700' : 'text-gray-900',
+                    balance.overdrawn ? 'text-red-700' : 'text-ink-1',
                   ].join(' ')}
                 >
                   {formatMoney(balance.available, locale)}

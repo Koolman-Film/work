@@ -66,7 +66,7 @@ export default async function AdvanceReportPage({
           <EmptyState icon={<Banknote size={28} />} title="ไม่มีข้อมูลในช่วงนี้" />
         ) : (
           <table className="min-w-full divide-y divide-line text-sm">
-            <thead className="bg-surface-muted text-left text-xs text-gray-500">
+            <thead className="bg-surface-muted text-left text-xs text-ink-3">
               <tr>
                 <th className="w-6 px-2 py-2.5" />
                 <th className="px-4 py-2.5">พนักงาน</th>
@@ -94,14 +94,14 @@ export default async function AdvanceReportPage({
                     ),
                     detail:
                       items.length === 0 ? null : (
-                        <ul className="space-y-1 text-xs text-gray-600">
+                        <ul className="space-y-1 text-xs text-ink-2">
                           {items.map((it) => (
                             <li key={it.id} className="flex items-center justify-between gap-4">
                               <span>
                                 {it.approvedAt ? formatThaiDate(it.approvedAt) : '—'}
                                 {it.isDeducted ? ' • หักแล้ว' : ' • ค้างหัก'}
                               </span>
-                              <span className="font-medium text-gray-800">
+                              <span className="font-medium text-ink-1">
                                 {formatTHB2(it.amount)}
                               </span>
                             </li>

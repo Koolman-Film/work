@@ -42,8 +42,8 @@ function ChoiceButton({
           : 'border-line bg-surface hover:border-primary-200 hover:bg-primary-50/40',
       )}
     >
-      <span className="block text-sm font-semibold text-gray-900">{title}</span>
-      <span className="mt-0.5 block text-xs text-gray-500">{hint}</span>
+      <span className="block text-sm font-semibold text-ink-1">{title}</span>
+      <span className="mt-0.5 block text-xs text-ink-3">{hint}</span>
     </button>
   );
 }
@@ -95,7 +95,7 @@ export function LineConnectPanel({
   return (
     <div className="space-y-4">
       <div>
-        <p className="mb-2 text-sm font-medium text-gray-700">คุณเป็นพนักงานในระบบด้วยหรือไม่?</p>
+        <p className="mb-2 text-sm font-medium text-ink-2">คุณเป็นพนักงานในระบบด้วยหรือไม่?</p>
         <div className="flex flex-col gap-2 sm:flex-row">
           <ChoiceButton
             active={choice === 'admin'}

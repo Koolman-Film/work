@@ -45,11 +45,11 @@ export async function PairingCard({
           <div className="rounded-md bg-green-50 px-3 py-2 text-sm text-green-700">
             ✅ พนักงานเชื่อมบัญชี LINE แล้ว
           </div>
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-ink-3">
             LINE userId: <span className="font-mono">{lineUserId}</span>
           </p>
           <div className="border-t border-line-soft pt-3">
-            <p className="mb-2 text-xs text-gray-500">ใช้เมื่อพนักงานเปลี่ยน LINE หรือต้องการรีเซ็ตการเชื่อม</p>
+            <p className="mb-2 text-xs text-ink-3">ใช้เมื่อพนักงานเปลี่ยน LINE หรือต้องการรีเซ็ตการเชื่อม</p>
             <UnlinkLineButton
               action={unlinkLineFromEmployee.bind(null, employeeId)}
               employeeName={employeeName}
@@ -68,7 +68,7 @@ export async function PairingCard({
           <CardTitle>การเชื่อม LINE</CardTitle>
         </CardHeader>
         <CardBody className="space-y-3">
-          <p className="text-sm text-gray-600">ยังไม่ได้ส่งลิงก์ — สร้างลิงก์เพื่อให้พนักงานเชื่อมบัญชี LINE</p>
+          <p className="text-sm text-ink-2">ยังไม่ได้ส่งลิงก์ — สร้างลิงก์เพื่อให้พนักงานเชื่อมบัญชี LINE</p>
           <form action={generatePairingLink.bind(null, employeeId)}>
             <Button type="submit">📩 สร้างลิงก์ LINE</Button>
           </form>
@@ -115,14 +115,14 @@ export async function PairingCard({
             the long JWT URL overflows the card. With it, `truncate` works as
             intended (ellipsis on overflow). */}
         <div>
-          <p className="mb-1 text-xs font-medium uppercase tracking-wider text-gray-500">ลิงก์</p>
+          <p className="mb-1 text-xs font-medium uppercase tracking-wider text-ink-3">ลิงก์</p>
           <div className="flex items-center gap-2">
             <code className="min-w-0 flex-1 truncate rounded border border-line bg-surface-muted px-2 py-1.5 text-xs">
               {url}
             </code>
             <CopyButton text={url} />
           </div>
-          <p className="mt-1.5 text-xs text-gray-500">ส่งให้พนักงานทาง LINE / SMS / email</p>
+          <p className="mt-1.5 text-xs text-ink-3">ส่งให้พนักงานทาง LINE / SMS / email</p>
         </div>
 
         {/* QR code panel — vertical stack instead of responsive side-by-side
@@ -130,7 +130,7 @@ export async function PairingCard({
             breakpoint (640px) right at the wrong moment, hiding the QR column
             entirely. Stacking removes the ambiguity. */}
         <div>
-          <p className="mb-2 text-xs font-medium uppercase tracking-wider text-gray-500">
+          <p className="mb-2 text-xs font-medium uppercase tracking-wider text-ink-3">
             QR สำหรับสแกน
           </p>
           <div className="flex flex-col items-center gap-3 rounded-md border border-line bg-surface p-4">
@@ -150,7 +150,7 @@ export async function PairingCard({
               ⬇ ดาวน์โหลด QR
             </a>
           </div>
-          <p className="mt-1.5 text-xs text-gray-500">พิมพ์ QR แล้วให้พนักงานสแกนด้วยกล้อง LINE</p>
+          <p className="mt-1.5 text-xs text-ink-3">พิมพ์ QR แล้วให้พนักงานสแกนด้วยกล้อง LINE</p>
         </div>
 
         <div className="flex items-center justify-between border-t border-line-soft pt-3">

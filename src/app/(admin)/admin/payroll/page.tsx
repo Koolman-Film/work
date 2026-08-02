@@ -555,7 +555,7 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
             className={`inline-flex items-center justify-center rounded-lg border px-4 py-2 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30 ${
               statusCounts.Draft > 0
                 ? 'border-primary-500 bg-primary-50 text-primary-700 hover:bg-primary-100'
-                : 'border-line-strong bg-surface text-gray-700 hover:bg-surface-muted'
+                : 'border-line-strong bg-surface text-ink-2 hover:bg-surface-muted'
             }`}
           >
             ตรวจสอบ
@@ -570,7 +570,7 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
           <a
             href={`/admin/payroll/payslips-zip?m=${month}`}
             download
-            className="inline-flex items-center justify-center rounded-lg border border-line-strong bg-surface px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-surface-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30"
+            className="inline-flex items-center justify-center rounded-lg border border-line-strong bg-surface px-4 py-2 text-sm font-medium text-ink-2 transition hover:bg-surface-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30"
           >
             ดาวน์โหลดสลิปทั้งหมด (.zip)
           </a>

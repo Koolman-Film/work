@@ -243,7 +243,7 @@ export function CalendarGrid({
               className={cn(
                 'text-center text-[10px] font-medium',
                 // Sunday + Saturday colored to match cell day colors.
-                i === 0 ? 'text-red-500' : 'text-gray-500',
+                i === 0 ? 'text-red-500' : 'text-ink-3',
               )}
             >
               {w}
@@ -297,7 +297,7 @@ export function CalendarGrid({
                 className={cn(
                   'relative flex aspect-square flex-col rounded-md border p-1 text-left transition',
                   // Out-of-month cells: muted background + ghost text.
-                  !cell.inMonth && 'border-transparent bg-transparent text-gray-300',
+                  !cell.inMonth && 'border-transparent bg-transparent text-ink-5',
                   cell.inMonth && !isSelected && 'border-line bg-surface hover:border-primary-200',
                   isSelected && 'border-primary-500 bg-primary-50 ring-2 ring-primary-200',
                   holiday && cell.inMonth && !isSelected && 'border-red-100 bg-red-50/40',
@@ -307,7 +307,7 @@ export function CalendarGrid({
                   className={cn(
                     'text-[11px] font-medium leading-none',
                     cell.inMonth && isSunday && 'text-red-600',
-                    cell.inMonth && !isSunday && 'text-gray-900',
+                    cell.inMonth && !isSunday && 'text-ink-1',
                     isToday && cell.inMonth && 'rounded-full bg-primary-600 px-1 text-white',
                   )}
                 >
@@ -353,7 +353,7 @@ export function CalendarGrid({
                       ),
                     )}
                     {markers.length > 2 && (
-                      <span className="text-[9px] font-medium leading-none text-gray-500">
+                      <span className="text-[9px] font-medium leading-none text-ink-3">
                         +{markers.length - 2}
                       </span>
                     )}
@@ -392,7 +392,7 @@ export function CalendarGrid({
         )}
       >
         <header className="border-b border-line-soft px-4 py-3">
-          <p className="text-sm font-semibold text-gray-900">{formatFullDate(selected, locale)}</p>
+          <p className="text-sm font-semibold text-ink-1">{formatFullDate(selected, locale)}</p>
           {selectedHoliday && (
             <p className="mt-0.5 text-xs font-medium text-red-700">
               {t('detail.holiday', { name: selectedHoliday })}
@@ -404,9 +404,9 @@ export function CalendarGrid({
         selectedAdvances.length === 0 &&
         selectedBirthdays.length === 0 ? (
           <div className="px-4 py-8 text-center">
-            <p className="text-sm text-gray-500">{t('detail.empty')}</p>
+            <p className="text-sm text-ink-3">{t('detail.empty')}</p>
             {selectedHoliday && (
-              <p className="mt-1 text-xs text-gray-400">{t('detail.emptyHolidayNote')}</p>
+              <p className="mt-1 text-xs text-ink-4">{t('detail.emptyHolidayNote')}</p>
             )}
           </div>
         ) : (
@@ -418,7 +418,7 @@ export function CalendarGrid({
                     🎂
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-gray-900">{b.employeeName}</p>
+                    <p className="truncate text-sm font-medium text-ink-1">{b.employeeName}</p>
                     <p className="mt-0.5 text-xs font-medium text-rose-700">
                       {t('detail.birthdayLabel')}
                     </p>
@@ -433,16 +433,14 @@ export function CalendarGrid({
                   <span
                     className={cn(
                       'grid size-8 shrink-0 place-items-center rounded-full text-xs font-bold',
-                      e.isMine
-                        ? 'bg-primary-100 text-primary-700'
-                        : 'bg-surface-sunken text-gray-600',
+                      e.isMine ? 'bg-primary-100 text-primary-700' : 'bg-surface-sunken text-ink-2',
                     )}
                   >
                     {(e.shortLabel[0] ?? '?').toUpperCase()}
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <p className="truncate text-sm font-medium text-gray-900">
+                      <p className="truncate text-sm font-medium text-ink-1">
                         {e.employeeName}
                         {e.isMine && (
                           <span className="ml-1 text-xs font-normal text-primary-600">
@@ -451,10 +449,10 @@ export function CalendarGrid({
                         )}
                       </p>
                     </div>
-                    <p className="mt-0.5 text-xs text-gray-600">
+                    <p className="mt-0.5 text-xs text-ink-2">
                       {e.leaveTypeName}
                       {e.unit !== 'FullDay' && (
-                        <span className="text-gray-500">
+                        <span className="text-ink-3">
                           {' · '}
                           {e.unit === 'Hourly' && e.startTime && e.endTime
                             ? `${e.startTime}–${e.endTime}`
@@ -462,7 +460,7 @@ export function CalendarGrid({
                         </span>
                       )}
                       {e.startDate !== e.endDate && (
-                        <span className="text-gray-400">
+                        <span className="text-ink-4">
                           {' '}
                           · {formatRangeCompact(e.startDate, e.endDate, locale)}
                         </span>
@@ -497,8 +495,8 @@ export function CalendarGrid({
                     ฿
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-gray-900">{a.employeeName}</p>
-                    <p className="mt-0.5 text-xs text-gray-600">
+                    <p className="truncate text-sm font-medium text-ink-1">{a.employeeName}</p>
+                    <p className="mt-0.5 text-xs text-ink-2">
                       {t('detail.advanceLabel', { amount: a.amountLabel })}
                     </p>
                   </div>

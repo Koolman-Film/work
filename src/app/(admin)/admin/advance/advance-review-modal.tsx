@@ -171,9 +171,7 @@ export function AdvanceReviewModal({
           {row.advanceGuard && row.advanceGuard.available != null && (
             <p
               className={
-                row.advanceGuard.overCap
-                  ? 'text-sm font-medium text-red-700'
-                  : 'text-sm text-gray-600'
+                row.advanceGuard.overCap ? 'text-sm font-medium text-red-700' : 'text-sm text-ink-2'
               }
             >
               วงเงินคงเหลือ ฿

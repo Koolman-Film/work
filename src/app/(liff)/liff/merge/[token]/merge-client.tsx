@@ -80,29 +80,29 @@ export default function MergeClient({ mergeToken }: { mergeToken: string }) {
   return (
     <div className="grid min-h-dvh place-items-center px-4 py-12">
       <div className="w-full max-w-sm rounded-xl border border-line bg-surface p-8 shadow-sm">
-        <p className="text-center text-sm text-gray-500">Koolman Work</p>
+        <p className="text-center text-sm text-ink-3">Koolman Work</p>
         <div className="mt-6">
           {(state.phase === 'working' || state.phase === 'merging') && (
             <div className="flex flex-col items-center gap-4 text-center">
               <Spinner />
-              <p className="text-sm text-gray-600">{t('working')}</p>
+              <p className="text-sm text-ink-2">{t('working')}</p>
             </div>
           )}
 
           {state.phase === 'confirm' && (
             <div className="flex flex-col gap-4">
-              <p className="text-center text-base font-medium text-gray-900">{t('confirmTitle')}</p>
+              <p className="text-center text-base font-medium text-ink-1">{t('confirmTitle')}</p>
               {/* Both identities, explicit, so a wrong scan is obvious. */}
               <div className="rounded-lg border border-line bg-surface-muted px-4 py-3 text-sm">
                 <Row label={t('confirmAdmin')} value={state.adminEmail} />
                 <Row label={t('confirmEmployee')} value={state.employeeName} />
               </div>
-              <p className="text-xs text-gray-500">{t('confirmBody')}</p>
+              <p className="text-xs text-ink-3">{t('confirmBody')}</p>
               <div className="mt-1 flex gap-2">
                 <button
                   type="button"
                   onClick={() => setState({ phase: 'cancelled' })}
-                  className="flex-1 rounded-md border border-line-strong bg-surface px-4 py-2 text-sm font-medium text-gray-700 hover:bg-surface-muted"
+                  className="flex-1 rounded-md border border-line-strong bg-surface px-4 py-2 text-sm font-medium text-ink-2 hover:bg-surface-muted"
                 >
                   {t('cancel')}
                 </button>
@@ -119,8 +119,8 @@ export default function MergeClient({ mergeToken }: { mergeToken: string }) {
 
           {state.phase === 'cancelled' && (
             <div className="flex flex-col items-center gap-3 text-center">
-              <p className="text-base font-medium text-gray-900">{t('cancelledTitle')}</p>
-              <p className="text-sm text-gray-600">{t('cancelledBody')}</p>
+              <p className="text-base font-medium text-ink-1">{t('cancelledTitle')}</p>
+              <p className="text-sm text-ink-2">{t('cancelledBody')}</p>
             </div>
           )}
 
@@ -140,8 +140,8 @@ export default function MergeClient({ mergeToken }: { mergeToken: string }) {
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
               </div>
-              <p className="text-base font-medium text-gray-900">{t('successTitle')}</p>
-              <p className="text-sm text-gray-600">{t('successBody')}</p>
+              <p className="text-base font-medium text-ink-1">{t('successTitle')}</p>
+              <p className="text-sm text-ink-2">{t('successBody')}</p>
               <Link
                 href="/liff/home"
                 className="mt-2 rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-700"
@@ -169,8 +169,8 @@ export default function MergeClient({ mergeToken }: { mergeToken: string }) {
                   <line x1="12" y1="16" x2="12.01" y2="16" />
                 </svg>
               </div>
-              <p className="text-base font-medium text-gray-900">{t('errorTitle')}</p>
-              <p className="text-sm text-gray-600">{state.message}</p>
+              <p className="text-base font-medium text-ink-1">{t('errorTitle')}</p>
+              <p className="text-sm text-ink-2">{state.message}</p>
               {state.canRetry && (
                 <button
                   type="button"
@@ -191,8 +191,8 @@ export default function MergeClient({ mergeToken }: { mergeToken: string }) {
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-3 border-b border-line-soft py-1.5 last:border-b-0">
-      <span className="text-gray-500">{label}</span>
-      <span className="min-w-0 truncate font-medium text-gray-900">{value}</span>
+      <span className="text-ink-3">{label}</span>
+      <span className="min-w-0 truncate font-medium text-ink-1">{value}</span>
     </div>
   );
 }

@@ -64,7 +64,7 @@ export default async function AttendanceReportPage({
           <EmptyState icon={<BarChart3 size={28} />} title="ไม่มีข้อมูลในช่วงนี้" />
         ) : (
           <table className="min-w-full divide-y divide-line text-sm">
-            <thead className="bg-surface-muted text-left text-xs text-gray-500">
+            <thead className="bg-surface-muted text-left text-xs text-ink-3">
               <tr>
                 <th className="px-4 py-2.5">พนักงาน</th>
                 <th className="px-4 py-2.5 text-right">มาสาย (ครั้ง)</th>
