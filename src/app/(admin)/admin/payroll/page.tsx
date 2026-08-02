@@ -477,32 +477,50 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
 
       {/* Summary strip — company totals for the month. 5-up only at xl: at lg
           the sidebar claims ~290px, so five text-3xl baht figures would overflow
-          — stay 3-up until there's real width. */}
-      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
-        <StatCard label="ฐานเงินเดือนรวม" value={formatTHB(totals.incomeBase)} />
-        <StatCard
-          label="เงินเพิ่มรวม"
-          value={<span className="text-success-deep">{formatTHB(totals.incomeOther)}</span>}
-        />
-        <StatCard label="ประกันสังคมรวม" value={formatTHB(totals.deductSso)} />
-        <StatCard
-          label="รายการหักรวม"
-          value={<span className="text-danger-deep">{formatTHB(totals.deductions)}</span>}
-        />
-        <StatCard
-          label="เงินสุทธิรวม"
-          value={<span className="text-primary-700">{formatTHB(totals.netPay)}</span>}
-          hint={`พนักงาน ${visibleRows.length} คน${hasFilter ? ' (กรองแล้ว)' : ''}`}
-        />
-      </div>
+          — stay 3-up until there's real width.
+
+          Hidden until the month has been calculated. Before that every figure is
+          ฿0, and five large colour-coded zeros are the biggest thing on the page
+          while carrying no information — they read as "the payroll is empty"
+          rather than "not run yet", and push the one action that matters below
+          the fold on a phone. The empty state below says it in words instead.
+
+          `เงินสุทธิรวม` spans the row at the narrow breakpoints: five cards in a
+          2- or 3-column grid otherwise orphan a ragged tail, and net pay is the
+          figure worth the extra width. */}
+      {rows.length > 0 && (
+        <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+          <StatCard label="ฐานเงินเดือนรวม" value={formatTHB(totals.incomeBase)} />
+          <StatCard
+            label="เงินเพิ่มรวม"
+            value={<span className="text-success-deep">{formatTHB(totals.incomeOther)}</span>}
+          />
+          <StatCard label="ประกันสังคมรวม" value={formatTHB(totals.deductSso)} />
+          <StatCard
+            label="รายการหักรวม"
+            value={<span className="text-danger-deep">{formatTHB(totals.deductions)}</span>}
+          />
+          <div className="col-span-2 xl:col-span-1">
+            <StatCard
+              label="เงินสุทธิรวม"
+              value={<span className="text-primary-700">{formatTHB(totals.netPay)}</span>}
+              hint={`พนักงาน ${visibleRows.length} คน${hasFilter ? ' (กรองแล้ว)' : ''}`}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Run actions */}
       <div className="mb-6 flex flex-wrap items-center gap-3">
-        {mayRun && (
+        {/* Recalculate only. The first run is offered by the empty state below,
+            which explains what has not happened yet; showing both put two
+            identical `คำนวณเงินเดือน` buttons on screen with nothing to say
+            which was canonical. */}
+        {mayRun && rows.length > 0 && (
           <RunActionForm
             action={calculatePayrollAction}
             month={month}
-            label={rows.length > 0 ? 'คำนวณใหม่ (ฉบับร่าง)' : 'คำนวณเงินเดือน'}
+            label="คำนวณใหม่ (ฉบับร่าง)"
             pendingLabel="กำลังคำนวณเงินเดือน…"
             variant="secondary"
             attention={staleVisibleCount > 0}
