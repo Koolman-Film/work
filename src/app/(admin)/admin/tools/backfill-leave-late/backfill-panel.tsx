@@ -125,9 +125,9 @@ export function BackfillPanel() {
           {changes.length === 0 ? (
             <p className="text-sm text-ink-4">ไม่พบรายการที่ต้องแก้ — ข้อมูลถูกต้องแล้ว</p>
           ) : (
-            <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
-              <table className="min-w-full divide-y divide-gray-200 text-sm">
-                <thead className="bg-gray-50 text-left text-xs text-ink-4">
+            <div className="overflow-x-auto rounded-xl border border-line bg-surface">
+              <table className="min-w-full divide-y divide-line text-sm">
+                <thead className="bg-surface-muted text-left text-xs text-ink-4">
                   <tr>
                     <th className="px-3 py-2">พนักงาน (id)</th>
                     <th className="px-3 py-2">วันที่</th>
@@ -135,7 +135,7 @@ export function BackfillPanel() {
                     <th className="px-3 py-2">การกระทำ</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-line-soft">
                   {changes.map((c) => (
                     <tr key={c.attendanceId}>
                       <td className="px-3 py-2 font-mono text-xs">{c.employeeId}</td>

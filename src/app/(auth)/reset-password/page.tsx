@@ -41,7 +41,7 @@ export default async function ResetPasswordPage({ searchParams }: { searchParams
           required
           autoComplete="email"
           inputMode="email"
-          className="mt-1.5 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
+          className="mt-1.5 block w-full rounded-md border border-line-strong px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
         />
       </div>
 
@@ -58,7 +58,7 @@ export default async function ResetPasswordPage({ searchParams }: { searchParams
         ส่งลิงก์รีเซ็ต
       </button>
 
-      <div className="border-t border-gray-100 pt-4 text-center text-sm">
+      <div className="border-t border-line-soft pt-4 text-center text-sm">
         <Link href="/login" className="text-primary-600 hover:text-primary-700">
           ← กลับไปหน้าล็อกอิน
         </Link>

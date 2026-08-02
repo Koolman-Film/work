@@ -68,11 +68,11 @@ export function AttendanceDetailModal({
                     <img
                       src={row.selfieUrl}
                       alt="เซลฟี่ตอนเช็คอิน"
-                      className="h-56 w-full rounded-lg border border-gray-200 object-cover"
+                      className="h-56 w-full rounded-lg border border-line object-cover"
                     />
                   </a>
                 ) : (
-                  <div className="grid h-56 place-items-center rounded-lg border border-dashed border-gray-300 bg-gray-50 text-xs text-ink-4">
+                  <div className="grid h-56 place-items-center rounded-lg border border-dashed border-line-strong bg-surface-muted text-xs text-ink-4">
                     ไม่มีเซลฟี่
                   </div>
                 )}
@@ -86,7 +86,7 @@ export function AttendanceDetailModal({
                     employee={{ lat: row.empLat, lng: row.empLng }}
                   />
                 ) : (
-                  <div className="grid h-56 place-items-center rounded-lg border border-dashed border-gray-300 bg-gray-50 text-xs text-ink-4">
+                  <div className="grid h-56 place-items-center rounded-lg border border-dashed border-line-strong bg-surface-muted text-xs text-ink-4">
                     ไม่มีข้อมูลตำแหน่ง
                   </div>
                 )}
@@ -95,7 +95,7 @@ export function AttendanceDetailModal({
           )}
 
           {/* Facts grid */}
-          <dl className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-lg bg-gray-50 p-4 text-sm">
+          <dl className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-lg bg-surface-muted p-4 text-sm">
             <Fact label="เวลาเข้า" value={row.clockInLabel} />
             <Fact label="เวลาออก" value={row.clockOutLabel} />
             <Fact label="ระยะเวลา" value={row.durationLabel} />

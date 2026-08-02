@@ -49,6 +49,33 @@
   --color-ink-5:  #cbd5e1;
   --color-canvas: #f6f8fb;
 
+  /* ── Neutral scaffolding: surfaces + lines ──────────────────────────────
+   * Every card, table header, input border and divider used a raw Tailwind
+   * gray. Those are exactly the decisions a theme has to redefine, so each
+   * now has ONE name to redefine it by.
+   *
+   * Values are copied verbatim from Tailwind's own palette (tailwindcss/
+   * theme.css), so naming them changed no pixel — this was a rename, not a
+   * restyle. Written as literals rather than `var(--color-gray-N)` on
+   * purpose: once the last `bg-gray-*` usage was replaced those defaults may
+   * no longer be emitted, and the token would resolve to nothing.
+   *
+   * `surface` vs `line` is the distinction a dark theme turns on: surfaces
+   * get LIGHTER as they come forward (elevation stops being a shadow and
+   * starts being a lightness step), lines do not.
+   *
+   * Deliberately NOT covered: `bg-white/10`, `border-white/20` and friends.
+   * Those are translucent overlays sitting on the deep-blue hero, not card
+   * surfaces — under a dark theme `surface` goes dark and a white scrim would
+   * invert into a smudge. They stay literal white.
+   */
+  --color-surface:        #fff;                       /* was bg-white     */
+  --color-surface-muted:  oklch(98.5% 0.002 247.839); /* was *-gray-50    */
+  --color-surface-sunken: oklch(96.7% 0.003 264.542); /* was *-gray-100   */
+  --color-line-soft:      oklch(96.7% 0.003 264.542); /* was *-gray-100   */
+  --color-line:           oklch(92.8% 0.006 264.531); /* was *-gray-200   */
+  --color-line-strong:    oklch(87.2% 0.01 258.338);  /* was *-gray-300   */
+
   /* Radii */
   --radius-sm: 5px;
   --radius:    8px;
@@ -118,7 +145,7 @@ body {
    Defined via @apply so it matches the `Card` component exactly; this is the
    single source of truth for card surfaces (StatCard, list cards, etc.). */
 .surface {
-  @apply rounded-xl border border-gray-200 bg-white shadow-sm;
+  @apply rounded-xl border border-line bg-surface shadow-sm;
 }
 .shadow-cta  { box-shadow: var(--shadow-cta); }
 .shadow-hero { box-shadow: var(--shadow-hero); }

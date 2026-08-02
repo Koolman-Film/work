@@ -220,7 +220,7 @@ export function LeaveNewForm({
 
       <form
         onSubmit={onSubmit}
-        className="mt-6 space-y-5 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm"
+        className="mt-6 space-y-5 rounded-2xl border border-line bg-surface p-6 shadow-sm"
       >
         {error && (
           <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -238,7 +238,7 @@ export function LeaveNewForm({
             value={leaveTypeId}
             onChange={(e) => setLeaveTypeId(e.target.value)}
             required
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+            className="w-full rounded-md border border-line-strong px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
           >
             {leaveTypes.map((tp) => (
               <option key={tp.id} value={tp.id}>
@@ -268,7 +268,7 @@ export function LeaveNewForm({
                   className={
                     unit === u.value
                       ? 'rounded-md border border-primary-600 bg-primary-50 px-3 py-1.5 text-sm font-medium text-primary-700'
-                      : 'rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700'
+                      : 'rounded-md border border-line-strong px-3 py-1.5 text-sm text-gray-700'
                   }
                 >
                   {u.label}
@@ -405,7 +405,7 @@ export function LeaveNewForm({
             maxLength={500}
             required
             placeholder={t('new.reasonPlaceholder')}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+            className="w-full rounded-md border border-line-strong px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
           />
           <p className="mt-1 text-right text-[10px] text-gray-400">{reason.length}/500</p>
         </div>
@@ -420,7 +420,7 @@ export function LeaveNewForm({
           {!attachmentPreviewUrl ? (
             <label
               htmlFor="attachment"
-              className="flex w-full cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-white px-4 py-6 text-center text-sm text-gray-500 hover:border-primary-300 hover:bg-primary-50/30"
+              className="flex w-full cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-line-strong bg-surface px-4 py-6 text-center text-sm text-gray-500 hover:border-primary-300 hover:bg-primary-50/30"
             >
               <svg
                 viewBox="0 0 24 24"
@@ -440,7 +440,7 @@ export function LeaveNewForm({
               <span className="text-xs">{t('new.attachmentFormats')}</span>
             </label>
           ) : (
-            <div className="flex items-start gap-3 rounded-lg border border-gray-200 bg-white p-3">
+            <div className="flex items-start gap-3 rounded-lg border border-line bg-surface p-3">
               {/* biome-ignore lint/performance/noImgElement: object-URL preview can't use next/image */}
               <img
                 src={attachmentPreviewUrl}

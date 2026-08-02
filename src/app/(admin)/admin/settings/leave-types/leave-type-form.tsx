@@ -98,7 +98,7 @@ export function LeaveTypeForm({ mode, action, initial, error, extraActions }: Pr
                   id="isPaid"
                   name="isPaid"
                   defaultChecked={initial?.isPaid ?? true}
-                  className="mt-1 h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                  className="mt-1 h-4 w-4 rounded border-line-strong text-primary-600 focus:ring-primary-500"
                 />
                 <span className="text-sm">
                   <span className="font-medium text-gray-900">ลาแบบจ่ายเงิน</span>
@@ -136,7 +136,7 @@ export function LeaveTypeForm({ mode, action, initial, error, extraActions }: Pr
                 id="overQuotaPolicy"
                 name="overQuotaPolicy"
                 defaultValue={initial?.overQuotaPolicy ?? 'DeductPay'}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm"
+                className="w-full rounded-md border border-line-strong px-3 py-2 text-sm shadow-sm"
               >
                 <option value="DeductPay">อนุมัติได้ แต่หักเงินเดือนส่วนที่เกิน</option>
                 <option value="Block">ไม่อนุญาต (อนุมัติเกินสิทธิไม่ได้)</option>
@@ -164,7 +164,7 @@ export function LeaveTypeForm({ mode, action, initial, error, extraActions }: Pr
                       id={u.name}
                       name={u.name}
                       defaultChecked={u.def}
-                      className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                      className="h-4 w-4 rounded border-line-strong text-primary-600 focus:ring-primary-500"
                     />
                     <span className="text-gray-900">{u.label}</span>
                   </label>

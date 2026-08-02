@@ -4,21 +4,21 @@ import { cn } from '@/lib/utils';
 export function Table({ className, ...rest }: HTMLAttributes<HTMLTableElement>) {
   return (
     <div className="overflow-x-auto">
-      <table className={cn('min-w-full divide-y divide-gray-200', className)} {...rest} />
+      <table className={cn('min-w-full divide-y divide-line', className)} {...rest} />
     </div>
   );
 }
 
 export function THead({ className, ...rest }: HTMLAttributes<HTMLTableSectionElement>) {
-  return <thead className={cn('bg-gray-50', className)} {...rest} />;
+  return <thead className={cn('bg-surface-muted', className)} {...rest} />;
 }
 
 export function TBody({ className, ...rest }: HTMLAttributes<HTMLTableSectionElement>) {
-  return <tbody className={cn('divide-y divide-gray-100 bg-white', className)} {...rest} />;
+  return <tbody className={cn('divide-y divide-line-soft bg-surface', className)} {...rest} />;
 }
 
 export function TR({ className, ...rest }: HTMLAttributes<HTMLTableRowElement>) {
-  return <tr className={cn('hover:bg-gray-50', className)} {...rest} />;
+  return <tr className={cn('hover:bg-surface-muted', className)} {...rest} />;
 }
 
 export function TH({ className, scope = 'col', ...rest }: ThHTMLAttributes<HTMLTableCellElement>) {

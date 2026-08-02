@@ -134,7 +134,7 @@ export function Dialog({ open, onClose, title, children, dismissable = true, cla
           // still INHERITS from the DOM parent — a dialog triggered from a
           // right-aligned context (e.g. a table's actions cell) would otherwise
           // render fully right-aligned.
-          'relative w-full rounded-t-2xl bg-white p-5 text-left shadow-hero sm:max-w-md sm:rounded-2xl',
+          'relative w-full rounded-t-2xl bg-surface p-5 text-left shadow-hero sm:max-w-md sm:rounded-2xl',
           'opacity-0 scale-[0.98] transition-[opacity,transform] duration-[var(--duration-base)] ease-[var(--ease-out-soft)]',
           'data-[open=true]:scale-100 data-[open=true]:opacity-100',
           className,
@@ -158,7 +158,7 @@ export function Dialog({ open, onClose, title, children, dismissable = true, cla
               if (open) onClose();
             }}
             aria-label="ปิด"
-            className="absolute right-3 top-3 inline-flex size-8 items-center justify-center rounded-lg text-ink-4 transition hover:bg-gray-100 hover:text-ink-2"
+            className="absolute right-3 top-3 inline-flex size-8 items-center justify-center rounded-lg text-ink-4 transition hover:bg-surface-sunken hover:text-ink-2"
           >
             <svg
               width="16"

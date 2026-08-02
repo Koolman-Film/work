@@ -74,7 +74,7 @@ export default async function LiffAdminReportsPage() {
 
       <Link
         href="/admin/reports/attendance"
-        className="mt-6 block rounded-xl border border-gray-200 bg-white p-4 text-center text-sm font-medium text-primary-700 shadow-sm"
+        className="mt-6 block rounded-xl border border-line bg-surface p-4 text-center text-sm font-medium text-primary-700 shadow-sm"
       >
         {t('viewDetailed')}
       </Link>

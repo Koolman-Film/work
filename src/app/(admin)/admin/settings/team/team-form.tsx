@@ -111,7 +111,7 @@ export function TeamCreateForm({ action, error, email, roles, branches }: Props)
                     required
                     value={row.roleId}
                     onChange={(e) => setRow(row.uid, { roleId: e.target.value })}
-                    className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500/30"
+                    className="w-full rounded-md border border-line-strong bg-surface px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500/30"
                   >
                     <option value="" disabled>
                       เลือกบทบาท...
@@ -130,7 +130,7 @@ export function TeamCreateForm({ action, error, email, roles, branches }: Props)
                     required
                     value={row.branchId}
                     onChange={(e) => setRow(row.uid, { branchId: e.target.value })}
-                    className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500/30"
+                    className="w-full rounded-md border border-line-strong bg-surface px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500/30"
                   >
                     <option value="global">ทุกสาขา (Global)</option>
                     {branches.map((b) => (

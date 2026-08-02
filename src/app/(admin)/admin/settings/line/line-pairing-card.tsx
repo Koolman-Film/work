@@ -100,7 +100,7 @@ export function LinePairingCard({ paired }: { paired: boolean }) {
                     alt="QR code สำหรับเชื่อมต่อ LINE"
                     width={224}
                     height={224}
-                    className="rounded-lg border border-gray-200 bg-white p-2"
+                    className="rounded-lg border border-line bg-surface p-2"
                   />
                 </div>
                 <p className="text-center text-xs text-ink-4">
@@ -111,7 +111,7 @@ export function LinePairingCard({ paired }: { paired: boolean }) {
                     readOnly
                     value={link.url}
                     onFocus={(e) => e.currentTarget.select()}
-                    className="w-full min-w-0 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 font-mono text-xs text-ink-2"
+                    className="w-full min-w-0 rounded-lg border border-line bg-surface-muted px-3 py-2 font-mono text-xs text-ink-2"
                     aria-label="ลิงก์เชื่อมต่อ LINE"
                   />
                   <Button type="button" variant="secondary" onClick={copyLink}>

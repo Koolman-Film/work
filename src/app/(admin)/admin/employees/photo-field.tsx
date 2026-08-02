@@ -76,7 +76,7 @@ export function PhotoField({ employeeId, initialKey, initialUrl }: Props) {
     <div className="space-y-3">
       <input type="hidden" name="photoKey" value={key} />
       <div className="flex items-center gap-4">
-        <div className="grid size-20 shrink-0 place-items-center overflow-hidden rounded-full bg-gray-100 text-ink-3">
+        <div className="grid size-20 shrink-0 place-items-center overflow-hidden rounded-full bg-surface-sunken text-ink-3">
           {preview ? (
             // biome-ignore lint/performance/noImgElement: client preview is an object-URL / signed URL that next/image can't optimize
             <img src={preview} alt="รูปพนักงาน" className="size-full object-cover" />
@@ -85,7 +85,7 @@ export function PhotoField({ employeeId, initialKey, initialUrl }: Props) {
           )}
         </div>
         <div className="space-y-2">
-          <label className="inline-flex cursor-pointer items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm shadow-sm hover:bg-gray-50">
+          <label className="inline-flex cursor-pointer items-center rounded-md border border-line-strong bg-surface px-3 py-1.5 text-sm shadow-sm hover:bg-surface-muted">
             <input
               id="employee-photo-file"
               type="file"

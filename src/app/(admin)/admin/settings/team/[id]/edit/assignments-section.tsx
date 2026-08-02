@@ -81,11 +81,11 @@ export async function AssignmentsSection({ userId, actorRole, actorId }: Props) 
 
         {/* ─── Existing assignments list ──────────────────────────────── */}
         {assignments.length === 0 ? (
-          <p className="rounded-md border border-dashed border-gray-200 px-4 py-6 text-center text-sm text-gray-400">
+          <p className="rounded-md border border-dashed border-line px-4 py-6 text-center text-sm text-gray-400">
             ยังไม่มีการมอบหมายบทบาท
           </p>
         ) : (
-          <ul className="divide-y divide-gray-100 rounded-md border border-gray-200">
+          <ul className="divide-y divide-line-soft rounded-md border border-line">
             {assignments.map((a) => {
               // Permission for the remove button: Admin can't remove
               // Superadmin assignments; nobody can remove their own
@@ -139,7 +139,7 @@ export async function AssignmentsSection({ userId, actorRole, actorId }: Props) 
         )}
 
         {/* ─── Add-assignment form ────────────────────────────────────── */}
-        <form action={addBound} className="space-y-3 rounded-md border border-gray-200 p-4">
+        <form action={addBound} className="space-y-3 rounded-md border border-line p-4">
           <p className="text-xs font-medium uppercase tracking-wider text-gray-500">
             มอบหมายบทบาทใหม่
           </p>
@@ -151,7 +151,7 @@ export async function AssignmentsSection({ userId, actorRole, actorId }: Props) 
                 name="roleId"
                 required
                 defaultValue=""
-                className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500/30"
+                className="w-full rounded-md border border-line-strong bg-surface px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500/30"
               >
                 <option value="" disabled>
                   เลือกบทบาท...
@@ -172,7 +172,7 @@ export async function AssignmentsSection({ userId, actorRole, actorId }: Props) 
                 name="branchId"
                 required
                 defaultValue="global"
-                className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500/30"
+                className="w-full rounded-md border border-line-strong bg-surface px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500/30"
               >
                 <option value="global">ทุกสาขา (Global)</option>
                 {allBranches.map((b) => (

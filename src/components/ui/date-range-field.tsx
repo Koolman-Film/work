@@ -162,8 +162,8 @@ export function DateRangeField({
         aria-label={ariaLabel}
         disabled={disabled}
         className={cn(
-          'flex w-full items-center justify-between gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-left text-sm text-gray-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500',
-          disabled && 'cursor-not-allowed bg-gray-50 text-gray-400',
+          'flex w-full items-center justify-between gap-2 rounded-lg border border-line-strong bg-surface px-3 py-2 text-left text-sm text-gray-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500',
+          disabled && 'cursor-not-allowed bg-surface-muted text-gray-400',
           !(from && to) && 'text-gray-400',
         )}
       >

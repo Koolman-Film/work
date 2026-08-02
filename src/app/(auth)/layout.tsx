@@ -20,9 +20,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <h1 className="mt-4 text-xl font-semibold text-gray-900">Koolman Work</h1>
           <p className="mt-0.5 text-sm text-gray-500">ระบบ HR ภายใน</p>
         </div>
-        <div className="rounded-xl border border-gray-200 bg-white p-8 shadow-brand">
-          {children}
-        </div>
+        <div className="rounded-xl border border-line bg-surface p-8 shadow-brand">{children}</div>
         <p className="mt-6 text-center text-xs text-gray-400">Powered by Koolman Work</p>
       </div>
     </div>

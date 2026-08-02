@@ -237,7 +237,7 @@ export function GeofencePicker({
         ref={containerRef}
         role="application"
         aria-label="แผนที่สำหรับเลือกตำแหน่งสาขา"
-        className="h-72 w-full rounded-md border border-gray-200"
+        className="h-72 w-full rounded-md border border-line"
       />
 
       {/* Editable lat/long fields — two-way synced with the pin. These carry

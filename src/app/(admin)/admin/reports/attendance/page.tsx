@@ -59,12 +59,12 @@ export default async function AttendanceReportPage({
           />
         </div>
       </div>
-      <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
+      <div className="overflow-x-auto rounded-xl border border-line bg-surface">
         {rows.length === 0 ? (
           <EmptyState icon={<BarChart3 size={28} />} title="ไม่มีข้อมูลในช่วงนี้" />
         ) : (
-          <table className="min-w-full divide-y divide-gray-200 text-sm">
-            <thead className="bg-gray-50 text-left text-xs text-gray-500">
+          <table className="min-w-full divide-y divide-line text-sm">
+            <thead className="bg-surface-muted text-left text-xs text-gray-500">
               <tr>
                 <th className="px-4 py-2.5">พนักงาน</th>
                 <th className="px-4 py-2.5 text-right">มาสาย (ครั้ง)</th>
@@ -75,9 +75,9 @@ export default async function AttendanceReportPage({
                 <th className="px-4 py-2.5 text-right">OT (นาที)</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-line-soft">
               {rows.map((r) => (
-                <tr key={r.employeeId} className="hover:bg-gray-50">
+                <tr key={r.employeeId} className="hover:bg-surface-muted">
                   <td className="px-4 py-2.5">{r.name}</td>
                   <td className="px-4 py-2.5 text-right">{r.lateCount}</td>
                   <td className="px-4 py-2.5 text-right">
@@ -92,7 +92,7 @@ export default async function AttendanceReportPage({
                 </tr>
               ))}
             </tbody>
-            <tfoot className="bg-gray-50 text-xs font-medium">
+            <tfoot className="bg-surface-muted text-xs font-medium">
               <tr>
                 <td className="px-4 py-2.5">รวม {rows.length} คน</td>
                 <td />

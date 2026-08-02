@@ -152,7 +152,7 @@ export function ReviewModal({
             disabled={pending}
             onChange={(e) => setNoteValue(e.target.value)}
             placeholder={note.placeholder}
-            className="mt-1 w-full rounded-lg border border-gray-300 p-2 text-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100"
+            className="mt-1 w-full rounded-lg border border-line-strong p-2 text-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100"
           />
         </div>
       )}
@@ -176,7 +176,7 @@ export function ReviewModal({
             disabled={pending}
             onChange={(e) => setReason(e.target.value)}
             placeholder="เช่น บันทึกผิดวัน / อนุมัติผิดคน"
-            className="mt-1 w-full rounded-lg border border-gray-300 p-2 text-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100"
+            className="mt-1 w-full rounded-lg border border-line-strong p-2 text-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100"
           />
         </div>
       )}

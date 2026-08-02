@@ -109,7 +109,7 @@ export default async function LiffAdminInboxPage() {
   return (
     <main className="px-4 pt-4 pb-12">
       {empty ? (
-        <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-12 text-center">
+        <div className="rounded-2xl border border-dashed border-line-strong bg-surface p-12 text-center">
           <p className="text-sm text-gray-500">{t('empty')}</p>
         </div>
       ) : (
@@ -192,7 +192,7 @@ function ItemCard({ href, children }: { href: string; children: React.ReactNode 
     <li>
       <Link
         href={href}
-        className="block rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition hover:border-primary-200 hover:bg-primary-50/30"
+        className="block rounded-xl border border-line bg-surface p-4 shadow-sm transition hover:border-primary-200 hover:bg-primary-50/30"
       >
         {children}
       </Link>

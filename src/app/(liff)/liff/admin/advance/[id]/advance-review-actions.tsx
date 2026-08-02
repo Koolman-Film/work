@@ -66,7 +66,7 @@ export function AdvanceReviewActions({ cashAdvanceId }: { cashAdvanceId: string 
   }
 
   return (
-    <section className="mt-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+    <section className="mt-3 rounded-xl border border-line bg-surface p-4 shadow-sm">
       {error && <p className="mb-2 text-xs text-red-600">{error}</p>}
       <div className="grid grid-cols-2 gap-2">
         <button
@@ -146,7 +146,7 @@ export function SlipUploadBlock({
   }
 
   return (
-    <section className="mt-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+    <section className="mt-3 rounded-xl border border-line bg-surface p-4 shadow-sm">
       <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">{heading}</h2>
       {doneOnce && (
         <p className="mt-2 rounded-lg bg-green-50 p-2 text-xs text-green-800">{t('slipDone')}</p>

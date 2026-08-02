@@ -26,7 +26,7 @@ export function LanguageSwitcher() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
+        className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-surface-muted"
       >
         <Languages className="h-4 w-4 text-gray-500" aria-hidden="true" />
         {LOCALE_LABELS[locale]}

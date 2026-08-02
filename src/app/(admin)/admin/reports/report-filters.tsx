@@ -115,7 +115,7 @@ export function ReportFilters({
           name="q"
           defaultValue={q}
           placeholder="ค้นหาชื่อพนักงาน…"
-          className="w-44 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100 sm:w-56"
+          className="w-44 rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm shadow-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100 sm:w-56"
         />
       )}
       {hasFilter && (
@@ -149,7 +149,7 @@ function FilterSelect({
       aria-label={ariaLabel}
       defaultValue={defaultValue}
       onChange={onChange}
-      className="max-w-[200px] rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100"
+      className="max-w-[200px] rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm shadow-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100"
     >
       {options.map((opt) => (
         <option key={opt.id || 'all'} value={opt.id}>

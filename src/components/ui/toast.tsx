@@ -30,7 +30,7 @@ export function Toast({
       data-exiting={exiting ? 'true' : undefined}
       style={{ animation: 'toast-in var(--duration-base) var(--ease-out-soft) both' }}
       className={cn(
-        'pointer-events-auto w-full max-w-sm rounded-xl border-l-4 bg-white px-4 py-3',
+        'pointer-events-auto w-full max-w-sm rounded-xl border-l-4 bg-surface px-4 py-3',
         'text-sm font-medium text-ink-1 shadow-lg',
         'transition-[opacity,transform] duration-[var(--duration-base)] ease-[var(--ease-out-soft)]',
         'data-[exiting=true]:translate-y-1 data-[exiting=true]:opacity-0',

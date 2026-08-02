@@ -57,12 +57,12 @@ export default async function LeaveReportPage({
           />
         </div>
       </div>
-      <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
+      <div className="overflow-x-auto rounded-xl border border-line bg-surface">
         {rows.length === 0 ? (
           <EmptyState icon={<Calendar size={28} />} title="ไม่มีข้อมูลในช่วงนี้" />
         ) : (
-          <table className="min-w-full divide-y divide-gray-200 text-sm">
-            <thead className="bg-gray-50 text-left text-xs text-gray-500">
+          <table className="min-w-full divide-y divide-line text-sm">
+            <thead className="bg-surface-muted text-left text-xs text-gray-500">
               <tr>
                 <th className="w-6 px-2 py-2.5" />
                 <th className="px-4 py-2.5">พนักงาน</th>
@@ -73,7 +73,7 @@ export default async function LeaveReportPage({
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-line-soft">
               <ExpandableReportRows
                 rows={rows.map((r) => {
                   const items = detail[r.employeeId] ?? [];

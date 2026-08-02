@@ -35,7 +35,7 @@ export function WhatsNewPanel() {
 
   return (
     <Dialog open={panelOpen} onClose={closePanel} title={pickText(UI.whatsNewTitle, locale)}>
-      <ul className="divide-y divide-gray-100">
+      <ul className="divide-y divide-line-soft">
         {items.map((item) => (
           <li key={item.id} className="py-3 first:pt-0 last:pb-0">
             <p className="font-display text-[11px] font-semibold uppercase tracking-wide text-ink-4">

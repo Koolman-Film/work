@@ -142,7 +142,7 @@ export function WorkScheduleForm({ mode, action, initial, error, extraActions }:
               เลือกวันทำงาน + ตั้งเวลาเริ่ม-เลิกงานสำหรับแต่ละวัน (ต้องเลือกอย่างน้อย 1 วัน)
             </p>
 
-            <ul className="divide-y divide-gray-100">
+            <ul className="divide-y divide-line-soft">
               {DAY_DISPLAY_ORDER.map(({ dow, label }) => {
                 const d = defaultsFor(dow);
                 return (
@@ -159,7 +159,7 @@ export function WorkScheduleForm({ mode, action, initial, error, extraActions }:
                         type="checkbox"
                         name={`day-${dow}-enabled`}
                         defaultChecked={d.enabled}
-                        className="size-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500/30"
+                        className="size-4 rounded border-line-strong text-primary-600 focus:ring-primary-500/30"
                       />
                       <span className="text-xs text-gray-500">ทำงาน</span>
                     </label>
@@ -174,7 +174,7 @@ export function WorkScheduleForm({ mode, action, initial, error, extraActions }:
                         type="time"
                         name={`day-${dow}-startTime`}
                         defaultValue={d.startTime || DEFAULT_START}
-                        className="mt-0.5 w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm tabular-nums focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500/30"
+                        className="mt-0.5 w-full rounded-md border border-line-strong px-2 py-1.5 text-sm tabular-nums focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500/30"
                       />
                     </label>
 
@@ -187,7 +187,7 @@ export function WorkScheduleForm({ mode, action, initial, error, extraActions }:
                         type="time"
                         name={`day-${dow}-endTime`}
                         defaultValue={d.endTime || DEFAULT_END}
-                        className="mt-0.5 w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm tabular-nums focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500/30"
+                        className="mt-0.5 w-full rounded-md border border-line-strong px-2 py-1.5 text-sm tabular-nums focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500/30"
                       />
                     </label>
                   </li>

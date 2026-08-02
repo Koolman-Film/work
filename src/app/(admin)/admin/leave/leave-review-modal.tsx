@@ -126,7 +126,7 @@ function LeaveBody({
           {row.nickname && <span className="text-ink-3"> ({row.nickname})</span>}
         </span>
       </div>
-      <dl className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-lg bg-gray-50 p-4 text-sm">
+      <dl className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-lg bg-surface-muted p-4 text-sm">
         <div>
           <dt className="text-xs text-ink-4">ประเภท</dt>
           <dd className="font-medium text-ink-1">
@@ -169,7 +169,7 @@ function LeaveBody({
             href={row.attachmentUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-1 inline-block overflow-hidden rounded-lg border border-gray-200 transition hover:opacity-90"
+            className="mt-1 inline-block overflow-hidden rounded-lg border border-line transition hover:opacity-90"
           >
             {/* biome-ignore lint/performance/noImgElement: signed-URL preview */}
             <img
@@ -195,7 +195,7 @@ function LeaveBody({
           className={
             row.overQuota.overLabel
               ? 'rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800'
-              : 'rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-600'
+              : 'rounded-md bg-surface-muted px-3 py-2 text-sm text-gray-600'
           }
         >
           <p>สิทธิคงเหลือ: {row.overQuota.remainingLabel}</p>
@@ -217,7 +217,7 @@ function LeaveBody({
         </div>
       )}
       {row.status !== 'Pending' && row.reviewNote && (
-        <div className="rounded-lg bg-gray-50 px-3 py-2 text-xs text-ink-2">
+        <div className="rounded-lg bg-surface-muted px-3 py-2 text-xs text-ink-2">
           <strong className="text-ink-1">หมายเหตุ:</strong> {row.reviewNote}
           {row.reviewedAt && <span className="ml-2 text-ink-4">({row.reviewedAt})</span>}
         </div>

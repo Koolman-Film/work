@@ -65,9 +65,9 @@ export function ResponsiveTable<T>({
           overflow-x-auto so wide tables scroll horizontally rather than crush
           their columns; only kicks in when a `minWidth` pushes the table past
           its container. */}
-      <div className="hidden overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm md:block">
+      <div className="hidden overflow-x-auto rounded-xl border border-line bg-surface shadow-sm md:block">
         <table className={cn('w-full text-sm', minWidth)}>
-          <thead className="bg-gray-50/60 text-left font-display text-xs font-semibold text-ink-3">
+          <thead className="bg-surface-muted/60 text-left font-display text-xs font-semibold text-ink-3">
             <tr>
               {columns.map((c) => (
                 <th key={c.key} className={cn('px-5 py-3', c.className)}>
@@ -82,7 +82,7 @@ export function ResponsiveTable<T>({
               <tr
                 key={rowKey(row)}
                 className={cn(
-                  'hover:bg-gray-50/50',
+                  'hover:bg-surface-muted/50',
                   onRowClick &&
                     'cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-400',
                 )}

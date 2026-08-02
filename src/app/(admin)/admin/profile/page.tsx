@@ -67,7 +67,7 @@ export default async function AdminProfilePage() {
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between border-b border-gray-100 py-1.5 last:border-b-0">
+    <div className="flex items-center justify-between border-b border-line-soft py-1.5 last:border-b-0">
       <span className="text-sm text-ink-3">{label}</span>
       <span className="text-sm font-medium text-ink-1">{value}</span>
     </div>
@@ -88,7 +88,7 @@ function RoleBadge({ tier }: { tier: 'Admin' | 'Superadmin' | 'Staff' | null }) 
       </span>
     );
   return (
-    <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
+    <span className="rounded-full bg-surface-sunken px-2 py-0.5 text-xs font-medium text-gray-700">
       บทบาทกำหนดเอง
     </span>
   );

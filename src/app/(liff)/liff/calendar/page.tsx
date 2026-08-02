@@ -97,7 +97,7 @@ export default async function LiffCalendarPage({ searchParams }: { searchParams:
           // "Today" jump — preserves muscle memory after scrubbing months.
           <Link
             href="/liff/calendar"
-            className="rounded-md border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
+            className="rounded-md border border-line bg-surface px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-surface-muted"
           >
             {t('today')}
           </Link>
@@ -105,11 +105,11 @@ export default async function LiffCalendarPage({ searchParams }: { searchParams:
       </header>
 
       {/* Month navigator: prev / month-label / next */}
-      <div className="mb-3 flex items-center justify-between rounded-xl border border-gray-200 bg-white px-3 py-2.5">
+      <div className="mb-3 flex items-center justify-between rounded-xl border border-line bg-surface px-3 py-2.5">
         <Link
           href={`/liff/calendar?ym=${prevYm}`}
           aria-label={t('nav.prevMonth')}
-          className="grid size-8 place-items-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+          className="grid size-8 place-items-center rounded-md text-gray-500 hover:bg-surface-sunken hover:text-gray-700"
         >
           ‹
         </Link>
@@ -117,7 +117,7 @@ export default async function LiffCalendarPage({ searchParams }: { searchParams:
         <Link
           href={`/liff/calendar?ym=${nextYm}`}
           aria-label={t('nav.nextMonth')}
-          className="grid size-8 place-items-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+          className="grid size-8 place-items-center rounded-md text-gray-500 hover:bg-surface-sunken hover:text-gray-700"
         >
           ›
         </Link>

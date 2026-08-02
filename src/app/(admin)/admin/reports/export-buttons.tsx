@@ -27,7 +27,7 @@ export function ExportButtons({
     return `/admin/reports/${report}/export?${p.toString()}`;
   };
   const linkClass =
-    'inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-xs text-gray-700 hover:bg-gray-50';
+    'inline-flex items-center gap-1.5 rounded-lg border border-line-strong bg-surface px-2.5 py-1.5 text-xs text-gray-700 hover:bg-surface-muted';
   return (
     <div className="flex items-center gap-2">
       <a href={href('pdf')} className={linkClass} download>

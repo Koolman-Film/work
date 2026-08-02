@@ -215,7 +215,7 @@ export function SelfieStep({ onConfirm, onCancel }: Props) {
                 type="button"
                 onClick={captureFrame}
                 aria-label={t('selfie.capture')}
-                className="h-16 w-16 rounded-full border-4 border-white/40 bg-white shadow-lg active:scale-95"
+                className="h-16 w-16 rounded-full border-4 border-white/40 bg-surface shadow-lg active:scale-95"
               />
               <button
                 type="button"
@@ -270,7 +270,7 @@ export function SelfieStep({ onConfirm, onCancel }: Props) {
             {cameraFailed && (
               <label
                 htmlFor={fileInputId}
-                className="mt-8 cursor-pointer rounded-full bg-white px-8 py-3 text-base font-semibold text-gray-900 shadow-lg active:scale-95"
+                className="mt-8 cursor-pointer rounded-full bg-surface px-8 py-3 text-base font-semibold text-gray-900 shadow-lg active:scale-95"
               >
                 {t('selfie.openCamera')}
               </label>

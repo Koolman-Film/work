@@ -23,7 +23,7 @@ export function RateModeFields({
         name="rateType"
         value={mode}
         onChange={(e) => setMode(e.target.value as Mode)}
-        className="min-h-[38px] rounded-md border border-gray-300 px-2 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
+        className="min-h-[38px] rounded-md border border-line-strong px-2 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
       >
         <option value="PerHourAmount">฿/ชม.</option>
         <option value="Multiplier">×เท่า</option>
@@ -76,7 +76,7 @@ export function RateModeFieldsHidden({
         name="rateType"
         value={mode}
         onChange={(e) => setMode(e.target.value as Mode)}
-        className="rounded-md border border-gray-300 px-1 py-1 text-xs"
+        className="rounded-md border border-line-strong px-1 py-1 text-xs"
       >
         <option value="PerHourAmount">฿/ชม.</option>
         <option value="Multiplier">×</option>
@@ -89,7 +89,7 @@ export function RateModeFieldsHidden({
           step="1"
           min="0"
           defaultValue={defaultRatePerHour ?? ''}
-          className="w-20 rounded-md border border-gray-300 px-1 py-1 text-xs"
+          className="w-20 rounded-md border border-line-strong px-1 py-1 text-xs"
         />
       ) : (
         <input
@@ -100,7 +100,7 @@ export function RateModeFieldsHidden({
           min="0"
           max="9.99"
           defaultValue={defaultMultiplier ?? ''}
-          className="w-20 rounded-md border border-gray-300 px-1 py-1 text-xs"
+          className="w-20 rounded-md border border-line-strong px-1 py-1 text-xs"
         />
       )}
     </span>

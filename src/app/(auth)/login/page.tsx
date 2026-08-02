@@ -45,7 +45,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Search
         เข้าสู่ระบบ
       </Button>
 
-      <div className="border-t border-gray-100 pt-4 text-center text-sm">
+      <div className="border-t border-line-soft pt-4 text-center text-sm">
         <Link href="/reset-password" className="text-primary-600 hover:text-primary-700">
           ลืมรหัสผ่าน?
         </Link>

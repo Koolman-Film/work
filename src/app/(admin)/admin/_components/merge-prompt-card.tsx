@@ -27,7 +27,7 @@ function fullName(e: MergeableEmployee): string {
 /** Non-interactive avatar — the whole row is the click target. */
 function RowAvatar({ name, src }: { name: string; src: string | null }) {
   return (
-    <span className="inline-grid size-9 shrink-0 place-items-center overflow-hidden rounded-full border border-gray-200 bg-primary-50 font-display text-xs font-bold text-primary-700">
+    <span className="inline-grid size-9 shrink-0 place-items-center overflow-hidden rounded-full border border-line bg-primary-50 font-display text-xs font-bold text-primary-700">
       {src ? (
         // biome-ignore lint/performance/noImgElement: short-lived signed storage URL; next/image caching doesn't apply
         <img src={src} alt="" className="size-full object-cover" />
@@ -38,7 +38,7 @@ function RowAvatar({ name, src }: { name: string; src: string | null }) {
   );
 }
 
-const CARD = 'rounded-2xl border border-gray-200 bg-white p-5 shadow-sm';
+const CARD = 'rounded-2xl border border-line bg-surface p-5 shadow-sm';
 
 export function MergePromptCard() {
   const t = useTranslations('mergeWizard');
@@ -95,7 +95,7 @@ export function MergePromptCard() {
     return (
       <div className={cn(CARD, 'flex flex-col items-center text-center')}>
         <p className="text-sm font-semibold text-gray-900">{t('scanHint')}</p>
-        <div className="mt-4 rounded-2xl border border-gray-200 bg-white p-3 shadow-sm">
+        <div className="mt-4 rounded-2xl border border-line bg-surface p-3 shadow-sm">
           {/* biome-ignore lint/performance/noImgElement: inline data: URL (QR), not a storage asset */}
           <img src={qr.qrDataUrl} alt="QR code" width={208} height={208} className="rounded-lg" />
         </div>
@@ -115,12 +115,12 @@ export function MergePromptCard() {
   if (employees === null) {
     return (
       <div className={CARD}>
-        <div className="h-9 w-full animate-pulse rounded-md bg-gray-100" />
+        <div className="h-9 w-full animate-pulse rounded-md bg-surface-sunken" />
         <div className="mt-3 space-y-2">
           {[0, 1, 2].map((i) => (
             <div key={i} className="flex items-center gap-3">
-              <div className="size-9 animate-pulse rounded-full bg-gray-100" />
-              <div className="h-4 flex-1 animate-pulse rounded bg-gray-100" />
+              <div className="size-9 animate-pulse rounded-full bg-surface-sunken" />
+              <div className="h-4 flex-1 animate-pulse rounded bg-surface-sunken" />
             </div>
           ))}
         </div>
@@ -146,10 +146,10 @@ export function MergePromptCard() {
         onChange={(e) => setQuery(e.target.value)}
         placeholder={t('pickerSearch')}
         autoComplete="off"
-        className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
+        className="mt-2 w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
       />
 
-      <ul className="mt-2 max-h-72 divide-y divide-gray-100 overflow-auto rounded-lg border border-gray-200">
+      <ul className="mt-2 max-h-72 divide-y divide-line-soft overflow-auto rounded-lg border border-line">
         {filtered.map((emp) => {
           const name = fullName(emp);
           const isSelected = emp.userId === selected;
@@ -161,7 +161,7 @@ export function MergePromptCard() {
                 aria-pressed={isSelected}
                 className={cn(
                   'flex w-full items-center gap-3 px-3 py-2.5 text-left transition',
-                  isSelected ? 'bg-primary-50' : 'hover:bg-gray-50',
+                  isSelected ? 'bg-primary-50' : 'hover:bg-surface-muted',
                 )}
               >
                 <RowAvatar name={name} src={emp.photoUrl} />
