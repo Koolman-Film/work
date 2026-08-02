@@ -59,7 +59,7 @@ export default async function SsoFilingPage({ searchParams }: { searchParams: Se
 
           <div className="surface overflow-x-auto">
             <table className="min-w-full text-sm">
-              <thead className="bg-gray-50 text-left text-xs text-ink-3">
+              <thead className="bg-surface-muted text-left text-xs text-ink-3">
                 <tr>
                   <th className="px-3 py-2">ชื่อ-สกุล</th>
                   <th className="px-3 py-2">เลขประจำตัวประชาชน</th>
@@ -67,7 +67,7 @@ export default async function SsoFilingPage({ searchParams }: { searchParams: Se
                   <th className="px-3 py-2 text-right">เงินสมทบ</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-line-soft">
                 {filing.rows.map((r) => (
                   <tr key={r.employeeId}>
                     <td className="px-3 py-2 text-ink-1">{r.name}</td>
@@ -83,7 +83,7 @@ export default async function SsoFilingPage({ searchParams }: { searchParams: Se
                   </tr>
                 ))}
               </tbody>
-              <tfoot className="bg-gray-50 font-medium">
+              <tfoot className="bg-surface-muted font-medium">
                 <tr>
                   <td className="px-3 py-2" colSpan={2}>
                     รวม {filing.totals.count} คน
@@ -109,7 +109,7 @@ export default async function SsoFilingPage({ searchParams }: { searchParams: Se
                 <Download size={16} /> ดาวน์โหลด Excel (สปส.1-10)
               </Link>
             ) : (
-              <span className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-lg bg-gray-200 px-4 py-2 text-sm font-medium text-gray-500">
+              <span className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-lg bg-line px-4 py-2 text-sm font-medium text-gray-500">
                 <Download size={16} /> ดาวน์โหลด Excel (สปส.1-10)
               </span>
             )}

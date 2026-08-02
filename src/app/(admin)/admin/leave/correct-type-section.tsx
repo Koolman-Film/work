@@ -68,7 +68,7 @@ export function CorrectTypeSection({
   }
 
   return (
-    <div className="space-y-3 rounded-lg border border-gray-200 p-3">
+    <div className="space-y-3 rounded-lg border border-line p-3">
       <p className="text-xs font-medium text-ink-4">เปลี่ยนเป็นประเภท</p>
       <div className="flex flex-wrap gap-2">
         {targets.map((o) => (
@@ -80,7 +80,7 @@ export function CorrectTypeSection({
             className={`rounded-full border px-3 py-1.5 text-sm disabled:opacity-50 ${
               targetId === o.id
                 ? 'border-primary-600 bg-primary-50 text-primary-700'
-                : 'border-gray-300 text-ink-2'
+                : 'border-line-strong text-ink-2'
             }`}
           >
             {o.name}
@@ -91,7 +91,7 @@ export function CorrectTypeSection({
       {pending && !preview && <p className="text-sm text-ink-4">กำลังคำนวณ…</p>}
 
       {preview?.ok && (
-        <div className="space-y-2 rounded-md bg-gray-50 p-3 text-sm">
+        <div className="space-y-2 rounded-md bg-surface-muted p-3 text-sm">
           <p className="font-medium text-ink-1">
             {preview.oldTypeName} → {preview.newTypeName}
           </p>
@@ -122,7 +122,7 @@ export function CorrectTypeSection({
             value={note}
             onChange={(e) => setNote(e.target.value)}
             placeholder="เหตุผลการแก้ประเภท (บังคับ)"
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+            className="w-full rounded-md border border-line-strong px-3 py-2 text-sm"
             rows={2}
           />
           {error && <p className="text-sm text-red-700">{error}</p>}
@@ -136,7 +136,7 @@ export function CorrectTypeSection({
                 setNote('');
                 setError(null);
               }}
-              className="rounded-md border border-gray-300 px-3 py-1.5 text-sm text-ink-2"
+              className="rounded-md border border-line-strong px-3 py-1.5 text-sm text-ink-2"
             >
               ยกเลิก
             </button>

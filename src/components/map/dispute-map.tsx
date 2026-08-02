@@ -65,9 +65,6 @@ export function DisputeMap({ branch, employee }: Props) {
   }, [branch, employee]);
 
   return (
-    <div
-      ref={containerRef}
-      className="h-56 w-full overflow-hidden rounded-lg border border-gray-200"
-    />
+    <div ref={containerRef} className="h-56 w-full overflow-hidden rounded-lg border border-line" />
   );
 }

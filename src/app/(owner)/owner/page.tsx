@@ -202,7 +202,7 @@ export default async function SuperadminHomePage() {
                 }
               />
             ) : (
-              <ul className="divide-y divide-gray-100">
+              <ul className="divide-y divide-line-soft">
                 {onLeaveToday.map((a) => (
                   <li key={a.id} className="px-5 py-3">
                     <p className="truncate text-sm font-medium text-ink-1">
@@ -232,7 +232,7 @@ export default async function SuperadminHomePage() {
             {recentAudit.length === 0 ? (
               <EmptyState title="ยังไม่มีกิจกรรม" hint="กิจกรรมจะปรากฏที่นี่เมื่อมีการเปลี่ยนแปลง" />
             ) : (
-              <ul className="divide-y divide-gray-100">
+              <ul className="divide-y divide-line-soft">
                 {recentAudit.map((a) => (
                   <li key={a.id} className="px-5 py-3">
                     <div className="flex items-start justify-between gap-3">

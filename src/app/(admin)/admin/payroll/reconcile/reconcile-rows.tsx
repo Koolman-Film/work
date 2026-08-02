@@ -241,7 +241,7 @@ function PenaltySettlementLine({
   }
 
   return (
-    <div className="space-y-1.5 rounded-md border border-gray-100 px-3 py-2">
+    <div className="space-y-1.5 rounded-md border border-line-soft px-3 py-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-sm text-ink-2">
           {PENALTY_KIND_LABEL[kind]}{' '}
@@ -275,12 +275,12 @@ function PenaltySettlementLine({
       ) : (
         canSettle &&
         (editing ? (
-          <div className="space-y-2 rounded-md bg-gray-50 p-2">
+          <div className="space-y-2 rounded-md bg-surface-muted p-2">
             <div className="flex flex-wrap items-center gap-2">
               <select
                 value={leaveTypeId}
                 onChange={(e) => setLeaveTypeId(e.target.value)}
-                className="rounded-md border border-gray-300 px-2 py-1 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                className="rounded-md border border-line-strong px-2 py-1 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
               >
                 <option value="">— เลือกประเภทวันลา —</option>
                 {leaveTypeOptions.map((t) => {
@@ -298,7 +298,7 @@ function PenaltySettlementLine({
                 max={Math.max(1, actualDays)}
                 value={days}
                 onChange={(e) => setDays(Number(e.target.value))}
-                className="w-20 rounded-md border border-gray-300 px-2 py-1 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                className="w-20 rounded-md border border-line-strong px-2 py-1 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
               />
               <span className="text-xs text-ink-4">วัน</span>
             </div>
@@ -376,7 +376,7 @@ function PenaltySettlementSection({
   if (kinds.length === 0) return null;
 
   return (
-    <div className="mt-3 space-y-2 border-t border-gray-100 pt-3">
+    <div className="mt-3 space-y-2 border-t border-line-soft pt-3">
       <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-4">
         การหักค่าปรับด้วยสิทธิวันลา
       </p>
@@ -413,7 +413,7 @@ function RowDerivation({
 }) {
   const { current, baseline } = row;
   return (
-    <div className="mt-3 border-t border-gray-100 pt-3">
+    <div className="mt-3 border-t border-line-soft pt-3">
       <div className="grid grid-cols-[1fr_auto_auto] items-baseline gap-x-4 gap-y-1">
         <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-4">รายการ</span>
         <span className="text-right text-[11px] font-semibold uppercase tracking-wide text-ink-4">
@@ -460,7 +460,7 @@ function RowDerivation({
       </div>
 
       {row.adjustments.length > 0 && (
-        <div className="mt-3 border-t border-gray-100 pt-3">
+        <div className="mt-3 border-t border-line-soft pt-3">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-4">
             เงินเพิ่ม/เงินลด
           </p>
@@ -529,7 +529,7 @@ export function ReconcileRows({
       </button>
 
       {showAll && (
-        <ul className="divide-y divide-gray-100 border-t border-gray-100">
+        <ul className="divide-y divide-line-soft border-t border-line-soft">
           {rows.map((row) => {
             const expanded = expandedId === row.employeeId;
             const penalty = penaltyByEmployee[row.employeeId];

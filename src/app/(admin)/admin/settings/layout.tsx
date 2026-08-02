@@ -11,7 +11,7 @@ export default async function SettingsLayout({ children }: { children: React.Rea
   const { permissions } = await requireAdminArea();
   return (
     <div className="lg:grid lg:grid-cols-[232px_1fr]">
-      <aside className="border-b border-gray-100 px-4 py-4 sm:px-6 lg:sticky lg:top-4 lg:self-start lg:border-b-0 lg:px-4 lg:py-6">
+      <aside className="border-b border-line-soft px-4 py-4 sm:px-6 lg:sticky lg:top-4 lg:self-start lg:border-b-0 lg:px-4 lg:py-6">
         <SettingsNav allowedPermissions={[...permissions]} />
       </aside>
       <div className="min-w-0">

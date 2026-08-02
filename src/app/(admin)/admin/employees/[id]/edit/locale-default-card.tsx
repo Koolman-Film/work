@@ -35,7 +35,7 @@ export function LocaleDefaultCard({
               id="default-locale"
               name="locale"
               defaultValue={currentLocale ?? ''}
-              className="block w-full max-w-xs rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30"
+              className="block w-full max-w-xs rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30"
             >
               <option value="">— ตรวจจับอัตโนมัติ —</option>
               {LOCALES.map((code) => (

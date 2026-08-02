@@ -80,7 +80,7 @@ export function EmployeeFilters({ initial, branches, departments, matchedCount }
             name="q"
             placeholder="ค้นหา ชื่อ / นามสกุล / ชื่อเล่น"
             defaultValue={initial.q}
-            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100"
+            className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm shadow-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100"
           />
         </div>
 
@@ -108,7 +108,7 @@ export function EmployeeFilters({ initial, branches, departments, matchedCount }
           aria-label="กรองตามสถานะ"
           defaultValue={initial.status}
           onChange={() => formRef.current?.requestSubmit()}
-          className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100"
+          className="rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm shadow-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100"
         >
           {STATUS_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>
@@ -157,7 +157,7 @@ function FilterSelect({
       aria-label={ariaLabel}
       defaultValue={defaultValue}
       onChange={onChange}
-      className="max-w-[200px] rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100"
+      className="max-w-[200px] rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm shadow-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100"
     >
       {options.map((opt) => (
         <option key={opt.id || 'all'} value={opt.id}>

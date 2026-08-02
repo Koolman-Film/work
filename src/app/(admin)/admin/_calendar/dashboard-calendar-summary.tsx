@@ -102,7 +102,7 @@ export function DashboardCalendarSummary({
         {items.length === 0 ? (
           <p className="px-5 py-6 text-sm text-ink-3">ไม่มีวันลาหรือวันหยุดที่จะถึงในเดือนนี้</p>
         ) : (
-          <ul className="divide-y divide-gray-100">
+          <ul className="divide-y divide-line-soft">
             {items.map((it) => (
               <li key={it.key} className="flex items-center justify-between gap-3 px-5 py-2.5">
                 <div className="flex min-w-0 items-center gap-2">

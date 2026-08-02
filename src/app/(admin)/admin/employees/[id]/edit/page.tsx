@@ -213,7 +213,7 @@ function LineStatus({
     );
   }
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-ink-3">
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-sunken px-3 py-1 text-xs font-medium text-ink-3">
       <span aria-hidden="true">📩</span>
       ยังไม่ได้ส่งลิงก์
     </span>

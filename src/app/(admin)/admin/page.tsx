@@ -335,12 +335,12 @@ export default async function AdminHomePage() {
             {pendingRows.length === 0 ? (
               <EmptyState title="ไม่มีคำขอที่รอดำเนินการ ✨" hint="ทุกคำขอได้รับการตัดสินใจแล้ว" />
             ) : (
-              <ul className="divide-y divide-gray-100">
+              <ul className="divide-y divide-line-soft">
                 {pendingRows.map((r) => (
                   <li key={`${r.kind}:${r.id}`}>
                     <Link
                       href={r.href}
-                      className="flex items-start justify-between gap-3 px-5 py-3 transition hover:bg-gray-50"
+                      className="flex items-start justify-between gap-3 px-5 py-3 transition hover:bg-surface-muted"
                     >
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
@@ -375,7 +375,7 @@ export default async function AdminHomePage() {
                 {closedToday ? (todayHoliday ? ` — ${todayHoliday.name}` : ' — วันอาทิตย์') : ''}
               </p>
             ) : (
-              <ul className="divide-y divide-gray-100">
+              <ul className="divide-y divide-line-soft">
                 {onLeaveToday.map((a) => (
                   <li key={a.id} className="flex items-start justify-between gap-3 px-5 py-3">
                     <div className="min-w-0">

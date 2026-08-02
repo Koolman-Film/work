@@ -39,7 +39,7 @@ const STATUS_COLORS = {
   archived: 'bg-[#e2e8f0] text-[#475569]',
 
   // Generic neutral
-  neutral: 'bg-gray-100 text-gray-700',
+  neutral: 'bg-surface-sunken text-gray-700',
 } as const;
 
 export type StatusKey = keyof typeof STATUS_COLORS;

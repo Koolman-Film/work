@@ -109,7 +109,7 @@ export function AdjustmentForm({
                 name="employeeId"
                 required
                 defaultValue={initial?.employeeId ?? ''}
-                className="block w-full max-w-md rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:ring-primary-500"
+                className="block w-full max-w-md rounded-lg border border-line-strong px-3 py-2 text-sm focus:border-primary-500 focus:ring-primary-500"
               >
                 <option value="" disabled>
                   — เลือกพนักงาน —
@@ -131,7 +131,7 @@ export function AdjustmentForm({
                     value="Income"
                     checked={kind === 'Income'}
                     onChange={() => setKind('Income')}
-                    className="h-4 w-4 border-gray-300 text-primary-600 focus:ring-primary-500"
+                    className="h-4 w-4 border-line-strong text-primary-600 focus:ring-primary-500"
                   />
                   <span className="font-medium text-emerald-700">เงินเพิ่ม</span>
                 </label>
@@ -142,7 +142,7 @@ export function AdjustmentForm({
                     value="Deduction"
                     checked={kind === 'Deduction'}
                     onChange={() => setKind('Deduction')}
-                    className="h-4 w-4 border-gray-300 text-primary-600 focus:ring-primary-500"
+                    className="h-4 w-4 border-line-strong text-primary-600 focus:ring-primary-500"
                   />
                   <span className="font-medium text-red-700">เงินลด</span>
                 </label>
@@ -191,7 +191,7 @@ export function AdjustmentForm({
                       value={c.value}
                       checked={frequency === c.value}
                       onChange={() => setFrequency(c.value)}
-                      className="mt-1 h-4 w-4 border-gray-300 text-primary-600 focus:ring-primary-500"
+                      className="mt-1 h-4 w-4 border-line-strong text-primary-600 focus:ring-primary-500"
                     />
                     <span className="text-sm">
                       <span className="font-medium text-gray-900">{c.label}</span>

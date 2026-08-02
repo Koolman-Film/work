@@ -270,7 +270,7 @@ export default function CheckInClient({
         </div>
 
         {/* Today's status card */}
-        <section className="mt-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+        <section className="mt-6 rounded-2xl border border-line bg-surface p-6 shadow-sm">
           <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">
             {t('status.heading')}
           </h2>
@@ -327,7 +327,7 @@ export default function CheckInClient({
                   type="button"
                   onClick={onCheckOut}
                   disabled={isBusy}
-                  className="mt-3 w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-600 transition hover:border-gray-300 hover:text-gray-800 disabled:opacity-60"
+                  className="mt-3 w-full rounded-lg border border-line bg-surface px-4 py-2.5 text-sm text-gray-600 transition hover:border-line-strong hover:text-gray-800 disabled:opacity-60"
                 >
                   {isBusy ? '...' : t('button.checkOutOptional')}
                 </button>
@@ -354,31 +354,31 @@ export default function CheckInClient({
         <section className="mt-6 grid grid-cols-2 gap-2.5">
           <a
             href="/liff/leave"
-            className="rounded-xl border border-gray-200 bg-white px-3 py-3 text-center text-sm font-medium text-gray-700 shadow-sm transition hover:border-primary-200 hover:text-primary-700"
+            className="rounded-xl border border-line bg-surface px-3 py-3 text-center text-sm font-medium text-gray-700 shadow-sm transition hover:border-primary-200 hover:text-primary-700"
           >
             {t('quickAction.leave')}
           </a>
           <a
             href="/liff/advance"
-            className="rounded-xl border border-gray-200 bg-white px-3 py-3 text-center text-sm font-medium text-gray-700 shadow-sm transition hover:border-primary-200 hover:text-primary-700"
+            className="rounded-xl border border-line bg-surface px-3 py-3 text-center text-sm font-medium text-gray-700 shadow-sm transition hover:border-primary-200 hover:text-primary-700"
           >
             {t('quickAction.advance')}
           </a>
           <a
             href="/liff/calendar"
-            className="rounded-xl border border-gray-200 bg-white px-3 py-3 text-center text-sm font-medium text-gray-700 shadow-sm transition hover:border-primary-200 hover:text-primary-700"
+            className="rounded-xl border border-line bg-surface px-3 py-3 text-center text-sm font-medium text-gray-700 shadow-sm transition hover:border-primary-200 hover:text-primary-700"
           >
             {t('quickAction.calendar')}
           </a>
           <a
             href="/liff/profile"
-            className="rounded-xl border border-gray-200 bg-white px-3 py-3 text-center text-sm font-medium text-gray-700 shadow-sm transition hover:border-primary-200 hover:text-primary-700"
+            className="rounded-xl border border-line bg-surface px-3 py-3 text-center text-sm font-medium text-gray-700 shadow-sm transition hover:border-primary-200 hover:text-primary-700"
           >
             {t('quickAction.profile')}
           </a>
           <a
             href="/liff/summary"
-            className="rounded-xl border border-gray-200 bg-white px-3 py-3 text-center text-sm font-medium text-gray-700 shadow-sm transition hover:border-primary-200 hover:text-primary-700"
+            className="rounded-xl border border-line bg-surface px-3 py-3 text-center text-sm font-medium text-gray-700 shadow-sm transition hover:border-primary-200 hover:text-primary-700"
           >
             {t('quickAction.summary')}
           </a>
@@ -392,7 +392,7 @@ export default function CheckInClient({
             </h2>
             <ul className="mt-2 space-y-1 text-sm text-gray-700">
               {branches.map((b) => (
-                <li key={b.id} className="rounded-md bg-gray-50 px-3 py-2">
+                <li key={b.id} className="rounded-md bg-surface-muted px-3 py-2">
                   {b.name}
                 </li>
               ))}
@@ -448,7 +448,7 @@ function PrimaryButton({
   const cls =
     tone === 'primary'
       ? `${base} bg-primary-600 text-white hover:bg-primary-700`
-      : `${base} border border-gray-300 bg-white text-gray-900 hover:bg-gray-50`;
+      : `${base} border border-line-strong bg-surface text-gray-900 hover:bg-surface-muted`;
   return (
     <button type="button" onClick={onClick} disabled={disabled} className={cls}>
       {label}

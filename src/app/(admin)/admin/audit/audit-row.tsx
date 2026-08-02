@@ -49,14 +49,14 @@ export function AuditRow({ row }: { row: AuditRowData }) {
       </button>
 
       {open && (
-        <div className="mt-3 space-y-3 border-t border-gray-100 pt-3 text-sm">
+        <div className="mt-3 space-y-3 border-t border-line-soft pt-3 text-sm">
           <a href={entityHref} className="text-primary-700 hover:text-primary-800">
             ดูประวัติของรายการนี้ →
           </a>
 
           {diff.length > 0 ? (
             <table className="min-w-full text-sm">
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-line-soft">
                 {diff.map((d) => (
                   <tr key={d.field} className={d.changed ? '' : 'text-ink-4'}>
                     <td className="py-1 pr-4 font-medium text-ink-2">{d.label}</td>
@@ -85,7 +85,7 @@ export function AuditRow({ row }: { row: AuditRowData }) {
             {showRaw ? 'ซ่อน JSON ดิบ' : 'ดู JSON ดิบ'}
           </button>
           {showRaw && (
-            <pre className="overflow-x-auto rounded-lg bg-gray-50 p-3 text-xs text-ink-2">
+            <pre className="overflow-x-auto rounded-lg bg-surface-muted p-3 text-xs text-ink-2">
               {JSON.stringify(
                 { before: row.before, after: row.after, metadata: row.metadata },
                 null,

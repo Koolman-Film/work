@@ -34,7 +34,7 @@ export function AttendanceTabs({
             className={
               active
                 ? 'inline-flex items-center gap-1.5 rounded-lg bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-700 ring-1 ring-primary-200'
-                : 'inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-ink-4 transition hover:bg-gray-50 hover:text-ink-2'
+                : 'inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-ink-4 transition hover:bg-surface-muted hover:text-ink-2'
             }
           >
             {t.label}

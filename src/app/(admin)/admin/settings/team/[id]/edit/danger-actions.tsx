@@ -72,7 +72,7 @@ export function DangerActions({ archiveAction, deleteAction, email, isSelf }: Pr
           // Visually quieter than archive — same destructive color, but
           // outlined-on-white so it doesn't read as the default action.
           // Nudges admins to pick Archive when they have a choice.
-          className="!bg-white !text-red-700 hover:!bg-red-50 border border-red-300"
+          className="!bg-surface !text-red-700 hover:!bg-red-50 border border-red-300"
         >
           ลบถาวร
         </Button>

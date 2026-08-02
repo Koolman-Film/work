@@ -88,20 +88,20 @@ export function GeofenceSearch({ onSelect }: Props) {
           onKeyDown={handleKeyDown}
           placeholder="ค้นหาสถานที่ / ที่อยู่ แล้วกด Enter"
           aria-label="ค้นหาสถานที่เพื่อปักหมุด"
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
+          className="w-full rounded-md border border-line-strong px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
         />
         <button
           type="button"
           onClick={runSearch}
           disabled={status === 'loading'}
-          className="shrink-0 rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          className="shrink-0 rounded-md border border-line-strong px-3 py-2 text-sm font-medium text-gray-700 hover:bg-surface-muted disabled:opacity-50"
         >
           {status === 'loading' ? 'กำลังค้นหา…' : 'ค้นหา'}
         </button>
       </div>
 
       {open && (
-        <div className="absolute z-[1000] mt-1 w-full overflow-hidden rounded-md border border-gray-200 bg-white shadow-lg">
+        <div className="absolute z-[1000] mt-1 w-full overflow-hidden rounded-md border border-line bg-surface shadow-lg">
           {status === 'error' ? (
             <p className="px-3 py-2 text-xs text-red-600">ค้นหาไม่สำเร็จ ลองอีกครั้ง</p>
           ) : status === 'loading' ? (
@@ -115,7 +115,7 @@ export function GeofenceSearch({ onSelect }: Props) {
                   <button
                     type="button"
                     onClick={() => handlePick(r)}
-                    className="block w-full px-3 py-2 text-left text-xs text-gray-700 hover:bg-gray-50"
+                    className="block w-full px-3 py-2 text-left text-xs text-gray-700 hover:bg-surface-muted"
                   >
                     {r.displayName}
                   </button>

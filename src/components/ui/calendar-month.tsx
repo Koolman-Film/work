@@ -159,14 +159,14 @@ export function CalendarMonth({
   }
 
   return (
-    <div className="w-64 rounded-xl border border-gray-200 bg-white p-3 text-left shadow-lg">
+    <div className="w-64 rounded-xl border border-line bg-surface p-3 text-left shadow-lg">
       {/* Header: ‹ month label › */}
       <div className="mb-2 flex items-center justify-between">
         <button
           type="button"
           onClick={() => onNavMonth(-1)}
           aria-label={locale === 'th' ? 'เดือนก่อนหน้า' : 'Previous month'}
-          className="grid size-7 place-items-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+          className="grid size-7 place-items-center rounded-md text-gray-500 hover:bg-surface-sunken hover:text-gray-700"
         >
           ‹
         </button>
@@ -175,7 +175,7 @@ export function CalendarMonth({
           type="button"
           onClick={() => onNavMonth(1)}
           aria-label={locale === 'th' ? 'เดือนถัดไป' : 'Next month'}
-          className="grid size-7 place-items-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+          className="grid size-7 place-items-center rounded-md text-gray-500 hover:bg-surface-sunken hover:text-gray-700"
         >
           ›
         </button>

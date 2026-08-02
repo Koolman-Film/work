@@ -104,7 +104,7 @@ export function RowAdjust({
 
         {/* Existing adjustments applying to this month */}
         {adjustments.length > 0 && (
-          <ul className="mt-4 divide-y divide-gray-100 rounded-xl border border-gray-200">
+          <ul className="mt-4 divide-y divide-line-soft rounded-xl border border-line">
             {adjustments.map((a) => (
               <li key={a.id} className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
                 <div className="min-w-0">
@@ -161,7 +161,7 @@ export function RowAdjust({
                 name="kind"
                 value="Income"
                 defaultChecked
-                className="h-4 w-4 border-gray-300 text-primary-600 focus:ring-primary-500"
+                className="h-4 w-4 border-line-strong text-primary-600 focus:ring-primary-500"
               />
               <span className="font-medium text-emerald-700">เงินเพิ่ม</span>
             </label>
@@ -170,7 +170,7 @@ export function RowAdjust({
                 type="radio"
                 name="kind"
                 value="Deduction"
-                className="h-4 w-4 border-gray-300 text-primary-600 focus:ring-primary-500"
+                className="h-4 w-4 border-line-strong text-primary-600 focus:ring-primary-500"
               />
               <span className="font-medium text-red-700">เงินลด</span>
             </label>
@@ -214,7 +214,7 @@ export function RowAdjust({
                 id={`freq-${employeeId}`}
                 value={frequency}
                 onChange={(e) => setFrequency(e.target.value as typeof frequency)}
-                className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:ring-primary-500"
+                className="block w-full rounded-lg border border-line-strong px-3 py-2 text-sm focus:border-primary-500 focus:ring-primary-500"
               >
                 <option value="once">รายครั้ง (เฉพาะงวดนี้)</option>
                 <option value="monthly">รายเดือน (ตั้งแต่งวดนี้ไป)</option>

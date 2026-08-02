@@ -34,7 +34,7 @@ export function AdvanceDetailActions({ cashAdvanceId }: { cashAdvanceId: string 
       <button
         type="button"
         onClick={() => setConfirming(true)}
-        className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm font-medium text-red-700 transition hover:bg-red-50"
+        className="w-full rounded-xl border border-red-200 bg-surface px-4 py-3 text-sm font-medium text-red-700 transition hover:bg-red-50"
       >
         {t('actions.cancelRequest')}
       </button>
@@ -53,7 +53,7 @@ export function AdvanceDetailActions({ cashAdvanceId }: { cashAdvanceId: string 
           type="button"
           onClick={() => setConfirming(false)}
           disabled={pending}
-          className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          className="flex-1 rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm font-medium text-gray-700 hover:bg-surface-muted"
         >
           {t('actions.keepRequest')}
         </button>

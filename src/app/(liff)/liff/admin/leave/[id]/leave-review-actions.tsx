@@ -70,7 +70,7 @@ export function LeaveReviewActions({
   }
 
   return (
-    <section className="mt-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+    <section className="mt-3 rounded-xl border border-line bg-surface p-4 shadow-sm">
       <label htmlFor="review-note" className="text-xs font-medium text-gray-500">
         {t('noteLabel')}
       </label>
@@ -83,7 +83,7 @@ export function LeaveReviewActions({
         }}
         rows={2}
         placeholder={t('notePlaceholder')}
-        className="mt-1 w-full rounded-lg border border-gray-300 p-2 text-sm focus:border-primary-500 focus:outline-none"
+        className="mt-1 w-full rounded-lg border border-line-strong p-2 text-sm focus:border-primary-500 focus:outline-none"
       />
       {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
       <div className="mt-3 grid grid-cols-2 gap-2">

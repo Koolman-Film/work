@@ -69,7 +69,7 @@ export function AdvanceNewForm({ available }: { available: number | null }) {
 
       <form
         onSubmit={onSubmit}
-        className="mt-6 space-y-5 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm"
+        className="mt-6 space-y-5 rounded-2xl border border-line bg-surface p-6 shadow-sm"
       >
         {error && (
           <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -93,7 +93,7 @@ export function AdvanceNewForm({ available }: { available: number | null }) {
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               required
-              className="w-full rounded-md border border-gray-300 py-3 pr-3 pl-8 text-right text-lg font-semibold tabular-nums shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+              className="w-full rounded-md border border-line-strong py-3 pr-3 pl-8 text-right text-lg font-semibold tabular-nums shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
             />
           </div>
           {/* Over-cap → blocks submission (server enforces it too at submit +
@@ -115,7 +115,7 @@ export function AdvanceNewForm({ available }: { available: number | null }) {
                 type="button"
                 onClick={() => setAmount(n.toString())}
                 disabled={pending}
-                className="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                className="rounded-full border border-line bg-surface px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-surface-muted"
               >
                 {formatMoney(n, locale)}
               </button>

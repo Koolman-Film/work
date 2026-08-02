@@ -48,7 +48,7 @@ export async function PairingCard({
           <p className="text-xs text-gray-500">
             LINE userId: <span className="font-mono">{lineUserId}</span>
           </p>
-          <div className="border-t border-gray-100 pt-3">
+          <div className="border-t border-line-soft pt-3">
             <p className="mb-2 text-xs text-gray-500">ใช้เมื่อพนักงานเปลี่ยน LINE หรือต้องการรีเซ็ตการเชื่อม</p>
             <UnlinkLineButton
               action={unlinkLineFromEmployee.bind(null, employeeId)}
@@ -117,7 +117,7 @@ export async function PairingCard({
         <div>
           <p className="mb-1 text-xs font-medium uppercase tracking-wider text-gray-500">ลิงก์</p>
           <div className="flex items-center gap-2">
-            <code className="min-w-0 flex-1 truncate rounded border border-gray-200 bg-gray-50 px-2 py-1.5 text-xs">
+            <code className="min-w-0 flex-1 truncate rounded border border-line bg-surface-muted px-2 py-1.5 text-xs">
               {url}
             </code>
             <CopyButton text={url} />
@@ -133,14 +133,14 @@ export async function PairingCard({
           <p className="mb-2 text-xs font-medium uppercase tracking-wider text-gray-500">
             QR สำหรับสแกน
           </p>
-          <div className="flex flex-col items-center gap-3 rounded-md border border-gray-200 bg-white p-4">
+          <div className="flex flex-col items-center gap-3 rounded-md border border-line bg-surface p-4">
             {/* biome-ignore lint/performance/noImgElement: data: URL QR codes can't go through next/image (no remote loader needed) */}
             <img
               src={qrDataUrl}
               alt="QR สำหรับเชื่อม LINE"
               width={192}
               height={192}
-              className="rounded border border-gray-100"
+              className="rounded border border-line-soft"
             />
             <a
               href={qrDataUrl}
@@ -153,7 +153,7 @@ export async function PairingCard({
           <p className="mt-1.5 text-xs text-gray-500">พิมพ์ QR แล้วให้พนักงานสแกนด้วยกล้อง LINE</p>
         </div>
 
-        <div className="flex items-center justify-between border-t border-gray-100 pt-3">
+        <div className="flex items-center justify-between border-t border-line-soft pt-3">
           <form action={revokePairingLink.bind(null, employeeId)}>
             <Button type="submit" variant="ghost" size="sm">
               ยกเลิกลิงก์

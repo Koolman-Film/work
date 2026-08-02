@@ -38,7 +38,7 @@ export function Pagination({
 
   const l = { ...TH_LABELS, ...labels };
   const base = 'inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold';
-  const enabled = 'text-ink-2 hover:bg-gray-50 hover:text-ink-1';
+  const enabled = 'text-ink-2 hover:bg-surface-muted hover:text-ink-1';
   const disabled = 'cursor-not-allowed text-ink-4';
 
   return (

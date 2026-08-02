@@ -118,7 +118,7 @@ export function LiveBoardClient({
         <div className="flex items-center gap-3 text-xs text-ink-3">
           <a
             href="/admin/attendance/manual"
-            className="rounded-lg border border-gray-200 bg-white px-2.5 py-1 font-medium text-ink-2 transition hover:bg-gray-50"
+            className="rounded-lg border border-line bg-surface px-2.5 py-1 font-medium text-ink-2 transition hover:bg-surface-muted"
           >
             + บันทึกด้วยตนเอง
           </a>
@@ -257,7 +257,7 @@ function BranchGroups<T extends { branchName: string }>({
 function Chip({ row }: { row: LiveAttendanceRow }) {
   return (
     <div
-      className={`flex items-center gap-2.5 rounded-lg border border-gray-200 border-l-4 ${chipRail(row)} bg-white px-3 py-2 shadow-sm`}
+      className={`flex items-center gap-2.5 rounded-lg border border-line border-l-4 ${chipRail(row)} bg-surface px-3 py-2 shadow-sm`}
     >
       <Avatar name={row.employeeName} src={row.photoUrl} size="sm" />
       <div className="min-w-0 flex-1">
@@ -284,7 +284,7 @@ function Chip({ row }: { row: LiveAttendanceRow }) {
 
 function RosterChip({ person }: { person: RosterEmployee }) {
   return (
-    <div className="flex items-center gap-2.5 rounded-lg border border-gray-200 border-l-4 border-l-slate-300 bg-white px-3 py-2 shadow-sm">
+    <div className="flex items-center gap-2.5 rounded-lg border border-line border-l-4 border-l-slate-300 bg-surface px-3 py-2 shadow-sm">
       <Avatar name={person.employeeName} src={person.photoUrl} size="sm" />
       <div className="min-w-0 flex-1">
         <p className="truncate text-xs font-medium text-ink-1">
@@ -306,7 +306,7 @@ function RosterChip({ person }: { person: RosterEmployee }) {
 
 function LeaveChip({ person }: { person: OnLeaveEmployee }) {
   return (
-    <div className="flex items-center gap-2.5 rounded-lg border border-gray-200 border-l-4 border-l-amber-400 bg-white px-3 py-2 shadow-sm">
+    <div className="flex items-center gap-2.5 rounded-lg border border-line border-l-4 border-l-amber-400 bg-surface px-3 py-2 shadow-sm">
       <Avatar name={person.employeeName} src={person.photoUrl} size="sm" />
       <div className="min-w-0 flex-1">
         <p className="truncate text-xs font-medium text-ink-1">
@@ -335,7 +335,7 @@ function StatusPill({ status }: { status: Status }) {
   }
   if (status.kind === 'realtime' && status.channelStatus === 'connecting') {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-50 px-2.5 py-1 text-[11px] font-medium text-ink-3">
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-muted px-2.5 py-1 text-[11px] font-medium text-ink-3">
         <span className="size-1.5 rounded-full bg-gray-400" aria-hidden="true" />
         กำลังเชื่อมต่อ...
       </span>

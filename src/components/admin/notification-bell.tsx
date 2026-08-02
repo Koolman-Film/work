@@ -138,8 +138,8 @@ export function NotificationBell({ userId }: Props) {
         className={cn(
           'relative grid size-9 place-items-center rounded-full transition',
           open
-            ? 'bg-gray-100 text-gray-700'
-            : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700',
+            ? 'bg-surface-sunken text-gray-700'
+            : 'text-gray-500 hover:bg-surface-sunken hover:text-gray-700',
         )}
       >
         <Icon
@@ -158,10 +158,10 @@ export function NotificationBell({ userId }: Props) {
       {open && (
         <div
           role="menu"
-          className="absolute right-0 z-30 mt-2 w-[360px] max-w-[calc(100vw-32px)] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-brand"
+          className="absolute right-0 z-30 mt-2 w-[360px] max-w-[calc(100vw-32px)] overflow-hidden rounded-xl border border-line bg-surface shadow-brand"
         >
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
+          <div className="flex items-center justify-between border-b border-line-soft px-4 py-3">
             <p className="text-sm font-semibold text-gray-900">การแจ้งเตือน</p>
             {unreadCount > 0 && (
               <button
@@ -181,7 +181,7 @@ export function NotificationBell({ userId }: Props) {
               <p className="mt-1 text-xs text-gray-400">ระบบจะแจ้งเตือนเมื่อพนักงานส่งคำขอ</p>
             </div>
           ) : (
-            <ul className="max-h-[420px] divide-y divide-gray-100 overflow-y-auto">
+            <ul className="max-h-[420px] divide-y divide-line-soft overflow-y-auto">
               {notifications.map((n) => (
                 <NotificationRow key={n.id} notification={n} onClick={() => onClickItem(n)} />
               ))}
@@ -347,7 +347,7 @@ function NotificationRow({
         href={r.href}
         onClick={onClick}
         className={cn(
-          'flex items-start gap-3 px-4 py-3 transition hover:bg-gray-50',
+          'flex items-start gap-3 px-4 py-3 transition hover:bg-surface-muted',
           unread && 'bg-primary-50/30',
         )}
       >
