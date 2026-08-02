@@ -388,20 +388,20 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
           in sync). */}
       <div className="mb-4 flex flex-wrap items-center gap-3">
         {/* Month nav — same compound control as /admin/attendance */}
-        <div className="inline-flex items-center rounded-lg border border-gray-200 bg-white">
+        <div className="inline-flex items-center rounded-lg border border-line bg-surface">
           <Link
             href={`/admin/payroll?m=${shiftMonth(month, -1)}${filterQs}`}
-            className="px-2 py-1.5 text-sm text-ink-3 transition hover:bg-gray-50 hover:text-ink-1"
+            className="px-2 py-1.5 text-sm text-ink-3 transition hover:bg-surface-muted hover:text-ink-1"
             aria-label="เดือนก่อน"
           >
             ‹
           </Link>
-          <span className="border-x border-gray-200 px-3 py-1.5 text-xs font-semibold text-ink-1">
+          <span className="border-x border-line px-3 py-1.5 text-xs font-semibold text-ink-1">
             {monthLabelTh(month)}
           </span>
           <Link
             href={`/admin/payroll?m=${shiftMonth(month, 1)}${filterQs}`}
-            className="px-2 py-1.5 text-sm text-ink-3 transition hover:bg-gray-50 hover:text-ink-1"
+            className="px-2 py-1.5 text-sm text-ink-3 transition hover:bg-surface-muted hover:text-ink-1"
             aria-label="เดือนถัดไป"
           >
             ›
@@ -555,7 +555,7 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
             className={`inline-flex items-center justify-center rounded-lg border px-4 py-2 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30 ${
               statusCounts.Draft > 0
                 ? 'border-primary-500 bg-primary-50 text-primary-700 hover:bg-primary-100'
-                : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                : 'border-line-strong bg-surface text-gray-700 hover:bg-surface-muted'
             }`}
           >
             ตรวจสอบ
@@ -570,7 +570,7 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
           <a
             href={`/admin/payroll/payslips-zip?m=${month}`}
             download
-            className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30"
+            className="inline-flex items-center justify-center rounded-lg border border-line-strong bg-surface px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-surface-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30"
           >
             ดาวน์โหลดสลิปทั้งหมด (.zip)
           </a>

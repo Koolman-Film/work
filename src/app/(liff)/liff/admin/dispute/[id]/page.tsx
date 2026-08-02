@@ -68,7 +68,7 @@ export default async function LiffAdminDisputeDetailPage({ params }: { params: P
           <h1 className="text-2xl font-semibold text-gray-900">{t('title')}</h1>
           <span
             className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-              isPending ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-700'
+              isPending ? 'bg-amber-100 text-amber-800' : 'bg-surface-sunken text-gray-700'
             }`}
           >
             {isPending ? t('statusPending') : t('statusReviewed')}
@@ -76,14 +76,14 @@ export default async function LiffAdminDisputeDetailPage({ params }: { params: P
         </div>
       </header>
 
-      <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+      <section className="rounded-xl border border-line bg-surface p-4 shadow-sm">
         <p className="text-sm font-medium text-gray-900">
           {name}
           {row.employee.nickname && (
             <span className="text-gray-500"> ({row.employee.nickname})</span>
           )}
         </p>
-        <dl className="mt-3 space-y-2 border-t border-gray-100 pt-3 text-sm">
+        <dl className="mt-3 space-y-2 border-t border-line-soft pt-3 text-sm">
           <Row label={t('checkinTime')}>{fmtTime(row.clockInAt, locale)}</Row>
           {row.checkInBranch && <Row label={t('branch')}>{row.checkInBranch.name}</Row>}
           {row.disputeReason && (
@@ -107,7 +107,7 @@ export default async function LiffAdminDisputeDetailPage({ params }: { params: P
       </section>
 
       {selfieUrl && (
-        <section className="mt-3 rounded-xl border border-gray-200 bg-gray-50 p-4">
+        <section className="mt-3 rounded-xl border border-line bg-surface-muted p-4">
           <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">
             {t('selfieSection')}
           </h2>
@@ -115,7 +115,7 @@ export default async function LiffAdminDisputeDetailPage({ params }: { params: P
             href={selfieUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-2 block overflow-hidden rounded-lg border border-gray-200 transition hover:opacity-90"
+            className="mt-2 block overflow-hidden rounded-lg border border-line transition hover:opacity-90"
           >
             {/* biome-ignore lint/performance/noImgElement: signed URL, short TTL — next/image can't optimize it */}
             <img src={selfieUrl} alt={t('selfieAlt')} className="w-full" />
@@ -126,7 +126,7 @@ export default async function LiffAdminDisputeDetailPage({ params }: { params: P
       {isPending ? (
         <DisputeReviewActions attendanceId={row.id} />
       ) : (
-        <section className="mt-3 rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-600 shadow-sm">
+        <section className="mt-3 rounded-xl border border-line bg-surface p-4 text-sm text-gray-600 shadow-sm">
           {t('alreadyReviewed')}
         </section>
       )}

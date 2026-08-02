@@ -39,7 +39,7 @@ function ChoiceButton({
         'flex-1 rounded-xl border px-4 py-3 text-left transition',
         active
           ? 'border-primary-400 bg-primary-50 ring-1 ring-primary-300'
-          : 'border-gray-200 bg-white hover:border-primary-200 hover:bg-primary-50/40',
+          : 'border-line bg-surface hover:border-primary-200 hover:bg-primary-50/40',
       )}
     >
       <span className="block text-sm font-semibold text-gray-900">{title}</span>

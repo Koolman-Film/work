@@ -86,7 +86,7 @@ export function DisputedClient({ rows, total }: { rows: DisputedVM[]; total: num
                   className={`block w-full rounded-lg border px-3 py-2.5 text-left transition ${
                     on
                       ? 'border-primary-200 bg-primary-50 ring-1 ring-primary-200'
-                      : 'border-gray-200 bg-white hover:bg-gray-50'
+                      : 'border-line bg-surface hover:bg-surface-muted'
                   }`}
                 >
                   <div className="flex items-center justify-between gap-2">
@@ -136,11 +136,11 @@ export function DisputedClient({ rows, total }: { rows: DisputedVM[]; total: num
                   <img
                     src={selected.selfieUrl}
                     alt="เซลฟี่ตอนเช็คอิน"
-                    className="h-56 w-full rounded-lg border border-gray-200 object-cover"
+                    className="h-56 w-full rounded-lg border border-line object-cover"
                   />
                 </a>
               ) : (
-                <div className="grid h-56 place-items-center rounded-lg border border-dashed border-gray-300 bg-gray-50 text-xs text-ink-4">
+                <div className="grid h-56 place-items-center rounded-lg border border-dashed border-line-strong bg-surface-muted text-xs text-ink-4">
                   ไม่มีเซลฟี่
                 </div>
               )}
@@ -154,14 +154,14 @@ export function DisputedClient({ rows, total }: { rows: DisputedVM[]; total: num
                   employee={{ lat: selected.empLat, lng: selected.empLng }}
                 />
               ) : (
-                <div className="grid h-56 place-items-center rounded-lg border border-dashed border-gray-300 bg-gray-50 text-xs text-ink-4">
+                <div className="grid h-56 place-items-center rounded-lg border border-dashed border-line-strong bg-surface-muted text-xs text-ink-4">
                   ไม่มีข้อมูลตำแหน่ง
                 </div>
               )}
             </div>
           </div>
 
-          <dl className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-lg bg-gray-50 p-4 text-sm">
+          <dl className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-lg bg-surface-muted p-4 text-sm">
             <div>
               <dt className="text-xs text-ink-4">ระยะจากสาขา</dt>
               {/* Every dispute reaching this inbox is GPS-authored, so the
@@ -204,7 +204,7 @@ export function DisputedClient({ rows, total }: { rows: DisputedVM[]; total: num
               onChange={(ev) => setNote(ev.target.value)}
               rows={2}
               placeholder="เช่น: ยืนยันตัวตนจากเซลฟี่ / ปฏิเสธ — ไม่ตรงสถานที่"
-              className="mt-1 w-full rounded-lg border border-gray-300 p-2 text-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100"
+              className="mt-1 w-full rounded-lg border border-line-strong p-2 text-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100"
             />
             {error && (
               <p role="alert" className="mt-1 text-xs font-medium text-danger-deep">

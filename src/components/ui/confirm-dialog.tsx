@@ -94,7 +94,7 @@ export function ConfirmDialog({
               disabled={pending}
               onChange={(e) => setValue(e.target.value)}
               placeholder={reason.placeholder}
-              className="mt-1 w-full rounded-lg border border-gray-300 p-2 text-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100"
+              className="mt-1 w-full rounded-lg border border-line-strong p-2 text-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100"
             />
           </div>
         )}

@@ -262,7 +262,7 @@ export function Sidebar({
       {/* One element, two layouts: fixed drawer on mobile, floating card on desktop. */}
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-40 w-60 bg-white transition-transform duration-200',
+          'fixed inset-y-0 left-0 z-40 w-60 bg-surface transition-transform duration-200',
           // Mobile: slide in/out
           open ? 'translate-x-0 shadow-xl' : '-translate-x-full',
           // Desktop: floating rounded card on the canvas, sticky
@@ -312,7 +312,7 @@ export function Sidebar({
               type="button"
               onClick={close}
               aria-label="ปิดเมนู"
-              className="grid size-8 place-items-center rounded-md text-ink-3 hover:bg-gray-100 hover:text-ink-1 lg:hidden"
+              className="grid size-8 place-items-center rounded-md text-ink-3 hover:bg-surface-sunken hover:text-ink-1 lg:hidden"
             >
               <X size={18} strokeWidth={2} aria-hidden="true" />
             </button>
@@ -364,7 +364,7 @@ export function Sidebar({
                             'relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition',
                             active
                               ? 'bg-primary-50 font-medium text-primary-700 before:absolute before:bottom-1.5 before:left-0 before:top-1.5 before:w-0.5 before:rounded-full before:bg-primary-600'
-                              : 'text-ink-2 hover:bg-gray-50',
+                              : 'text-ink-2 hover:bg-surface-muted',
                           )}
                         >
                           <Icon size={18} strokeWidth={active ? 2.5 : 2} aria-hidden="true" />
@@ -385,7 +385,7 @@ export function Sidebar({
           </nav>
 
           {/* Footer: What's New entry + brand mark. */}
-          <div className="border-t border-gray-100 px-3 py-3">
+          <div className="border-t border-line-soft px-3 py-3">
             <button
               type="button"
               data-tour="whats-new-button"
@@ -393,7 +393,7 @@ export function Sidebar({
                 openPanel();
                 close();
               }}
-              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-ink-2 transition hover:bg-gray-50"
+              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-ink-2 transition hover:bg-surface-muted"
             >
               <span className="relative">
                 <Sparkles size={18} strokeWidth={2} aria-hidden="true" />

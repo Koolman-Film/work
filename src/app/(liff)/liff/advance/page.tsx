@@ -17,7 +17,7 @@ const STATUS_CLS: Record<string, string> = {
   Pending: 'bg-amber-100 text-amber-800',
   Approved: 'bg-green-100 text-green-800',
   Rejected: 'bg-red-100 text-red-800',
-  Cancelled: 'bg-gray-100 text-gray-700',
+  Cancelled: 'bg-surface-sunken text-gray-700',
 };
 
 function formatDateTime(d: Date, locale: Locale): string {
@@ -90,7 +90,7 @@ export default async function LiffAdvanceListPage({
       </div>
 
       {rows.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-12 text-center">
+        <div className="rounded-2xl border border-dashed border-line-strong bg-surface p-12 text-center">
           <p className="text-sm text-gray-500">{t('list.empty')}</p>
           <Link
             href="/liff/advance/new"
@@ -107,7 +107,7 @@ export default async function LiffAdvanceListPage({
               <li key={r.id}>
                 <Link
                   href={`/liff/advance/${r.id}`}
-                  className="block rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition hover:border-primary-200 hover:bg-primary-50/30"
+                  className="block rounded-xl border border-line bg-surface p-4 shadow-sm transition hover:border-primary-200 hover:bg-primary-50/30"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">

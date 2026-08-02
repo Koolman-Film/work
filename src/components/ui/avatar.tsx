@@ -96,7 +96,7 @@ export function Avatar({
           className="pointer-events-none fixed z-50 -translate-x-1/2 -translate-y-full pb-2"
           style={{ left: hoverAt.x, top: hoverAt.y }}
         >
-          <span className="block overflow-hidden rounded-xl border border-primary-200 bg-white shadow-hero">
+          <span className="block overflow-hidden rounded-xl border border-primary-200 bg-surface shadow-hero">
             {/* biome-ignore lint/performance/noImgElement: same signed URL as the avatar — already cached by the browser */}
             <img src={src as string} alt="" className="size-40 object-cover" />
           </span>

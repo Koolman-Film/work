@@ -40,7 +40,7 @@ export default async function LiffPayslipPage({
 }) {
   const { employee } = await requireEmployee();
   const params = await searchParams;
-  const cardCls = 'rounded-2xl border border-gray-200 bg-white p-5 shadow-sm';
+  const cardCls = 'rounded-2xl border border-line bg-surface p-5 shadow-sm';
 
   // Bare /liff/payslip (no valid ?m=) lists every Published/Locked month so
   // employees can browse history instead of only seeing the current month.
@@ -80,7 +80,7 @@ export default async function LiffPayslipPage({
               </Link>
               <a
                 href={`/liff/payslip/pdf?m=${m.month}`}
-                className="rounded-md border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                className="rounded-md border border-line bg-surface px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-surface-muted"
               >
                 {tPdf('download')}
               </a>
@@ -151,7 +151,7 @@ export default async function LiffPayslipPage({
           {doc && (
             <a
               href={`/liff/payslip/pdf?m=${month}`}
-              className="rounded-md border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
+              className="rounded-md border border-line bg-surface px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-surface-muted"
             >
               {tPdf('download')}
             </a>
@@ -159,7 +159,7 @@ export default async function LiffPayslipPage({
           {month !== todayYm && (
             <Link
               href="/liff/payslip"
-              className="rounded-md border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
+              className="rounded-md border border-line bg-surface px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-surface-muted"
             >
               {t('thisMonth')}
             </Link>
@@ -168,11 +168,11 @@ export default async function LiffPayslipPage({
       </header>
 
       {/* Month navigator */}
-      <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-3 py-2.5">
+      <div className="flex items-center justify-between rounded-xl border border-line bg-surface px-3 py-2.5">
         <Link
           href={`/liff/payslip?m=${prev}`}
           aria-label={t('prevMonth')}
-          className="grid size-8 place-items-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+          className="grid size-8 place-items-center rounded-md text-gray-500 hover:bg-surface-sunken hover:text-gray-700"
         >
           ‹
         </Link>
@@ -180,7 +180,7 @@ export default async function LiffPayslipPage({
         <Link
           href={`/liff/payslip?m=${next}`}
           aria-label={t('nextMonth')}
-          className="grid size-8 place-items-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+          className="grid size-8 place-items-center rounded-md text-gray-500 hover:bg-surface-sunken hover:text-gray-700"
         >
           ›
         </Link>
@@ -202,7 +202,7 @@ export default async function LiffPayslipPage({
                   <dd className="text-gray-900">{fmt(l.amount)}</dd>
                 </div>
               ))}
-              <div className="mt-2 flex justify-between border-t border-gray-100 pt-2 font-medium">
+              <div className="mt-2 flex justify-between border-t border-line-soft pt-2 font-medium">
                 <dt className="text-gray-700">{t('income.total')}</dt>
                 <dd className="text-gray-900">{fmt(doc.income.total)}</dd>
               </div>
@@ -225,7 +225,7 @@ export default async function LiffPayslipPage({
                   on the assembled line list (not the raw buckets) is what
                   keeps this fallback from contradicting a settled line. */}
               {doc.deduct.lines.length === 0 && row(t('deduct.none'), '—', { muted: true })}
-              <div className="mt-2 flex justify-between border-t border-gray-100 pt-2 font-medium">
+              <div className="mt-2 flex justify-between border-t border-line-soft pt-2 font-medium">
                 <dt className="text-gray-700">{t('deduct.total')}</dt>
                 <dd className="text-gray-900">-{fmt(doc.deduct.total)}</dd>
               </div>

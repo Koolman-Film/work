@@ -309,7 +309,7 @@ export default async function PayrollReconcilePage({
 
       {view.byBranch.length > 0 && (
         <div className="surface mb-6 overflow-hidden">
-          <h2 className="border-b border-gray-100 px-4 py-3 font-display text-sm font-semibold text-ink-1">
+          <h2 className="border-b border-line-soft px-4 py-3 font-display text-sm font-semibold text-ink-1">
             สุทธิแยกตามสาขา
           </h2>
           <div className="p-4">
@@ -333,7 +333,7 @@ export default async function PayrollReconcilePage({
             <span>ไม่พบความผิดปกติ — {view.totals.headcount} รายการอยู่ในเกณฑ์ปกติ</span>
           </div>
         ) : (
-          <ul className="surface divide-y divide-gray-100">
+          <ul className="surface divide-y divide-line-soft">
             {flaggedRows.map((row) => (
               <NeedsReviewRow key={row.employeeId} row={row} />
             ))}

@@ -22,7 +22,7 @@ const STATUS_CLS: Record<string, string> = {
   Pending: 'bg-amber-100 text-amber-800',
   Approved: 'bg-green-100 text-green-800',
   Rejected: 'bg-red-100 text-red-800',
-  Cancelled: 'bg-gray-100 text-gray-700',
+  Cancelled: 'bg-surface-sunken text-gray-700',
 };
 
 function formatDateTime(d: Date, locale: Locale): string {
@@ -88,14 +88,14 @@ export default async function AdvanceDetailPage({ params }: { params: Params }) 
         </div>
       </header>
 
-      <section className="rounded-2xl border border-gray-200 bg-white p-6 text-center shadow-sm">
+      <section className="rounded-2xl border border-line bg-surface p-6 text-center shadow-sm">
         <p className="text-xs text-gray-500">{t('detail.amountLabel')}</p>
         <p className="mt-2 text-3xl font-bold tabular-nums text-gray-900">
           {formatMoney(row.amount.toString(), locale as Locale)}
         </p>
       </section>
 
-      <section className="mt-4 space-y-1 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+      <section className="mt-4 space-y-1 rounded-2xl border border-line bg-surface p-6 shadow-sm">
         <DataRow label={t('detail.field.submittedAt')}>
           {formatDateTime(row.requestedAt, locale as Locale)}
         </DataRow>
@@ -121,7 +121,7 @@ export default async function AdvanceDetailPage({ params }: { params: Params }) 
       </section>
 
       {resolvedReceiptUrl && (
-        <section className="mt-4 rounded-2xl border border-gray-200 bg-gray-50 p-6">
+        <section className="mt-4 rounded-2xl border border-line bg-surface-muted p-6">
           <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">
             {paid ? t('detail.slip') : t('detail.receiptHeading')}
           </h2>
@@ -141,7 +141,7 @@ export default async function AdvanceDetailPage({ params }: { params: Params }) 
                 href={resolvedReceiptUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-3 block overflow-hidden rounded-lg border border-gray-200 transition hover:opacity-90"
+                className="mt-3 block overflow-hidden rounded-lg border border-line transition hover:opacity-90"
               >
                 {/* biome-ignore lint/performance/noImgElement: signed-URL preview can't use next/image (short TTL + external storage origin) */}
                 <img

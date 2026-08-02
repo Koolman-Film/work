@@ -85,7 +85,7 @@ export function MonthPicker({ id, name, defaultValue, min, max, className }: Pro
         }}
         aria-haspopup="dialog"
         aria-expanded={open}
-        className="flex w-full items-center justify-between gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-left text-sm text-gray-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+        className="flex w-full items-center justify-between gap-2 rounded-lg border border-line-strong bg-surface px-3 py-2 text-left text-sm text-gray-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
       >
         <span>{monthLabelTh(value)}</span>
         <svg
@@ -109,7 +109,7 @@ export function MonthPicker({ id, name, defaultValue, min, max, className }: Pro
         <div
           role="dialog"
           aria-label="เลือกเดือน"
-          className="absolute left-0 top-full z-30 mt-1 w-64 rounded-xl border border-gray-200 bg-white p-3 text-left shadow-lg"
+          className="absolute left-0 top-full z-30 mt-1 w-64 rounded-xl border border-line bg-surface p-3 text-left shadow-lg"
         >
           {/* Year navigator */}
           <div className="mb-2 flex items-center justify-between">
@@ -117,7 +117,7 @@ export function MonthPicker({ id, name, defaultValue, min, max, className }: Pro
               type="button"
               onClick={() => setViewYear((y) => y - 1)}
               aria-label="ปีก่อนหน้า"
-              className="grid size-7 place-items-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+              className="grid size-7 place-items-center rounded-md text-gray-500 hover:bg-surface-sunken hover:text-gray-700"
             >
               ‹
             </button>
@@ -126,7 +126,7 @@ export function MonthPicker({ id, name, defaultValue, min, max, className }: Pro
               type="button"
               onClick={() => setViewYear((y) => y + 1)}
               aria-label="ปีถัดไป"
-              className="grid size-7 place-items-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+              className="grid size-7 place-items-center rounded-md text-gray-500 hover:bg-surface-sunken hover:text-gray-700"
             >
               ›
             </button>

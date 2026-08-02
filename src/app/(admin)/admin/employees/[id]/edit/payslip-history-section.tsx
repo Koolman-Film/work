@@ -24,7 +24,7 @@ export function PayslipHistorySection({
         {history.length === 0 ? (
           <p className="text-sm text-ink-4">ยังไม่มีสลิปที่เผยแพร่</p>
         ) : (
-          <ul className="divide-y divide-gray-100">
+          <ul className="divide-y divide-line-soft">
             {history.map((h) => (
               <li key={h.month} className="flex items-center justify-between py-2">
                 <span className="text-sm text-ink-2">{monthLabelTh(h.month)}</span>

@@ -27,14 +27,14 @@ export function LeaveInbox({
 
   return (
     <>
-      <ul className="divide-y divide-gray-100">
+      <ul className="divide-y divide-line-soft">
         {rows.map((row) => (
           <li key={row.id}>
             <button
               type="button"
               onClick={() => setOpen(row)}
               aria-label={`ตรวจสอบคำขอลาของ ${row.name}`}
-              className={`block w-full border-l-4 ${statusRail(row.statusKey)} px-5 py-4 text-left transition hover:bg-gray-50/70`}
+              className={`block w-full border-l-4 ${statusRail(row.statusKey)} px-5 py-4 text-left transition hover:bg-surface-muted/70`}
             >
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0 flex-1">

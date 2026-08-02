@@ -33,8 +33,8 @@ export async function BalanceCard({ balance, locale }: Props) {
     return (
       <section
         className={[
-          'rounded-2xl border bg-white p-5 shadow-sm',
-          balance.overdrawn ? 'border-red-300' : 'border-gray-200',
+          'rounded-2xl border bg-surface p-5 shadow-sm',
+          balance.overdrawn ? 'border-red-300' : 'border-line',
         ].join(' ')}
       >
         <p className="text-xs font-medium uppercase tracking-wider text-gray-500">
@@ -62,7 +62,7 @@ export async function BalanceCard({ balance, locale }: Props) {
           aria-valuemax={100}
           aria-valuenow={Math.round(usedPct)}
           aria-label={t('balance.ariaProgress', { pct: usedPct.toFixed(0) })}
-          className="mt-4 h-1.5 overflow-hidden rounded-full bg-gray-100"
+          className="mt-4 h-1.5 overflow-hidden rounded-full bg-surface-sunken"
         >
           <div
             className={[
@@ -108,8 +108,8 @@ export async function BalanceCard({ balance, locale }: Props) {
   return (
     <section
       className={[
-        'rounded-2xl border bg-white p-5 shadow-sm',
-        balance.overdrawn ? 'border-red-300' : 'border-gray-200',
+        'rounded-2xl border bg-surface p-5 shadow-sm',
+        balance.overdrawn ? 'border-red-300' : 'border-line',
       ].join(' ')}
     >
       <p className="text-xs font-medium uppercase tracking-wider text-gray-500">

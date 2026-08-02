@@ -189,7 +189,7 @@ export function AdvanceReviewModal({
               there's no reason to expose the account. `advance.read` alone
               (individually assignable) must not surface bank details. */}
           {row.canSeePayout && row.status !== 'Rejected' && row.status !== 'Cancelled' && (
-            <section className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+            <section className="rounded-lg border border-line bg-surface-muted p-3">
               <p className="text-xs font-medium uppercase tracking-wide text-ink-3">โอนเข้าบัญชี</p>
               {row.bankAccountNumber ? (
                 <dl className="mt-2 space-y-1 text-sm">
@@ -230,7 +230,7 @@ export function AdvanceReviewModal({
                   onFile={pickFile}
                 />
               ) : (
-                <div className="mt-1 flex items-start gap-3 rounded-lg border border-gray-200 bg-white p-3">
+                <div className="mt-1 flex items-start gap-3 rounded-lg border border-line bg-surface p-3">
                   {/* biome-ignore lint/performance/noImgElement: object-URL preview */}
                   <img
                     src={previewUrl}

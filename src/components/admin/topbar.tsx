@@ -38,7 +38,7 @@ export function Topbar({ userLabel, userId }: Props) {
           type="button"
           onClick={toggleMobileNav}
           aria-label="เปิดเมนู"
-          className="grid size-9 place-items-center rounded-md text-ink-3 transition hover:bg-gray-100 hover:text-ink-1 lg:hidden"
+          className="grid size-9 place-items-center rounded-md text-ink-3 transition hover:bg-surface-sunken hover:text-ink-1 lg:hidden"
         >
           <Menu size={18} strokeWidth={2} aria-hidden="true" />
         </button>
@@ -48,15 +48,15 @@ export function Topbar({ userLabel, userId }: Props) {
           type="button"
           title="ค้นหา (เร็วๆ นี้)"
           aria-label="ค้นหา"
-          className="flex items-center gap-2 rounded-lg border border-[var(--border-color)] bg-gray-50 px-3 py-1.5 text-xs text-ink-4 transition hover:bg-gray-100 sm:min-w-[210px]"
+          className="flex items-center gap-2 rounded-lg border border-[var(--border-color)] bg-surface-muted px-3 py-1.5 text-xs text-ink-4 transition hover:bg-surface-sunken sm:min-w-[210px]"
         >
           <Search size={14} strokeWidth={2} aria-hidden="true" />
           <span className="hidden flex-1 text-left sm:inline">ค้นหา…</span>
           <span className="ml-auto hidden gap-1 sm:flex">
-            <kbd className="rounded border border-[var(--border-color)] bg-white px-1.5 font-display text-[10px] font-semibold text-ink-3">
+            <kbd className="rounded border border-[var(--border-color)] bg-surface px-1.5 font-display text-[10px] font-semibold text-ink-3">
               ⌘
             </kbd>
-            <kbd className="rounded border border-[var(--border-color)] bg-white px-1.5 font-display text-[10px] font-semibold text-ink-3">
+            <kbd className="rounded border border-[var(--border-color)] bg-surface px-1.5 font-display text-[10px] font-semibold text-ink-3">
               K
             </kbd>
           </span>
@@ -96,7 +96,7 @@ function UserMenu({ userLabel }: { userLabel: string }) {
         aria-expanded={open}
         className={cn(
           'flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition',
-          open ? 'bg-gray-100' : 'hover:bg-gray-100',
+          open ? 'bg-surface-sunken' : 'hover:bg-surface-sunken',
         )}
       >
         <span className="grid size-8 place-items-center rounded-full bg-primary-100 font-display text-xs font-bold text-primary-700">
@@ -109,9 +109,9 @@ function UserMenu({ userLabel }: { userLabel: string }) {
       {open && (
         <div
           role="menu"
-          className="absolute right-0 mt-1 min-w-[200px] rounded-lg border border-[var(--border-color)] bg-white py-1 shadow-card"
+          className="absolute right-0 mt-1 min-w-[200px] rounded-lg border border-[var(--border-color)] bg-surface py-1 shadow-card"
         >
-          <div className="border-b border-gray-100 px-3 py-2">
+          <div className="border-b border-line-soft px-3 py-2">
             <p className="text-xs text-ink-3">เข้าสู่ระบบในนาม</p>
             <p className="truncate text-sm font-medium text-ink-1">{userLabel}</p>
           </div>
@@ -119,7 +119,7 @@ function UserMenu({ userLabel }: { userLabel: string }) {
             href="/admin/profile"
             role="menuitem"
             onClick={() => setOpen(false)}
-            className="flex w-full items-center gap-2 px-3 py-2 text-sm text-ink-2 transition hover:bg-gray-50"
+            className="flex w-full items-center gap-2 px-3 py-2 text-sm text-ink-2 transition hover:bg-surface-muted"
           >
             <UserCog size={16} aria-hidden="true" />
             <span>โปรไฟล์ของฉัน</span>
@@ -133,15 +133,15 @@ function UserMenu({ userLabel }: { userLabel: string }) {
               setOpen(false);
               startTour('welcome');
             }}
-            className="flex w-full items-center gap-2 border-t border-gray-100 px-3 py-2 text-sm text-ink-2 transition hover:bg-gray-50"
+            className="flex w-full items-center gap-2 border-t border-line-soft px-3 py-2 text-sm text-ink-2 transition hover:bg-surface-muted"
           >
             <Sparkles size={16} aria-hidden="true" />
             <span>เริ่มทัวร์แนะนำใหม่</span>
           </button>
-          <form action="/logout" method="post" className="border-t border-gray-100">
+          <form action="/logout" method="post" className="border-t border-line-soft">
             <button
               type="submit"
-              className="flex w-full items-center gap-2 px-3 py-2 text-sm text-ink-2 transition hover:bg-gray-50"
+              className="flex w-full items-center gap-2 px-3 py-2 text-sm text-ink-2 transition hover:bg-surface-muted"
             >
               <LogOut size={16} aria-hidden="true" />
               <span>ออกจากระบบ</span>

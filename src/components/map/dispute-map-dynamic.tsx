@@ -6,7 +6,7 @@ import dynamic from 'next/dynamic';
 export const DisputeMap = dynamic(() => import('./dispute-map').then((m) => m.DisputeMap), {
   ssr: false,
   loading: () => (
-    <div className="grid h-56 place-items-center rounded-lg border border-gray-200 bg-gray-50 text-xs text-ink-3">
+    <div className="grid h-56 place-items-center rounded-lg border border-line bg-surface-muted text-xs text-ink-3">
       กำลังโหลดแผนที่…
     </div>
   ),

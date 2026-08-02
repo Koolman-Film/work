@@ -122,7 +122,7 @@ export default async function LiffSummaryPage({
   const displayYear = locale === 'th' ? year + 543 : year;
   const todayYm = todayYmd.slice(0, 7);
 
-  const cardCls = 'rounded-2xl border border-gray-200 bg-white p-5 shadow-sm';
+  const cardCls = 'rounded-2xl border border-line bg-surface p-5 shadow-sm';
   return (
     <main className="mx-auto max-w-md space-y-4 px-4 pt-8 pb-12">
       <header className="flex items-center justify-between gap-2">
@@ -135,7 +135,7 @@ export default async function LiffSummaryPage({
           // `todayYm` in custom mode and wrongly hide the shortcut.
           <Link
             href="/liff/summary"
-            className="rounded-md border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
+            className="rounded-md border border-line bg-surface px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-surface-muted"
           >
             {t('thisMonth')}
           </Link>
@@ -185,7 +185,7 @@ export default async function LiffSummaryPage({
           ).map(([type, label]) => {
             const g = attBy.get(type);
             return (
-              <div key={type} className="rounded-lg bg-gray-50 p-3">
+              <div key={type} className="rounded-lg bg-surface-muted p-3">
                 <dt className="text-xs text-gray-500">{label}</dt>
                 <dd className="mt-1 text-lg font-semibold text-gray-900">{g?._count._all ?? 0}</dd>
                 {type !== 'Absent' && (
@@ -204,7 +204,7 @@ export default async function LiffSummaryPage({
         <h2 className="text-sm font-semibold text-gray-900">
           {t('leave.title', { year: displayYear })}
         </h2>
-        <ul className="mt-3 divide-y divide-gray-100">
+        <ul className="mt-3 divide-y divide-line-soft">
           {types.map((tp) => {
             const used = usedBy.get(tp.id);
             const rem = remaining[tp.id];

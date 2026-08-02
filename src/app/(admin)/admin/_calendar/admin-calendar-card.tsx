@@ -134,7 +134,7 @@ export function AdminCalendarCard({ branches, initialYm, initialData }: Props) {
             aria-label="กรองตามสาขา"
             value={branchId}
             onChange={onBranchChange}
-            className="max-w-[200px] rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100"
+            className="max-w-[200px] rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm shadow-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100"
           >
             <option value="">สาขาทั้งหมด</option>
             {branches.map((b) => (
@@ -145,12 +145,12 @@ export function AdminCalendarCard({ branches, initialYm, initialData }: Props) {
           </select>
 
           {/* Month navigator */}
-          <div className="flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-1 py-0.5">
+          <div className="flex items-center gap-1 rounded-lg border border-line bg-surface px-1 py-0.5">
             <button
               type="button"
               onClick={goPrev}
               aria-label="เดือนก่อนหน้า"
-              className="grid size-8 place-items-center rounded-md text-ink-3 hover:bg-gray-100 hover:text-ink-1"
+              className="grid size-8 place-items-center rounded-md text-ink-3 hover:bg-surface-sunken hover:text-ink-1"
             >
               ‹
             </button>
@@ -161,7 +161,7 @@ export function AdminCalendarCard({ branches, initialYm, initialData }: Props) {
               type="button"
               onClick={goNext}
               aria-label="เดือนถัดไป"
-              className="grid size-8 place-items-center rounded-md text-ink-3 hover:bg-gray-100 hover:text-ink-1"
+              className="grid size-8 place-items-center rounded-md text-ink-3 hover:bg-surface-sunken hover:text-ink-1"
             >
               ›
             </button>
@@ -171,7 +171,7 @@ export function AdminCalendarCard({ branches, initialYm, initialData }: Props) {
             <button
               type="button"
               onClick={goToday}
-              className="rounded-lg border border-gray-200 bg-white px-2.5 py-2 text-xs font-medium text-ink-2 hover:bg-gray-50"
+              className="rounded-lg border border-line bg-surface px-2.5 py-2 text-xs font-medium text-ink-2 hover:bg-surface-muted"
             >
               วันนี้
             </button>

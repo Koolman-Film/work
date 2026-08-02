@@ -389,7 +389,7 @@ export function ManualAttendanceForm({
           name="employeeId"
           value={employeeId}
           onChange={(e) => setEmployeeId(e.target.value)}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+          className="w-full rounded-md border border-line-strong px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
           required
         >
           <option value="">— เลือกพนักงาน —</option>
@@ -431,7 +431,7 @@ export function ManualAttendanceForm({
               className={`flex cursor-pointer items-center justify-center rounded-md border px-3 py-2 text-sm font-medium transition ${
                 kind === value
                   ? 'border-primary-500 bg-primary-50 text-primary-700'
-                  : 'border-gray-200 bg-white text-gray-700 hover:border-primary-200'
+                  : 'border-line bg-surface text-gray-700 hover:border-primary-200'
               }`}
             >
               <input
@@ -471,7 +471,7 @@ export function ManualAttendanceForm({
           </FormField>
         </div>
       ) : (
-        <p className="rounded-md bg-gray-50 px-3 py-2 text-sm text-ink-3">
+        <p className="rounded-md bg-surface-muted px-3 py-2 text-sm text-ink-3">
           ถ้าเป็นการลาที่ได้รับอนุมัติ ให้บันทึกผ่านหน้าคำขอลาแทน — ระบบจะสร้างรายการให้เอง
         </p>
       )}
@@ -535,7 +535,7 @@ export function ManualAttendanceForm({
                 name="settleLeaveTypeId"
                 value={settleLeaveTypeId}
                 onChange={(e) => setSettleLeaveTypeId(e.target.value)}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                className="w-full rounded-md border border-line-strong px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
                 required
               >
                 <option value="">— เลือกประเภทวันลา —</option>
@@ -567,7 +567,7 @@ export function ManualAttendanceForm({
               type="checkbox"
               checked={exemptLate}
               onChange={(e) => setExemptLate(e.target.checked)}
-              className="rounded border-gray-300"
+              className="rounded border-line-strong"
             />
             ยกเว้นการหักมาสายครั้งนี้
           </label>
@@ -592,7 +592,7 @@ export function ManualAttendanceForm({
             type="checkbox"
             checked={recordEarlyLeave}
             onChange={(e) => setRecordEarlyLeave(e.target.checked)}
-            className="rounded border-gray-300"
+            className="rounded border-line-strong"
           />
           บันทึกเป็น "ออกก่อนเวลา" ด้วย (หัก {baht(rates.earlyLeave)})
         </label>
@@ -606,7 +606,7 @@ export function ManualAttendanceForm({
           onChange={(e) => setNote(e.target.value)}
           rows={3}
           maxLength={500}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+          className="w-full rounded-md border border-line-strong px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
           placeholder="เช่น โทรศัพท์พนักงานเสีย — ยืนยันกับหัวหน้าสาขาแล้ว"
         />
       </FormField>
