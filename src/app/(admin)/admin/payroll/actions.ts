@@ -9,6 +9,7 @@ import type { ActionResult } from '@/components/ui/confirm-dialog';
 import { auditLog, auditLogMany } from '@/lib/audit/log';
 import { requireGlobalPermission } from '@/lib/auth/require-global-permission';
 import { prisma } from '@/lib/db/prisma';
+import { formatTHB } from '@/lib/format';
 import { sendNotification } from '@/lib/inngest/events';
 import {
   lockPayroll,
@@ -270,6 +271,24 @@ export async function publishPayrollAction(formData: FormData) {
     back(
       month,
       `เผยแพร่สลิป ${result.published.length} คนแล้ว — ยกเว้น ${names} ที่มีการหักสิทธิวันลาเกินโทษจริง ไปแก้ไขหรือยกเลิกการหักสิทธิที่หน้ากระทบยอดก่อน แล้วเผยแพร่ใหม่อีกครั้ง`,
+      'alert',
+    );
+  }
+
+  // Negative net (run.ts `BlockedNegativeNet`): deductions came to more than the
+  // employee earned. Named separately from the settlement guard above because
+  // the fix is different — the amount itself is wrong, not a stale settlement —
+  // and the figure is included so the admin sees the scale without opening the
+  // row. They stay in Draft and remain fixable.
+  if (result.blockedNegativeNet.length > 0) {
+    const who = result.blockedNegativeNet
+      .map((b) => `${b.name} (${formatTHB(Number(b.netPay))})`)
+      .join(', ');
+    back(
+      month,
+      `เผยแพร่สลิป ${result.published.length} คนแล้ว — ยกเว้น ${who} ที่ยอดสุทธิติดลบ ` +
+        `มักเกิดจากการหักวันลาเกินสิทธิที่ค้างสะสมจากเดือนก่อน ๆ มารวมในเดือนเดียว ` +
+        `ตรวจรายการลาของพนักงานก่อน แล้วเผยแพร่ใหม่อีกครั้ง`,
       'alert',
     );
   }
@@ -554,6 +573,22 @@ export async function publishOnePayrollAction(
       ok: false,
       message:
         'เผยแพร่ไม่สำเร็จ: พนักงานคนนี้มีการหักสิทธิวันลาเกินโทษจริงของเดือนนี้ — ไปแก้ไขหรือยกเลิกการหักสิทธิที่หน้ากระทบยอดก่อนเผยแพร่',
+    };
+  }
+
+  // Same guard as the month-wide publish. It matters MORE here: this is the
+  // per-row button, which is exactly how an admin would try to force through a
+  // row the month-wide publish kept skipping. Without it the guard above would
+  // be one click away from being bypassed.
+  const negative = result.blockedNegativeNet[0];
+  if (negative) {
+    const net = formatTHB(Number(negative.netPay));
+    return {
+      ok: false,
+      message:
+        `เผยแพร่ไม่สำเร็จ: ยอดสุทธิของพนักงานคนนี้ติดลบ (${net}) — ` +
+        `มักเกิดจากการหักวันลาเกินสิทธิที่ค้างสะสมจากเดือนก่อน ๆ มารวมในเดือนเดียว ` +
+        `ตรวจรายการลาของพนักงานก่อนเผยแพร่`,
     };
   }
   if (result.published.length === 0) {
