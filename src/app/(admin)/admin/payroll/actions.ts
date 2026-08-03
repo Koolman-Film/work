@@ -2,6 +2,7 @@
 
 import { Prisma } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
+import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { after } from 'next/server';
 import type { ActionResult } from '@/components/ui/confirm-dialog';
@@ -18,28 +19,84 @@ import {
   type RunResult,
   runPayrollDraft,
 } from '@/lib/payroll/run';
-import { warmPublishedPayslips } from '@/lib/payslip/warm';
 import { readForm } from './adjustments/adjustment-schema';
 
+/** Self-fetches per batch. Publishing a month can mean 40+ slips, and each one
+ *  is a Chromium render — firing them all at once would stampede our own
+ *  functions. Small enough to be polite, large enough to stay quick. */
+const WARM_BATCH = 5;
+
 /**
- * Schedule background pre-rendering of freshly-published slips so each
- * employee's first LIFF open is instant. Runs after the response via `after()`,
- * so it never delays the publish action. Best-effort — failures are swallowed
- * inside warmPublishedPayslips and the slip just renders lazily on first open.
+ * Pre-render freshly-published slips so each employee's first LIFF open is
+ * instant, by asking the payslip PDF route to render them.
+ *
+ * It used to render them inline, which meant this page's module graph reached
+ * `renderPayslipPdf` → `@sparticuz/chromium`, and so /admin/payroll shipped the
+ * 66 MB browser binary. It was the largest function in the deployment at 175 MB
+ * and the one that blew Vercel's 250 MB cap once already — for a cache warm,
+ * on a page whose actual job is rendering a table.
+ *
+ * `/admin/payroll/payslip-pdf` already renders and caches exactly this PDF, in
+ * the same Supabase Storage bucket under the same `employeeId/month.pdf` key,
+ * and `buildPayslipRenderClosure` resolves the EMPLOYEE's own locale — so the
+ * bytes produced are identical to what the inline warm produced. The only
+ * change is which function holds the browser.
+ *
+ * Auth is the caller's own cookie, forwarded. No new endpoint, no shared
+ * secret, no new way to reach a payslip: whoever just published this payroll
+ * already holds `payroll.read`, which is what that route asks for. The header
+ * read happens HERE rather than inside `after()`, while the request scope is
+ * unambiguously alive.
+ *
+ * Best-effort throughout, exactly as before — a failed warm just means the slip
+ * renders lazily on first open, so nothing here is allowed to throw or to make
+ * the publish look unsuccessful.
  */
 async function scheduleSlipWarming(month: string, slips: { employeeId: string }[]): Promise<void> {
   if (slips.length === 0) return;
-  // The employee's preferred locale lives on the linked User (see schema).
-  const employees = await prisma.employee.findMany({
-    where: { id: { in: slips.map((s) => s.employeeId) } },
-    select: { id: true, user: { select: { locale: true } } },
+
+  // `headers()` THROWS when there is no request scope. Publishing payroll must
+  // not fail because a cache warm could not read a cookie, so this degrades to
+  // "skip the warm" instead — every slip still renders lazily on first open.
+  let cookie: string | null = null;
+  let origin: string | null = null;
+  try {
+    const h = await headers();
+    cookie = h.get('cookie');
+    const host = h.get('host');
+    if (host) origin = `${h.get('x-forwarded-proto') ?? 'https'}://${host}`;
+  } catch {
+    return;
+  }
+  // No session or no host → nothing to authenticate a self-call with.
+  if (!cookie || !origin) return;
+  const ids = slips.map((s) => s.employeeId);
+  const authCookie = cookie;
+
+  after(async () => {
+    for (let i = 0; i < ids.length; i += WARM_BATCH) {
+      await Promise.allSettled(
+        ids.slice(i, i + WARM_BATCH).map((employeeId) =>
+          fetch(
+            `${origin}/admin/payroll/payslip-pdf?m=${encodeURIComponent(month)}&employeeId=${encodeURIComponent(employeeId)}`,
+            {
+              headers: { cookie: authCookie },
+              // The route 302s to a signed download URL. We want the render as
+              // a side effect, not the bytes — following it would pull every
+              // PDF back over the wire for nothing.
+              redirect: 'manual',
+            },
+          ).catch((err: unknown) => {
+            console.error('[payslip-warm] request failed', {
+              employeeId,
+              month,
+              error: err instanceof Error ? err.message : String(err),
+            });
+          }),
+        ),
+      );
+    }
   });
-  const localeById = new Map(employees.map((e) => [e.id, e.user.locale]));
-  const targets = slips.map((s) => ({
-    employeeId: s.employeeId,
-    locale: localeById.get(s.employeeId) ?? null,
-  }));
-  after(() => warmPublishedPayslips({ month, targets }));
 }
 
 /**
