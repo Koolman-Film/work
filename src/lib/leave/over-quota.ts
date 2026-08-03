@@ -94,7 +94,19 @@ export type ReplayResult = {
  */
 export function replayOverQuota(
   ent: ReplayEntitlement,
-  requests: ReadonlyArray<{ id: string; chargedMinutes: number }>,
+  requests: ReadonlyArray<{
+    id: string;
+    chargedMinutes: number;
+    /** Over-quota minutes an admin chose not to charge (0 = charge in full).
+     *
+     *  REQUIRED, not optional-with-default, for the same reason as
+     *  `ReplayEntitlement.penaltyMinutes`: this function is the single money
+     *  formula and has four callers, one of which is a CLI script with
+     *  `--apply` that writes to the real database. An optional field lets a
+     *  caller be missed, and a missed caller silently re-charges a deduction a
+     *  human deliberately forgave. Required turns that into a compile error. */
+    waivedOverQuotaMinutes: number;
+  }>,
   ratePerMin: number,
 ): ReplayResult[] {
   const base =
@@ -106,10 +118,17 @@ export function replayOverQuota(
   for (const r of requests) {
     const remaining = base == null ? null : base - used;
     const over = overQuotaMinutesFor(r.chargedMinutes, remaining);
+    // The waiver reduces what is CHARGED, never what was USED. The employee
+    // still took the leave, so it still consumes quota and still pushes later
+    // requests over — forgiving the money must not hand back the days, or a
+    // waiver would silently make every subsequent request cheaper too.
+    const chargeable = Math.max(0, over - Math.max(0, r.waivedOverQuotaMinutes));
     out.push({
       id: r.id,
+      // Factual: how far over quota this request actually was. Kept whole so
+      // the waiver stays visible as a separate decision rather than erasing it.
       overQuotaMinutes: over,
-      deductAmount: over > 0 ? deductionForOverQuota(over, ratePerMin) : null,
+      deductAmount: chargeable > 0 ? deductionForOverQuota(chargeable, ratePerMin) : null,
     });
     used += r.chargedMinutes;
   }

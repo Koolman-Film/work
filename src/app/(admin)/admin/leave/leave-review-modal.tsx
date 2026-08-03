@@ -6,6 +6,7 @@ import { TranslatableText } from '@/components/ui/translatable-text';
 import { approveLeaveRequest, rejectLeaveRequest } from '@/lib/leave/admin';
 import { voidLeaveRequest } from '@/lib/leave/void';
 import { CorrectTypeSection } from './correct-type-section';
+import { WaiveDeductionSection } from './waive-deduction-section';
 
 /** Server-computed over-quota preview for a Pending row (UX only — the
  *  approve server action re-checks and is the real Block guard). */
@@ -44,6 +45,10 @@ export type LeaveRowVM = {
   overQuota: LeaveOverQuotaVM | null;
   employeeId: string;
   leaveTypeId: string;
+  waivedOverQuotaMinutes: number;
+  waiveReason: string | null;
+  /** Minutes in one standard leave day — lets the waive UI talk in days. */
+  standardDayMinutes: number;
   /** Approved, not deleted, not yet paid, and a DeductPay type → an admin may
    *  correct the type. Drives whether the correction UI renders. */
   correctable: boolean;
@@ -186,6 +191,20 @@ function LeaveBody({
           leaveRequestId={row.id}
           currentTypeId={row.leaveTypeId}
           options={correctionTypeOptions}
+          onDone={onActioned}
+        />
+      )}
+      {/* Waiving is offered on the same rows as a type correction: approved,
+          not yet paid, on a DeductPay type — i.e. exactly the rows that still
+          carry a changeable deduction. The ceiling is left to the server, which
+          clamps against the LIVE over-quota; the inbox only knows the stored
+          figure, which is null until a payroll publish freezes it. */}
+      {row.correctable && (
+        <WaiveDeductionSection
+          leaveRequestId={row.id}
+          waivedMinutes={row.waivedOverQuotaMinutes}
+          waiveReason={row.waiveReason}
+          standardDayMinutes={row.standardDayMinutes}
           onDone={onActioned}
         />
       )}

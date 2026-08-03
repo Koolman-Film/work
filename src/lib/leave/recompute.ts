@@ -84,6 +84,7 @@ export async function computeLiveLeaveCharges(
       endTime: true,
       chargedMinutes: true,
       overQuotaMinutes: true,
+      waivedOverQuotaMinutes: true,
       deductAmount: true,
       reviewedAt: true,
       createdAt: true,
@@ -177,7 +178,11 @@ export async function computeLiveLeaveCharges(
           adjustmentMinutes: ent?.adjustmentMinutes ?? 0,
           penaltyMinutes: penalty,
         },
-        ordered.map((r) => ({ id: r.id, chargedMinutes: charged.get(r.id) ?? 0 })),
+        ordered.map((r) => ({
+          id: r.id,
+          chargedMinutes: charged.get(r.id) ?? 0,
+          waivedOverQuotaMinutes: r.waivedOverQuotaMinutes,
+        })),
         rate,
       ).map((x) => [x.id, x]),
     );

@@ -22,6 +22,8 @@ const rec = (o: Partial<LeaveRecord>): LeaveRecord => ({
   attachmentUrl: null,
   deletedAt: null,
   deductedInPayrollId: null,
+  waivedOverQuotaMinutes: 0,
+  waiveReason: null,
   leaveType: { name: 'ลากิจ', isPaid: true, overQuotaPolicy: 'DeductPay' },
   employee: {
     firstName: 'A',

@@ -8,6 +8,11 @@ export type RippleRequest = {
   reviewedAtMs: number;
   /** Swept into a published payroll → frozen, never rewritten. */
   swept: boolean;
+  /** Over-quota minutes an admin forgave on this request. Carried through the
+   *  ripple because a type correction REWRITES sibling deductions — without it,
+   *  correcting one request's type would silently re-charge a waiver someone
+   *  deliberately granted on an unrelated sibling. */
+  waivedOverQuotaMinutes: number;
   curOverQuotaMinutes: number;
   curDeductAmount: number | null;
 };
@@ -54,7 +59,11 @@ function replayKeepingSwept(
   const ordered = [...group].sort((a, b) => a.reviewedAtMs - b.reviewedAtMs);
   const replayed: ReplayResult[] = replayOverQuota(
     ent,
-    ordered.map((r) => ({ id: r.id, chargedMinutes: r.chargedMinutes })),
+    ordered.map((r) => ({
+      id: r.id,
+      chargedMinutes: r.chargedMinutes,
+      waivedOverQuotaMinutes: r.waivedOverQuotaMinutes,
+    })),
     ratePerMin,
   );
   const out = new Map<string, { over: number; deduct: number | null }>();

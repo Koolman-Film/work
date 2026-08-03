@@ -76,6 +76,7 @@ export const SYSTEM_ROLES: Record<
       'leave.approve',
       'leave.void',
       'leave.correct-type',
+      'leave.waive-deduction',
       'leave.entitlement.manage',
       'advance.read',
       'advance.approve',
