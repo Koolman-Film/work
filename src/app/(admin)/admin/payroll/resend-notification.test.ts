@@ -37,7 +37,6 @@ vi.mock('@/lib/payroll/run', () => ({
   payrollRowDetail: vi.fn(),
   runPayrollDraft: vi.fn(),
 }));
-vi.mock('@/lib/payslip/warm', () => ({ warmPublishedPayslips: vi.fn() }));
 vi.mock('./adjustments/adjustment-schema', () => ({ readForm: vi.fn() }));
 
 const payrollFindFirst = vi.fn();

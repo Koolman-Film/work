@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { LOCALES } from './config';
 import {
   formatDate,
   formatMoney,
@@ -65,10 +66,38 @@ describe('formatMoney', () => {
     expect(formatMoney('abc', 'en')).toBe('฿—');
     expect(formatMoney(Number.NaN, 'en')).toBe('฿—');
   });
+
+  // A payslip states what someone was paid. It must read identically in every
+  // language the company issues it in — same digits, same separators — or two
+  // people comparing the same slip can reach different numbers.
+  it('renders money identically in all six locales', () => {
+    for (const locale of LOCALES) {
+      expect(formatMoney(1234567.89, locale)).toBe('฿1,234,567.89');
+    }
+  });
+
+  it('never uses non-Western digits (my resolves to the mymr numbering system)', () => {
+    expect(formatMoney(1234567.89, 'my')).toBe('฿1,234,567.89');
+    // Nothing but the baht sign, Western digits and separators may appear.
+    for (const locale of LOCALES) {
+      expect(formatMoney(1234567.89, locale)).toMatch(/^฿[\d,.]+$/);
+    }
+  });
+
+  it('never uses the European separator convention (lo groups with dots)', () => {
+    // `฿1.234.567,89` reads as 1.23 to anyone expecting a decimal point.
+    expect(formatMoney(1234567.89, 'lo')).toBe('฿1,234,567.89');
+  });
 });
 
 describe('formatNumber', () => {
   it('adds locale thousand separators', () => {
     expect(formatNumber(1234567, 'en')).toBe('1,234,567');
+  });
+
+  it('uses Western digits in every locale', () => {
+    for (const locale of LOCALES) {
+      expect(formatNumber(2569, locale)).toMatch(/2.?569/);
+    }
   });
 });

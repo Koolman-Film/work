@@ -67,12 +67,21 @@ const CHROMIUM_BIN_RE =
  * anyone noticing, so the absence check matters more than the size one.
  */
 const CHROMIUM_ROUTES = [
-  'app/(admin)/admin/payroll/page.js',
   'app/(admin)/admin/payroll/payslip-pdf/route.js',
   'app/(admin)/admin/payroll/payslips-zip/route.js',
   'app/(liff)/liff/payslip/pdf/route.js',
   'app/(admin)/admin/reports/[report]/export/route.js',
 ];
+
+/**
+ * Routes that must NOT carry it. The payroll page is the whole reason this
+ * script exists: it once rendered the payslip warm inline, which made a page
+ * that draws a table the largest function in the deployment (175 MB) and blew
+ * the 250 MB cap. It now delegates to the payslip-pdf route, so anything that
+ * pulls Chromium back into a page is a regression — and one that would be
+ * invisible until a deploy failed.
+ */
+const CHROMIUM_FORBIDDEN_ROUTES = ['app/(admin)/admin/payroll/page.js'];
 
 /** Every *.nft.json under .next/server. */
 async function findManifests(dir) {
@@ -182,12 +191,25 @@ if (check) {
     }
   }
 
+  for (const route of CHROMIUM_FORBIDDEN_ROUTES) {
+    const row = rows.find((r) => r.route === route);
+    if (row && row.binaryBytes > 0) {
+      failures.push(
+        `${route}: traces the chromium binary (${mb(row.binaryBytes)} MB) but must not. ` +
+          `Something imported a PDF renderer into this route, or an ` +
+          `outputFileTracingIncludes key started matching it. Render PDFs by ` +
+          `delegating to /admin/payroll/payslip-pdf instead.`,
+      );
+    }
+  }
+
   const worst = rows[0];
   if (failures.length === 0) {
     console.log(
       `✓ ${rows.length} routes checked. Largest: ${worst.route} at ${mb(worst.bytes)} MB ` +
         `(budget ${BUDGET_MB} MB, cap ${CAP_MB} MB). No duplicate content. ` +
-        `All ${CHROMIUM_ROUTES.length} PDF routes carry chromium.`,
+        `All ${CHROMIUM_ROUTES.length} PDF routes carry chromium; ` +
+        `${CHROMIUM_FORBIDDEN_ROUTES.length} kept free of it.`,
     );
   } else {
     console.error(`✗ ${failures.length} problem(s) in the build output:\n`);
