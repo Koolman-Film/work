@@ -121,6 +121,7 @@ describe('payroll audit writes carry real Payroll UUIDs', () => {
       ],
       skipped: [],
       blocked: [],
+      blockedNegativeNet: [],
     });
 
     await runIgnoringRedirect(() => publishPayrollAction(form()));

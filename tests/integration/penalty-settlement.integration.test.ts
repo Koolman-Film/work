@@ -2052,3 +2052,130 @@ describe('setPenaltySettlement / clearPenaltySettlement — busy outcome + short
     await holderPromise;
   });
 });
+
+describe('publishPayroll — refuses to publish a negative net', () => {
+  /**
+   * Reproduces the production shape seen on 2026-08-03: an employee on ฿13,500
+   * with a leave deduction of ฿27,450 and a net of −฿14,625.
+   *
+   * The sweep in run.ts has no LOWER date bound — it charges every unpaid
+   * over-quota leave request in the employee's history to the current draft —
+   * so a backlog lands in one month. calc.ts computes the negative without
+   * complaint by design, declaring `CalcError` variant `negative-net` for the
+   * caller to act on; nothing ever threw it, so the row published like any
+   * other. Publishing issues a payslip saying the employee owes the company
+   * and stamps `deductedInPayrollId` on every swept leave request — frozen.
+   */
+  it('holds the employee back, names them with the figure, and leaves their leave unstamped', async () => {
+    const user = await prisma.user.create({ data: {} });
+    const branch = await prisma.branch.create({ data: { name: `B-${uid().slice(0, 8)}` } });
+    const emp = await prisma.employee.create({
+      data: {
+        userId: user.id,
+        firstName: 'Eve',
+        lastName: 'Overdrawn',
+        branchId: branch.id,
+        salaryType: 'Monthly',
+        baseSalary: new Prisma.Decimal(13_500),
+        status: 'Active',
+        hiredAt: new Date('2026-01-01'),
+      },
+    });
+    const leaveType = await prisma.leaveType.create({
+      data: { name: `ลากิจ-${uid().slice(0, 8)}`, annualQuota: 0 },
+    });
+
+    // 61 standard days, all over quota (annualQuota 0) — the exact backlog
+    // size the production row implies. Dated well before the 2026-07 window to
+    // prove the sweep reaches back past this period, which is the whole cause.
+    const std = 420;
+    const leave = await prisma.leaveRequest.create({
+      data: {
+        employeeId: emp.id,
+        leaveTypeId: leaveType.id,
+        startDate: new Date('2026-02-02'),
+        endDate: new Date('2026-04-30'),
+        unit: 'FullDay',
+        reason: 'backlog',
+        status: 'Approved',
+        chargedMinutes: 61 * std,
+        reviewedAt: new Date('2026-02-01'),
+      },
+    });
+
+    await runPayrollDraft('2026-07');
+    const draftRow = await prisma.payroll.findFirstOrThrow({
+      where: { employeeId: emp.id, month: '2026-07' },
+    });
+    // The draft is allowed to be negative — that is how an admin SEES the
+    // problem. It is publishing it that must not happen.
+    expect(Number(draftRow.netPay)).toBeLessThan(0);
+
+    const result = await publishPayroll('2026-07', { employeeId: emp.id });
+
+    expect(result.published).toHaveLength(0);
+    expect(result.blockedNegativeNet).toEqual([
+      { employeeId: emp.id, name: 'Eve Overdrawn', netPay: Number(draftRow.netPay).toFixed(2) },
+    ]);
+    // Not conflated with the stranded-settlement guard, which shows a
+    // different message pointing at a different fix.
+    expect(result.blocked).toEqual([]);
+
+    // Still Draft, and — the part that matters — the leave was NOT frozen, so
+    // it can still be corrected.
+    const after = await prisma.payroll.findFirstOrThrow({
+      where: { employeeId: emp.id, month: '2026-07' },
+    });
+    expect(after.status).toBe('Draft');
+    const leaveAfter = await prisma.leaveRequest.findUniqueOrThrow({ where: { id: leave.id } });
+    expect(leaveAfter.deductedInPayrollId).toBeNull();
+  });
+
+  it('publishes normally once the net is no longer negative', async () => {
+    const user = await prisma.user.create({ data: {} });
+    const branch = await prisma.branch.create({ data: { name: `B-${uid().slice(0, 8)}` } });
+    const emp = await prisma.employee.create({
+      data: {
+        userId: user.id,
+        firstName: 'Eve',
+        lastName: 'Fixed',
+        branchId: branch.id,
+        salaryType: 'Monthly',
+        baseSalary: new Prisma.Decimal(13_500),
+        status: 'Active',
+        hiredAt: new Date('2026-01-01'),
+      },
+    });
+    const leaveType = await prisma.leaveType.create({
+      data: { name: `ลากิจ-${uid().slice(0, 8)}`, annualQuota: 0 },
+    });
+    const leave = await prisma.leaveRequest.create({
+      data: {
+        employeeId: emp.id,
+        leaveTypeId: leaveType.id,
+        startDate: new Date('2026-02-02'),
+        endDate: new Date('2026-04-30'),
+        unit: 'FullDay',
+        reason: 'backlog',
+        status: 'Approved',
+        chargedMinutes: 61 * 420,
+        reviewedAt: new Date('2026-02-01'),
+      },
+    });
+
+    await runPayrollDraft('2026-07');
+    expect((await publishPayroll('2026-07', { employeeId: emp.id })).published).toHaveLength(0);
+
+    // The fix an admin would make: void the runaway leave. Zero net is fine —
+    // only BELOW zero is refused.
+    await prisma.leaveRequest.update({
+      where: { id: leave.id },
+      data: { deletedAt: new Date(), deleteReason: 'entered in error' },
+    });
+    await runPayrollDraft('2026-07');
+
+    const retry = await publishPayroll('2026-07', { employeeId: emp.id });
+    expect(retry.blockedNegativeNet).toEqual([]);
+    expect(retry.published).toHaveLength(1);
+  });
+});

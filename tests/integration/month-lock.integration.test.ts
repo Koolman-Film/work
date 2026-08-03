@@ -138,7 +138,13 @@ describe('runPayrollDraft / publishPayroll — surface `busy` under contention (
     const result: PublishResult = await publishPayroll(month);
     const elapsedMs = Date.now() - start;
 
-    expect(result).toEqual({ published: [], skipped: [], blocked: [], busy: true });
+    expect(result).toEqual({
+      published: [],
+      skipped: [],
+      blocked: [],
+      blockedNegativeNet: [],
+      busy: true,
+    });
     // Same reasoning as the runPayrollDraft case above (Defect 3): assert
     // that it returned well before the holder released, not a tight
     // absolute millisecond bound.
