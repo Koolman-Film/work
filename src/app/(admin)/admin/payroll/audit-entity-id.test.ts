@@ -49,7 +49,6 @@ vi.mock('@/lib/payroll/run', () => ({
   lockPayroll: (...a: unknown[]) => lockPayroll(...a),
   payrollRowDetail: vi.fn(),
 }));
-vi.mock('@/lib/payslip/warm', () => ({ warmPublishedPayslips: vi.fn() }));
 vi.mock('@/lib/inngest/events', () => ({ sendNotification: vi.fn() }));
 vi.mock('./adjustments/adjustment-schema', () => ({ readForm: vi.fn() }));
 

@@ -17,6 +17,20 @@
 
 import type { Locale } from './config';
 
+/**
+ * Pin a locale to Western digits (`1 2 3`) via the Unicode `nu` extension.
+ *
+ * Only Burmese needs it today — ICU resolves `my` to the `mymr` numbering
+ * system, so `Intl` renders ၁၂၃ — but the extension is a no-op for locales
+ * already on `latn`, so applying it uniformly costs nothing and means a future
+ * locale (Bengali, Farsi, Nepali…) cannot quietly reintroduce the problem.
+ *
+ * Digits only. Grouping and decimal marks still come from the locale.
+ */
+export function latnDigits(locale: string): string {
+  return locale.includes('-u-') ? `${locale}-nu-latn` : `${locale}-u-nu-latn`;
+}
+
 // ─── Dates ────────────────────────────────────────────────────────────────
 
 /**
@@ -48,7 +62,7 @@ export function formatDate(date: Date, locale: Locale): string {
     const beYear = String(Number(ceYear) + 543);
     return ymd.replace(ceYear, beYear);
   }
-  return new Intl.DateTimeFormat(locale, {
+  return new Intl.DateTimeFormat(latnDigits(locale), {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
@@ -73,7 +87,7 @@ export function formatShortDate(date: Date, locale: Locale): string {
     const beYear = String(Number(ceYear) + 543);
     return out.replace(ceYear, beYear);
   }
-  return new Intl.DateTimeFormat(locale, {
+  return new Intl.DateTimeFormat(latnDigits(locale), {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -101,7 +115,7 @@ export function formatMonthYear(month: string, locale: Locale): string {
     });
     return out.replace(ceYear, String(Number(ceYear) + 543));
   }
-  return new Intl.DateTimeFormat(locale, {
+  return new Intl.DateTimeFormat(latnDigits(locale), {
     month: 'long',
     year: 'numeric',
     timeZone: 'Asia/Bangkok',
@@ -110,7 +124,7 @@ export function formatMonthYear(month: string, locale: Locale): string {
 
 /** Time of day like "14:30" (24-hour, all locales). */
 export function formatTime(date: Date, locale: Locale): string {
-  return new Intl.DateTimeFormat(locale, {
+  return new Intl.DateTimeFormat(latnDigits(locale), {
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
@@ -121,21 +135,39 @@ export function formatTime(date: Date, locale: Locale): string {
 // ─── Money ────────────────────────────────────────────────────────────────
 
 /**
- * Format a Baht amount as "฿1,234.56" / "฿1.234,56" / "¥1,234.56" — wait,
- * we DON'T want ¥. Always show THB symbol regardless of locale because
- * the business is in Thailand and all money is in THB. Locale only
- * controls the number separators (decimal/thousand).
+ * ONE numeric convention for money, in every language: Western digits, comma
+ * grouping, dot decimal. `฿1,234,567.89` reads the same on all six payslips.
  *
- * Implementation: format the number with the locale's separator rules,
- * then prepend "฿" manually. Intl.NumberFormat with `currency: 'THB'`
- * would produce locale-translated currency display like "1.234,56 THB"
- * for some locales — not what we want.
+ * Letting the reader's locale choose broke two of the six, and both matter on
+ * a document about someone's pay:
+ *
+ *   my → `฿၁,၂၃၄,၅၆၇.၈၉`  ICU resolves Burmese to the `mymr` numbering system,
+ *                          so salary figures came out in Myanmar digits while
+ *                          bank account numbers, employee ids and anything else
+ *                          carried as a plain string stayed Western — the same
+ *                          slip showing two sets of digits.
+ *   lo → `฿1.234.567,89`   Lao uses European separators, so the dot is the
+ *                          THOUSANDS mark. A Thai payroll admin reading that
+ *                          slip sees a decimal point. Off by a factor of 1000,
+ *                          and nothing about it looks wrong.
+ *
+ * th / en / zh-CN / km already produced `1,234,567.89`, so pinning the numeric
+ * part changes only the two that were broken. The reference locale is used for
+ * digits and separators ONLY — the ฿ symbol is prepended by hand, because
+ * `currency: 'THB'` would translate the display to things like "1.234,56 THB".
  */
+const MONEY_NUMERIC_LOCALE = 'en-US';
+
 export function formatMoney(amount: number | string, locale: Locale): string {
   const n = typeof amount === 'string' ? Number(amount) : amount;
   if (!Number.isFinite(n)) return '฿—';
 
-  const formatted = new Intl.NumberFormat(locale === 'zh-CN' ? 'zh-CN' : locale, {
+  // `locale` is deliberately unused for the numeric part — see above. It stays
+  // in the signature because every call site passes it and the money format is
+  // a per-document decision we may yet want to vary.
+  void locale;
+
+  const formatted = new Intl.NumberFormat(MONEY_NUMERIC_LOCALE, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(n);
@@ -143,8 +175,14 @@ export function formatMoney(amount: number | string, locale: Locale): string {
   return `฿${formatted}`;
 }
 
-/** Plain integer formatting with locale-aware thousand separators —
- *  for things like employee counts, day counts, etc. */
+/**
+ * Plain integer formatting with locale-aware thousand separators.
+ *
+ * Digits are pinned to `latn` for the same reason as money: Burmese otherwise
+ * renders counts in Myanmar digits beside Western ones. Grouping is left to the
+ * locale here — unlike money, these are counts of days and people, small enough
+ * that a separator rarely appears at all.
+ */
 export function formatNumber(value: number, locale: Locale): string {
-  return new Intl.NumberFormat(locale).format(value);
+  return new Intl.NumberFormat(latnDigits(locale)).format(value);
 }

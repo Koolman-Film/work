@@ -84,20 +84,15 @@ const config: NextConfig = {
     // build's .nft.json: with the bracket key the binary was absent from this
     // route's trace; with `*` it is present.
     '/admin/reports/*/export': ['./src/lib/export/fonts/**', CHROMIUM_BIN],
-    // The payroll PAGE renders PDFs too — not in a request, but in the publish
-    // action's `after()` hook, which pre-warms every freshly-published slip
-    // (lib/payslip/warm.ts → renderPayslipPdf). Because no route handler is
-    // involved this is easy to miss: tracing saw no chromium reference on
-    // /admin/payroll and shipped the page without the binary, so EVERY warm
-    // since 2026-06-30 failed with "input directory .../bin does not exist"
-    // (53 occurrences). It fails silently by design — warm.ts swallows it and
-    // the slip falls back to a lazy ~1s render on first LIFF open — so the
-    // feature had simply never worked in production.
     //
-    // `/page` pins this to the page itself. A bare `/admin/payroll` key also
-    // matches every nested route, which put the 66 MB binary into reconcile,
-    // adjustments/*, and preview-html — none of which render a PDF.
-    '/admin/payroll/page': ['./src/lib/payslip/fonts/**', CHROMIUM_BIN],
+    // NOTE: there is deliberately no '/admin/payroll/page' entry.
+    //
+    // The payroll page used to warm freshly-published slips by rendering them
+    // inline, which pulled Chromium into a page whose job is drawing a table:
+    // 175 MB, the largest function in the deployment, and the one that blew the
+    // 250 MB cap. It now asks /admin/payroll/payslip-pdf to render them instead
+    // (see scheduleSlipWarming), so the browser lives only in routes that exist
+    // to produce PDFs. Re-adding a key here would put the 66 MB back.
   },
 
   // Permanent redirects for the W2-IA URL move (pre-existing local URLs only;
