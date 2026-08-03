@@ -535,6 +535,33 @@ export type BlockedSettlement = {
   settledDays: number;
 };
 
+/**
+ * One employee whose net pay came out below zero — deductions exceeded
+ * everything they earned this month.
+ *
+ * calc.ts computes this without complaint on purpose ("we allow negative … but
+ * surface it as an error case the caller can choose to handle — typically by
+ * capping at zero AND alerting the admin") and declares `CalcError` variant
+ * `negative-net` for it. That variant was never thrown anywhere: the only
+ * handling that existed was the payroll table colouring the figure red. A
+ * negative row published exactly like any other.
+ *
+ * It must not. Publishing issues a payslip stating the company will take money
+ * FROM the employee, stamps every swept leave request `deductedInPayrollId` —
+ * frozen, per docs/runbooks/penalty-settled-with-leave.md — and sends it over
+ * LINE. Whatever produced the number (a leave backlog landing in one month is
+ * the known way), it needs a human before it becomes a document.
+ *
+ * Held back per-employee, exactly like a stranded settlement: the row stays in
+ * Draft where it is still fixable, and everyone else in the month publishes.
+ */
+export type BlockedNegativeNet = {
+  employeeId: string;
+  name: string;
+  /** The computed net, as a string, e.g. "-14625.00". */
+  netPay: string;
+};
+
 export type PublishResult = {
   published: PublishedSlip[];
   skipped: SkippedEmployee[];
@@ -546,6 +573,15 @@ export type PublishResult = {
    *  them afterward — the whole-month retry or a per-employee retry both
    *  work. */
   blocked: BlockedSettlement[];
+  /** Employees held back for a negative net (see `BlockedNegativeNet`). A
+   *  separate list rather than a `reason` discriminant on `blocked`, for the
+   *  same reason as `busy` below: every existing caller that reads
+   *  `result.blocked` keeps compiling and keeps showing the settlement-specific
+   *  message it already shows, instead of silently mislabelling a negative-net
+   *  hold-back as a stranded settlement. Required, not optional — the compiler
+   *  then names every construction site rather than letting one default to
+   *  empty and quietly publish a negative row. */
+  blockedNegativeNet: BlockedNegativeNet[];
   /** Same `busy` outcome as `RunResult` (see above, run.ts) — the month's
    *  advisory lock was held by another transaction right now, so this call
    *  did nothing (`published`/`blocked` are both empty). Additive rather
@@ -632,7 +668,14 @@ export async function publishPayroll(
           // there's exactly one key per publish, so the old employeeId-ordering
           // concern for the row-lock version of this code no longer applies.
           const acquired = await lockPayrollMonth(tx, month);
-          if (!acquired) return { published: [], skipped: [], blocked: [], busy: true as const };
+          if (!acquired)
+            return {
+              published: [],
+              skipped: [],
+              blocked: [],
+              blockedNegativeNet: [],
+              busy: true as const,
+            };
 
           const { drafts, skipped } = await gatherAndCalc(tx, month, opts?.employeeId);
 
@@ -671,6 +714,7 @@ export async function publishPayroll(
           // Checked BEFORE any write below, so a held-back employee is never
           // partially published.
           const blocked: BlockedSettlement[] = [];
+          const blockedNegativeNet: BlockedNegativeNet[] = [];
           const blockedEmployeeIds = new Set<string>();
           for (const { draft, employee } of drafts) {
             const row = existingByEmp.get(employee.id);
@@ -689,6 +733,19 @@ export async function publishPayroll(
                 });
                 blockedEmployeeIds.add(employee.id);
               }
+            }
+
+            // Deductions exceeded everything earned. Zero is fine — that is a
+            // month fully consumed by legitimate deductions — but below zero the
+            // slip would tell the employee they owe the company, and publishing
+            // freezes the leave that produced it. Held back for a human.
+            if (draft.netPay.isNegative()) {
+              blockedNegativeNet.push({
+                employeeId: employee.id,
+                name: `${employee.firstName} ${employee.lastName}`,
+                netPay: draft.netPay.toFixed(2),
+              });
+              blockedEmployeeIds.add(employee.id);
             }
           }
 
@@ -760,7 +817,7 @@ export async function publishPayroll(
             });
           }
 
-          return { published, skipped, blocked };
+          return { published, skipped, blocked, blockedNegativeNet };
         },
         // Explicit budget, larger than `runPayrollDraft`'s (see that function's
         // "Transaction timeout" note): `lockPayrollMonth` is non-blocking now, so
