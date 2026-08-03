@@ -7,6 +7,7 @@
  */
 
 import type { Locale } from '@/lib/i18n/config';
+import { latnDigits } from '@/lib/i18n/format';
 import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 import { COMPANY_EN, COMPANY_NATIVE } from './render-html';
 
@@ -45,7 +46,7 @@ export function payslipPeriodLabel(locale: string, month: string): string {
     return `${monthName} ${year + 543}`;
   }
 
-  return new Intl.DateTimeFormat(locale, {
+  return new Intl.DateTimeFormat(latnDigits(locale), {
     month: 'long',
     year: 'numeric',
     timeZone: 'UTC',
