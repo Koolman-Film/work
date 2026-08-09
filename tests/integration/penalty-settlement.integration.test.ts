@@ -116,6 +116,27 @@ async function reset() {
   adminUserHolder.id = adminUser.id;
 }
 
+/**
+ * `Promise.all` for two concurrent calls that must BOTH finish before the test
+ * moves on.
+ *
+ * `Promise.all` rejects on the first rejection and leaves the other promise
+ * running. In these race tests the abandoned sibling is a payroll write, and
+ * "the test moved on" means the next test's `beforeEach(reset)` has already
+ * deleted the employee — so the straggler lands as
+ * `Foreign key constraint violated: Payroll_employeeId_fkey`, reported against
+ * a test that had nothing to do with the real failure.
+ *
+ * Waiting for both to settle and rethrowing afterwards keeps a failure as one
+ * clean failure, pointing at the test that actually broke.
+ */
+async function bothSettled<A, B>(a: Promise<A>, b: Promise<B>): Promise<[A, B]> {
+  const [ra, rb] = await Promise.allSettled([a, b]);
+  if (ra.status === 'rejected') throw ra.reason;
+  if (rb.status === 'rejected') throw rb.reason;
+  return [ra.value, rb.value];
+}
+
 async function makeEmployee(
   overrides: {
     salaryType?: 'Monthly' | 'Daily' | 'Hourly';
@@ -548,7 +569,7 @@ describe('setPenaltySettlement', () => {
     // realistic setup.
     await runPayrollDraft('2026-07');
 
-    const [absentResult, severeResult] = await Promise.all([
+    const [absentResult, severeResult] = await bothSettled(
       setPenaltySettlement({
         employeeId: emp.id,
         month: '2026-07',
@@ -565,7 +586,7 @@ describe('setPenaltySettlement', () => {
         days: 1,
         via: 'reconcile',
       }),
-    ]);
+    );
 
     const results = [absentResult, severeResult];
     const succeeded = results.filter((r) => r.ok);
@@ -603,7 +624,7 @@ describe('setPenaltySettlement', () => {
 describe('publishPayroll vs setPenaltySettlement (publish-side lock race)', () => {
   it('never lets a concurrent settle and publish disagree — settled money and settled leave move together or not at all', async () => {
     // Genuine race, not timing-dependent: both calls run truly concurrently
-    // via Promise.all against real Postgres row locks, so this test does not
+    // via bothSettled against real Postgres row locks, so this test does not
     // assert which one "wins" — only that whichever wins, the outcome is
     // internally consistent. Before the publish-side lock (this fix), the
     // failure mode was: settle wins the write to AttendancePenaltySettlement
@@ -637,7 +658,7 @@ describe('publishPayroll vs setPenaltySettlement (publish-side lock race)', () =
     });
     expect(Number(draftRow.deductAttendance)).toBe(666.67); // unsettled: full day
 
-    const [settleResult] = await Promise.all([
+    const [settleResult] = await bothSettled(
       setPenaltySettlement({
         employeeId: emp.id,
         month: '2026-07',
@@ -647,7 +668,7 @@ describe('publishPayroll vs setPenaltySettlement (publish-side lock race)', () =
         via: 'reconcile',
       }),
       publishPayroll('2026-07', { employeeId: emp.id }),
-    ]);
+    );
 
     const publishedRow = await prisma.payroll.findFirstOrThrow({
       where: { employeeId: emp.id, month: '2026-07' },
@@ -719,7 +740,7 @@ describe('publishPayroll vs setPenaltySettlement (publish-side lock race)', () =
     });
     expect(before).toBeNull(); // no row for anything to (row-)lock
 
-    const [settleResult] = await Promise.all([
+    const [settleResult] = await bothSettled(
       setPenaltySettlement({
         employeeId: emp.id,
         month: '2026-07',
@@ -729,7 +750,7 @@ describe('publishPayroll vs setPenaltySettlement (publish-side lock race)', () =
         via: 'reconcile',
       }),
       publishPayroll('2026-07', { employeeId: emp.id }),
-    ]);
+    );
 
     const publishedRow = await prisma.payroll.findFirstOrThrow({
       where: { employeeId: emp.id, month: '2026-07' },
@@ -1429,7 +1450,7 @@ describe('publishPayroll — per-employee skip instead of a whole-month hard sto
 describe('setPenaltySettlement vs approveLeaveRequest (entitlement-lock race, Defect 1)', () => {
   it('never lets a concurrent settle and leave approval jointly overdraw the same (employee, type, year) balance', async () => {
     // Genuine race, not timing-dependent: both calls run truly concurrently
-    // via Promise.all against real Postgres, so this test does not assert
+    // via bothSettled against real Postgres, so this test does not assert
     // which one "wins" — only that whichever wins, the combined outcome
     // never spends more than the 3-day (1,260-minute) grant.
     //
@@ -1476,7 +1497,7 @@ describe('setPenaltySettlement vs approveLeaveRequest (entitlement-lock race, De
       },
     });
 
-    const [settleResult, approveResult] = await Promise.all([
+    const [settleResult, approveResult] = await bothSettled(
       setPenaltySettlement({
         employeeId: emp.id,
         month: '2026-07',
@@ -1486,7 +1507,7 @@ describe('setPenaltySettlement vs approveLeaveRequest (entitlement-lock race, De
         via: 'reconcile',
       }),
       approveLeaveRequest({ leaveRequestId: req.id, note: 'อนุมัติ' }),
-    ]);
+    );
 
     // DeductPay never refuses outright — only Block does — so whichever
     // order the lock resolves in, approval itself must succeed.
@@ -1556,7 +1577,7 @@ async function makeFillerEmployees(n: number, branchId: string): Promise<void> {
 describe('runPayrollDraft vs publishPayroll (month-lock race, Defect 2)', () => {
   it('never leaves a row that was Published back in Draft when a recalculation races a publish', async () => {
     // Genuine race, not a test that would pass either way — but also not one
-    // where a single Promise.all reliably lands in the exact vulnerable
+    // where a single concurrent pair reliably lands in the exact vulnerable
     // window. The unfixed `runPayrollDraft` reads ALL of the month's
     // existing rows ONCE up front, then writes them back one employee at a
     // time — the window where a concurrent `publishPayroll` can commit
@@ -1594,10 +1615,10 @@ describe('runPayrollDraft vs publishPayroll (month-lock race, Defect 2)', () => 
       });
       expect(draftBefore.status).toBe('Draft');
 
-      const [, publishResult] = await Promise.all([
+      const [, publishResult] = await bothSettled(
         runPayrollDraft('2026-07'),
         publishPayroll('2026-07', { employeeId: emp.id }),
-      ]);
+      );
 
       const after = await prisma.payroll.findFirstOrThrow({
         where: { employeeId: emp.id, month: '2026-07' },
@@ -1947,16 +1968,56 @@ describe('setPenaltySettlement/publishPayroll — SevereLate and LateThreeStrike
 });
 
 describe('setPenaltySettlement / clearPenaltySettlement — busy outcome + short retry (Defect 1)', () => {
-  /** Hold `month`'s advisory lock (month-lock.ts) for `holdMs` in its own
-   *  transaction — mirrors exactly what `runPayrollDraft`/`publishPayroll`
-   *  do as their first statement. */
-  async function holdMonthLock(month: string, holdMs: number): Promise<void> {
-    const { lockPayrollMonth } = await import('@/lib/payroll/month-lock');
-    await prisma.$transaction(async (tx) => {
-      const acquired = await lockPayrollMonth(tx, month);
-      if (!acquired) throw new Error('test setup bug: expected to acquire the lock uncontended');
-      await new Promise((resolve) => setTimeout(resolve, holdMs));
+  /**
+   * Hold `month`'s advisory lock (month-lock.ts) for `holdMs` in its own
+   * transaction — mirrors exactly what `runPayrollDraft`/`publishPayroll` do as
+   * their first statement.
+   *
+   * Returns BOTH promises rather than one, for two reasons:
+   *
+   *   `acquired` removes a timing guess. Callers used to sleep 20ms and assume
+   *   the lock was held by then — but this function opens with a dynamic
+   *   `import()`, and a cold one can take longer. When it did, the lock was not
+   *   yet held, the call under test SUCCEEDED instead of returning `busy`, and
+   *   the assertion failed for a reason that had nothing to do with the
+   *   behaviour being tested.
+   *
+   *   `done` must be awaited in a `finally`. It was previously awaited on the
+   *   last line of each test, so any earlier assertion failure skipped it and
+   *   left a transaction holding the month's advisory lock for up to `holdMs`
+   *   INTO THE NEXT TEST — turning one honest failure into a cascade of
+   *   unrelated-looking ones.
+   *
+   * `acquired` rejects if the transaction fails, so a setup bug surfaces as a
+   * failure rather than a hang.
+   */
+  function holdMonthLock(
+    month: string,
+    holdMs: number,
+  ): { acquired: Promise<void>; done: Promise<void> } {
+    let resolveAcquired!: () => void;
+    let rejectAcquired!: (e: unknown) => void;
+    const acquired = new Promise<void>((res, rej) => {
+      resolveAcquired = res;
+      rejectAcquired = rej;
     });
+    const done = (async () => {
+      const { lockPayrollMonth } = await import('@/lib/payroll/month-lock');
+      await prisma.$transaction(async (tx) => {
+        if (!(await lockPayrollMonth(tx, month))) {
+          throw new Error('test setup bug: expected to acquire the lock uncontended');
+        }
+        resolveAcquired();
+        await new Promise((resolve) => setTimeout(resolve, holdMs));
+      });
+    })().catch((e: unknown) => {
+      rejectAcquired(e);
+      throw e;
+    });
+    // Never let `done` reject unobserved — the caller awaits it in a finally,
+    // and `acquired` already carries the failure to the assertion.
+    void done.catch(() => {});
+    return { acquired, done };
   }
 
   it('returns `busy` (not a throw, not a hang) once its couple of short retries are exhausted against a long-held lock', async () => {
@@ -1966,27 +2027,29 @@ describe('setPenaltySettlement / clearPenaltySettlement — busy outcome + short
 
     // Held well past the retry budget (50ms + 150ms ≈ 200ms) — every retry
     // must still find the lock taken.
-    const holderPromise = holdMonthLock('2026-07', 500);
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    const holder = holdMonthLock('2026-07', 500);
+    await holder.acquired;
 
-    const result = await setPenaltySettlement({
-      employeeId: emp.id,
-      month: '2026-07',
-      kind: 'Absent',
-      leaveTypeId: vacation.id,
-      days: 1,
-      via: 'reconcile',
-    });
+    try {
+      const result = await setPenaltySettlement({
+        employeeId: emp.id,
+        month: '2026-07',
+        kind: 'Absent',
+        leaveTypeId: vacation.id,
+        days: 1,
+        via: 'reconcile',
+      });
 
-    expect(result).toEqual({ ok: false, error: 'busy' });
+      expect(result).toEqual({ ok: false, error: 'busy' });
 
-    // Nothing was written — a `busy` result is a true no-op.
-    const row = await prisma.attendancePenaltySettlement.findUnique({
-      where: { employeeId_month_kind: { employeeId: emp.id, month: '2026-07', kind: 'Absent' } },
-    });
-    expect(row).toBeNull();
-
-    await holderPromise;
+      // Nothing was written — a `busy` result is a true no-op.
+      const row = await prisma.attendancePenaltySettlement.findUnique({
+        where: { employeeId_month_kind: { employeeId: emp.id, month: '2026-07', kind: 'Absent' } },
+      });
+      expect(row).toBeNull();
+    } finally {
+      await holder.done;
+    }
   });
 
   it('succeeds via retry when the lock is released within the retry budget, instead of failing on the first busy attempt', async () => {
@@ -1996,26 +2059,28 @@ describe('setPenaltySettlement / clearPenaltySettlement — busy outcome + short
 
     // Released well inside the retry budget — the first attempt sees `busy`,
     // but a retry lands after the holder has committed.
-    const holderPromise = holdMonthLock('2026-07', 30);
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    const holder = holdMonthLock('2026-07', 30);
+    await holder.acquired;
 
-    const result = await setPenaltySettlement({
-      employeeId: emp.id,
-      month: '2026-07',
-      kind: 'Absent',
-      leaveTypeId: vacation.id,
-      days: 1,
-      via: 'reconcile',
-    });
+    try {
+      const result = await setPenaltySettlement({
+        employeeId: emp.id,
+        month: '2026-07',
+        kind: 'Absent',
+        leaveTypeId: vacation.id,
+        days: 1,
+        via: 'reconcile',
+      });
 
-    expect(result).toEqual({ ok: true });
+      expect(result).toEqual({ ok: true });
 
-    const row = await prisma.attendancePenaltySettlement.findUnique({
-      where: { employeeId_month_kind: { employeeId: emp.id, month: '2026-07', kind: 'Absent' } },
-    });
-    expect(row?.deletedAt).toBeNull();
-
-    await holderPromise;
+      const row = await prisma.attendancePenaltySettlement.findUnique({
+        where: { employeeId_month_kind: { employeeId: emp.id, month: '2026-07', kind: 'Absent' } },
+      });
+      expect(row?.deletedAt).toBeNull();
+    } finally {
+      await holder.done;
+    }
   });
 
   it('clearPenaltySettlement also returns `busy` (not a throw) once retries are exhausted', async () => {
@@ -2032,24 +2097,26 @@ describe('setPenaltySettlement / clearPenaltySettlement — busy outcome + short
     });
     expect(settled).toEqual({ ok: true });
 
-    const holderPromise = holdMonthLock('2026-07', 500);
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    const holder = holdMonthLock('2026-07', 500);
+    await holder.acquired;
 
-    const result = await clearPenaltySettlement({
-      employeeId: emp.id,
-      month: '2026-07',
-      kind: 'Absent',
-      via: 'reconcile',
-    });
-    expect(result).toEqual({ ok: false, error: 'busy' });
+    try {
+      const result = await clearPenaltySettlement({
+        employeeId: emp.id,
+        month: '2026-07',
+        kind: 'Absent',
+        via: 'reconcile',
+      });
+      expect(result).toEqual({ ok: false, error: 'busy' });
 
-    // The earlier settlement is untouched — clear did nothing.
-    const row = await prisma.attendancePenaltySettlement.findUniqueOrThrow({
-      where: { employeeId_month_kind: { employeeId: emp.id, month: '2026-07', kind: 'Absent' } },
-    });
-    expect(row.deletedAt).toBeNull();
-
-    await holderPromise;
+      // The earlier settlement is untouched — clear did nothing.
+      const row = await prisma.attendancePenaltySettlement.findUniqueOrThrow({
+        where: { employeeId_month_kind: { employeeId: emp.id, month: '2026-07', kind: 'Absent' } },
+      });
+      expect(row.deletedAt).toBeNull();
+    } finally {
+      await holder.done;
+    }
   });
 });
 
