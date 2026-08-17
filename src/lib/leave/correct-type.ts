@@ -51,6 +51,7 @@ const REQ_SELECT = {
   reviewedAt: true,
   createdAt: true,
   deductedInPayrollId: true,
+  waivedOverQuotaMinutes: true,
 } as const;
 
 /** Shared loader for both preview and apply. Returns a machine-readable error
@@ -75,6 +76,7 @@ async function loadCorrectionContext(
       chargedMinutes: true,
       overQuotaMinutes: true,
       deductAmount: true,
+      waivedOverQuotaMinutes: true,
       leaveType: { select: { name: true, overQuotaPolicy: true, annualQuota: true } },
       employee: {
         select: { salaryType: true, baseSalary: true, branchId: true, assignedBranchIds: true },
@@ -157,6 +159,7 @@ async function loadCorrectionContext(
     chargedMinutes: r.chargedMinutes ?? 0,
     reviewedAtMs: (r.reviewedAt ?? r.createdAt).getTime(),
     swept: r.deductedInPayrollId != null,
+    waivedOverQuotaMinutes: r.waivedOverQuotaMinutes,
     curOverQuotaMinutes: r.overQuotaMinutes ?? 0,
     curDeductAmount: r.deductAmount == null ? null : Number(r.deductAmount),
   });
@@ -171,6 +174,7 @@ async function loadCorrectionContext(
     chargedMinutes: req.chargedMinutes,
     overQuotaMinutes: req.overQuotaMinutes,
     deductAmount: req.deductAmount,
+    waivedOverQuotaMinutes: req.waivedOverQuotaMinutes,
     reviewedAt: req.reviewedAt,
     createdAt: req.createdAt,
     deductedInPayrollId: req.deductedInPayrollId,

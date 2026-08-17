@@ -31,6 +31,8 @@ export const LEAVE_SELECT = {
   deletedAt: true,
   deleteReason: true,
   deductedInPayrollId: true,
+  waivedOverQuotaMinutes: true,
+  waiveReason: true,
   leaveType: { select: { name: true, isPaid: true, overQuotaPolicy: true } },
   employee: {
     select: {
@@ -97,6 +99,8 @@ export type LeaveRecord = {
   attachmentUrl: string | null;
   deletedAt: Date | null;
   deductedInPayrollId: string | null;
+  waivedOverQuotaMinutes: number;
+  waiveReason: string | null;
   leaveType: { name: string; isPaid: boolean; overQuotaPolicy: 'Block' | 'DeductPay' };
   employee: {
     firstName: string;
@@ -179,6 +183,9 @@ export function buildLeaveRowVM(
     overQuota: deps.overQuota,
     employeeId: r.employeeId,
     leaveTypeId: r.leaveTypeId,
+    waivedOverQuotaMinutes: r.waivedOverQuotaMinutes,
+    standardDayMinutes: standardDayMinutes(deps.cfg),
+    waiveReason: r.waiveReason,
     correctable:
       r.status === 'Approved' &&
       r.deletedAt == null &&

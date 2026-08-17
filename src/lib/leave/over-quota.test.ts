@@ -71,8 +71,8 @@ describe('replayOverQuota', () => {
     const r = replayOverQuota(
       ent(480),
       [
-        { id: 'a', chargedMinutes: 480 },
-        { id: 'b', chargedMinutes: 60 },
+        { id: 'a', chargedMinutes: 480, waivedOverQuotaMinutes: 0 },
+        { id: 'b', chargedMinutes: 60, waivedOverQuotaMinutes: 0 },
       ],
       1,
     );
@@ -83,7 +83,11 @@ describe('replayOverQuota', () => {
   });
 
   it('a single request that straddles the quota charges only the excess', () => {
-    const r = replayOverQuota(ent(480), [{ id: 'a', chargedMinutes: 540 }], 1);
+    const r = replayOverQuota(
+      ent(480),
+      [{ id: 'a', chargedMinutes: 540, waivedOverQuotaMinutes: 0 }],
+      1,
+    );
     expect(r[0]).toEqual({ id: 'a', overQuotaMinutes: 60, deductAmount: 60 });
   });
 
@@ -92,8 +96,8 @@ describe('replayOverQuota', () => {
     const r = replayOverQuota(
       ent(1440, -3600),
       [
-        { id: 'a', chargedMinutes: 480 },
-        { id: 'b', chargedMinutes: 180 },
+        { id: 'a', chargedMinutes: 480, waivedOverQuotaMinutes: 0 },
+        { id: 'b', chargedMinutes: 180, waivedOverQuotaMinutes: 0 },
       ],
       1,
     );
@@ -102,12 +106,20 @@ describe('replayOverQuota', () => {
   });
 
   it('unlimited entitlement (granted null) → never over quota', () => {
-    const r = replayOverQuota(ent(null), [{ id: 'a', chargedMinutes: 9999 }], 1);
+    const r = replayOverQuota(
+      ent(null),
+      [{ id: 'a', chargedMinutes: 9999, waivedOverQuotaMinutes: 0 }],
+      1,
+    );
     expect(r[0]).toEqual({ id: 'a', overQuotaMinutes: 0, deductAmount: null });
   });
 
   it('applies the per-minute rate to the deduction', () => {
-    const r = replayOverQuota(ent(0), [{ id: 'a', chargedMinutes: 120 }], 1.5);
+    const r = replayOverQuota(
+      ent(0),
+      [{ id: 'a', chargedMinutes: 120, waivedOverQuotaMinutes: 0 }],
+      1.5,
+    );
     expect(r[0]).toEqual({ id: 'a', overQuotaMinutes: 120, deductAmount: 180 });
   });
 
@@ -116,8 +128,8 @@ describe('replayOverQuota', () => {
     const r = replayOverQuota(
       { grantedMinutes: 420, carryoverMinutes: 180, adjustmentMinutes: 0, penaltyMinutes: 0 },
       [
-        { id: 'a', chargedMinutes: 600 },
-        { id: 'b', chargedMinutes: 60 },
+        { id: 'a', chargedMinutes: 600, waivedOverQuotaMinutes: 0 },
+        { id: 'b', chargedMinutes: 60, waivedOverQuotaMinutes: 0 },
       ],
       1,
     );
@@ -129,7 +141,7 @@ describe('replayOverQuota', () => {
     // base = 0 granted + 100 carryover − 300 adjustment = −200 → clamps, all over.
     const r = replayOverQuota(
       { grantedMinutes: 0, carryoverMinutes: 100, adjustmentMinutes: -300, penaltyMinutes: 0 },
-      [{ id: 'a', chargedMinutes: 480 }],
+      [{ id: 'a', chargedMinutes: 480, waivedOverQuotaMinutes: 0 }],
       1,
     );
     expect(r[0]).toEqual({ id: 'a', overQuotaMinutes: 480, deductAmount: 480 });
@@ -144,8 +156,8 @@ describe('replayOverQuota', () => {
     const r = replayOverQuota(
       ent(0),
       [
-        { id: 'a', chargedMinutes: 10 },
-        { id: 'b', chargedMinutes: 10 },
+        { id: 'a', chargedMinutes: 10, waivedOverQuotaMinutes: 0 },
+        { id: 'b', chargedMinutes: 10, waivedOverQuotaMinutes: 0 },
       ],
       1 / 3,
     );
@@ -166,6 +178,7 @@ describe('replayOverQuota — penalty-settled minutes', () => {
     const requests = Array.from({ length: 6 }, (_, i) => ({
       id: `day-${i + 1}`,
       chargedMinutes: 420,
+      waivedOverQuotaMinutes: 0,
     }));
     const r = replayOverQuota(
       { grantedMinutes: 2520, carryoverMinutes: 0, adjustmentMinutes: 0, penaltyMinutes: 420 },
@@ -189,8 +202,8 @@ describe('replayOverQuota — penalty-settled minutes', () => {
     // base computed independently via the OLD formula (no penalty term) must
     // match replayOverQuota's output exactly when penaltyMinutes is 0.
     const reqs = [
-      { id: 'a', chargedMinutes: 300 },
-      { id: 'b', chargedMinutes: 400 },
+      { id: 'a', chargedMinutes: 300, waivedOverQuotaMinutes: 0 },
+      { id: 'b', chargedMinutes: 400, waivedOverQuotaMinutes: 0 },
     ];
     const withZeroPenalty = replayOverQuota(
       { grantedMinutes: 480, carryoverMinutes: 100, adjustmentMinutes: -20, penaltyMinutes: 0 },
@@ -215,7 +228,7 @@ describe('replayOverQuota — penalty-settled minutes', () => {
   it('unlimited quota (grantedMinutes: null) never goes over, regardless of penalty minutes', () => {
     const r = replayOverQuota(
       { grantedMinutes: null, carryoverMinutes: 0, adjustmentMinutes: 0, penaltyMinutes: 999_999 },
-      [{ id: 'a', chargedMinutes: 100_000 }],
+      [{ id: 'a', chargedMinutes: 100_000, waivedOverQuotaMinutes: 0 }],
       1,
     );
     expect(r[0]).toEqual({ id: 'a', overQuotaMinutes: 0, deductAmount: null });
@@ -227,8 +240,8 @@ describe('replayOverQuota — penalty-settled minutes', () => {
     const r = replayOverQuota(
       { grantedMinutes: 480, carryoverMinutes: 0, adjustmentMinutes: 0, penaltyMinutes: 1000 },
       [
-        { id: 'a', chargedMinutes: 100 },
-        { id: 'b', chargedMinutes: 50 },
+        { id: 'a', chargedMinutes: 100, waivedOverQuotaMinutes: 0 },
+        { id: 'b', chargedMinutes: 50, waivedOverQuotaMinutes: 0 },
       ],
       1,
     );
@@ -255,16 +268,16 @@ describe('replayOverQuota — order invariants (money safety net)', () => {
     const forward = replayOverQuota(
       ent,
       [
-        { id: 'big', chargedMinutes: 600 },
-        { id: 'small', chargedMinutes: 100 },
+        { id: 'big', chargedMinutes: 600, waivedOverQuotaMinutes: 0 },
+        { id: 'small', chargedMinutes: 100, waivedOverQuotaMinutes: 0 },
       ],
       1,
     );
     const reversed = replayOverQuota(
       ent,
       [
-        { id: 'small', chargedMinutes: 100 },
-        { id: 'big', chargedMinutes: 600 },
+        { id: 'small', chargedMinutes: 100, waivedOverQuotaMinutes: 0 },
+        { id: 'big', chargedMinutes: 600, waivedOverQuotaMinutes: 0 },
       ],
       1,
     );
@@ -284,13 +297,95 @@ describe('replayOverQuota — order invariants (money safety net)', () => {
       penaltyMinutes: 0,
     };
     const reqs = [
-      { id: 'a', chargedMinutes: 120 },
-      { id: 'b', chargedMinutes: 300 },
-      { id: 'c', chargedMinutes: 60 },
+      { id: 'a', chargedMinutes: 120, waivedOverQuotaMinutes: 0 },
+      { id: 'b', chargedMinutes: 300, waivedOverQuotaMinutes: 0 },
+      { id: 'c', chargedMinutes: 60, waivedOverQuotaMinutes: 0 },
     ];
     const a = replayOverQuota(ent, reqs, 1);
     const b = replayOverQuota(ent, [...reqs].reverse(), 1);
     expect(totalOver(a)).toBe(480); // 120 + 300 + 60, all over
     expect(totalOver(b)).toBe(480);
+  });
+});
+
+describe('replayOverQuota — admin waiver of an over-quota deduction', () => {
+  // 30k/month, 30 working days, 420-min day → ฿1,000/day, ฿2.381/min.
+  const rate = perMinuteRate('Monthly', 30_000, 30, 420);
+  const ent = {
+    grantedMinutes: 420, // exactly one day of quota
+    carryoverMinutes: 0,
+    adjustmentMinutes: 0,
+    penaltyMinutes: 0,
+  };
+
+  it('reduces the charge without touching the factual over-quota figure', () => {
+    const [, second] = replayOverQuota(
+      ent,
+      [
+        { id: 'a', chargedMinutes: 420, waivedOverQuotaMinutes: 0 }, // within quota
+        { id: 'b', chargedMinutes: 420, waivedOverQuotaMinutes: 210 }, // half forgiven
+      ],
+      rate,
+    );
+    // Still recorded as a full day over quota — the waiver is a separate fact,
+    // not an erasure of what happened.
+    expect(second?.overQuotaMinutes).toBe(420);
+    // But only the unforgiven half is charged: 210 min × ฿2.381 ≈ ฿500.
+    expect(second?.deductAmount).toBeCloseTo(500, 2);
+  });
+
+  it('waiving the whole amount charges nothing but still records the over-quota', () => {
+    const [, second] = replayOverQuota(
+      ent,
+      [
+        { id: 'a', chargedMinutes: 420, waivedOverQuotaMinutes: 0 },
+        { id: 'b', chargedMinutes: 420, waivedOverQuotaMinutes: 420 },
+      ],
+      rate,
+    );
+    expect(second?.overQuotaMinutes).toBe(420);
+    expect(second?.deductAmount).toBeNull();
+  });
+
+  it('over-waiving clamps to zero — a waiver can never pay the employee', () => {
+    const [, second] = replayOverQuota(
+      ent,
+      [
+        { id: 'a', chargedMinutes: 420, waivedOverQuotaMinutes: 0 },
+        { id: 'b', chargedMinutes: 420, waivedOverQuotaMinutes: 999_999 },
+      ],
+      rate,
+    );
+    expect(second?.deductAmount).toBeNull();
+  });
+
+  /**
+   * The subtle one. Forgiving the MONEY must not hand back the DAYS — the
+   * employee did take the leave. If a waiver reduced `used`, every later
+   * request would find more quota left and get cheaper too, so forgiving one
+   * day would quietly discount the rest of the year.
+   */
+  it('does not return quota: a waiver on one request never makes a later one cheaper', () => {
+    const withWaiver = replayOverQuota(
+      ent,
+      [
+        { id: 'a', chargedMinutes: 420, waivedOverQuotaMinutes: 0 },
+        { id: 'b', chargedMinutes: 420, waivedOverQuotaMinutes: 420 }, // fully forgiven
+        { id: 'c', chargedMinutes: 420, waivedOverQuotaMinutes: 0 },
+      ],
+      rate,
+    );
+    const without = replayOverQuota(
+      ent,
+      [
+        { id: 'a', chargedMinutes: 420, waivedOverQuotaMinutes: 0 },
+        { id: 'b', chargedMinutes: 420, waivedOverQuotaMinutes: 0 },
+        { id: 'c', chargedMinutes: 420, waivedOverQuotaMinutes: 0 },
+      ],
+      rate,
+    );
+    // 'c' is charged identically either way.
+    expect(withWaiver[2]?.overQuotaMinutes).toBe(without[2]?.overQuotaMinutes);
+    expect(withWaiver[2]?.deductAmount).toBe(without[2]?.deductAmount);
   });
 });

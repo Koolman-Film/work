@@ -110,6 +110,7 @@ export type AuditAction =
   | 'leave.restore'
   | 'leave.recompute'
   | 'leave.correct-type'
+  | 'leave.waive-deduction'
   | 'advance.submit'
   | 'advance.admin-create'
   | 'advance.approve'

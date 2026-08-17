@@ -12,6 +12,7 @@ const ent = (days: number | null) => ({
 const req = (o: Partial<RippleRequest> & { id: string; reviewedAtMs: number }): RippleRequest => ({
   chargedMinutes: 480,
   swept: false,
+  waivedOverQuotaMinutes: 0,
   curOverQuotaMinutes: 0,
   curDeductAmount: null,
   ...o,

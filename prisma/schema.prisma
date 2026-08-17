@@ -602,6 +602,15 @@ model LeaveRequest {
   overQuotaMinutes    Int?
   /// Money value of overQuotaMinutes at the employee's per-minute rate, frozen at approval.
   deductAmount        Decimal?     @db.Decimal(12, 2)
+  /// Over-quota minutes an admin chose NOT to charge. `overQuotaMinutes` stays
+  /// factual — this records the decision layered on top, so the trail shows both
+  /// how far over quota the employee was AND what was forgiven. Minutes rather
+  /// than baht: the deduction is derived on read at the employee's current rate,
+  /// so a baht waiver would drift the moment their salary changed.
+  waivedOverQuotaMinutes Int       @default(0)
+  waiveReason         String?
+  waivedAt            DateTime?
+  waivedById          String?      @db.Uuid
   /// Payroll row that swept this deduction (null = not yet deducted). Mirrors CashAdvance.
   deductedInPayrollId String?      @db.Uuid
   reason              String
