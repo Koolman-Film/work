@@ -91,3 +91,10 @@ supabase/*
 .vercel
 .env.production
 .env.*.production
+
+# Analysis that quotes real production data — names, salaries, health/leave
+# details, admin addresses. Kept on disk for whoever is working the case, never
+# committed: this repository is PUBLIC, and once such a file is pushed the data
+# stays reachable by commit SHA even after a history rewrite.
+# Write committed docs against pseudonyms instead (EMP-A, admin-1@example.invalid).
+docs/private/
