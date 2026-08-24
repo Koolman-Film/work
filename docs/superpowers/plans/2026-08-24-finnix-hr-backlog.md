@@ -509,9 +509,15 @@ side would strand in-flight requests for days.
 form. A disabled button is presentation; a LIFF page held open across midnight, or a replayed
 request, walks straight through it. Build both — the button explains, the server enforces.
 
-## A1–A4: Implementation (gate cleared — tasks to be written next)
+## A1–A4: Implementation — WRITTEN
 
-A0 is answered, so these can now be written in full. The file map:
+Full plan: **`docs/superpowers/plans/2026-08-24-advance-and-position-allowance.md`** (7 tasks,
+38 steps). One migration `0042` carrying five columns; the allowance is stored as
+`allowanceLabel` + `allowanceAmount` rather than a fixed `positionAllowance` column, because
+the request is *"เพิ่มเงินพิเศษ (ที่กำหนดชื่อได้)"* — nameable extra pay, of which position
+allowance is only the first example.
+
+The file map it works to:
 
 | Task | Files |
 |---|---|
@@ -543,12 +549,23 @@ Prisma cannot express partial-unique). `payroll/calc.ts` counts **rows** to buil
 `attendanceReport`'s `lateCount`/`lateMinutes`, and requires migrating every historical row —
 a payroll-wide change to answer a complaint about a table.
 
-> **Must be handled, not discovered: PAGINATION.** The table pages by ROW today. Group after
-> paging and a day's two rows can straddle a page boundary — a check-in on page 1, its
-> lateness on page 2, which is worse than the current behaviour. The query must page by DAY.
-> Write that test first.
+> **Must be handled, not discovered: THE ROW CAP.** Corrected after reading the query — there
+> is no page 1 / page 2. `admin/attendance/page.tsx:108-121` runs a month-scoped query with a
+> flat `take: 200`. With ~9 employees x ~30 days x 1-2 rows that is 270-540 rows a month, so
+> **the table already truncates a full month silently.** Grouping makes it worse: the cut can
+> land mid-day, so the last visible day may show a check-in whose `Late` row was truncated
+> away — rendering "on time" for someone who was late. Raise the cap and drop the trailing
+> partial group. See the B plan, Task 2 Step 1.
 
-## B1–B2: Implementation (gate cleared — tasks to be written next)
+## B1–B2: Implementation — WRITTEN
+
+Full plan: **`docs/superpowers/plans/2026-08-24-attendance-merge-and-time-correction.md`**
+(3 tasks, 17 steps). Note the deploy split discovered while writing it: Tasks 1-2 need no
+migration, but Task 3 needs a NEW permission (`attendance.correct-time` — no `attendance.write`
+exists, and `attendance.manual-create` authorises creating, not editing), so Task 3 carries DDL
+and must join the `0041`/`0042` deploy.
+
+The file map it works to:
 
 | Task | Files |
 |---|---|
