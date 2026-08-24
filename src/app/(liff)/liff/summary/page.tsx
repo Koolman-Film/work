@@ -8,13 +8,14 @@ import { advanceBalanceFor } from '@/lib/advance/available';
 import { requireEmployee } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
 import type { Locale } from '@/lib/i18n/config';
-import { formatMoney } from '@/lib/i18n/format';
+import { formatMoney, formatShortDate } from '@/lib/i18n/format';
 import { remainingByTypeForEmployee } from '@/lib/leave/balance';
 import { getLeaveConfig } from '@/lib/leave/leave-config';
 import { localizedLeaveTypeName } from '@/lib/leave/localized-name';
 import { penaltyMinutes } from '@/lib/leave/penalty-minutes';
 import { formatDurationParts, splitDaysHours } from '@/lib/leave/units';
 import { adjacentMonths, resolveReportPeriod } from '@/lib/reports/period';
+import { isWholeCalendarMonth } from './cutoff-range';
 import { PeriodPicker } from './period-picker';
 import { viewedPeriod } from './viewed-period';
 
@@ -46,7 +47,18 @@ export default async function LiffSummaryPage({
   const { employee } = await requireEmployee();
   const params = await searchParams;
   const todayYmd = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
-  const period = resolveReportPeriod({ m: params.m, from: params.from, to: params.to }, todayYmd);
+  // Month mode resolves against the PAYROLL CUTOFF, not the calendar month, so
+  // the counts below cover the same window the worker's payslip deducts over —
+  // otherwise "3 ครั้ง" here and the lateness on the slip disagree, which is
+  // exactly the "จำนวนนับ ไม่ครงกัน" report. Awaited before resolveReportPeriod
+  // because every query underneath is windowed by the result; same shape as
+  // /liff/admin/reports. No PayrollConfig row → undefined → calendar month.
+  const payrollCfg = await prisma.payrollConfig.findFirst({ select: { cutoffDay: true } });
+  const period = resolveReportPeriod(
+    { m: params.m, from: params.from, to: params.to },
+    todayYmd,
+    payrollCfg?.cutoffDay ?? undefined,
+  );
   // The month/year actually being *viewed* — never a "today" fallback. In
   // custom-range mode `period.month` is null, so `viewedMonth` anchors on
   // the range's start (see viewed-period.ts for why). Anything that needs
@@ -119,6 +131,14 @@ export default async function LiffSummaryPage({
   const usedBy = new Map(usedAgg.map((g) => [g.leaveTypeId, g]));
   const { prev, next } = adjacentMonths(viewedMonth);
   const monthLabel = buildMonthLabel(locale, viewedMonth);
+  // With a payroll cutoff configured, "สิงหาคม" means 27 ก.ค. – 26 ส.ค. Print the
+  // real window under the label so the month heading isn't quietly lying about
+  // which days it counts. Suppressed when the window IS the calendar month
+  // (no PayrollConfig), where the line would only restate the heading.
+  const rangeLabel =
+    period.month && !isWholeCalendarMonth(period.month, period.from, period.to)
+      ? `${formatShortDate(utc(period.from), locale)} – ${formatShortDate(utc(period.to), locale)}`
+      : null;
   const displayYear = locale === 'th' ? year + 543 : year;
   const todayYm = todayYmd.slice(0, 7);
 
@@ -154,6 +174,7 @@ export default async function LiffSummaryPage({
         key={period.month ?? `${period.from}_${period.to}`}
         month={period.month}
         monthLabel={monthLabel}
+        rangeLabel={rangeLabel}
         prev={prev}
         next={next}
         from={period.from}

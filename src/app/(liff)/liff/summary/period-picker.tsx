@@ -19,6 +19,9 @@ type Props = {
   /** null when a custom range is active. */
   month: string | null;
   monthLabel: string;
+  /** Real date window behind `monthLabel` when it isn't the calendar month
+   *  (the payroll cutoff runs e.g. 27 ก.ค. – 26 ส.ค.). null = don't draw it. */
+  rangeLabel: string | null;
   prev: string;
   next: string;
   from: string;
@@ -33,7 +36,17 @@ type Props = {
   };
 };
 
-export function PeriodPicker({ month, monthLabel, prev, next, from, to, todayYmd, labels }: Props) {
+export function PeriodPicker({
+  month,
+  monthLabel,
+  rangeLabel,
+  prev,
+  next,
+  from,
+  to,
+  todayYmd,
+  labels,
+}: Props) {
   const router = useRouter();
   const [custom, setCustom] = useState(month === null);
   const [range, setRange] = useState<{ from: string; to: string }>({ from, to });
@@ -53,7 +66,12 @@ export function PeriodPicker({ month, monthLabel, prev, next, from, to, todayYmd
           >
             ‹
           </Link>
-          <p className="text-sm font-semibold text-ink-1">{monthLabel}</p>
+          <div className="text-center">
+            <p className="text-sm font-semibold text-ink-1">{monthLabel}</p>
+            {rangeLabel && (
+              <p className="mt-0.5 text-[11px] leading-tight text-ink-4">{rangeLabel}</p>
+            )}
+          </div>
           <Link
             href={monthUrl(next)}
             aria-label={labels.nextMonth}
