@@ -3,7 +3,7 @@
  * pushes.
  *
  * These used to test `notifyAdminsOnLine`, the per-event fan-out that was
- * removed when the 09:30 digest replaced it. The predicate it used survived
+ * removed when the 08:30 digest replaced it. The predicate it used survived
  * and is now MORE load-bearing than before: the digest and any future LINE
  * path both resolve their audience through this one function, so a drift here
  * silently changes who hears about pending work.

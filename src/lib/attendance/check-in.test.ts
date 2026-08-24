@@ -8,7 +8,7 @@
  *     selfie-provenance.ts for the production evidence.
  *   - A GPS-Disputed check-in fans out notifyAdminsInApp with the GPS
  *     reason. (The admin LINE push this test used to also assert on has
- *     since moved to the 09:30 daily digest — see admin-daily-digest.ts —
+ *     since moved to the 08:30 daily digest — see admin-daily-digest.ts —
  *     so submitCheckIn no longer fires one.)
  *   - `after.selfieCapture` is always present in the audit log: it is the
  *     only record of fallback-camera usage anywhere in the system, and the

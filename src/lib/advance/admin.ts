@@ -579,7 +579,7 @@ export async function adminCreateCashAdvance(
       employeeName: employeeBellName(employee),
       amount: formatAmount(input.amount),
     });
-    // Admin LINE push removed — admins now learn about this via the 09:30
+    // Admin LINE push removed — admins now learn about this via the 08:30
     // daily digest (see admin-daily-digest.ts) instead of a per-event push.
 
     return { ok: true, id: created.id };

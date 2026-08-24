@@ -39,7 +39,7 @@ export type NotificationKind =
   // See src/lib/advance/settle-window.ts.
   | 'advance.approved-and-paid'
   // The three `admin.*-submitted` kinds below have zero producers as of the
-  // 09:30 digest replacing per-event admin fan-out (see admin-line.ts) —
+  // 08:30 digest replacing per-event admin fan-out (see admin-line.ts) —
   // nothing calls sendNotification with these kinds anymore. They are kept
   // here (type, Flex template, notification-id case, tests, locale strings)
   // for one deploy cycle only: events queued before this deploy may still be
@@ -118,7 +118,7 @@ export type NotificationPayload =
       /** Formatted string ("12,500.00") — same Decimal convention. */
       amount: string;
     }
-  // No producer as of the 09:30 digest — see the note on `NotificationKind`
+  // No producer as of the 08:30 digest — see the note on `NotificationKind`
   // above. Retained for one deploy cycle to render events queued pre-deploy.
   | {
       kind: 'admin.leave-submitted';
