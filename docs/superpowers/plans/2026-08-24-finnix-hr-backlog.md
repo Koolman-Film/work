@@ -110,8 +110,43 @@ notifications combined) is consistent with only **one or two admins actually bei
 An admin failing any one of these receives **nothing, silently, forever** — which fits the
 complaint far better than quota ever did. This is now the leading hypothesis.
 
-- [ ] **C1.1** Confirm WHICH admin reported "ไม่เข้า", then check that person against the three
-  conditions above. Needs production DB or admin-UI access — cannot be done from a dev box.
+- [x] **C1.1 ANSWERED — 5 of 8 qualifying admins are not LINE-linked** (measured 2026-08-24
+  against production via the Supabase MCP, project `bltjmjfznbxkgrrdbzci`)
+
+  | who | role | LINE-linked | gets digest |
+  |---|---|---|---|
+  | admin-1@example.invalid | admin, superadmin | yes | **YES** |
+  | EMP-D | staff, superadmin | yes | **YES** |
+  | EMP-E | staff, superadmin | yes | **YES** |
+  | admin-2@example.invalid | superadmin | **no** | no |
+  | admin-3@example.invalid | superadmin | **no** | no |
+  | admin-4@example.invalid | admin | **no** | no |
+  | admin-5@example.invalid | superadmin | **no** | no |
+  | admin-6@example.invalid | admin, superadmin | **no** | no |
+  | admin-7@example.invalid | checker01 | no | no — role lacks `liff.admin` too |
+
+  **Every one of the five failures is the same missing step: LINE account pairing.** All five
+  are active and all five hold a qualifying role; none has a `lineUserId`. Nothing is
+  misconfigured in permissions and nothing is broken in the digest.
+
+  This closes "Admin notification ไม่เข้า" — it was never quota (46/300) and never the cron. The
+  complainant is almost certainly one of those five, and the fix is for them to complete admin
+  LINE pairing, not a code change.
+
+  It also explains the low message count in C1: with only 3 recipients, ~46 messages across
+  ~17 working days is exactly right, not suspiciously quiet.
+
+  `admin-7@example.invalid` is a separate case worth confirming: `checker01` carries neither
+  `isSuperadmin` nor `liff.admin`, so that account would receive nothing even after pairing.
+  Ask whether that is intended.
+
+- [ ] **C1.2** Have the five pair their LINE accounts (admin pairing flow, `lineInviteToken` →
+  `/liff/pair-admin/[token]`). No code involved. Verify by re-running the query above — every
+  row should then read `gets_digest: true`.
+
+  Note the quota consequence, which is real but affordable: recipients go 3 → 8, so digest
+  volume rises roughly 2.7x. At the current 46/month that lands near 120/month, still well
+  under the 300 cap and under the 225 warn threshold. Re-check after a full month.
 
 ### Note for whoever runs this again
 
