@@ -358,6 +358,9 @@ export function buildFlexMessage(
         payload.attendance > 0
           ? t('adminDailyDigest.attendanceLine', { n: payload.attendance })
           : null,
+        payload.birthdays.length > 0
+          ? t('adminDailyDigest.birthdayLine', { names: payload.birthdays.join(', ') })
+          : null,
       ].filter((l): l is string => l !== null);
       altText = t('adminDailyDigest.alt');
       bubble = approvedRejectedBubble({

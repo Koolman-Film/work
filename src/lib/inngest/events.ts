@@ -150,6 +150,11 @@ export type NotificationPayload =
       leave: number;
       advance: number;
       attendance: number;
+      /** Display names of employees whose birthday is today or tomorrow.
+       *  NOT branch-scoped — a birthday is company-wide, unlike pending work.
+       *  Names rather than ids because every field a Flex template renders must
+       *  live in the payload (see the note at the top of this type). */
+      birthdays: string[];
     };
 
 export type NotificationSendEvent = {

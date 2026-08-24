@@ -51,7 +51,8 @@
       "subtitle": "ແຕະເພື່ອກວດສອບ",
       "leaveLine": "ຄຳຂໍລາພັກ {n}",
       "advanceLine": "ຄຳຂໍເບີກ {n}",
-      "attendanceLine": "ຕ້ອງກວດສອບ {n}"
+      "attendanceLine": "ຕ້ອງກວດສອບ {n}",
+      "birthdayLine": "🎂 ວັນເກີດ {names}"
     }
   },
   "pair": {

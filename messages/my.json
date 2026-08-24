@@ -51,7 +51,8 @@
       "subtitle": "စစ်ဆေးရန် နှိပ်ပါ",
       "leaveLine": "ခွင့်တောင်းဆိုမှု {n}",
       "advanceLine": "ကြိုတင်ထုတ်ငွေ တောင်းဆိုမှု {n}",
-      "attendanceLine": "စစ်ဆေးရန် {n}"
+      "attendanceLine": "စစ်ဆေးရန် {n}",
+      "birthdayLine": "🎂 မွေးနေ့ {names}"
     }
   },
   "pair": {

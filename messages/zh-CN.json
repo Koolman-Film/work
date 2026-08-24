@@ -51,7 +51,8 @@
       "subtitle": "轻触查看",
       "leaveLine": "请假申请 {n}",
       "advanceLine": "预支申请 {n}",
-      "attendanceLine": "待审核 {n}"
+      "attendanceLine": "待审核 {n}",
+      "birthdayLine": "🎂 生日 {names}"
     }
   },
   "pair": {

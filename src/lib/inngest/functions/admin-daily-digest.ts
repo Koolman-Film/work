@@ -24,18 +24,28 @@
 
 import { getUserAssignments } from '@/lib/auth/check-permission';
 import { linePushAdminIds } from '@/lib/notifications/admin-line';
+import { dueBirthdays } from '@/lib/notifications/due-birthdays';
 import { loadPendingCounts } from '@/lib/notifications/pending-counts';
 import { inngest } from '../client';
 import { sendNotification } from '../events';
+import { birthdayTargets } from './birthday-targets';
 
 /** Pure send/skip decision — kept separate from I/O so it's testable under
- *  Vitest's node environment without touching Prisma or Inngest. */
+ *  Vitest's node environment without touching Prisma or Inngest.
+ *
+ *  `birthdays` is REQUIRED, not optional-with-default. This predicate is the
+ *  only thing standing between the digest and the 300/month LINE cap, and an
+ *  optional field lets a call site be missed. A missed call site here fails
+ *  SILENTLY — it simply stops sending birthday reminders on quiet days, which
+ *  is the exact behaviour the field exists to provide. Required turns that
+ *  into a compile error instead. */
 export function shouldSendDigest(c: {
   leave: number;
   advance: number;
   attendance: number;
+  birthdays: number;
 }): boolean {
-  return c.leave + c.advance + c.attendance > 0;
+  return c.leave + c.advance + c.attendance + c.birthdays > 0;
 }
 
 export const adminDailyDigest = inngest.createFunction(
@@ -66,6 +76,15 @@ export const adminDailyDigest = inngest.createFunction(
       return { notified: 0, admins: 0 };
     }
 
+    // Fetched ONCE, outside the per-admin loop: a birthday is company-wide, so
+    // unlike the pending counts there is nothing branch-scoped to recompute per
+    // admin. Targets are memoized in their own step for the same replay-safety
+    // reason birthday-reminder does it — see due-birthdays.ts.
+    const targets = await step.run('compute-targets', () => birthdayTargets(new Date()));
+    const birthdays = await step.run('due-birthdays', async () =>
+      (await dueBirthdays(targets)).map((b) => b.displayName),
+    );
+
     let notified = 0;
     for (const adminId of adminIds) {
       const counts = await step.run(`pending-counts-${adminId}`, async () => {
@@ -73,10 +92,10 @@ export const adminDailyDigest = inngest.createFunction(
         return loadPendingCounts(assignments);
       });
 
-      if (!shouldSendDigest(counts)) continue;
+      if (!shouldSendDigest({ ...counts, birthdays: birthdays.length })) continue;
 
       await step.run(`send-${adminId}`, () =>
-        sendNotification(adminId, { kind: 'admin.daily-digest', ...counts }),
+        sendNotification(adminId, { kind: 'admin.daily-digest', ...counts, birthdays }),
       );
       notified++;
     }

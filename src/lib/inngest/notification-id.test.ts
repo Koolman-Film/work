@@ -32,7 +32,13 @@ describe('notificationEventId', () => {
   });
 
   it('admin.daily-digest keys on the Bangkok calendar day, not the counts', () => {
-    const digest = { kind: 'admin.daily-digest' as const, leave: 1, advance: 2, attendance: 3 };
+    const digest = {
+      kind: 'admin.daily-digest' as const,
+      leave: 1,
+      advance: 2,
+      attendance: 3,
+      birthdays: [],
+    };
     const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
     expect(notificationEventId(digest, 'admin-1')).toBe(
       `notif:admin.daily-digest:${today}:admin-1`,
@@ -41,6 +47,22 @@ describe('notificationEventId', () => {
     const digestDifferentCounts = { ...digest, leave: 9 };
     expect(notificationEventId(digestDifferentCounts, 'admin-1')).toBe(
       notificationEventId(digest, 'admin-1'),
+    );
+  });
+
+  it('admin.daily-digest birthdays do not change the dedupe id', () => {
+    // The id keys on the calendar day alone, so a retry that re-reads a
+    // DIFFERENT birthday list (an employee edited between attempts) must still
+    // dedupe rather than sending the admin a second digest.
+    const base = {
+      kind: 'admin.daily-digest' as const,
+      leave: 1,
+      advance: 0,
+      attendance: 0,
+      birthdays: [],
+    };
+    expect(notificationEventId({ ...base, birthdays: ['EMP-A'] }, 'admin-1')).toBe(
+      notificationEventId(base, 'admin-1'),
     );
   });
 });
