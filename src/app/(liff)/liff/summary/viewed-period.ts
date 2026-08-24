@@ -21,12 +21,17 @@ export type ViewedPeriod = {
 };
 
 export function viewedPeriod(period: { from: string; month: string | null }): ViewedPeriod {
-  // `period.from` is always populated in both modes, so it's a safe source
-  // for both fields. In month mode it's the 1st of `period.month`, so this
-  // agrees with `period.month` exactly. In custom-range mode there is no
-  // single canonical month/year — a range can span two calendar years — so
-  // we anchor on the range's start as the pragmatic choice. This only feeds
-  // single-year concerns (leave balance window, month-nav labels); it does
-  // not attempt multi-year leave aggregation.
-  return { year: Number(period.from.slice(0, 4)), month: period.month ?? period.from.slice(0, 7) };
+  // Month mode: `period.month` IS the answer. Custom-range mode has no single
+  // canonical month — a range can span two calendar years — so we anchor on
+  // the range's start as the pragmatic choice. This only feeds single-year
+  // concerns (leave balance window, month-nav labels); it does not attempt
+  // multi-year leave aggregation.
+  const month = period.month ?? period.from.slice(0, 7);
+  // Year is derived FROM `month`, never independently from `period.from`, so
+  // the two can't disagree by construction. This matters since /liff/summary
+  // resolves month mode against the PAYROLL CUTOFF: month "2027-01" with
+  // cutoffDay 26 starts on 2026-12-27, so `from`'s year is 2026 while the
+  // month being viewed is January 2027. Reading the year off `from` there
+  // would show the previous year's leave balance under a "2027" heading.
+  return { year: Number(month.slice(0, 4)), month };
 }
