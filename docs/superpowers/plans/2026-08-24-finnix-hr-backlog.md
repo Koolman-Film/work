@@ -77,29 +77,53 @@ birthday alone returns true.
 
 - [x] **C0.1** Answered: YES.
 
-## C1: Prove the digest is actually landing
+## C1: DONE — quota is NOT the problem (measured 2026-08-24)
 
-Before telling the customer "working as designed", confirm it. If the quota guard is suppressing sends, the complaint is real and this whole workstream changes shape.
-
-**Files:** none — this is evidence gathering.
-
-- [ ] **Step 1: Check the LINE quota**
-
-```bash
-# .env.local holds LINE_CHANNEL_ACCESS_TOKEN (Vercel marks it sensitive).
-curl -s -H "Authorization: Bearer $LINE_CHANNEL_ACCESS_TOKEN" \
-  https://api.line.me/v2/bot/message/quota
-curl -s -H "Authorization: Bearer $LINE_CHANNEL_ACCESS_TOKEN" \
-  https://api.line.me/v2/bot/message/quota/consumption
+```
+GET /v2/bot/message/quota              {"type":"limited","value":300}
+GET /v2/bot/message/quota/consumption  {"totalUsage":46}
 ```
 
-Expected: `{"type":"limited","value":300}` and a consumption number. **If consumption is at or near 300 − `QUOTA_RESERVE`, the guard in `src/lib/line/quota.ts` is dropping messages and the customer is right.**
+**46 of 300 used, 254 remaining, 15.3% of the cap** on the 24th of the month.
 
-- [ ] **Step 2: Check the cron actually ran**
+- `hasQuotaHeadroom` trips at `remaining <= QUOTA_RESERVE` (5) — i.e. at 295 used. Nowhere near.
+- `isAtWarnThreshold` fires at `QUOTA_WARN_RATIO` 0.75 — i.e. at 225 used. Nowhere near.
 
-In the Inngest dashboard, confirm `admin-daily-digest` has runs on recent weekdays and that `notified > 0` on days with pending work. A run returning `{notified: 0, admins: 0}` every day means no admin is LINE-linked and holding `liff.admin` — check `linePushAdminIds()`'s predicate against the real admin rows.
+**The quota guard is dropping nothing.** The customer's "Admin notification ไม่เข้า" is not
+suppression, and the birthday work added in C3 will be delivered rather than silently skipped.
 
-- [ ] **Step 3: Record the finding** in this file under C1 before proceeding. If the digest is NOT landing, stop and re-plan — C3 would be adding a line to a message nobody receives.
+It also confirms the July fix worked: **464 messages in July 2026 → 46 so far in August**, a
+~90% reduction, which is exactly what removing the per-event admin fan-out was supposed to buy.
+
+### But 46 is LOW, and that is the remaining lead
+
+The digest sends at most one message per LINE-linked admin per day, and only on days with
+pending work. Against ~17 working days so far, 46 total messages (digest AND all employee
+notifications combined) is consistent with only **one or two admins actually being LINE-linked**.
+
+`linePushAdminIds()` (`src/lib/notifications/admin-line.ts`) requires ALL of:
+
+1. `archivedAt IS NULL`
+2. a linked `lineUserId`
+3. an active role with `isSuperadmin` OR key `admin`, granting `liff.admin`
+
+An admin failing any one of these receives **nothing, silently, forever** — which fits the
+complaint far better than quota ever did. This is now the leading hypothesis.
+
+- [ ] **C1.1** Confirm WHICH admin reported "ไม่เข้า", then check that person against the three
+  conditions above. Needs production DB or admin-UI access — cannot be done from a dev box.
+
+### Note for whoever runs this again
+
+The token env var is **`LINE_MESSAGING_CHANNEL_ACCESS_TOKEN`**, not `LINE_CHANNEL_ACCESS_TOKEN`
+as an earlier draft of this step said. `.env.local` also holds `LINE_CHANNEL_SECRET`,
+`LINE_MESSAGING_CHANNEL_SECRET` and two channel ids — do not confuse them.
+
+```bash
+TOKEN=$(grep -m1 '^LINE_MESSAGING_CHANNEL_ACCESS_TOKEN=' .env.local | cut -d= -f2-)
+curl -s -H "Authorization: Bearer $TOKEN" https://api.line.me/v2/bot/message/quota
+curl -s -H "Authorization: Bearer $TOKEN" https://api.line.me/v2/bot/message/quota/consumption
+```
 
 ## C2: Fix the stale digest time in the docs
 
