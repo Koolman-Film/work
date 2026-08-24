@@ -4,24 +4,15 @@
  *
  * When: 09:00 Bangkok (= 02:00 UTC), same slot as probation-reminder.
  *
- * Why month/day raw SQL: a birthday recurs every year, so we match on
- * EXTRACT(MONTH/DAY) ignoring the year — which Prisma's typed date API
- * can't express. Feb-29 birthdays only fire in leap years (accepted V1
- * limitation).
+ * The query itself lives in `@/lib/notifications/due-birthdays` because the
+ * 08:30 admin digest needs the same rows — one query, two callers, so the bell
+ * and the LINE digest can never disagree about whose birthday it is.
  */
 
-import { prisma } from '@/lib/db/prisma';
+import { dueBirthdays } from '@/lib/notifications/due-birthdays';
 import { notifyAdminsInApp } from '@/lib/notifications/in-app-bell';
 import { inngest } from '../client';
 import { birthdayTargets } from './birthday-targets';
-
-type DueRow = {
-  id: string;
-  firstName: string;
-  lastName: string;
-  nickname: string | null;
-  daysUntil: number; // 0 today, 1 tomorrow (may arrive as a numeric string)
-};
 
 export const birthdayReminder = inngest.createFunction(
   {
@@ -36,32 +27,18 @@ export const birthdayReminder = inngest.createFunction(
       birthdayTargets(new Date()),
     );
 
-    const due = await step.run('find-due', async () => {
-      return prisma.$queryRaw<DueRow[]>`
-        SELECT id, "firstName", "lastName", nickname,
-          CASE
-            WHEN EXTRACT(MONTH FROM "dateOfBirth") = ${todMonth}
-             AND EXTRACT(DAY   FROM "dateOfBirth") = ${todDay}
-            THEN 0 ELSE 1
-          END AS "daysUntil"
-        FROM "Employee"
-        WHERE "archivedAt" IS NULL
-          AND status::text <> 'Archived'
-          AND "dateOfBirth" IS NOT NULL
-          AND (
-            (EXTRACT(MONTH FROM "dateOfBirth") = ${todMonth} AND EXTRACT(DAY FROM "dateOfBirth") = ${todDay})
-            OR
-            (EXTRACT(MONTH FROM "dateOfBirth") = ${tomMonth} AND EXTRACT(DAY FROM "dateOfBirth") = ${tomDay})
-          )`;
-    });
+    // Targets are PASSED IN rather than recomputed inside dueBirthdays —
+    // that is what keeps the memoization above load-bearing.
+    const due = await step.run('find-due', () =>
+      dueBirthdays({ todMonth, todDay, tomMonth, tomDay }),
+    );
 
     if (due.length === 0) {
       return { notified: 0 };
     }
 
     for (const emp of due) {
-      const displayName = emp.nickname?.trim() || `${emp.firstName} ${emp.lastName}`.trim();
-      const daysUntil = Number(emp.daysUntil) === 0 ? 0 : 1;
+      const { displayName, daysUntil } = emp;
       const month = daysUntil === 0 ? todMonth : tomMonth;
       const day = daysUntil === 0 ? todDay : tomDay;
       const birthday = `${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
