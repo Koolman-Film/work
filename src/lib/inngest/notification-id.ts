@@ -34,7 +34,7 @@ export function notificationIdempotencyKey(payload: NotificationPayload): string
     case 'admin.daily-digest': {
       // No natural entity id (it's a per-admin snapshot, not tied to one
       // request) — key on the Bangkok calendar day instead, so a retried
-      // 09:30 run for the same admin dedupes, while the NEXT day's digest
+      // 08:30 run for the same admin dedupes, while the NEXT day's digest
       // (even with identical counts) still gets sent.
       const bangkokDay = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
       return `notif:${payload.kind}:${bangkokDay}`;

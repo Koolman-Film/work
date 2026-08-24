@@ -365,7 +365,16 @@ Add `birthdays: string[]` to the `admin.daily-digest` payload type in `src/lib/i
       "birthdayLine": "🎂 วันเกิด {names}"
 ```
 
-Add the same key to `en.json` (`"🎂 Birthday: {names}"`), `my.json`, `lo.json`, `zh-CN.json`, `km.json`. **All six or the template throws at render time for that locale.**
+Add the same key to `en.json` (`"🎂 Birthday: {names}"`), `my.json`, `lo.json`, `zh-CN.json`,
+`km.json`.
+
+Correction to an earlier draft of this step, which claimed a missing key throws at render time
+for that locale. It does not — `src/lib/i18n/messages.ts` merges a fallback chain
+`target ← English ← Thai`, so a missing Burmese key silently renders the English string. That
+is a quieter failure, not a louder one, which is precisely why all six must be written by hand:
+nothing will tell you if one is skipped. Note also that the parity test in
+`src/lib/i18n/messages.test.ts` only compares **th against en** — the other four locales have no
+key-parity coverage at all.
 
 - [ ] **Step 5: Wire it into the cron**
 

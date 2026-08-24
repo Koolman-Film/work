@@ -399,7 +399,7 @@ export async function submitCheckIn(input: SubmitCheckInInput): Promise<SubmitCh
       date: bangkokDateString(now),
       reason: disputeReason ?? 'unknown',
     });
-    // Admin LINE push removed — admins now learn about this via the 09:30
+    // Admin LINE push removed — admins now learn about this via the 08:30
     // daily digest (see admin-daily-digest.ts) instead of a per-event push.
   }
 

@@ -7,7 +7,7 @@ import 'server-only';
  * sent one push per admin per leave/advance/dispute submission. That was 65%
  * of July 2026's 464-message spend against a 300/month cap — its cost scaled
  * with the number of admins rather than the amount of work, so linking a
- * third admin was enough to exhaust the quota. It was replaced by the 09:30
+ * third admin was enough to exhaust the quota. It was replaced by the 08:30
  * digest (`admin-daily-digest.ts`), which sends each admin one message
  * summarising what is still pending, and nothing at all on quiet days.
  *

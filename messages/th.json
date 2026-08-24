@@ -127,7 +127,8 @@
       "subtitle": "แตะเพื่อตรวจสอบรายการ",
       "leaveLine": "คำขอลา {n}",
       "advanceLine": "คำขอเบิก {n}",
-      "attendanceLine": "ต้องตรวจสอบ {n}"
+      "attendanceLine": "ต้องตรวจสอบ {n}",
+      "birthdayLine": "🎂 วันเกิด {names}"
     }
   },
   "checkin": {

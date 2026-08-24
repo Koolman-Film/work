@@ -127,7 +127,8 @@
       "subtitle": "Tap to review",
       "leaveLine": "Leave requests {n}",
       "advanceLine": "Advance requests {n}",
-      "attendanceLine": "To review {n}"
+      "attendanceLine": "To review {n}",
+      "birthdayLine": "🎂 Birthday: {names}"
     }
   },
   "checkin": {

@@ -51,7 +51,8 @@
       "subtitle": "ចុចដើម្បីត្រួតពិនិត្យ",
       "leaveLine": "សំណើច្បាប់ឈប់សម្រាក {n}",
       "advanceLine": "សំណើប្រាក់បុរេប្រទាន {n}",
-      "attendanceLine": "ត្រូវត្រួតពិនិត្យ {n}"
+      "attendanceLine": "ត្រូវត្រួតពិនិត្យ {n}",
+      "birthdayLine": "🎂 ថ្ងៃកំណើត {names}"
     }
   },
   "pair": {
