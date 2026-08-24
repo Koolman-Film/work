@@ -49,15 +49,33 @@
 
 Cheapest, and it stops the loudest complaint. Fully specified.
 
-## C0: Decision needed before C3
+## C0: DECIDED — a birthday alone DOES send (answered 2026-08-24)
 
-**Question:** should a birthday alone trigger the LINE digest on a day with nothing else pending?
+**Question was:** should a birthday alone trigger the LINE digest on a day with nothing else
+pending?
 
-Today `shouldSendDigest` returns false when all three pending counts are zero, and that silence is what keeps the digest inside the 300/month cap. Adding birthdays as a send-trigger costs roughly **one extra message per admin per birthday-day**. With 9 employees that is at most ~18 extra sends/month (today + tomorrow per birthday), against a cap of 300 already running near its limit.
+**Answer: YES.**
 
-**Recommendation: NO** — include birthdays as an extra *line* in a digest that was going out anyway, but do not let a birthday alone wake a silent day. It respects the cap, and a birthday is not pending work. If the customer wants the reminder guaranteed, that is a separate always-send birthday push and should be priced as such.
+Cost, derived properly: a birthday fires on two consecutive days (`daysUntil` 1 then 0), so
+each employee contributes 2 birthday-days per YEAR — not per month.
 
-- [ ] **C0.1** Get a yes/no on the above. Everything in C3 below assumes **NO**.
+```
+9 employees x 2 days      =  18 birthday-days/year  (~1.5/month)
+x N LINE-linked admins    =  18N messages/year
+only on days that would       most days already have pending work, and on those
+otherwise send NOTHING        the birthday line rides along for free
+```
+
+At 3 linked admins: ~54 messages/year, under 5 a month, realistically 2-3. Against a
+300/month cap that is noise. An earlier draft of this section recommended NO on the basis of
+"~18 extra sends/month" — that figure was per year, wrong by a factor of twelve.
+
+**Consequence for C3b:** `shouldSendDigest` gains a `birthdays` count and its tests assert a
+birthday alone returns true.
+
+**Revisit if C1 finds consumption still near the cap.**
+
+- [x] **C0.1** Answered: YES.
 
 ## C1: Prove the digest is actually landing
 
@@ -282,22 +300,50 @@ git commit -m "refactor(notifications): share the due-birthday query between cro
 Append to `src/lib/inngest/functions/admin-daily-digest.test.ts`:
 
 ```ts
-  it('a birthday alone does NOT wake a silent day', () => {
-    // Deliberate: birthdays ride along on a digest that was going out anyway.
-    // Letting one trigger a send costs ~18 extra messages/month against a
-    // 300 cap that is already near its limit. See plan C0.
-    expect(shouldSendDigest({ leave: 0, advance: 0, attendance: 0 })).toBe(false);
+  it('a birthday alone wakes an otherwise silent day', () => {
+    expect(shouldSendDigest({ leave: 0, advance: 0, attendance: 0, birthdays: 1 })).toBe(true);
   });
 
-  it('still sends when real work is pending', () => {
-    expect(shouldSendDigest({ leave: 1, advance: 0, attendance: 0 })).toBe(true);
+  it('a fully silent day still sends nothing', () => {
+    expect(shouldSendDigest({ leave: 0, advance: 0, attendance: 0, birthdays: 0 })).toBe(false);
+  });
+
+  it('still sends when real work is pending and no birthday', () => {
+    expect(shouldSendDigest({ leave: 1, advance: 0, attendance: 0, birthdays: 0 })).toBe(true);
   });
 ```
 
-- [ ] **Step 2: Run and confirm it passes already**
+Every existing call site in this test file must gain `birthdays: 0` — that is the point of
+making the field required rather than optional-with-default. An optional field would let a
+future caller forget it and silently lose birthday sends.
+
+- [ ] **Step 2: Run it and watch it fail**
 
 Run: `npx vitest run src/lib/inngest/functions/admin-daily-digest.test.ts`
-Expected: PASS. These two lock in the decision so a later change cannot quietly reverse it. This is the one place in this plan where the test is written to pin existing behaviour rather than drive new code — say so in the commit message.
+Expected: FAIL — the object literal is not assignable, `birthdays` does not exist.
+
+Then widen the predicate:
+
+```ts
+/** Pure send/skip decision — kept separate from I/O so it's testable under
+ *  Vitest's node environment without touching Prisma or Inngest.
+ *
+ *  `birthdays` is REQUIRED, not optional-with-default: this predicate is the
+ *  only thing standing between the digest and the 300/month LINE cap, and an
+ *  optional field lets a call site be missed. A missed call site here does not
+ *  fail loudly — it silently stops sending birthday reminders on quiet days,
+ *  which is exactly the feature this field exists to deliver. */
+export function shouldSendDigest(c: {
+  leave: number;
+  advance: number;
+  attendance: number;
+  birthdays: number;
+}): boolean {
+  return c.leave + c.advance + c.attendance + c.birthdays > 0;
+}
+```
+
+Run again. Expected: PASS.
 
 - [ ] **Step 3: Add the birthday line to the flex template**
 
@@ -389,32 +435,83 @@ git commit -m "docs(customer): status reply — seven shipped items, four clarif
 
 The bulk of the real work, and the only workstream that needs a migration. **Blocked on A0.**
 
-## A0: Decision gate — four answers change the schema and the money math
+## A0: DECIDED (answered 2026-08-24)
 
-- [ ] **A0.1 — Is เงินประจำตำแหน่ง part of the salary base?**
+- [x] **A0.1 — Is เงินประจำตำแหน่ง part of the salary base?**
 
-This single answer decides whether item 5 is a config row or a migration:
+**Answer: a new `Employee` column, counting toward income and the advance cap ONLY.**
 
-- **If it is just a monthly income line**, it already exists: `PayrollAdjustment { kind: 'Income', reason: 'เงินประจำตำแหน่ง', endMonth: null }` is a nameable, open-ended recurring payment. The work is a shortcut on the employee edit page, no schema change.
-- **If it is part of salary**, it needs a new `Employee` column and it changes three money formulas: the SSO base (`calcSso`), the over-quota leave per-minute rate (`perMinuteRate` in `src/lib/leave/over-quota.ts`), and the absence day-rate (`dailyRateFor`). That is a migration plus a payroll change.
+Rejected: reusing `PayrollAdjustment{kind: Income, endMonth: null}`. It already pays correctly
+and needs no migration, but it cannot satisfy item 6 — the advance cap is built from
+`baseSalary` and an adjustment is not part of it.
 
-Item 6 ("เวลาเบิกให้คิดยอดรวมจาก เงินเดือน + เงินประจำตำแหน่ง") says the advance cap must include it, which points at the second reading — but the advance cap could equally be widened without touching SSO. **Ask explicitly; do not infer.**
+Rejected: folding the allowance into `baseSalary` everywhere. Three formulas key off
+`baseSalary`, and two of them are DEDUCTIONS:
 
-- [ ] **A0.2 — Should the advance cap really move mid-month?**
+| Formula | Where | Effect if allowance joined the base |
+|---|---|---|
+| `calcSso` | `payroll/calc.ts:357` | capped at ฿17,500 — no effect at or above it |
+| `perMinuteRate` | `leave/over-quota.ts:17` | over-quota leave costs MORE per minute |
+| `dailyRateFor` | `payroll/day-rate.ts:57` | every absence and late penalty costs MORE per day |
 
-`src/lib/advance/balance.ts` excludes leave and keyed adjustments **on purpose**: *"Fluctuating ones are deliberately excluded so the cap doesn't jump mid-month; the admin approval is the final gate."* Item 7 asks for exactly that jump. Confirm the customer wants an employee's available amount to drop after each leave approval — including mid-request.
+Worked example — EMP-A at ฿13,500 with a ฿3,000 allowance: SSO ฿675 → ฿825, and her day rate
+฿450 → ฿550, so one absence would cost ฿100 more. **Nobody asked to be penalised harder for
+holding an allowance.** So the allowance raises pay and the advance cap; `perMinuteRate` and
+`dailyRateFor` keep reading `baseSalary` unchanged.
 
-- [ ] **A0.3 — What is the "ขั้นต่ำเงินเหลือ" floor?**
+> **OPEN, and NOT an engineering decision.** Whether a regularly-paid position allowance counts
+> as ค่าจ้าง for ประกันสังคม is a Thai labour-law compliance question. Implementation assumes
+> **excluded from the SSO base** until the customer's accountant confirms. Ask it explicitly in
+> workstream D — do not let this ship as a silent default.
 
-Fixed baht or a percentage of salary? Global in `PayrollConfig` or per-employee? Does it block the request outright or only warn?
+- [x] **A0.2 — Should the advance cap move mid-month?**
 
-- [ ] **A0.4 — What exactly does the blackout window block?**
+**Answer: add `PayrollAdjustment` now. Leave is DEFERRED until the ฿27,450 is diagnosed.**
 
-Which days of the month? Does it block *requesting* only, or also *approving* an already-submitted request? Is it global or per-branch? Can an admin override it?
+Adjustments are bounded, admin-keyed and month-scoped, and the treatment is symmetric —
+`Income` raises the cap, `Deduction` lowers it.
 
-## A1–A4: Implementation (write once A0 is answered)
+Leave is neither. `computeLiveLeaveCharges` has **no date filter at all** and returns every
+un-swept over-quota charge from all time — the same root cause behind the ฿27,450 row. Wiring
+it into the cap today would give EMP-A (฿13,500 salary, ฿27,450 live leave charge) a permanently
+negative available balance: she could never draw an advance again, on the back of a bug we
+already know about. **Gate: open `/admin/tools/leave-backlog` first.**
 
-Do not write these tasks before the gate. The file map is settled regardless:
+- [x] **A0.3 — What is the "ขั้นต่ำเงินเหลือ" floor?**
+
+**Answer: a fixed baht amount, global, on `PayrollConfig`.**
+
+Implemented as a REDUCTION OF `available`, not as a new gate:
+
+```
+available = baseSalary + allowance − deductions − reserved − floor
+```
+
+`isOverCap` already backs both the LIFF request form and the admin approval guard, so
+subtracting the floor enforces it on both surfaces for free and the employee sees an honest
+number instead of a rejection after the fact. This is the preventive twin of the negative-net
+publish guard: that one catches an empty payslip at publish, this one prevents it at request.
+
+Default carried forward unless the customer says otherwise: **no admin override.** `isOverCap`
+is currently absolute; an escape hatch needs its own permission and audit trail.
+
+- [x] **A0.4 — What exactly does the blackout window block?**
+
+**Answer: N days relative to `cutoffDay` — one `PayrollConfig` integer.** Blocks the N days up
+to and including the cutoff. Aligned with payroll by construction and stays correct if
+`cutoffDay` changes; a fixed day-of-month range would silently de-align the day someone edits
+the cutoff.
+
+Scope: **blocks requesting, not approving** — their words are ห้ามกด, and freezing the admin
+side would strand in-flight requests for days.
+
+**The guard belongs in the server action** (`src/lib/advance/actions.ts`), not only in the
+form. A disabled button is presentation; a LIFF page held open across midnight, or a replayed
+request, walks straight through it. Build both — the button explains, the server enforces.
+
+## A1–A4: Implementation (gate cleared — tasks to be written next)
+
+A0 is answered, so these can now be written in full. The file map:
 
 | Task | Files |
 |---|---|
@@ -431,18 +528,27 @@ Do not write these tasks before the gate. The file map is settled regardless:
 
 Last because it is independent of everything above and the "one record" half needs a decision.
 
-## B0: Decision gate
+## B0: DECIDED — display merge (answered 2026-08-24)
 
-- [ ] **B0.1 — Merge in display, or in storage?**
+- [x] **B0.1 — Merge in display, or in storage?**
 
-`CheckIn` and `Late` are separate rows enforced by a **partial unique index on `(employeeId, date, type)`** (migration 0014, raw SQL — Prisma cannot express partial-unique).
+**Answer: display merge.** Group by `(employeeId, date)` in the admin table and render one
+line: check-in/out times with a late badge and minutes. No schema change, no migration, no
+payroll impact, reversible if the customer dislikes it.
 
-- **Display merge (recommended):** the admin attendance table groups the day's rows into one line showing check-in/out times plus a late badge. No schema change, no migration, fully reversible, and payroll is untouched.
-- **Storage merge:** genuinely changes the data model. `src/lib/payroll/calc.ts` counts `Absent`/`Late`/`EarlyLeave` **rows** to build `absentCount` and `lateRows`; collapsing types breaks that counting and every historical row needs migrating. High risk for a presentation complaint.
+Rejected: storage merge. `CheckIn` and `Late` are separate rows enforced by a partial unique
+index on `(employeeId, date, type) WHERE deletedAt IS NULL` (migration 0014, raw SQL —
+Prisma cannot express partial-unique). `payroll/calc.ts` counts **rows** to build
+`absentCount` and `lateRows`, so collapsing the types breaks payroll, the three-strike engine,
+`attendanceReport`'s `lateCount`/`lateMinutes`, and requires migrating every historical row —
+a payroll-wide change to answer a complaint about a table.
 
-The customer's words — *"Make the check in and late one record **on the table**"* — describe a table view. Recommend display merge unless they say otherwise.
+> **Must be handled, not discovered: PAGINATION.** The table pages by ROW today. Group after
+> paging and a day's two rows can straddle a page boundary — a check-in on page 1, its
+> lateness on page 2, which is worse than the current behaviour. The query must page by DAY.
+> Write that test first.
 
-## B1–B2: Implementation (write once B0 is answered)
+## B1–B2: Implementation (gate cleared — tasks to be written next)
 
 | Task | Files |
 |---|---|
