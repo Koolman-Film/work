@@ -29,7 +29,15 @@ export const birthdayReminder = inngest.createFunction(
 
     // Targets are PASSED IN rather than recomputed inside dueBirthdays —
     // that is what keeps the memoization above load-bearing.
-    const due = await step.run('find-due', () =>
+    //
+    // Step id is 'find-due-shared', NOT the previous 'find-due': this step's
+    // RETURN SHAPE changed on 2026-08-24 (raw rows → DueBirthday with a
+    // resolved displayName). Inngest memoizes step output per run, so a run
+    // in flight across the deploy would replay and hand the new destructuring
+    // an old-shaped row — undefined displayName, and a string "0" daysUntil
+    // that fails `=== 0` and mislabels today's birthday as tomorrow's. A new
+    // id has no memo to reuse, so the replay simply re-runs the query.
+    const due = await step.run('find-due-shared', () =>
       dueBirthdays({ todMonth, todDay, tomMonth, tomDay }),
     );
 

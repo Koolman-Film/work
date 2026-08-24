@@ -358,8 +358,15 @@ export function buildFlexMessage(
         payload.attendance > 0
           ? t('adminDailyDigest.attendanceLine', { n: payload.attendance })
           : null,
-        payload.birthdays.length > 0
-          ? t('adminDailyDigest.birthdayLine', { names: payload.birthdays.join(', ') })
+        // `?? []` is load-bearing, not defensive habit. `birthdays` was added to
+        // this payload on 2026-08-24; an admin.daily-digest event enqueued
+        // BEFORE that deploy carries no such field, and line-push retries up to
+        // 3 times, so a digest that failed once at 08:30 can reach this line on
+        // new code with an old payload. Without the guard that is a TypeError,
+        // every retry fails, and the admin silently gets no digest at all.
+        // Same one-deploy-cycle rule as the admin.*-submitted kinds above.
+        (payload.birthdays ?? []).length > 0
+          ? t('adminDailyDigest.birthdayLine', { names: (payload.birthdays ?? []).join(', ') })
           : null,
       ].filter((l): l is string => l !== null);
       altText = t('adminDailyDigest.alt');

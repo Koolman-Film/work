@@ -244,3 +244,26 @@ describe('buildFlexMessage covers every kind without missing keys', () => {
     }
   }
 });
+
+describe('admin.daily-digest tolerates a pre-deploy payload', () => {
+  // `birthdays` was added to this payload on 2026-08-24. Events enqueued before
+  // that deploy carry no such field, and line-push retries up to 3 times — so a
+  // digest that failed once at 08:30 can reach the template on new code with an
+  // old payload. The cast is the point of the test: TypeScript says this shape
+  // cannot exist, but Inngest's durable queue can hand it to us anyway.
+  const legacy = {
+    kind: 'admin.daily-digest',
+    leave: 2,
+    advance: 1,
+    attendance: 0,
+  } as unknown as Parameters<typeof buildFlexMessage>[0];
+
+  it('renders without throwing when `birthdays` is absent', () => {
+    expect(() => buildFlexMessage(legacy, 'https://x', 'th')).not.toThrow();
+  });
+
+  it('still reports the counts it does have', () => {
+    const m = buildFlexMessage(legacy, 'https://x', 'th');
+    expect(m.altText.length).toBeGreaterThan(0);
+  });
+});
