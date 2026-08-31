@@ -60,10 +60,18 @@ export type AdvanceBalanceInput = {
   /** Earned-so-far this payroll period for Daily/Hourly; when provided the
    *  rate-based variant gains available/overdrawn. */
   periodEarnings?: number | null;
-  /** Standing monthly deductions to subtract from the cap so an advance can't
-   *  exceed NET pay (requirement: "ไม่ให้เบิกเกินเงินเดือนสุทธิ"). Only the
-   *  STABLE, always-known deductions belong here — SSO + active recurring
-   *  deductions — not the fluctuating attendance/leave/keyed ones. Default 0. */
+  /** NET standing adjustment to the cap so an advance can't exceed NET pay
+   *  (requirement: "ไม่ให้เบิกเกินเงินเดือนสุทธิ"). Positive lowers the cap,
+   *  NEGATIVE raises it.
+   *
+   *  Comprises SSO + active recurring deductions + this month's PayrollAdjustment
+   *  rows, where เงินลด (Deduction) adds and เงินเพิ่ม (Income) subtracts.
+   *
+   *  Leave deductions are still EXCLUDED, deliberately. computeLiveLeaveCharges
+   *  has no lower date bound and returns every un-swept over-quota charge from
+   *  all time, so feeding it here would give anyone carrying a backlog a
+   *  permanently negative balance — see §A0.2 and the ฿27,450 case. Revisit only
+   *  once that is bounded. Default 0. */
   monthlyDeductions?: number;
 };
 
@@ -120,7 +128,12 @@ export function calculateAdvanceBalance(input: AdvanceBalanceInput): AdvanceBala
     else if (a.status === 'Approved') approvedNotDeducted += n;
   }
   const reserved = pending + approvedNotDeducted;
-  const deductions = Math.max(0, input.monthlyDeductions ?? 0);
+  // NOT clamped at zero. `monthlyDeductions` is a NET figure: SSO + recurring
+  // deductions + this month's เงินลด, MINUS this month's เงินเพิ่ม. When the
+  // Income adjustments win it arrives negative and must widen the cap. A
+  // `Math.max(0, …)` here silently discarded that, so an employee handed a
+  // bonus saw no extra headroom — see the "net INCOME month" test.
+  const deductions = input.monthlyDeductions ?? 0;
 
   if (input.salaryType === 'Monthly') {
     const available = baseSalary + allowance - deductions - reserved;

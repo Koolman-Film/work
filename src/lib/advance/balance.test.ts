@@ -166,7 +166,16 @@ describe('calculateAdvanceBalance — net deductions (C7)', () => {
     expect(r.available).toBe(20_000);
   });
 
-  it('clamps negative deductions to 0 (defensive)', () => {
+  it('a negative net adjustment RAISES the cap (contract changed 2026-08-25)', () => {
+    // This test previously asserted the opposite — that a negative value was
+    // clamped to 0 "defensively". That was correct when `monthlyDeductions`
+    // carried only SSO + recurring deductions, both of which are always >= 0,
+    // so a negative could only mean a caller bug worth swallowing.
+    //
+    // The field is now a NET figure that also folds in this month's
+    // PayrollAdjustment rows, where เงินเพิ่ม (Income) subtracts. A month whose
+    // Income adjustments exceed its Deductions is a legitimate negative, and
+    // clamping it silently denied an employee headroom they had been granted.
     const r = calculateAdvanceBalance({
       allowanceAmount: 0,
       baseSalary: 20_000,
@@ -175,8 +184,8 @@ describe('calculateAdvanceBalance — net deductions (C7)', () => {
       monthlyDeductions: -500,
     });
     if (r.kind !== 'monthly') throw new Error('expected monthly');
-    expect(r.deductions).toBe(0);
-    expect(r.available).toBe(20_000);
+    expect(r.deductions).toBe(-500);
+    expect(r.available).toBe(20_500);
   });
 
   it('applies deductions to the rate-based variant when earnings are known', () => {
@@ -299,5 +308,49 @@ describe('calculateAdvanceBalance — position allowance (customer item 6)', () 
     });
     if (r.kind !== 'rate-based') throw new Error('expected rate-based');
     expect(r.available).toBeNull();
+  });
+});
+
+describe('calculateAdvanceBalance — keyed adjustments (customer item 7)', () => {
+  it('a net DEDUCTION month lowers the cap', () => {
+    const r = calculateAdvanceBalance({
+      baseSalary: 20_000,
+      allowanceAmount: 0,
+      salaryType: 'Monthly',
+      reservedAdvances: [],
+      monthlyDeductions: 2_000,
+    });
+    if (r.kind !== 'monthly') throw new Error('expected monthly');
+    expect(r.available).toBe(18_000);
+  });
+
+  it('a net INCOME month RAISES the cap — the clamp must not swallow it', () => {
+    // เงินเพิ่ม/เงินลด are symmetric: Income raises, Deduction lowers. When the
+    // month's Income adjustments exceed its Deductions, `monthlyDeductions`
+    // arrives NEGATIVE and must widen the cap. The old
+    // `Math.max(0, monthlyDeductions)` clamp silently discarded exactly this
+    // case, so an employee handed a bonus saw no extra headroom.
+    const r = calculateAdvanceBalance({
+      baseSalary: 20_000,
+      allowanceAmount: 0,
+      salaryType: 'Monthly',
+      reservedAdvances: [],
+      monthlyDeductions: -3_000,
+    });
+    if (r.kind !== 'monthly') throw new Error('expected monthly');
+    expect(r.available).toBe(23_000);
+  });
+
+  it('a net income month raises a rate-based cap too', () => {
+    const r = calculateAdvanceBalance({
+      baseSalary: 500,
+      allowanceAmount: 0,
+      salaryType: 'Daily',
+      reservedAdvances: [],
+      periodEarnings: 8_000,
+      monthlyDeductions: -1_000,
+    });
+    if (r.kind !== 'rate-based') throw new Error('expected rate-based');
+    expect(r.available).toBe(9_000);
   });
 });
