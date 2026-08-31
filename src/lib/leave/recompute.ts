@@ -41,6 +41,11 @@ export type LiveLeaveCharge = {
   deductAmount: number | null;
   /** Already swept into a published payroll → locked, never recomputed. */
   swept: boolean;
+  /** Baht of this deduction already collected across earlier payroll months.
+   *  Non-zero only when a monthly cap split the request into instalments —
+   *  see leave/collection-cap.ts. `deductAmount − deductedAmountToDate` is what
+   *  is still owed. */
+  deductedAmountToDate: number;
 };
 
 const CFG_FALLBACK = {
@@ -89,6 +94,7 @@ export async function computeLiveLeaveCharges(
       reviewedAt: true,
       createdAt: true,
       deductedInPayrollId: true,
+      deductedAmountToDate: true,
       employee: { select: { salaryType: true, baseSalary: true, nickname: true, firstName: true } },
       leaveType: { select: { name: true, annualQuota: true } },
     },
@@ -210,6 +216,7 @@ export async function computeLiveLeaveCharges(
         overQuotaMinutes: swept ? curOver : live.overQuotaMinutes,
         deductAmount: swept ? curDeduct : live.deductAmount,
         swept,
+        deductedAmountToDate: Number(r.deductedAmountToDate ?? 0),
       });
     }
   }

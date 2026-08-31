@@ -623,6 +623,13 @@ model LeaveRequest {
   /// than baht: the deduction is derived on read at the employee's current rate,
   /// so a baht waiver would drift the moment their salary changed.
   waivedOverQuotaMinutes Int          @default(0)
+  /// Baht of this request's over-quota deduction ALREADY collected, across one
+  /// or more payroll months. Exists because PayrollConfig.leaveDeductMaxPercent
+  /// caps how much leave debt one month may recover, so a large request is
+  /// collected in instalments. `deductedInPayrollId` is stamped only once the
+  /// request is fully settled — a partially collected request must stay
+  /// sweepable, or the remainder is silently forgiven.
+  deductedAmountToDate   Decimal      @default(0) @db.Decimal(12, 2)
   waiveReason            String?
   waivedAt               DateTime?
   waivedById             String?      @db.Uuid
@@ -890,6 +897,12 @@ model PayrollConfig {
   /// if cutoffDay ever moves. Blocks REQUESTING only — admins can still approve
   /// what is already in flight, or a request would strand for days. 0 = off.
   advanceBlackoutDays    Int     @default(0)
+  /// Ceiling on over-quota LEAVE recovered in one payroll month, as a percent of
+  /// base salary. The sweep has no lower date bound, so an untouched backlog
+  /// otherwise lands whole in whichever month runs next — that is how a ฿13,500
+  /// salary met a ฿27,450 deduction. 0 = NO cap (collect everything), the
+  /// behaviour before this existed; 0 does NOT mean "collect nothing".
+  leaveDeductMaxPercent  Int     @default(30)
   /// Flat deduction per "Late" attendance row (count-based, ignores duration).
   lateDeduction          Decimal @db.Decimal(12, 2)
   /// Flat deduction per "EarlyLeave" attendance row.

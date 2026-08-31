@@ -692,7 +692,11 @@ describe('payrollRowDetailRaw', () => {
     expect(raw.incomeAdjustments).toEqual([
       { id: expect.any(String), reason: 'ค่าคอม', amount: 1000 },
     ]);
-    expect(raw.employee).toEqual({ salaryType: 'Monthly', baseSalary: 20000 });
+    expect(raw.employee).toEqual({
+      salaryType: 'Monthly',
+      baseSalary: 20000,
+      allowanceLabel: null,
+    });
     expect(raw.config.ssoRate).toBe(0.05);
     // 20000 + 1000 - 750(sso) - 666.67(absent, day rate = 20000/30) = 19583.33
     expect(raw.buckets.netPay).toBe(19583.33);
@@ -735,5 +739,82 @@ describe('runPayrollDraft — position allowance (0042)', () => {
     });
     expect(Number(row.incomeAllowance)).toBe(0);
     expect(Number(row.netPay)).toBe(12_825);
+  });
+});
+
+describe('runPayrollDraft — leave deduction cap (0044)', () => {
+  // The deduction is DERIVED for unswept rows (computeLiveLeaveCharges), so a
+  // seeded deductAmount is ignored — the debt has to be driven by chargedMinutes
+  // against a zero-quota leave type. At a 20,000 monthly salary the rate is
+  // 20000 / 30 workingDays / 420 stdDayMinutes = ฿1.587302/min, so:
+  //     9,450 min -> ฿15,000      630 min -> ฿1,000
+  /** An over-quota leave debt of `minutes` charged minutes, approved, unswept. */
+  async function seedLeaveDebt(employeeId: string, minutes: number) {
+    const type = await prisma.leaveType.create({
+      data: {
+        name: `ลากิจ-${uid().slice(0, 8)}`,
+        annualQuota: 0,
+        overQuotaPolicy: 'DeductPay',
+      },
+    });
+    return prisma.leaveRequest.create({
+      data: {
+        employeeId,
+        leaveTypeId: type.id,
+        startDate: new Date('2026-05-04T00:00:00.000Z'),
+        endDate: new Date('2026-05-04T00:00:00.000Z'),
+        unit: 'FullDay',
+        reason: 'ทดสอบ',
+        status: 'Approved',
+        reviewedAt: new Date('2026-05-04T02:00:00.000Z'),
+        chargedMinutes: minutes,
+      },
+    });
+  }
+
+  it('collects only the capped share, and does NOT stamp the request as paid', async () => {
+    // 20,000 salary, 30% cap = 6,000/month against a 15,000 debt.
+    const emp = await makeEmployee({ baseSalary: 20_000 });
+    const req = await seedLeaveDebt(emp.id, 9_450); // ฿15,000 of debt
+    await prisma.payrollConfig.updateMany({ data: { leaveDeductMaxPercent: 30 } });
+
+    await runPayrollDraft(MONTH);
+    const row = await prisma.payroll.findFirstOrThrow({
+      where: { employeeId: emp.id, month: MONTH },
+    });
+
+    expect(Number(row.deductLeave)).toBe(6_000);
+    // Positive net is the entire point — uncapped this would be 20,000 − 15,000.
+    expect(Number(row.netPay)).toBeGreaterThan(0);
+
+    const after = await prisma.leaveRequest.findUniqueOrThrow({ where: { id: req.id } });
+    // NOT stamped: a partially collected request must stay sweepable, or the
+    // remaining 9,000 is silently forgiven.
+    expect(after.deductedInPayrollId).toBeNull();
+  });
+
+  it('with the cap off, collects the whole debt in one month (prior behaviour)', async () => {
+    const emp = await makeEmployee({ baseSalary: 20_000 });
+    await seedLeaveDebt(emp.id, 9_450); // ฿15,000 of debt
+    await prisma.payrollConfig.updateMany({ data: { leaveDeductMaxPercent: 0 } });
+
+    await runPayrollDraft(MONTH);
+    const row = await prisma.payroll.findFirstOrThrow({
+      where: { employeeId: emp.id, month: MONTH },
+    });
+    // 0 means NO cap, not "collect nothing".
+    expect(Number(row.deductLeave)).toBe(15_000);
+  });
+
+  it('a debt smaller than the cap is collected whole', async () => {
+    const emp = await makeEmployee({ baseSalary: 20_000 });
+    await seedLeaveDebt(emp.id, 630); // ฿1,000 of debt
+    await prisma.payrollConfig.updateMany({ data: { leaveDeductMaxPercent: 30 } });
+
+    await runPayrollDraft(MONTH);
+    const row = await prisma.payroll.findFirstOrThrow({
+      where: { employeeId: emp.id, month: MONTH },
+    });
+    expect(Number(row.deductLeave)).toBe(1_000);
   });
 });

@@ -2132,8 +2132,15 @@ describe('publishPayroll — refuses to publish a negative net', () => {
    * caller to act on; nothing ever threw it, so the row published like any
    * other. Publishing issues a payslip saying the employee owes the company
    * and stamps `deductedInPayrollId` on every swept leave request — frozen.
+   *
+   * These two tests DISABLE the monthly leave-deduction cap (0044), which would
+   * otherwise prevent the negative net they exist to construct. That is the cap
+   * working — but the guard still has to hold for the cases the cap cannot
+   * reach: a cap of 0, or a net driven negative by advances and absences rather
+   * than leave. Setting the percent to 0 isolates the guard under test.
    */
   it('holds the employee back, names them with the figure, and leaves their leave unstamped', async () => {
+    await prisma.payrollConfig.updateMany({ data: { leaveDeductMaxPercent: 0 } });
     const user = await prisma.user.create({ data: {} });
     const branch = await prisma.branch.create({ data: { name: `B-${uid().slice(0, 8)}` } });
     const emp = await prisma.employee.create({
@@ -2199,6 +2206,7 @@ describe('publishPayroll — refuses to publish a negative net', () => {
   });
 
   it('publishes normally once the net is no longer negative', async () => {
+    await prisma.payrollConfig.updateMany({ data: { leaveDeductMaxPercent: 0 } });
     const user = await prisma.user.create({ data: {} });
     const branch = await prisma.branch.create({ data: { name: `B-${uid().slice(0, 8)}` } });
     const emp = await prisma.employee.create({

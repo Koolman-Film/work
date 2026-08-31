@@ -13,6 +13,7 @@ const VALID = {
   earlyLeaveDeduction: '100',
   advanceMinRemaining: '0',
   advanceBlackoutDays: '0',
+  leaveDeductMaxPercent: '30',
 };
 
 describe('payrollMoneySchema', () => {
