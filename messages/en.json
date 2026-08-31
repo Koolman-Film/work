@@ -530,6 +530,7 @@
     "income": {
       "title": "Earnings",
       "base": "Base salary",
+      "allowance": "Special allowance",
       "other": "Other earnings",
       "total": "Total earnings"
     },

@@ -67,7 +67,10 @@ export async function buildPreviewPayslipDocument(
       payType: raw.employee.salaryType,
       month,
     },
-    buckets: raw.buckets,
+    buckets: {
+      ...raw.buckets,
+      incomeAllowanceLabel: raw.employee.allowanceLabel,
+    },
     incomeAdjustments: raw.incomeAdjustments,
     deductAdjustments: raw.deductAdjustments,
     advanceCount: raw.advanceCount,

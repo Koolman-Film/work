@@ -30,6 +30,9 @@ export type NormalizedPayslipInput = {
   };
   buckets: {
     incomeBase: number;
+    incomeAllowance: number;
+    /** Custom label for the allowance line (Employee.allowanceLabel). Null → omit label override. */
+    incomeAllowanceLabel: string | null;
     incomeOther: number;
     deductSso: number;
     deductAdvance: number;
@@ -95,6 +98,16 @@ export function assemblePayslipDocument(input: NormalizedPayslipInput): PayslipD
   const income: PayslipLine[] = [
     { key: 'base', labelKey: 'income.base', amount: buckets.incomeBase, detail: null },
   ];
+  if (buckets.incomeAllowance !== 0) {
+    income.push({
+      key: 'allowance',
+      ...(buckets.incomeAllowanceLabel
+        ? { label: buckets.incomeAllowanceLabel }
+        : { labelKey: 'income.allowance' }),
+      amount: buckets.incomeAllowance,
+      detail: null,
+    });
+  }
   const incomeAdjSum = incomeAdjustments.reduce((s, a) => s + a.amount, 0);
   if (incomeAdjustments.length > 0 && incomeAdjSum === buckets.incomeOther) {
     for (const a of incomeAdjustments)
@@ -205,7 +218,7 @@ export function assemblePayslipDocument(input: NormalizedPayslipInput): PayslipD
 
   return {
     meta,
-    income: { lines: income, total: buckets.incomeBase + buckets.incomeOther },
+    income: { lines: income, total: buckets.incomeBase + buckets.incomeAllowance + buckets.incomeOther },
     deduct: {
       lines: deduct,
       total:
@@ -239,6 +252,7 @@ export async function getPayslipDocument(
           nickname: true,
           salaryType: true,
           baseSalary: true,
+          allowanceLabel: true,
           branch: {
             select: {
               name: true,
@@ -335,6 +349,8 @@ export async function getPayslipDocument(
     },
     buckets: {
       incomeBase: n(payroll.incomeBase),
+      incomeAllowance: n(payroll.incomeAllowance),
+      incomeAllowanceLabel: employee.allowanceLabel,
       incomeOther: n(payroll.incomeOther),
       deductSso: n(payroll.deductSso),
       deductAdvance: n(payroll.deductAdvance),

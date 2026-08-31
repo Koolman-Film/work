@@ -914,6 +914,7 @@ export type PayrollRowDetail = {
   employeeId: string;
   month: string;
   incomeBase: string;
+  incomeAllowance: string;
   incomeOther: string;
   adjustments: { reason: string; kind: 'Income' | 'Deduction'; amount: string }[];
   deductSso: string;
@@ -933,6 +934,7 @@ const money = (d: { toString(): string }) => new Prisma.Decimal(d.toString()).to
 export type PayrollRowDetailRaw = {
   buckets: {
     incomeBase: number;
+    incomeAllowance: number;
     incomeOther: number;
     deductSso: number;
     deductAdvance: number;
@@ -951,7 +953,7 @@ export type PayrollRowDetailRaw = {
   /** Which leave type absorbed each settled kind (name + nameByLocale, from this month's settlements) — for the same note. */
   settledLeaveTypeNames: Partial<Record<PenaltyKindKey, { name: string; nameByLocale: unknown }>>;
   leaveOverMinutesTotal: number;
-  employee: { salaryType: 'Monthly' | 'Daily' | 'Hourly'; baseSalary: number };
+  employee: { salaryType: 'Monthly' | 'Daily' | 'Hourly'; baseSalary: number; allowanceLabel: string | null };
   config: { ssoRate: number; ssoSalaryCap: number; workingDaysPerMonth: number };
 };
 
@@ -971,7 +973,7 @@ export async function payrollRowDetailRaw(
     }),
     prisma.employee.findUniqueOrThrow({
       where: { id: employeeId },
-      select: { salaryType: true, baseSalary: true },
+      select: { salaryType: true, baseSalary: true, allowanceLabel: true },
     }),
     prisma.payrollAdjustment.findMany({
       where: {
@@ -1001,6 +1003,7 @@ export async function payrollRowDetailRaw(
   return {
     buckets: {
       incomeBase: draft.incomeBase.toNumber(),
+      incomeAllowance: draft.incomeAllowance.toNumber(),
       incomeOther: draft.incomeOther.toNumber(),
       deductSso: draft.deductSso.toNumber(),
       deductAdvance: draft.deductAdvance.toNumber(),
@@ -1020,6 +1023,7 @@ export async function payrollRowDetailRaw(
     employee: {
       salaryType: employee.salaryType as 'Monthly' | 'Daily' | 'Hourly',
       baseSalary: employee.baseSalary.toNumber(),
+      allowanceLabel: employee.allowanceLabel,
     },
     config: {
       ssoRate: config.ssoRate.toNumber(),
@@ -1065,6 +1069,7 @@ export async function payrollRowDetail(
     employeeId,
     month,
     incomeBase: money(draft.incomeBase),
+    incomeAllowance: money(draft.incomeAllowance),
     incomeOther: money(draft.incomeOther),
     adjustments,
     deductSso: money(draft.deductSso),

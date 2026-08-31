@@ -167,6 +167,7 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
   // Frozen buckets straight off the persisted row — NO engine call.
   const frozenOf = (r: (typeof rows)[number]): FrozenSlipVM => ({
     incomeBase: r.incomeBase.toFixed(2),
+    incomeAllowance: r.incomeAllowance.toFixed(2),
     incomeOther: r.incomeOther.toFixed(2),
     deductSso: r.deductSso.toFixed(2),
     deductAttendance: r.deductAttendance.toFixed(2),
@@ -192,6 +193,7 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
         if (!f) return false;
         return (
           r.incomeBase.toFixed(2) !== f.incomeBase.toFixed(2) ||
+          r.incomeAllowance.toFixed(2) !== f.incomeAllowance.toFixed(2) ||
           r.incomeOther.toFixed(2) !== f.incomeOther.toFixed(2) ||
           r.deductSso.toFixed(2) !== f.deductSso.toFixed(2) ||
           r.deductAdvance.toFixed(2) !== f.deductAdvance.toFixed(2) ||
@@ -249,7 +251,7 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
     visibleRows.reduce((acc, r) => acc + pick(r), 0);
   const totals = {
     incomeBase: sum((r) => r.incomeBase.toNumber()),
-    incomeOther: sum((r) => r.incomeOther.toNumber()),
+    incomeOther: sum((r) => r.incomeAllowance.toNumber() + r.incomeOther.toNumber()),
     deductSso: sum((r) => r.deductSso.toNumber()),
     deductions: sum(
       (r) =>
@@ -289,14 +291,14 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
     {
       key: 'incomeOther',
       header: 'เงินเพิ่ม',
-      cell: (r) =>
-        r.incomeOther.isZero() ? (
+      cell: (r) => {
+        const total = r.incomeAllowance.toNumber() + r.incomeOther.toNumber();
+        return total === 0 ? (
           <span className="text-xs text-ink-4">—</span>
         ) : (
-          <span className="font-mono text-emerald-700">
-            +{formatTHB2(r.incomeOther.toNumber())}
-          </span>
-        ),
+          <span className="font-mono text-emerald-700">+{formatTHB2(total)}</span>
+        );
+      },
     },
     {
       key: 'sso',

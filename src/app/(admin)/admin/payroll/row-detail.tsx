@@ -19,6 +19,7 @@ function settledNote(settledDays: number, leaveTypeName: string | null): string 
 export type RowDetailVM = import('@/lib/payroll/run').PayrollRowDetail;
 export type FrozenSlipVM = {
   incomeBase: string;
+  incomeAllowance: string;
   incomeOther: string;
   deductSso: string;
   deductAttendance: string;
@@ -256,6 +257,9 @@ export function RowDetail({
                 <section>
                   <h3 className="text-xs font-semibold text-ink-3">รายได้</h3>
                   <Line label="ฐานเงินเดือน" value={detail.incomeBase} />
+                  {detail.incomeAllowance !== '0.00' && (
+                    <Line label="เงินพิเศษ" value={`+${detail.incomeAllowance}`} />
+                  )}
                   {detail.adjustments
                     .filter((a) => a.kind === 'Income')
                     .map((a, idx) => (
@@ -359,6 +363,9 @@ export function RowDetail({
                 <section>
                   <h3 className="text-xs font-semibold text-ink-3">รายได้</h3>
                   <Line label="ฐานเงินเดือน" value={frozen.incomeBase} />
+                  {frozen.incomeAllowance !== '0.00' && (
+                    <Line label="เงินพิเศษ" value={`+${frozen.incomeAllowance}`} />
+                  )}
                   {frozen.incomeOther !== '0.00' && (
                     <Line label="เงินเพิ่ม" value={`+${frozen.incomeOther}`} />
                   )}

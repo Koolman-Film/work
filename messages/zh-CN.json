@@ -485,6 +485,7 @@
     "income": {
       "title": "收入",
       "base": "基本工资",
+      "allowance": "特殊津贴",
       "other": "其他收入",
       "total": "收入合计"
     },

@@ -14,6 +14,8 @@ const base: NormalizedPayslipInput = {
   },
   buckets: {
     incomeBase: 20000,
+    incomeAllowance: 0,
+    incomeAllowanceLabel: null,
     incomeOther: 0,
     deductSso: 750,
     deductAdvance: 0,
@@ -201,6 +203,8 @@ describe('assemblePayslipDocument — letterhead passthrough', () => {
     },
     buckets: {
       incomeBase: 10000,
+      incomeAllowance: 0,
+      incomeAllowanceLabel: null,
       incomeOther: 0,
       deductSso: 0,
       deductAdvance: 0,
