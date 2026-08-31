@@ -45,6 +45,13 @@ export type SalaryType = 'Monthly' | 'Daily' | 'Hourly';
 export type AdvanceBalanceInput = {
   baseSalary: Prisma.Decimal | string | number;
   salaryType: SalaryType;
+  /** Nameable recurring allowance (Employee.allowanceAmount) — part of the cap
+   *  basis, per the request "เวลาเบิกให้คิดยอดรวมจาก เงินเดือน + เงินประจำตำแหน่ง".
+   *
+   *  REQUIRED, not optional-with-default: this file is the single cap formula
+   *  behind BOTH the LIFF request form and the admin approval guard, and a
+   *  missed call site would quietly understate what an employee may draw. */
+  allowanceAmount: Prisma.Decimal | string | number;
   /** Advance rows where status ∈ {Pending, Approved} AND isDeducted=false. */
   reservedAdvances: ReadonlyArray<{
     status: 'Pending' | 'Approved';
@@ -64,6 +71,7 @@ export type AdvanceBalance =
   | {
       kind: 'monthly';
       baseSalary: number;
+      allowance: number; // added to baseSalary to form the cap basis
       deductions: number; // SSO + recurring subtracted to reach NET cap
       pending: number; // sum of Pending advances
       approvedNotDeducted: number; // sum of Approved-but-not-deducted advances
@@ -75,6 +83,7 @@ export type AdvanceBalance =
       kind: 'rate-based'; // Daily / Hourly
       salaryType: 'Daily' | 'Hourly';
       ratePerPeriod: number;
+      allowance: number; // monthly, so added on top of earnings rather than scaled
       deductions: number; // SSO + recurring subtracted to reach NET cap
       pending: number;
       approvedNotDeducted: number;
@@ -100,6 +109,7 @@ function toNumber(v: Prisma.Decimal | string | number): number {
 
 export function calculateAdvanceBalance(input: AdvanceBalanceInput): AdvanceBalance {
   const baseSalary = toNumber(input.baseSalary);
+  const allowance = Math.max(0, toNumber(input.allowanceAmount) || 0);
 
   let pending = 0;
   let approvedNotDeducted = 0;
@@ -113,10 +123,11 @@ export function calculateAdvanceBalance(input: AdvanceBalanceInput): AdvanceBala
   const deductions = Math.max(0, input.monthlyDeductions ?? 0);
 
   if (input.salaryType === 'Monthly') {
-    const available = baseSalary - deductions - reserved;
+    const available = baseSalary + allowance - deductions - reserved;
     return {
       kind: 'monthly',
       baseSalary,
+      allowance,
       deductions,
       pending,
       approvedNotDeducted,
@@ -127,11 +138,15 @@ export function calculateAdvanceBalance(input: AdvanceBalanceInput): AdvanceBala
   }
 
   const earnings = input.periodEarnings ?? null;
-  const available = earnings == null ? null : earnings - deductions - reserved;
+  // The allowance is a monthly amount, so it is added on top of earnings-so-far
+  // rather than scaled by days worked. Null earnings stays null: we cannot say
+  // what is left, and an allowance must not turn "unknown" into a number.
+  const available = earnings == null ? null : earnings + allowance - deductions - reserved;
   return {
     kind: 'rate-based',
     salaryType: input.salaryType,
     ratePerPeriod: baseSalary,
+    allowance,
     deductions,
     pending,
     approvedNotDeducted,

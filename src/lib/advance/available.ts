@@ -28,7 +28,13 @@ export async function advanceBalanceFor(
 ): Promise<AdvanceBalance> {
   const employee = await prisma.employee.findUniqueOrThrow({
     where: { id: employeeId },
-    select: { baseSalary: true, salaryType: true, workScheduleId: true, hasSso: true },
+    select: {
+      baseSalary: true,
+      salaryType: true,
+      workScheduleId: true,
+      hasSso: true,
+      allowanceAmount: true,
+    },
   });
 
   // Fetch employee first, then parallelize: reserved advances, the payroll
@@ -112,6 +118,7 @@ export async function advanceBalanceFor(
 
   return calculateAdvanceBalance({
     baseSalary: employee.baseSalary,
+    allowanceAmount: employee.allowanceAmount,
     salaryType: employee.salaryType,
     // Type-cast: Prisma's AdvanceStatus enum includes Rejected/Cancelled
     // too, but our `where` clause filtered those out. The balance helper

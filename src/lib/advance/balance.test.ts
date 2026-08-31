@@ -5,6 +5,7 @@ import { calculateAdvanceBalance, isOverCap } from './balance';
 describe('calculateAdvanceBalance — Monthly', () => {
   it('treats baseSalary as the available cap when there are no reserved advances', () => {
     const r = calculateAdvanceBalance({
+      allowanceAmount: 0,
       baseSalary: 15_000,
       salaryType: 'Monthly',
       reservedAdvances: [],
@@ -19,6 +20,7 @@ describe('calculateAdvanceBalance — Monthly', () => {
 
   it('subtracts both Pending and Approved-not-deducted advances', () => {
     const r = calculateAdvanceBalance({
+      allowanceAmount: 0,
       baseSalary: 15_000,
       salaryType: 'Monthly',
       reservedAdvances: [
@@ -36,6 +38,7 @@ describe('calculateAdvanceBalance — Monthly', () => {
 
   it('flags overdrawn when reserved exceeds baseSalary', () => {
     const r = calculateAdvanceBalance({
+      allowanceAmount: 0,
       baseSalary: 15_000,
       salaryType: 'Monthly',
       reservedAdvances: [
@@ -50,6 +53,7 @@ describe('calculateAdvanceBalance — Monthly', () => {
 
   it('handles Prisma.Decimal amounts (real DB shape)', () => {
     const r = calculateAdvanceBalance({
+      allowanceAmount: 0,
       baseSalary: new Prisma.Decimal('15000.00'),
       salaryType: 'Monthly',
       reservedAdvances: [
@@ -64,6 +68,7 @@ describe('calculateAdvanceBalance — Monthly', () => {
 
   it('handles string amounts (Decimal serialized as JSON)', () => {
     const r = calculateAdvanceBalance({
+      allowanceAmount: 0,
       baseSalary: '15000',
       salaryType: 'Monthly',
       reservedAdvances: [{ status: 'Approved', amount: '2000' }],
@@ -74,6 +79,7 @@ describe('calculateAdvanceBalance — Monthly', () => {
 
   it('ignores non-finite amounts (defensive)', () => {
     const r = calculateAdvanceBalance({
+      allowanceAmount: 0,
       baseSalary: 15_000,
       salaryType: 'Monthly',
       reservedAdvances: [
@@ -91,6 +97,7 @@ describe('calculateAdvanceBalance — Monthly', () => {
 describe('calculateAdvanceBalance — Daily / Hourly', () => {
   it("returns 'rate-based' shape with available=null when periodEarnings not supplied", () => {
     const r = calculateAdvanceBalance({
+      allowanceAmount: 0,
       baseSalary: 500,
       salaryType: 'Daily',
       reservedAdvances: [{ status: 'Approved', amount: 200 }],
@@ -108,6 +115,7 @@ describe('calculateAdvanceBalance — Daily / Hourly', () => {
 
   it("returns 'rate-based' shape for Hourly too", () => {
     const r = calculateAdvanceBalance({
+      allowanceAmount: 0,
       baseSalary: 75,
       salaryType: 'Hourly',
       reservedAdvances: [],
@@ -123,6 +131,7 @@ describe('calculateAdvanceBalance — Daily / Hourly', () => {
 describe('calculateAdvanceBalance — net deductions (C7)', () => {
   it('subtracts monthlyDeductions (SSO + recurring) to reach the NET cap', () => {
     const r = calculateAdvanceBalance({
+      allowanceAmount: 0,
       baseSalary: 20_000,
       salaryType: 'Monthly',
       reservedAdvances: [],
@@ -135,6 +144,7 @@ describe('calculateAdvanceBalance — net deductions (C7)', () => {
 
   it('stacks deductions and reserved advances', () => {
     const r = calculateAdvanceBalance({
+      allowanceAmount: 0,
       baseSalary: 20_000,
       salaryType: 'Monthly',
       reservedAdvances: [{ status: 'Pending', amount: 5_000 }],
@@ -146,6 +156,7 @@ describe('calculateAdvanceBalance — net deductions (C7)', () => {
 
   it('defaults deductions to 0 when omitted (back-compat)', () => {
     const r = calculateAdvanceBalance({
+      allowanceAmount: 0,
       baseSalary: 20_000,
       salaryType: 'Monthly',
       reservedAdvances: [],
@@ -157,6 +168,7 @@ describe('calculateAdvanceBalance — net deductions (C7)', () => {
 
   it('clamps negative deductions to 0 (defensive)', () => {
     const r = calculateAdvanceBalance({
+      allowanceAmount: 0,
       baseSalary: 20_000,
       salaryType: 'Monthly',
       reservedAdvances: [],
@@ -169,6 +181,7 @@ describe('calculateAdvanceBalance — net deductions (C7)', () => {
 
   it('applies deductions to the rate-based variant when earnings are known', () => {
     const r = calculateAdvanceBalance({
+      allowanceAmount: 0,
       baseSalary: 400,
       salaryType: 'Daily',
       reservedAdvances: [{ status: 'Pending', amount: 1_000 }],
@@ -198,6 +211,7 @@ describe('isOverCap', () => {
 describe('calculateAdvanceBalance rate-based availability', () => {
   it('with periodEarnings: available = earnings − reserved', () => {
     const b = calculateAdvanceBalance({
+      allowanceAmount: 0,
       baseSalary: 400,
       salaryType: 'Daily',
       reservedAdvances: [{ status: 'Pending', amount: 1000 }],
@@ -211,10 +225,79 @@ describe('calculateAdvanceBalance rate-based availability', () => {
   });
   it('without periodEarnings: available is null (V1 behavior preserved)', () => {
     const b = calculateAdvanceBalance({
+      allowanceAmount: 0,
       baseSalary: 400,
       salaryType: 'Hourly',
       reservedAdvances: [],
     });
     if (b.kind === 'rate-based') expect(b.available).toBeNull();
+  });
+});
+
+describe('calculateAdvanceBalance — position allowance (customer item 6)', () => {
+  // "เวลาเบิกให้คิดยอดรวมจาก เงินเดือน + เงินประจำตำแหน่ง"
+  it('raises the monthly cap', () => {
+    const r = calculateAdvanceBalance({
+      baseSalary: 13_500,
+      allowanceAmount: 3_000,
+      salaryType: 'Monthly',
+      reservedAdvances: [],
+    });
+    if (r.kind !== 'monthly') throw new Error('expected monthly');
+    expect(r.available).toBe(16_500);
+  });
+
+  it('is reported separately from base salary, not folded into it', () => {
+    const r = calculateAdvanceBalance({
+      baseSalary: 13_500,
+      allowanceAmount: 3_000,
+      salaryType: 'Monthly',
+      reservedAdvances: [],
+    });
+    if (r.kind !== 'monthly') throw new Error('expected monthly');
+    expect(r.baseSalary).toBe(13_500);
+    expect(r.allowance).toBe(3_000);
+  });
+
+  it('still subtracts deductions and reserved from the widened cap', () => {
+    const r = calculateAdvanceBalance({
+      baseSalary: 13_500,
+      allowanceAmount: 3_000,
+      salaryType: 'Monthly',
+      reservedAdvances: [{ status: 'Pending', amount: 2_000 }],
+      monthlyDeductions: 675,
+    });
+    if (r.kind !== 'monthly') throw new Error('expected monthly');
+    expect(r.available).toBe(13_825); // 13,500 + 3,000 − 675 − 2,000
+  });
+
+  it('raises a Daily employee cap too — the allowance is monthly, not per-day', () => {
+    // For rate-based staff the cap basis is earnings-so-far, but a monthly
+    // allowance does not vary with days worked, so it is added on top rather
+    // than scaled.
+    const r = calculateAdvanceBalance({
+      baseSalary: 500,
+      allowanceAmount: 3_000,
+      salaryType: 'Daily',
+      reservedAdvances: [],
+      periodEarnings: 10_000,
+    });
+    if (r.kind !== 'rate-based') throw new Error('expected rate-based');
+    expect(r.allowance).toBe(3_000);
+    expect(r.available).toBe(13_000);
+  });
+
+  it('leaves a rate-based employee with unknown earnings unknown', () => {
+    // periodEarnings null means we cannot say what is left; an allowance must
+    // not turn "unknown" into a number, or the cap would understate the truth.
+    const r = calculateAdvanceBalance({
+      baseSalary: 500,
+      allowanceAmount: 3_000,
+      salaryType: 'Daily',
+      reservedAdvances: [],
+      periodEarnings: null,
+    });
+    if (r.kind !== 'rate-based') throw new Error('expected rate-based');
+    expect(r.available).toBeNull();
   });
 });
