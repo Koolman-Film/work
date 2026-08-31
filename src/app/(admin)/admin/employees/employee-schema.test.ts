@@ -99,3 +99,46 @@ describe('validateWorkScheduleRequiredForCreate — create-only gate', () => {
     expect(validateWorkScheduleRequiredForCreate(BRANCH_ID)).toBeNull();
   });
 });
+
+describe('readForm — nameable allowance', () => {
+  it('accepts a labelled allowance', () => {
+    const r = readForm(buildForm({ allowanceLabel: 'เงินประจำตำแหน่ง', allowanceAmount: '3000' }));
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.allowanceLabel).toBe('เงินประจำตำแหน่ง');
+      expect(r.data.allowanceAmount).toBe(3000);
+    }
+  });
+
+  it('treats both blank as "no allowance"', () => {
+    const r = readForm(buildForm({ allowanceLabel: '', allowanceAmount: '' }));
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.allowanceLabel).toBeNull();
+      expect(r.data.allowanceAmount).toBe(0);
+    }
+  });
+
+  it('rejects an amount with no label', () => {
+    // An unnamed income line on a payslip is precisely the "why is there
+    // ฿27,450 of income here?" problem this feature exists to replace.
+    const r = readForm(buildForm({ allowanceLabel: '', allowanceAmount: '3000' }));
+    expect(r.success).toBe(false);
+  });
+
+  it('rejects a label with no amount', () => {
+    const r = readForm(buildForm({ allowanceLabel: 'เงินประจำตำแหน่ง', allowanceAmount: '0' }));
+    expect(r.success).toBe(false);
+  });
+
+  it('rejects a negative amount', () => {
+    const r = readForm(buildForm({ allowanceLabel: 'x', allowanceAmount: '-1' }));
+    expect(r.success).toBe(false);
+  });
+
+  it('trims a padded label rather than storing the padding', () => {
+    const r = readForm(buildForm({ allowanceLabel: '  ค่าตำแหน่ง  ', allowanceAmount: '500' }));
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.allowanceLabel).toBe('ค่าตำแหน่ง');
+  });
+});

@@ -91,6 +91,8 @@ export async function createEmployee(formData: FormData) {
           workScheduleId: data.workScheduleId,
           salaryType: data.salaryType,
           baseSalary: new Prisma.Decimal(data.baseSalary),
+          allowanceLabel: data.allowanceLabel,
+          allowanceAmount: new Prisma.Decimal(data.allowanceAmount),
           status: data.status,
           canCheckIn: data.canCheckIn,
           hasSso: data.hasSso,
@@ -149,6 +151,8 @@ export async function createEmployee(formData: FormData) {
         workScheduleId: data.workScheduleId,
         salaryType: data.salaryType,
         baseSalary: data.baseSalary,
+        allowanceLabel: data.allowanceLabel,
+        allowanceAmount: data.allowanceAmount,
         status: data.status,
         canCheckIn: data.canCheckIn,
         hasSso: data.hasSso,
@@ -216,6 +220,8 @@ export async function updateEmployee(id: string, formData: FormData) {
         workScheduleId: data.workScheduleId,
         salaryType: data.salaryType,
         baseSalary: new Prisma.Decimal(data.baseSalary),
+        allowanceLabel: data.allowanceLabel,
+        allowanceAmount: new Prisma.Decimal(data.allowanceAmount),
         status: data.status,
         canCheckIn: data.canCheckIn,
         hasSso: data.hasSso,
@@ -254,6 +260,8 @@ export async function updateEmployee(id: string, formData: FormData) {
         workScheduleId: data.workScheduleId,
         salaryType: data.salaryType,
         baseSalary: data.baseSalary,
+        allowanceLabel: data.allowanceLabel,
+        allowanceAmount: data.allowanceAmount,
         status: data.status,
         canCheckIn: data.canCheckIn,
         hasSso: data.hasSso,
@@ -626,6 +634,8 @@ function serializableEmployee(e: {
   workScheduleId: string | null;
   salaryType: string;
   baseSalary: unknown;
+  allowanceLabel: unknown;
+  allowanceAmount: unknown;
   status: string;
   canCheckIn: boolean;
   hasSso: boolean;
@@ -648,6 +658,8 @@ function serializableEmployee(e: {
     workScheduleId: e.workScheduleId,
     salaryType: e.salaryType,
     baseSalary: String(e.baseSalary),
+    allowanceLabel: e.allowanceLabel == null ? null : String(e.allowanceLabel),
+    allowanceAmount: String(e.allowanceAmount),
     status: e.status,
     canCheckIn: e.canCheckIn,
     hasSso: e.hasSso,

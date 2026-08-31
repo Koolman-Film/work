@@ -27,6 +27,8 @@ type Initial = {
   workScheduleId: string | null;
   salaryType: 'Monthly' | 'Daily' | 'Hourly';
   baseSalary: string; // already stringified Decimal
+  allowanceLabel: string | null;
+  allowanceAmount: string; // already stringified Decimal
   defaultOtRateType: 'PerHourAmount' | 'Multiplier' | null;
   defaultOtRatePerHour: string | null;
   defaultOtMultiplier: string | null;
@@ -248,6 +250,40 @@ export function EmployeeForm({
                       min={0}
                       required
                       defaultValue={initial?.baseSalary ?? ''}
+                      className="max-w-xs"
+                    />
+                  </FormField>
+                </div>
+
+                {/* Nameable recurring extra pay — "เงินประจำตำแหน่ง" and the like.
+                    Counts toward pay and the cash-advance limit; deliberately not
+                    toward absence or over-quota leave deductions. */}
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <FormField
+                    label="ชื่อเงินพิเศษ"
+                    htmlFor="allowanceLabel"
+                    hint='เช่น "เงินประจำตำแหน่ง" — ชื่อนี้จะแสดงเป็นบรรทัดหนึ่งในสลิปเงินเดือน'
+                  >
+                    <Input
+                      id="allowanceLabel"
+                      name="allowanceLabel"
+                      maxLength={60}
+                      placeholder="เงินประจำตำแหน่ง"
+                      defaultValue={initial?.allowanceLabel ?? ''}
+                    />
+                  </FormField>
+                  <FormField
+                    label="เงินพิเศษ (บาท/เดือน)"
+                    htmlFor="allowanceAmount"
+                    hint="จ่ายทุกเดือน และนับรวมในวงเงินที่เบิกล่วงหน้าได้ — ไม่ทำให้ยอดหักขาดงาน/ลาเกินสิทธิ สูงขึ้น เว้นว่างหรือใส่ 0 หากไม่มี"
+                  >
+                    <Input
+                      id="allowanceAmount"
+                      name="allowanceAmount"
+                      type="number"
+                      step="0.01"
+                      min={0}
+                      defaultValue={initial?.allowanceAmount ?? ''}
                       className="max-w-xs"
                     />
                   </FormField>
