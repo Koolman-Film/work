@@ -2,7 +2,13 @@
 import 'server-only';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
-import { flagRow, type PayrollBreakdown, type ReconcileFlag } from './reconcile';
+import {
+  deductionsOf,
+  flagRow,
+  grossOf,
+  type PayrollBreakdown,
+  type ReconcileFlag,
+} from './reconcile';
 
 export type ReconRow = {
   employeeId: string;
@@ -179,14 +185,8 @@ export async function loadReconciliation(month: string): Promise<ReconciliationV
   >();
   for (const p of current) {
     const b = toBreakdown(p);
-    gross += b.incomeBase + b.incomeAllowance + b.incomeOther;
-    deductions +=
-      b.deductSso +
-      b.deductAdvance +
-      b.deductAttendance +
-      b.deductLeave +
-      b.deductDebt +
-      b.deductOther;
+    gross += grossOf(b);
+    deductions += deductionsOf(b);
     net += b.netPay;
     const branchName = p.employee.branch?.name ?? '—';
     const key = p.employee.branchId ?? '—';

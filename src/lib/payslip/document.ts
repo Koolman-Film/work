@@ -218,7 +218,10 @@ export function assemblePayslipDocument(input: NormalizedPayslipInput): PayslipD
 
   return {
     meta,
-    income: { lines: income, total: buckets.incomeBase + buckets.incomeAllowance + buckets.incomeOther },
+    income: {
+      lines: income,
+      total: buckets.incomeBase + buckets.incomeAllowance + buckets.incomeOther,
+    },
     deduct: {
       lines: deduct,
       total:

@@ -730,6 +730,11 @@ model PayrollAdjustment {
   @@index([deletedAt])
 }
 
+/// A DB CHECK constraint `payroll_net_reconciles` (migration 0045) enforces
+/// netPay = every income column MINUS every deduct column. Prisma does not model
+/// CHECK constraints, so it is invisible here but very much live: ADDING A MONEY
+/// COLUMN BELOW REQUIRES A MIGRATION THAT UPDATES THAT CONSTRAINT, or the first
+/// write of a row using it fails. That is deliberate — see 0045 for why.
 model Payroll {
   id         String   @id @default(uuid()) @db.Uuid
   employeeId String   @db.Uuid

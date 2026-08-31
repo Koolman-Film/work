@@ -36,14 +36,24 @@ async function pay(
   status: 'Draft' | 'Published' | 'Locked',
   o: { incomeBase?: number; netPay?: number; deductAttendance?: number } = {},
 ) {
+  const incomeBase = o.incomeBase ?? 20000;
+  const netPay = o.netPay ?? 19000;
+  const deductAttendance = o.deductAttendance ?? 0;
+  // A Payroll row must satisfy the payroll_net_reconciles CHECK (0045): one that
+  // does not add up cannot exist in production, so a fixture must not invent one
+  // either — a test asserting behaviour on an impossible row proves little.
+  // Whatever the caller's incomeBase/netPay imply beyond the stated deductions
+  // is carried by deductOther, which no assertion here inspects.
+  const deductOther = incomeBase - deductAttendance - netPay;
   return prisma.payroll.create({
     data: {
       employeeId,
       month,
       status,
-      incomeBase: new Prisma.Decimal(o.incomeBase ?? 20000),
-      netPay: new Prisma.Decimal(o.netPay ?? 19000),
-      deductAttendance: new Prisma.Decimal(o.deductAttendance ?? 0),
+      incomeBase: new Prisma.Decimal(incomeBase),
+      netPay: new Prisma.Decimal(netPay),
+      deductAttendance: new Prisma.Decimal(deductAttendance),
+      deductOther: new Prisma.Decimal(deductOther),
     },
   });
 }

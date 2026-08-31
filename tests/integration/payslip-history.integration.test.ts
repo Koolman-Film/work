@@ -44,12 +44,17 @@ async function makePayroll(
   status: 'Draft' | 'Published' | 'Locked',
   net = 19000,
 ) {
+  // Balanced so the row satisfies the payroll_net_reconciles CHECK (0045):
+  // production cannot hold a Payroll row that does not add up, and a fixture
+  // should not invent one. Only month/status/net matter to these assertions.
+  const incomeBase = 20000;
   return prisma.payroll.create({
     data: {
       employeeId,
       month,
-      incomeBase: new Prisma.Decimal(20000),
+      incomeBase: new Prisma.Decimal(incomeBase),
       netPay: new Prisma.Decimal(net),
+      deductOther: new Prisma.Decimal(incomeBase - net),
       status,
     },
   });
