@@ -111,6 +111,7 @@ export type AuditAction =
   | 'leave.recompute'
   | 'leave.correct-type'
   | 'leave.waive-deduction'
+  | 'attendance.correct-time'
   | 'advance.submit'
   | 'advance.admin-create'
   | 'advance.approve'
