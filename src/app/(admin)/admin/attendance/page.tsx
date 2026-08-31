@@ -29,6 +29,7 @@ import type { AttType } from '@prisma/client';
 import Link from 'next/link';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageHeader } from '@/components/ui/page-header';
+import { groupByEmployeeDay } from '@/lib/attendance/day-groups';
 import {
   employeeBranchScope,
   getPermittedBranches,
@@ -37,6 +38,7 @@ import {
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma, prismaRaw } from '@/lib/db/prisma';
 import { signAttendancePhotoUrls } from '@/lib/storage/signed-urls';
+import { buildAttendanceDayVM } from './attendance-day-vm';
 import { buildAttendanceRowVM, RECORD_SELECT, TYPE_LABELS } from './attendance-row-vm';
 import { AttendanceTabs } from './attendance-tabs';
 import { AttendanceRecordsTable } from './records-table';
@@ -74,6 +76,15 @@ function shiftMonth(ym: string, delta: 1 | -1): string {
   return `${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, '0')}`;
 }
 
+/**
+ * Row cap for one month's records. Raised from 200 because the table now shows
+ * one line PER DAY: ~9 employees x ~30 days x 1-2 rows exceeded the old cap
+ * well inside a single month, and the notice offering "use filters" is a poor
+ * answer when the default view is a month. The last group is dropped when this
+ * cap is hit — see the comment at `truncated`.
+ */
+const RECORD_CAP = 600;
+
 export default async function AttendanceRecordsPage({
   searchParams,
 }: {
@@ -110,13 +121,13 @@ export default async function AttendanceRecordsPage({
       ? prismaRaw.attendance.findMany({
           where: { ...baseWhere, deletedAt: { not: null } },
           orderBy: { deletedAt: 'desc' },
-          take: 200,
+          take: RECORD_CAP,
           select: RECORD_SELECT,
         })
       : prisma.attendance.findMany({
           where: baseWhere,
           orderBy: [{ date: 'desc' }, { clockInAt: 'desc' }],
-          take: 200,
+          take: RECORD_CAP,
           select: RECORD_SELECT,
         }),
     prisma.employee.findMany({
@@ -144,6 +155,23 @@ export default async function AttendanceRecordsPage({
     buildAttendanceRowVM(r, {
       selfieUrl: r.checkInSelfieUrl ? (signedSelfieUrls.get(r.checkInSelfieUrl) ?? null) : null,
     }),
+  );
+
+  // One line per employee-day. `records` is ordered date desc, so rows for the
+  // same day sit together but rows for two employees on that day interleave —
+  // groupByEmployeeDay handles both.
+  const groups = groupByEmployeeDay(
+    records.map((r, i) => ({ employeeId: r.employeeId, date: r.date, vm: rows[i]! })),
+  );
+
+  // Drop the trailing group when the cap was hit. The query takes RECORD_CAP
+  // rows, so the oldest visible day is very likely cut in half — and a day
+  // missing its Late row renders as ON TIME for someone who was late. A short
+  // list is recoverable; a wrong late status is not.
+  const truncated = records.length === RECORD_CAP;
+  const visible = truncated ? groups.slice(0, -1) : groups;
+  const days = visible.map((g) =>
+    buildAttendanceDayVM({ ...g, rows: g.rows.map((x) => x.vm) }, { isTrash }),
   );
 
   // Build URL helpers preserving other filters when changing one.
@@ -241,14 +269,14 @@ export default async function AttendanceRecordsPage({
       </div>
 
       <div className="mb-2 text-xs text-ink-3">
-        ผลลัพธ์ <span className="tabular-nums">({rows.length})</span>
-        {rows.length === 200 && (
-          <span className="ml-2 text-ink-4">(แสดง 200 รายการแรก — ใช้ตัวกรองเพื่อแคบลง)</span>
+        ผลลัพธ์ <span className="tabular-nums">({days.length})</span> วัน
+        {truncated && (
+          <span className="ml-2 text-ink-4">(แสดงเฉพาะรายการล่าสุด — ใช้ตัวกรองเพื่อแคบลง)</span>
         )}
       </div>
 
       <AttendanceRecordsTable
-        rows={rows}
+        days={days}
         isTrash={isTrash}
         empty={
           <div className="surface">
