@@ -51,7 +51,13 @@ export async function advanceBalanceFor(
       select: { status: true, amount: true },
     }),
     prisma.payrollConfig.findFirstOrThrow({
-      select: { ssoRate: true, ssoSalaryCap: true, ssoAmountCap: true, cutoffDay: true },
+      select: {
+        ssoRate: true,
+        ssoSalaryCap: true,
+        ssoAmountCap: true,
+        cutoffDay: true,
+        advanceMinRemaining: true,
+      },
     }),
     // "Active" matches the payroll sweep (run.ts): not ended, months left.
     prisma.recurringDeduction.findMany({
@@ -148,6 +154,7 @@ export async function advanceBalanceFor(
   return calculateAdvanceBalance({
     baseSalary: employee.baseSalary,
     allowanceAmount: employee.allowanceAmount,
+    minRemaining: cfg.advanceMinRemaining,
     salaryType: employee.salaryType,
     // Type-cast: Prisma's AdvanceStatus enum includes Rejected/Cancelled
     // too, but our `where` clause filtered those out. The balance helper

@@ -52,6 +52,18 @@ export type AdvanceBalanceInput = {
    *  behind BOTH the LIFF request form and the admin approval guard, and a
    *  missed call site would quietly understate what an employee may draw. */
   allowanceAmount: Prisma.Decimal | string | number;
+  /** Baht that must remain undrawn (PayrollConfig.advanceMinRemaining).
+   *
+   *  Applied as a REDUCTION OF `available`, not as a separate gate, so the
+   *  existing isOverCap enforces it on both the LIFF request form and the admin
+   *  approval guard for free — and the employee sees an honest number rather
+   *  than a rejection after the fact.
+   *
+   *  REQUIRED, not optional-with-default: an optional floor lets a call site be
+   *  missed, and a missed floor silently lets an employee draw past the exact
+   *  limit this field exists to enforce. That is the dangerous direction; a
+   *  missed allowance only under-permits. 0 = no floor. */
+  minRemaining: Prisma.Decimal | string | number;
   /** Advance rows where status ∈ {Pending, Approved} AND isDeducted=false. */
   reservedAdvances: ReadonlyArray<{
     status: 'Pending' | 'Approved';
@@ -135,8 +147,23 @@ export function calculateAdvanceBalance(input: AdvanceBalanceInput): AdvanceBala
   // bonus saw no extra headroom — see the "net INCOME month" test.
   const deductions = input.monthlyDeductions ?? 0;
 
+  // The floor is POLICY, not entitlement, and the two must not be conflated.
+  //
+  //   raw < 0  → genuinely overdrawn (reserved exceeds entitlement). Report the
+  //              true negative so the UI can say HOW FAR over; the floor is
+  //              irrelevant, they already cannot draw.
+  //   raw >= 0 → apply the floor, clamped at 0. Never negative: an employee who
+  //              owes nothing must not be shown a red "you owe money" state
+  //              merely because policy reserves some of their pay.
+  //
+  // `overdrawn` is therefore computed from RAW on both branches and keeps its
+  // original meaning.
+  const floor = Math.max(0, toNumber(input.minRemaining) || 0);
+  const applyFloor = (raw: number) => (raw < 0 ? raw : Math.max(0, raw - floor));
+
   if (input.salaryType === 'Monthly') {
-    const available = baseSalary + allowance - deductions - reserved;
+    const raw = baseSalary + allowance - deductions - reserved;
+    const available = applyFloor(raw);
     return {
       kind: 'monthly',
       baseSalary,
@@ -146,7 +173,7 @@ export function calculateAdvanceBalance(input: AdvanceBalanceInput): AdvanceBala
       approvedNotDeducted,
       reserved,
       available,
-      overdrawn: available < 0,
+      overdrawn: raw < 0,
     };
   }
 
@@ -154,7 +181,8 @@ export function calculateAdvanceBalance(input: AdvanceBalanceInput): AdvanceBala
   // The allowance is a monthly amount, so it is added on top of earnings-so-far
   // rather than scaled by days worked. Null earnings stays null: we cannot say
   // what is left, and an allowance must not turn "unknown" into a number.
-  const available = earnings == null ? null : earnings + allowance - deductions - reserved;
+  const raw = earnings == null ? null : earnings + allowance - deductions - reserved;
+  const available = raw == null ? null : applyFloor(raw);
   return {
     kind: 'rate-based',
     salaryType: input.salaryType,
@@ -166,6 +194,6 @@ export function calculateAdvanceBalance(input: AdvanceBalanceInput): AdvanceBala
     reserved,
     earnings,
     available,
-    overdrawn: available != null && available < 0,
+    overdrawn: raw != null && raw < 0,
   };
 }
