@@ -29,6 +29,9 @@ const CHECKIN_STATUS_LABELS: Record<string, string> = {
 /** Prisma select covering every field `buildAttendanceRowVM` reads. */
 export const RECORD_SELECT = {
   id: true,
+  // Needed to group a day's rows per employee — two employees on the same date
+  // interleave in a date-ordered result.
+  employeeId: true,
   date: true,
   type: true,
   source: true,

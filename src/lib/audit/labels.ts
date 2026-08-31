@@ -71,6 +71,7 @@ export const ACTION_LABELS: Record<AuditAction, string> = {
   'leave.recompute': 'คำนวณวันลาใหม่',
   'leave.correct-type': 'แก้ประเภทคำขอลา',
   'leave.waive-deduction': 'ยกเว้นการหักเงินวันลาเกินสิทธิ',
+  'attendance.correct-time': 'แก้ไขเวลาเข้า-ออก',
   'advance.submit': 'ส่งคำขอเบิก',
   'advance.admin-create': 'แอดมินสร้างคำขอเบิก',
   'advance.approve': 'อนุมัติคำขอเบิก',

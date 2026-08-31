@@ -70,6 +70,7 @@ export const SYSTEM_ROLES: Record<
       'attendance.manual-create',
       'attendance.dispute-resolve',
       'attendance.void',
+      'attendance.correct-time',
       'attendance.overtime.manage',
       // Approval workflows
       'leave.read',

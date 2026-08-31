@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { ReviewModal } from '@/components/ui/review-modal';
 import { restoreAttendance, voidAttendance } from '@/lib/attendance/void';
 import type { AttendanceRowVM } from './attendance-row-vm';
+import { CorrectTimeSection } from './correct-time-section';
 
 /**
  * Detail modal for one attendance record. `row === null` keeps it closed.
@@ -130,6 +131,17 @@ export function AttendanceDetailModal({
             >
               เปิดใน Google Maps →
             </a>
+          )}
+
+          {/* Clock-time correction — check-ins only, and never from the trash
+              view, where the row is already voided. */}
+          {!isTrash && row.type === 'CheckIn' && (
+            <CorrectTimeSection
+              attendanceId={row.id}
+              clockInLabel={row.clockInLabel}
+              clockOutLabel={row.clockOutLabel}
+              onDone={onClose}
+            />
           )}
 
           {/* Trash: deletion info + restore */}
