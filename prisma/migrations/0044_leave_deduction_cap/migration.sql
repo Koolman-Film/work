@@ -5,17 +5,26 @@
 -- is correct; collecting all of it at once is not — that is how a ฿13,500
 -- salary met a ฿27,450 deduction and a net of −฿14,625 on 2026-08-03.
 --
--- 30% is a starting default, chosen to recover a typical backlog in a few
--- months without dominating a payslip. It is admin-editable.
--- 0 = no cap, i.e. the behaviour before this migration. 0 does NOT mean
+-- Ships OFF (0 = no cap, the behaviour before this migration). 0 does NOT mean
 -- "collect nothing" — see monthlyLeaveCap in src/lib/leave/collection-cap.ts.
+--
+-- Deliberately not 30, or any other live value: a migration must never change
+-- computed money. A non-zero default here would re-slice every employee's
+-- leave collection the instant it deployed, with no admin action and no audit
+-- row naming the decision. An admin enables it from /admin/settings/payroll,
+-- which audit-logs before/after and is reversible without a redeploy.
+--
+-- It also matters WHICH way this defaults. A cap carries the uncollected
+-- remainder into later months; the customer's requirement for over-quota leave
+-- is "หักเงินไปเลย" — deduct immediately, do not carry. Off is therefore both
+-- the safe default and the one matching current expectations.
 --
 -- NOTE FOR THE CUSTOMER'S ACCOUNTANT: Thai labour law limits what may be
 -- deducted from wages. Whether unpaid over-quota leave counts as a "deduction"
 -- for that purpose, and what ceiling applies, is a compliance question — 30%
 -- is an engineering default, not legal advice.
 ALTER TABLE "PayrollConfig"
-  ADD COLUMN "leaveDeductMaxPercent" INTEGER NOT NULL DEFAULT 30;
+  ADD COLUMN "leaveDeductMaxPercent" INTEGER NOT NULL DEFAULT 0;
 
 -- How much of a request's deduction has already been collected. A capped month
 -- collects part of a large request; the rest carries forward. Only a fully

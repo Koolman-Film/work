@@ -902,7 +902,16 @@ model PayrollConfig {
   /// otherwise lands whole in whichever month runs next — that is how a ฿13,500
   /// salary met a ฿27,450 deduction. 0 = NO cap (collect everything), the
   /// behaviour before this existed; 0 does NOT mean "collect nothing".
-  leaveDeductMaxPercent  Int     @default(30)
+  ///
+  /// Defaults to 0 — i.e. OFF — on purpose. A migration must never change
+  /// computed money: shipping a non-zero default would have re-sliced every
+  /// employee's leave collection the moment it deployed, with no admin action
+  /// and no audit row to say who decided it. An admin turns the cap on from
+  /// /admin/settings/payroll, which records before/after. Note that a cap
+  /// CARRIES the uncollected remainder into later months, which is the opposite
+  /// of the customer's stated "หักเงินไปเลย" — so switching it on is a policy
+  /// decision for them, not a default for us.
+  leaveDeductMaxPercent  Int     @default(0)
   /// Flat deduction per "Late" attendance row (count-based, ignores duration).
   lateDeduction          Decimal @db.Decimal(12, 2)
   /// Flat deduction per "EarlyLeave" attendance row.
