@@ -11,6 +11,8 @@ const VALID = {
   absentDeductionPerDay: '500',
   lateDeduction: '100',
   earlyLeaveDeduction: '100',
+  advanceMinRemaining: '0',
+  advanceBlackoutDays: '0',
 };
 
 describe('payrollMoneySchema', () => {
@@ -64,5 +66,45 @@ describe('toPayrollConfigData', () => {
     expect(data.otMultiplier?.toString()).toBe('1.5');
     expect(data.workingDaysPerMonth).toBe(30);
     expect(data.otThresholdMinutes).toBe(30);
+  });
+});
+
+describe('payrollMoneySchema — cash-advance limits', () => {
+  it('accepts a floor and a blackout window', () => {
+    const r = payrollMoneySchema.safeParse({
+      ...VALID,
+      advanceMinRemaining: '2000',
+      advanceBlackoutDays: '3',
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it('rejects a blackout longer than 27 days', () => {
+    // The window ends ON cutoffDay, which is itself capped at 28. Allowing 28+
+    // would let a single setting block every day of the month, so the ceiling
+    // sits below the cutoff's own bound and "blocked all month" is unreachable.
+    const r = payrollMoneySchema.safeParse({ ...VALID, advanceBlackoutDays: '28' });
+    expect(r.success).toBe(false);
+  });
+
+  it('rejects a negative blackout window', () => {
+    const r = payrollMoneySchema.safeParse({ ...VALID, advanceBlackoutDays: '-1' });
+    expect(r.success).toBe(false);
+  });
+
+  it('rejects a negative floor', () => {
+    const r = payrollMoneySchema.safeParse({ ...VALID, advanceMinRemaining: '-500' });
+    expect(r.success).toBe(false);
+  });
+
+  it('carries both through to the Prisma payload', () => {
+    const parsed = payrollMoneySchema.parse({
+      ...VALID,
+      advanceMinRemaining: '2000',
+      advanceBlackoutDays: '3',
+    });
+    const data = toPayrollConfigData(parsed);
+    expect(String(data.advanceMinRemaining)).toBe('2000');
+    expect(data.advanceBlackoutDays).toBe(3);
   });
 });

@@ -24,7 +24,15 @@ import { formatMoney } from '@/lib/i18n/format';
 
 const QUICK_AMOUNTS = [500, 1_000, 2_000, 5_000];
 
-export function AdvanceNewForm({ available }: { available: number | null }) {
+export function AdvanceNewForm({
+  available,
+  blackout,
+}: {
+  available: number | null;
+  /** Requests are closed near the payroll cut-off. Presentation only — the
+   *  server action re-checks, because this page can outlive the window. */
+  blackout: boolean;
+}) {
   const t = useTranslations('advance');
   const locale = useLocale() as Locale;
   const router = useRouter();
@@ -123,7 +131,13 @@ export function AdvanceNewForm({ available }: { available: number | null }) {
           </div>
         </div>
 
-        <div className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
+        {blackout && (
+          <div className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            {t('errors.blackout')}
+          </div>
+        )}
+
+        <div className="rounded-md bg-amber-50 px-3 py-2 text-xs text-ink-2">
           <strong>{t('new.noteLabel')}</strong> {t('new.note')}
         </div>
 
@@ -138,7 +152,7 @@ export function AdvanceNewForm({ available }: { available: number | null }) {
           </button>
           <button
             type="submit"
-            disabled={pending || parsed == null || overCap}
+            disabled={pending || parsed == null || overCap || blackout}
             className="rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {pending ? t('new.submitting') : t('new.submit')}

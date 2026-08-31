@@ -390,7 +390,8 @@
       "dbError": "出现错误，请重试",
       "notFound": "未找到借支申请",
       "notOwner": "您不是该申请的所有者",
-      "notCancellable": "只能取消尚未审核的申请"
+      "notCancellable": "只能取消尚未审核的申请",
+      "blackout": "临近工资结算日，暂停受理预支申请。请在结算日后再试。"
     }
   },
   "profile": {
