@@ -953,7 +953,11 @@ export type PayrollRowDetailRaw = {
   /** Which leave type absorbed each settled kind (name + nameByLocale, from this month's settlements) — for the same note. */
   settledLeaveTypeNames: Partial<Record<PenaltyKindKey, { name: string; nameByLocale: unknown }>>;
   leaveOverMinutesTotal: number;
-  employee: { salaryType: 'Monthly' | 'Daily' | 'Hourly'; baseSalary: number; allowanceLabel: string | null };
+  employee: {
+    salaryType: 'Monthly' | 'Daily' | 'Hourly';
+    baseSalary: number;
+    allowanceLabel: string | null;
+  };
   config: { ssoRate: number; ssoSalaryCap: number; workingDaysPerMonth: number };
 };
 
