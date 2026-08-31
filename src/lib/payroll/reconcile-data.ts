@@ -24,6 +24,7 @@ export type ReconciliationView = {
 
 const PAY_SELECT = {
   incomeBase: true,
+  incomeAllowance: true,
   incomeOther: true,
   deductSso: true,
   deductAdvance: true,
@@ -40,6 +41,7 @@ type PaySelectResult = Prisma.PayrollGetPayload<{ select: typeof PAY_SELECT }>;
 function toBreakdown(p: PaySelectResult): PayrollBreakdown {
   return {
     incomeBase: p.incomeBase.toNumber(),
+    incomeAllowance: p.incomeAllowance.toNumber(),
     incomeOther: p.incomeOther.toNumber(),
     deductSso: p.deductSso.toNumber(),
     deductAdvance: p.deductAdvance.toNumber(),
@@ -177,7 +179,7 @@ export async function loadReconciliation(month: string): Promise<ReconciliationV
   >();
   for (const p of current) {
     const b = toBreakdown(p);
-    gross += b.incomeBase + b.incomeOther;
+    gross += b.incomeBase + b.incomeAllowance + b.incomeOther;
     deductions +=
       b.deductSso +
       b.deductAdvance +

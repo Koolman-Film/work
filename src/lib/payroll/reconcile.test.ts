@@ -9,6 +9,7 @@ import {
 
 const zero: PayrollBreakdown = {
   incomeBase: 0,
+  incomeAllowance: 0,
   incomeOther: 0,
   deductSso: 0,
   deductAdvance: 0,
@@ -47,6 +48,16 @@ describe('flagRow', () => {
   it('does NOT flag low-net at exactly 50% of gross', () => {
     const flags = flagRow(row({ incomeBase: 20000, netPay: 10000 }), base({ netPay: 10000 }));
     expect(flags.some((f) => f.kind === 'low-net')).toBe(false);
+  });
+
+  it('counts incomeAllowance in gross, so an allowance-heavy row still trips low-net', () => {
+    // gross = 5000 base + 20000 allowance = 25000; net 9000 is 36% of it.
+    // Omitting the allowance would make gross 5000 and silently pass.
+    const flags = flagRow(
+      row({ incomeBase: 5000, incomeAllowance: 20000, netPay: 9000 }),
+      base({ netPay: 9500 }),
+    );
+    expect(flags).toContainEqual({ kind: 'low-net' });
   });
 
   it('new-this-month when there is no baseline', () => {

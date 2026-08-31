@@ -29,6 +29,7 @@ export const DEDUCTION_COMPONENTS: readonly DeductionComponent[] = [
 
 export type PayrollBreakdown = {
   incomeBase: number;
+  incomeAllowance: number;
   incomeOther: number;
   deductSso: number;
   deductAdvance: number;
@@ -80,7 +81,7 @@ export function flagRow(
   }
 
   const flags: ReconcileFlag[] = [];
-  const gross = current.incomeBase + current.incomeOther;
+  const gross = current.incomeBase + current.incomeAllowance + current.incomeOther;
 
   if (current.netPay <= 0) flags.push({ kind: 'net-nonpositive' });
   if (gross > 0 && current.netPay > 0 && current.netPay < t.lowNetPct * gross) {

@@ -82,10 +82,11 @@ const PENALTY_KIND_LABEL: Record<PenaltyKindKey, string> = {
   SevereLate: 'มาสายรุนแรง',
 };
 
-// The eight breakdown lines shown side-by-side with baseline (netPay is its
+// The nine breakdown lines shown side-by-side with baseline (netPay is its
 // own row below, since it's the bottom-line total rather than a component).
 const BREAKDOWN_LINES: { key: keyof Omit<PayrollBreakdown, 'netPay'>; label: string }[] = [
   { key: 'incomeBase', label: 'ฐานเงินเดือน' },
+  { key: 'incomeAllowance', label: 'เงินพิเศษ' },
   { key: 'incomeOther', label: 'เงินเพิ่ม' },
   { key: 'deductSso', label: 'ประกันสังคม' },
   { key: 'deductAttendance', label: 'หักขาด/สาย' },
