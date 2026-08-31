@@ -322,3 +322,33 @@ describe('approveLeaveRequest — refuses to strand a settled SevereLate (Defect
     });
   });
 });
+
+describe('approveLeaveRequest — freezes chargedMinutes (regression guard)', () => {
+  // Characterization, not a fix: this behaviour has been correct since
+  // 0f15b5f (2026-06-08). Production still holds 8 approved rows with a NULL
+  // charge, and every one was reviewed on or before 2026-06-08 12:14 — i.e.
+  // they predate that deploy. None has appeared since.
+  //
+  // The hazard is that nothing PROVED it. A null charge does not fail; it is
+  // silently re-derived on every read by computeLiveLeaveCharges from the date
+  // span, so its value drifts whenever the holiday calendar is edited. That
+  // drift is the whole difference between the ฿27,450 frozen in a payroll draft
+  // and the ฿25,650 the same request derives today.
+  //
+  // So this test exists to keep a closed hole closed: add a new approval path
+  // that forgets to freeze, and this fails instead of shipping a value that
+  // quietly moves.
+  it('an approved request has a non-null chargedMinutes', async () => {
+    const emp = await makeEmployee();
+    const type = await makeVacationType();
+    const req = await makePendingLeaveRequest(emp.id, type.id, '2026-07-15');
+
+    const res = await approveLeaveRequest({ leaveRequestId: req.id, note: 'อนุมัติทดสอบ' });
+    expect(res.ok).toBe(true);
+
+    const after = await prisma.leaveRequest.findUniqueOrThrow({ where: { id: req.id } });
+    expect(after.status).toBe('Approved');
+    expect(after.chargedMinutes).not.toBeNull();
+    expect(after.chargedMinutes).toBeGreaterThan(0);
+  });
+});

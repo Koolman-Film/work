@@ -39,7 +39,23 @@ import { standardDayMinutes } from '@/lib/leave/units';
 export default async function LeaveBacklogPage() {
   await requireGlobalPermission('payroll.read');
 
-  const [charges, cfg] = await Promise.all([computeLiveLeaveCharges(), getLeaveConfig()]);
+  // Approved leave whose charge was never FROZEN. approveLeaveRequest has
+  // frozen chargedMinutes since 0f15b5f (2026-06-08); the rows that remain were
+  // all reviewed on or before that date. None should ever appear again — but a
+  // null does not fail, it is silently re-derived from the date span on every
+  // read (recompute.ts), so its value moves whenever the holiday calendar is
+  // edited. That drift is the difference between the ฿27,450 frozen into a
+  // payroll draft and the ฿25,650 the same request derives today.
+  //
+  // Surfaced here rather than logged, because the whole point is that nobody
+  // notices otherwise.
+  const [charges, cfg, unfrozen] = await Promise.all([
+    computeLiveLeaveCharges(),
+    getLeaveConfig(),
+    prisma.leaveRequest.count({
+      where: { status: 'Approved', deletedAt: null, chargedMinutes: null },
+    }),
+  ]);
   const std = standardDayMinutes(cfg);
 
   // The backlog is exactly what payroll would sweep next: approved,
@@ -93,6 +109,18 @@ export default async function LeaveBacklogPage() {
         title="วันลาเกินสิทธิที่ยังไม่ได้หัก"
         subtitle="ยอดที่จะถูกหักในรอบเงินเดือนถัดไป — รวมของเก่าที่ค้างมาจากเดือนก่อน ๆ ด้วย"
       />
+
+      {unfrozen > 0 && (
+        <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
+          <p className="text-sm font-medium text-amber-900">
+            มีใบลาที่อนุมัติแล้ว {unfrozen} ใบ ที่ยังไม่ได้บันทึกจำนวนวันไว้ถาวร
+          </p>
+          <p className="mt-1 text-xs text-amber-800">
+            ระบบจะคำนวณจำนวนวันของใบเหล่านี้ใหม่ทุกครั้งที่เปิดดู ทำให้ยอดหักอาจเปลี่ยนเองเมื่อมีการแก้ไขวันหยุดประจำปี
+            ใบที่อนุมัติตั้งแต่ 8 มิ.ย. 2569 เป็นต้นมาไม่มีปัญหานี้ — ถ้าตัวเลขนี้เพิ่มขึ้น แปลว่ามีทางเข้าใหม่ที่ไม่ได้บันทึกค่าไว้
+          </p>
+        </div>
+      )}
 
       <div className="mb-5 space-y-2 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-900">
         <p>
