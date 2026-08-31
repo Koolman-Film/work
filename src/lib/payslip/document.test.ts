@@ -66,6 +66,28 @@ describe('assemblePayslipDocument', () => {
     ]);
   });
 
+  it('shows allowance + itemized adjustments together, income total covers all three', () => {
+    // base 20000 + allowance 6000 + bonus 2000 = 28000; net after SSO 750 = 27250
+    const doc = assemblePayslipDocument({
+      ...base,
+      buckets: {
+        ...base.buckets,
+        incomeAllowance: 6000,
+        incomeAllowanceLabel: 'ค่าดูแลบัญชีสาขา',
+        incomeOther: 2000,
+        netPay: 27250,
+      },
+      incomeAdjustments: [{ id: 'a1', reason: 'โบนัส', amount: 2000 }],
+    });
+    expect(doc.income.lines).toEqual([
+      { key: 'base', labelKey: 'income.base', amount: 20000, detail: null },
+      { key: 'allowance', label: 'ค่าดูแลบัญชีสาขา', amount: 6000, detail: null },
+      { key: 'a1', label: 'โบนัส', amount: 2000, detail: null },
+    ]);
+    expect(doc.income.total).toBe(28000);
+    expect(doc.net).toBe(27250);
+  });
+
   it('falls back to a single income.other line when adjustments do NOT reconcile', () => {
     const doc = assemblePayslipDocument({
       ...base,
