@@ -692,7 +692,13 @@ describe('payrollRowDetailRaw', () => {
     expect(raw.incomeAdjustments).toEqual([
       { id: expect.any(String), reason: 'ค่าคอม', amount: 1000 },
     ]);
-    expect(raw.employee).toEqual({ salaryType: 'Monthly', baseSalary: 20000 });
+    // allowanceLabel joined the raw employee in 0042/30005ef so the draft slip
+    // can name the allowance line; null here because this fixture has none.
+    expect(raw.employee).toEqual({
+      salaryType: 'Monthly',
+      baseSalary: 20000,
+      allowanceLabel: null,
+    });
     expect(raw.config.ssoRate).toBe(0.05);
     // 20000 + 1000 - 750(sso) - 666.67(absent, day rate = 20000/30) = 19583.33
     expect(raw.buckets.netPay).toBe(19583.33);
