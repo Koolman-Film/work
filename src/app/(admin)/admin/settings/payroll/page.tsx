@@ -131,6 +131,20 @@ export default async function PayrollConfigPage({
                   />
                 </FormField>
               </div>
+              <FormField
+                label="เพดานหักวันลาเกินสิทธิต่อเดือน (% ของเงินเดือน)"
+                htmlFor="leaveDeductMaxPercent"
+                hint="วันลาเกินสิทธิที่ค้างสะสมจะถูกทยอยหัก ไม่เกิน % นี้ของเงินเดือนในแต่ละงวด ส่วนที่เหลือยกไปงวดถัดไป — ป้องกันไม่ให้ยอดค้างก้อนใหญ่ทำให้เงินเดือนสุทธิติดลบ ใส่ 0 = หักทั้งหมดทีเดียว (ไม่จำกัด)"
+              >
+                <Input
+                  id="leaveDeductMaxPercent"
+                  name="leaveDeductMaxPercent"
+                  inputMode="numeric"
+                  defaultValue={String(cfg.leaveDeductMaxPercent)}
+                  required
+                  className="max-w-xs"
+                />
+              </FormField>
               <p className="text-sm text-ink-4">
                 นโยบายมาสาย (3 ครั้ง / สายรุนแรง) ตั้งค่าที่หน้า "การมาสาย & รอบจ่าย"
               </p>

@@ -59,6 +59,13 @@ export const payrollMoneySchema = z.object({
   // window that long would block essentially every day of the month. Keeping the
   // ceiling below the cutoff's own bound makes "blocked all month" unreachable
   // by configuration alone.
+  // Ceiling on over-quota LEAVE recovered per payroll month, as a percent of
+  // base salary. 0 = no cap (collect everything), NOT "collect nothing".
+  leaveDeductMaxPercent: z.coerce
+    .number()
+    .int('เพดานหักวันลา: ต้องเป็นจำนวนเต็ม')
+    .min(0, 'เพดานหักวันลา: ต้องไม่ติดลบ')
+    .max(100, 'เพดานหักวันลา: ต้องไม่เกิน 100%'),
   advanceBlackoutDays: z.coerce
     .number()
     .int('ช่วงห้ามเบิก: ต้องเป็นจำนวนเต็ม')
@@ -82,5 +89,6 @@ export function toPayrollConfigData(input: PayrollMoneyInput): Prisma.PayrollCon
     earlyLeaveDeduction: new Prisma.Decimal(input.earlyLeaveDeduction),
     advanceMinRemaining: new Prisma.Decimal(input.advanceMinRemaining),
     advanceBlackoutDays: input.advanceBlackoutDays,
+    leaveDeductMaxPercent: input.leaveDeductMaxPercent,
   };
 }

@@ -22,6 +22,7 @@ export async function updatePayrollConfig(formData: FormData) {
     earlyLeaveDeduction: formData.get('earlyLeaveDeduction'),
     advanceMinRemaining: formData.get('advanceMinRemaining'),
     advanceBlackoutDays: formData.get('advanceBlackoutDays'),
+    leaveDeductMaxPercent: formData.get('leaveDeductMaxPercent'),
   });
   if (!parsed.success) {
     redirect(
@@ -60,6 +61,7 @@ export async function updatePayrollConfig(formData: FormData) {
       earlyLeaveDeduction: before.earlyLeaveDeduction.toString(),
       advanceMinRemaining: before.advanceMinRemaining.toString(),
       advanceBlackoutDays: before.advanceBlackoutDays,
+      leaveDeductMaxPercent: before.leaveDeductMaxPercent,
     },
     after: {
       ssoRate: String(data.ssoRate),
@@ -73,6 +75,7 @@ export async function updatePayrollConfig(formData: FormData) {
       earlyLeaveDeduction: String(data.earlyLeaveDeduction),
       advanceMinRemaining: String(data.advanceMinRemaining),
       advanceBlackoutDays: data.advanceBlackoutDays,
+      leaveDeductMaxPercent: data.leaveDeductMaxPercent,
     },
     metadata: { source: 'admin-ui', section: 'payroll-money' },
   });

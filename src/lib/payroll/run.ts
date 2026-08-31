@@ -25,6 +25,7 @@
 import { Prisma } from '@prisma/client';
 import { bangkokDateUtcMidnight } from '@/lib/attendance/date';
 import { prisma } from '@/lib/db/prisma';
+import { capLeaveCollection, monthlyLeaveCap } from '@/lib/leave/collection-cap';
 import { computeLiveLeaveCharges } from '@/lib/leave/recompute';
 import { invalidatePayslipPdf } from '@/lib/payslip/storage';
 import { adjustmentAppliesToMonth } from './adjustments';
@@ -187,14 +188,51 @@ async function gatherAndCalc(db: Tx | typeof prisma, month: string, employeeId?:
   // at publish), so editing an entitlement is reflected on the next draft with
   // NO manual recompute. Sweep un-paid DeductPay leave whose live over-quota
   // deduction is > 0 and whose startDate is on/before the period cutoff (`end`).
-  const liveSweepableByEmp = new Map<string, Array<{ id: string; deduct: number; over: number }>>();
+  const outstandingByEmp = new Map<
+    string,
+    Array<{ id: string; outstanding: number; over: number; full: number }>
+  >();
   for (const c of await computeLiveLeaveCharges(empIds)) {
     if (c.swept) continue; // already paid in a published payroll — never re-sweep
     if (c.startDate.getTime() > end.getTime()) continue;
     if (c.deductAmount == null || c.deductAmount <= 0) continue;
-    const list = liveSweepableByEmp.get(c.employeeId) ?? [];
-    list.push({ id: c.leaveRequestId, deduct: c.deductAmount, over: c.overQuotaMinutes });
-    liveSweepableByEmp.set(c.employeeId, list);
+    // What is still OWED, not the whole charge: a previous month may have
+    // collected part of it under the cap.
+    const outstanding = c.deductAmount - c.deductedAmountToDate;
+    if (outstanding <= 0) continue;
+    const list = outstandingByEmp.get(c.employeeId) ?? [];
+    list.push({
+      id: c.leaveRequestId,
+      outstanding,
+      over: c.overQuotaMinutes,
+      full: c.deductAmount,
+    });
+    outstandingByEmp.set(c.employeeId, list);
+  }
+
+  // Apply the monthly ceiling per employee. Without it the whole backlog lands
+  // in whichever month runs next — a ฿13,500 salary meeting a ฿27,450 deduction
+  // is what prompted this (2026-08-03). A request larger than the cap is
+  // collected PARTIALLY; whole-request-only would skip it every month forever.
+  const liveSweepableByEmp = new Map<
+    string,
+    Array<{ id: string; deduct: number; over: number; fullySettled: boolean; full: number }>
+  >();
+  for (const emp of employees) {
+    const list = outstandingByEmp.get(emp.id);
+    if (!list?.length) continue;
+    const cap = monthlyLeaveCap(Number(emp.baseSalary), config.leaveDeductMaxPercent ?? 0);
+    const byId = new Map(list.map((l) => [l.id, l]));
+    liveSweepableByEmp.set(
+      emp.id,
+      capLeaveCollection(list, cap).map((c) => ({
+        id: c.id,
+        deduct: c.collect,
+        over: byId.get(c.id)?.over ?? 0,
+        fullySettled: c.fullySettled,
+        full: byId.get(c.id)?.full ?? c.collect,
+      })),
+    );
   }
 
   // Per-employee set of leave-covered dates within the window — a severe late
@@ -225,7 +263,13 @@ async function gatherAndCalc(db: Tx | typeof prisma, month: string, employeeId?:
     draft: PayrollDraft;
     employee: (typeof employees)[number];
     sweptAdvanceIds: string[];
-    sweptLeaves: Array<{ id: string; deduct: number; over: number }>;
+    sweptLeaves: Array<{
+      id: string;
+      deduct: number;
+      over: number;
+      fullySettled: boolean;
+      full: number;
+    }>;
     appliedRecurring: Array<{ id: string; monthsRemaining: number }>;
     settlement: MonthSettlement | undefined;
   }> = [];
@@ -788,12 +832,25 @@ export async function publishPayroll(
             // entered this payroll alongside the `deductedInPayrollId` stamp. The
             // `deductedInPayrollId: null` guard keeps this idempotent on re-publish.
             for (const l of sweptLeaves) {
+              // `l.deduct` is what THIS month collected, which under the monthly
+              // cap may be only part of the request. So the collected-to-date
+              // total is incremented rather than overwritten, and
+              // deductedInPayrollId — the "this is paid, never recompute it"
+              // stamp — is set ONLY when the request is fully settled. Stamping
+              // a partially collected request would freeze it at the instalment
+              // and silently forgive the remainder.
               await tx.leaveRequest.updateMany({
                 where: { id: l.id, deductedInPayrollId: null },
                 data: {
-                  deductedInPayrollId: saved.id,
-                  deductAmount: new Prisma.Decimal(l.deduct.toFixed(2)),
-                  overQuotaMinutes: l.over,
+                  ...(l.fullySettled
+                    ? {
+                        deductedInPayrollId: saved.id,
+                        // Freeze the FULL charge, not the final instalment.
+                        deductAmount: new Prisma.Decimal(l.full.toFixed(2)),
+                        overQuotaMinutes: l.over,
+                      }
+                    : {}),
+                  deductedAmountToDate: { increment: new Prisma.Decimal(l.deduct.toFixed(2)) },
                 },
               });
             }
