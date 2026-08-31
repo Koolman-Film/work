@@ -53,6 +53,17 @@ export const payrollMoneySchema = z.object({
   absentDeductionPerDay: money('หักขาดงาน/วัน', 0),
   lateDeduction: money('หักมาสาย', 0),
   earlyLeaveDeduction: money('หักออกก่อนเวลา', 0),
+  // Cash-advance limits.
+  advanceMinRemaining: money('ขั้นต่ำเงินคงเหลือ (เบิกล่วงหน้า)', 0),
+  // Bounded at 27 rather than 28+: the window ends ON cutoffDay (max 28), and a
+  // window that long would block essentially every day of the month. Keeping the
+  // ceiling below the cutoff's own bound makes "blocked all month" unreachable
+  // by configuration alone.
+  advanceBlackoutDays: z.coerce
+    .number()
+    .int('ช่วงห้ามเบิก: ต้องเป็นจำนวนเต็ม')
+    .min(0, 'ช่วงห้ามเบิก: ต้องไม่ติดลบ')
+    .max(27, 'ช่วงห้ามเบิก: ต้องไม่เกิน 27 วัน'),
 });
 
 export type PayrollMoneyInput = z.infer<typeof payrollMoneySchema>;
@@ -69,5 +80,7 @@ export function toPayrollConfigData(input: PayrollMoneyInput): Prisma.PayrollCon
     absentDeductionPerDay: new Prisma.Decimal(input.absentDeductionPerDay),
     lateDeduction: new Prisma.Decimal(input.lateDeduction),
     earlyLeaveDeduction: new Prisma.Decimal(input.earlyLeaveDeduction),
+    advanceMinRemaining: new Prisma.Decimal(input.advanceMinRemaining),
+    advanceBlackoutDays: input.advanceBlackoutDays,
   };
 }

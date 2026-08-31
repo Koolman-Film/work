@@ -105,6 +105,7 @@ async function gatherAndCalc(db: Tx | typeof prisma, month: string, employeeId?:
       salaryType: true,
       baseSalary: true,
       hasSso: true,
+      allowanceAmount: true,
     },
   });
   const empIds = employees.map((e) => e.id);
@@ -247,6 +248,7 @@ async function gatherAndCalc(db: Tx | typeof prisma, month: string, employeeId?:
           salaryType: emp.salaryType,
           baseSalary: emp.baseSalary.toString(),
           hasSso: emp.hasSso,
+          allowanceAmount: emp.allowanceAmount.toString(),
         },
         attendances: (attByEmp.get(emp.id) ?? []).map(
           (a): AttendanceForPayroll => ({
@@ -346,6 +348,7 @@ export async function actualPenaltyDaysForEmployee(
 function draftValues(draft: PayrollDraft) {
   return {
     incomeBase: new Prisma.Decimal(draft.incomeBase.toFixed(2)),
+    incomeAllowance: new Prisma.Decimal(draft.incomeAllowance.toFixed(2)),
     incomeOther: new Prisma.Decimal(draft.incomeOther.toFixed(2)),
     deductSso: new Prisma.Decimal(draft.deductSso.toFixed(2)),
     deductAdvance: new Prisma.Decimal(draft.deductAdvance.toFixed(2)),

@@ -435,7 +435,8 @@
       "dbError": "Something went wrong. Please try again",
       "notFound": "Advance request not found",
       "notOwner": "You are not the owner of this request",
-      "notCancellable": "Only requests that haven't been reviewed can be cancelled"
+      "notCancellable": "Only requests that haven't been reviewed can be cancelled",
+      "blackout": "Advance requests are closed near the payroll cut-off. Please try again after the cut-off date."
     }
   },
   "profile": {

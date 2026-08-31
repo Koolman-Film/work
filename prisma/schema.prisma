@@ -149,11 +149,11 @@ model User {
   lineInviteExpiresAt      DateTime?
   /// Single-use token for the self-serve account-merge wizard (JWT,
   /// scope='admin-merge', sub=admin User.id). Nulled on consume/regenerate.
-  mergeToken             String?   @unique
-  mergeTokenExpiresAt    DateTime?
+  mergeToken               String?   @unique
+  mergeTokenExpiresAt      DateTime?
   /// When a pure admin dismissed the "link your employee account" card.
   /// NULL → the card shows. Set on dismiss.
-  mergePromptDismissedAt DateTime?
+  mergePromptDismissedAt   DateTime?
   /// Effective UI language (BCP 47 — 'th','en','my','lo','zh-CN','km').
   /// Written by BOTH the worker (modal/switcher) and an admin (employee
   /// edit page). Last write wins. DB-authoritative on LIFF entry — see
@@ -296,31 +296,31 @@ model Bank {
 }
 
 model Branch {
-  id               String    @id @default(uuid()) @db.Uuid
-  name             String    @unique
+  id                String    @id @default(uuid()) @db.Uuid
+  name              String    @unique
   /// English variant of the branch's own location name (e.g. "Chiang Mai").
   /// Null → fall back to `name`. Shown to non-Thai employees.
   nameEn            String?
   /// Payslip letterhead overrides. Null → hardcoded Koolman default.
-  payslipNameEn     String?   // English company name, e.g. "Koolman Co., Ltd."
-  payslipNameNative String?   // Native company name, e.g. "บริษัท คูลแมน จำกัด"
-  payslipLogoKey    String?   // storage key in `attendance-photos`
+  payslipNameEn     String? // English company name, e.g. "Koolman Co., Ltd."
+  payslipNameNative String? // Native company name, e.g. "บริษัท คูลแมน จำกัด"
+  payslipLogoKey    String? // storage key in `attendance-photos`
   /// SSO employer account number (เลขที่บัญชีนายจ้าง) for this branch's
   /// สปส.1-10 filing. Nullable — required before this branch can export.
-  ssoAccountNo     String?
-  address          String?
+  ssoAccountNo      String?
+  address           String?
   // Null lat/lng = no geofence enforcement on LIFF check-in.
-  latitude         Decimal?  @db.Decimal(10, 7)
-  longitude        Decimal?  @db.Decimal(10, 7)
-  radiusMeters     Int       @default(150)
-  requireSelfie    Boolean   @default(false)
+  latitude          Decimal?  @db.Decimal(10, 7)
+  longitude         Decimal?  @db.Decimal(10, 7)
+  radiusMeters      Int       @default(150)
+  requireSelfie     Boolean   @default(false)
   /// When true, LIFF check-ins outside the geofence (or with bad GPS
   /// accuracy / impossible-travel) are marked `Disputed`. When false,
   /// the geofence is informational only — GPS is still recorded for
   /// the admin live board but doesn't gate the check-in.
   /// Default false: a fresh branch is GPS-optional until admin opts in.
   /// Existing branches are also set to false by migration 0005.
-  requireGps       Boolean   @default(false)
+  requireGps        Boolean   @default(false)
   /// When true, the LIFF widget prompts employees to tap "เช็คเอาท์" after
   /// their work day; when false, the check-in flow finishes at "เสร็จสิ้น"
   /// and the prompt disappears (employees can still tap an optional
@@ -328,11 +328,11 @@ model Branch {
   /// the `attendance-force-checkout-eod` cron, which still auto-closes any
   /// row without clockOutAt at 22:00 BKK regardless of branch policy.
   /// Default false; existing branches set to false by migration 0006.
-  requireCheckOut  Boolean   @default(false)
-  attendanceSource AttSource @default(Liff)
-  archivedAt       DateTime?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  requireCheckOut   Boolean   @default(false)
+  attendanceSource  AttSource @default(Liff)
+  archivedAt        DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   employees          Employee[]           @relation("HomeBranch")
   attendanceCheckIns Attendance[]         @relation("CheckInBranch")
@@ -438,10 +438,25 @@ model Employee {
   /// Payroll row at calc time, so published slips never change retroactively.
   /// Default false: admin explicitly ticks enrolled employees.
   hasSso               Boolean     @default(false)
-  status               EmpStatus
-  canCheckIn           Boolean     @default(true)
-  hiredAt              DateTime    @db.Date
-  archivedAt           DateTime?
+
+  /// Nameable recurring extra pay. "เงินประจำตำแหน่ง" is the first use, but the
+  /// label is the admin's to set — the request was "เพิ่มเงินพิเศษ (ที่กำหนดชื่อได้)",
+  /// so a column named for the example would answer the example and not the request.
+  ///
+  /// Counts toward payroll income AND the cash-advance cap, and deliberately NOT
+  /// toward calcSso, perMinuteRate, or dailyRateFor. Folding it into those would
+  /// raise what an employee LOSES per absence or over-quota leave day for holding
+  /// an allowance — which nobody asked for. See §A0.1 of
+  /// docs/superpowers/plans/2026-08-24-finnix-hr-backlog.md.
+  ///
+  /// Its treatment for ประกันสังคม is an OPEN compliance question with the
+  /// customer's accountant; "excluded" is the assumption here, not a decision.
+  allowanceLabel  String?
+  allowanceAmount Decimal   @default(0) @db.Decimal(12, 2)
+  status          EmpStatus
+  canCheckIn      Boolean   @default(true)
+  hiredAt         DateTime  @db.Date
+  archivedAt      DateTime?
 
   // Single-use pairing JWT for LINE link; nulled after consumption.
   inviteToken     String?   @unique
@@ -524,21 +539,21 @@ model Attendance {
 // ─── Leave & Cash Advance ──────────────────────────────────────────────────
 
 model LeaveType {
-  id              String             @id @default(uuid()) @db.Uuid
-  name            String             @unique // "ลาป่วย", "ลากิจ", "ลาพักร้อน"
+  id                 String                        @id @default(uuid()) @db.Uuid
+  name               String                        @unique // "ลาป่วย", "ลากิจ", "ลาพักร้อน"
   /// Optional per-locale display names for worker-facing UI, keyed by app
   /// locale ({"en": "Personal leave", "my": "..."}). Missing/blank locales
   /// fall back to `name` (the Thai canonical name the admin UI shows).
-  nameByLocale    Json?
-  isPaid          Boolean            @default(true)
-  annualQuota     Int? // null = unlimited (e.g., unpaid leave)
-  overQuotaPolicy OverQuotaPolicy    @default(DeductPay)
-  allowFullDay    Boolean            @default(true)
-  allowHalfDay    Boolean            @default(false)
-  allowHourly     Boolean            @default(false)
-  archivedAt      DateTime?
-  requests        LeaveRequest[]
-  entitlements    LeaveEntitlement[]
+  nameByLocale       Json?
+  isPaid             Boolean                       @default(true)
+  annualQuota        Int? // null = unlimited (e.g., unpaid leave)
+  overQuotaPolicy    OverQuotaPolicy               @default(DeductPay)
+  allowFullDay       Boolean                       @default(true)
+  allowHalfDay       Boolean                       @default(false)
+  allowHourly        Boolean                       @default(false)
+  archivedAt         DateTime?
+  requests           LeaveRequest[]
+  entitlements       LeaveEntitlement[]
   penaltySettlements AttendancePenaltySettlement[]
 
   /// May this leave type be spent to pay an attendance penalty?
@@ -587,44 +602,44 @@ model LeaveEntitlement {
 }
 
 model LeaveRequest {
-  id                  String       @id @default(uuid()) @db.Uuid
-  employeeId          String       @db.Uuid
-  employee            Employee     @relation(fields: [employeeId], references: [id], onDelete: Restrict)
-  leaveTypeId         String       @db.Uuid
-  leaveType           LeaveType    @relation(fields: [leaveTypeId], references: [id], onDelete: Restrict)
-  startDate           DateTime     @db.Date
-  endDate             DateTime     @db.Date
-  unit                LeaveUnit    @default(FullDay)
-  startTime           String? // "HH:MM" — set for HalfMorning/HalfAfternoon/Hourly
-  endTime             String?
-  chargedMinutes      Int? // frozen at approval; the amount deducted from balance
+  id                     String       @id @default(uuid()) @db.Uuid
+  employeeId             String       @db.Uuid
+  employee               Employee     @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  leaveTypeId            String       @db.Uuid
+  leaveType              LeaveType    @relation(fields: [leaveTypeId], references: [id], onDelete: Restrict)
+  startDate              DateTime     @db.Date
+  endDate                DateTime     @db.Date
+  unit                   LeaveUnit    @default(FullDay)
+  startTime              String? // "HH:MM" — set for HalfMorning/HalfAfternoon/Hourly
+  endTime                String?
+  chargedMinutes         Int? // frozen at approval; the amount deducted from balance
   /// Minutes beyond the year entitlement, frozen at approval (0/null = within quota).
-  overQuotaMinutes    Int?
+  overQuotaMinutes       Int?
   /// Money value of overQuotaMinutes at the employee's per-minute rate, frozen at approval.
-  deductAmount        Decimal?     @db.Decimal(12, 2)
+  deductAmount           Decimal?     @db.Decimal(12, 2)
   /// Over-quota minutes an admin chose NOT to charge. `overQuotaMinutes` stays
   /// factual — this records the decision layered on top, so the trail shows both
   /// how far over quota the employee was AND what was forgiven. Minutes rather
   /// than baht: the deduction is derived on read at the employee's current rate,
   /// so a baht waiver would drift the moment their salary changed.
-  waivedOverQuotaMinutes Int       @default(0)
-  waiveReason         String?
-  waivedAt            DateTime?
-  waivedById          String?      @db.Uuid
+  waivedOverQuotaMinutes Int          @default(0)
+  waiveReason            String?
+  waivedAt               DateTime?
+  waivedById             String?      @db.Uuid
   /// Payroll row that swept this deduction (null = not yet deducted). Mirrors CashAdvance.
-  deductedInPayrollId String?      @db.Uuid
-  reason              String
-  attachmentUrl       String? // medical certificate / supporting doc
-  status              LeaveStatus
-  reviewedById        String?      @db.Uuid
-  reviewedAt          DateTime?
-  reviewNote          String?
-  createdAt           DateTime     @default(now())
-  updatedAt           DateTime     @updatedAt
-  deletedAt           DateTime?
-  deletedById         String?      @db.Uuid
-  deleteReason        String?
-  attendances         Attendance[]
+  deductedInPayrollId    String?      @db.Uuid
+  reason                 String
+  attachmentUrl          String? // medical certificate / supporting doc
+  status                 LeaveStatus
+  reviewedById           String?      @db.Uuid
+  reviewedAt             DateTime?
+  reviewNote             String?
+  createdAt              DateTime     @default(now())
+  updatedAt              DateTime     @updatedAt
+  deletedAt              DateTime?
+  deletedById            String?      @db.Uuid
+  deleteReason           String?
+  attendances            Attendance[]
 
   @@index([employeeId, status])
   @@index([status])
@@ -721,8 +736,14 @@ model Payroll {
   employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Restrict)
   month      String // "2026-04" YYYY-MM
 
-  incomeBase  Decimal @db.Decimal(12, 2)
-  incomeOther Decimal @default(0) @db.Decimal(12, 2)
+  incomeBase      Decimal @db.Decimal(12, 2)
+  incomeOther     Decimal @default(0) @db.Decimal(12, 2)
+  /// Allowance frozen onto this payslip. Its own column rather than folded into
+  /// incomeOther so the slip can show it as a named line. The AMOUNT is frozen
+  /// here; the LABEL renders from Employee.allowanceLabel at read time, so
+  /// renaming an allowance re-labels historical payslip VIEWS but never their
+  /// money. Archived payslip PDFs are immutable and unaffected.
+  incomeAllowance Decimal @default(0) @db.Decimal(12, 2)
 
   deductSso        Decimal @default(0) @db.Decimal(12, 2)
   deductAdvance    Decimal @default(0) @db.Decimal(12, 2)
@@ -857,6 +878,18 @@ model PayrollConfig {
   /// baseSalary directly (see dailyRateFor in src/lib/payroll/day-rate.ts).
   /// Has no effect on any Monthly employee.
   absentDeductionPerDay  Decimal @db.Decimal(12, 2)
+  /// Baht that must remain undrawn after a cash advance. Subtracted from
+  /// `available` inside calculateAdvanceBalance, so the existing isOverCap
+  /// enforces it on BOTH the LIFF request form and the admin approval guard —
+  /// one number, no second gate. The preventive twin of the negative-net publish
+  /// guard: that one catches an empty payslip at publish, this prevents it at
+  /// request time. 0 = no floor.
+  advanceMinRemaining    Decimal @default(0) @db.Decimal(12, 2)
+  /// Days up to and INCLUDING cutoffDay during which employees cannot submit a
+  /// cash-advance request. Expressed relative to the cutoff so it stays aligned
+  /// if cutoffDay ever moves. Blocks REQUESTING only — admins can still approve
+  /// what is already in flight, or a request would strand for days. 0 = off.
+  advanceBlackoutDays    Int     @default(0)
   /// Flat deduction per "Late" attendance row (count-based, ignores duration).
   lateDeduction          Decimal @db.Decimal(12, 2)
   /// Flat deduction per "EarlyLeave" attendance row.

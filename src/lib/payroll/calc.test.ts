@@ -46,6 +46,7 @@ function baseInput(overrides: Partial<CalcInput> = {}): CalcInput {
       salaryType: 'Monthly',
       baseSalary: '30000',
       hasSso: true,
+      allowanceAmount: 0,
     },
     attendances: [],
     advances: [],
@@ -80,7 +81,13 @@ describe('calcPayroll — V1 fixtures', () => {
   it('CASE 2 — SSO cap applies via rate when base < 15K', () => {
     const out = calcPayroll(
       baseInput({
-        employee: { id: 'e', salaryType: 'Monthly', baseSalary: '10000', hasSso: true },
+        employee: {
+          id: 'e',
+          salaryType: 'Monthly',
+          baseSalary: '10000',
+          hasSso: true,
+          allowanceAmount: 0,
+        },
       }),
     );
     expect(out.deductSso.toString()).toBe('500');
@@ -93,7 +100,13 @@ describe('calcPayroll — V1 fixtures', () => {
   it('CASE 3 — SSO cap applies via amount when base > 15K', () => {
     const out = calcPayroll(
       baseInput({
-        employee: { id: 'e', salaryType: 'Monthly', baseSalary: '50000', hasSso: true },
+        employee: {
+          id: 'e',
+          salaryType: 'Monthly',
+          baseSalary: '50000',
+          hasSso: true,
+          allowanceAmount: 0,
+        },
       }),
     );
     expect(out.deductSso.toString()).toBe('750');
@@ -195,7 +208,15 @@ describe('calcPayroll — V1 fixtures', () => {
   it('throws PayrollCalcError on Daily salary type', () => {
     expect(() =>
       calcPayroll(
-        baseInput({ employee: { id: 'e', salaryType: 'Daily', baseSalary: '500', hasSso: true } }),
+        baseInput({
+          employee: {
+            id: 'e',
+            salaryType: 'Daily',
+            baseSalary: '500',
+            hasSso: true,
+            allowanceAmount: 0,
+          },
+        }),
       ),
     ).toThrow(PayrollCalcError);
   });
@@ -203,7 +224,15 @@ describe('calcPayroll — V1 fixtures', () => {
   it('throws PayrollCalcError on Hourly salary type', () => {
     expect(() =>
       calcPayroll(
-        baseInput({ employee: { id: 'e', salaryType: 'Hourly', baseSalary: '100', hasSso: true } }),
+        baseInput({
+          employee: {
+            id: 'e',
+            salaryType: 'Hourly',
+            baseSalary: '100',
+            hasSso: true,
+            allowanceAmount: 0,
+          },
+        }),
       ),
     ).toThrow(PayrollCalcError);
   });
@@ -286,7 +315,13 @@ describe('calcPayroll — V1 fixtures', () => {
   it('CASE 14 — hasSso=false zeroes deductSso', () => {
     const out = calcPayroll(
       baseInput({
-        employee: { id: 'e', salaryType: 'Monthly', baseSalary: '30000', hasSso: false },
+        employee: {
+          id: 'e',
+          salaryType: 'Monthly',
+          baseSalary: '30000',
+          hasSso: false,
+          allowanceAmount: 0,
+        },
       }),
     );
     expect(out.deductSso.toString()).toBe('0');
@@ -299,7 +334,13 @@ describe('calcPayroll — V1 fixtures', () => {
   it('SSO rate × salary stays exact (no IEEE-754 drift)', () => {
     const out = calcPayroll(
       baseInput({
-        employee: { id: 'e', salaryType: 'Monthly', baseSalary: '15000', hasSso: true },
+        employee: {
+          id: 'e',
+          salaryType: 'Monthly',
+          baseSalary: '15000',
+          hasSso: true,
+          allowanceAmount: 0,
+        },
       }),
     );
     // 0.05 × 15000 = 750.00 exactly
@@ -384,7 +425,13 @@ describe('calcPayroll — late penalties wired through deductAttendance (C9)', (
     lateDeduction: '100',
     earlyLeaveDeduction: '100',
   };
-  const emp = { id: 'e1', salaryType: 'Monthly' as const, baseSalary: '20000', hasSso: false };
+  const emp = {
+    id: 'e1',
+    salaryType: 'Monthly' as const,
+    baseSalary: '20000',
+    hasSso: false,
+    allowanceAmount: 0,
+  };
   const lateRow = (date: string, m: number): AttendanceForPayroll => ({
     date,
     type: 'Late',
@@ -447,7 +494,13 @@ describe('calcPayroll — late penalties wired through deductAttendance (C9)', (
 
 describe('CalcBreakdown sub-amounts', () => {
   const base = {
-    employee: { id: 'e1', salaryType: 'Monthly' as const, baseSalary: '20000', hasSso: true },
+    employee: {
+      id: 'e1',
+      salaryType: 'Monthly' as const,
+      baseSalary: '20000',
+      hasSso: true,
+      allowanceAmount: 0,
+    },
     advances: [],
     recurringDeductions: [],
     config: DEFAULT_CONFIG,
@@ -555,13 +608,25 @@ describe('calcPayroll — a day off costs a day of YOUR pay', () => {
   it('two salaries, same absence, different deduction', () => {
     const low = calcPayroll(
       baseInput({
-        employee: { id: 'e', salaryType: 'Monthly', baseSalary: '10000', hasSso: false },
+        employee: {
+          id: 'e',
+          salaryType: 'Monthly',
+          baseSalary: '10000',
+          hasSso: false,
+          allowanceAmount: 0,
+        },
         attendances: absent,
       }),
     );
     const high = calcPayroll(
       baseInput({
-        employee: { id: 'e', salaryType: 'Monthly', baseSalary: '60000', hasSso: false },
+        employee: {
+          id: 'e',
+          salaryType: 'Monthly',
+          baseSalary: '60000',
+          hasSso: false,
+          allowanceAmount: 0,
+        },
         attendances: absent,
       }),
     );
@@ -575,7 +640,13 @@ describe('calcPayroll — a day off costs a day of YOUR pay', () => {
   it('the slip breakdown shows the same per-day figure it charged', () => {
     const out = calcPayroll(
       baseInput({
-        employee: { id: 'e', salaryType: 'Monthly', baseSalary: '30000', hasSso: false },
+        employee: {
+          id: 'e',
+          salaryType: 'Monthly',
+          baseSalary: '30000',
+          hasSso: false,
+          allowanceAmount: 0,
+        },
         attendances: absent,
       }),
     );
@@ -591,7 +662,13 @@ describe('penalties settled with leave', () => {
    */
   function calcInputWith(opts: { absentDays: number; baseSalary: string }): CalcInput {
     return baseInput({
-      employee: { id: 'emp-1', salaryType: 'Monthly', baseSalary: opts.baseSalary, hasSso: true },
+      employee: {
+        id: 'emp-1',
+        salaryType: 'Monthly',
+        baseSalary: opts.baseSalary,
+        hasSso: true,
+        allowanceAmount: 0,
+      },
       attendances: Array.from(
         { length: opts.absentDays },
         (_, i): AttendanceForPayroll => ({
@@ -659,7 +736,13 @@ describe('calcPayroll — config.workingDaysPerMonth threads through to the abse
   const absent = [{ date: '2026-05-04', type: 'Absent' as const }];
 
   it('config.workingDaysPerMonth changes the absence deduction (not just leave/OT)', () => {
-    const emp = { id: 'e', salaryType: 'Monthly' as const, baseSalary: '20000', hasSso: false };
+    const emp = {
+      id: 'e',
+      salaryType: 'Monthly' as const,
+      baseSalary: '20000',
+      hasSso: false,
+      allowanceAmount: 0,
+    };
     const defaultDivisor = calcPayroll(
       baseInput({ employee: emp, attendances: absent }), // DEFAULT_CONFIG has no workingDaysPerMonth → falls back to 30
     );
@@ -679,11 +762,68 @@ describe('calcPayroll — config.workingDaysPerMonth threads through to the abse
   it('a zero workingDaysPerMonth falls back to 30 rather than blowing up the deduction', () => {
     const out = calcPayroll(
       baseInput({
-        employee: { id: 'e', salaryType: 'Monthly', baseSalary: '20000', hasSso: false },
+        employee: {
+          id: 'e',
+          salaryType: 'Monthly',
+          baseSalary: '20000',
+          hasSso: false,
+          allowanceAmount: 0,
+        },
         attendances: absent,
         config: { ...DEFAULT_CONFIG, workingDaysPerMonth: 0 },
       }),
     );
     expect(out.deductAttendance.toString()).toBe('666.67'); // not Infinity
+  });
+});
+
+describe('calcPayroll — position allowance (customer items 5 & 6)', () => {
+  // 13,500 sits UNDER the 15,000 SSO salary cap, so folding a 3,000 allowance
+  // into the SSO base would move the deduction 675 → 750. That visible gap is
+  // what makes the "does not raise SSO" assertion below meaningful.
+  const withAllowance = (allowanceAmount: string | number) =>
+    baseInput({
+      employee: {
+        id: 'emp-1',
+        salaryType: 'Monthly',
+        baseSalary: '13500',
+        hasSso: true,
+        allowanceAmount,
+      },
+    });
+
+  it('pays the allowance as its own income line, separate from base salary', () => {
+    const d = calcPayroll(withAllowance(3000));
+    expect(d.incomeBase.toString()).toBe('13500');
+    expect(d.incomeAllowance.toString()).toBe('3000');
+  });
+
+  it('the allowance reaches net pay', () => {
+    const without = calcPayroll(withAllowance(0));
+    const withIt = calcPayroll(withAllowance(3000));
+    expect(withIt.netPay.minus(without.netPay).toString()).toBe('3000');
+  });
+
+  it('the allowance does NOT raise the SSO deduction', () => {
+    // Decision A0.1: excluded from the ประกันสังคม base pending the customer's
+    // accountant. If this ever reads 750 instead of 675, someone folded the
+    // allowance into calcSsoParts.
+    const without = calcPayroll(withAllowance(0));
+    const withIt = calcPayroll(withAllowance(3000));
+    expect(without.deductSso.toString()).toBe('675');
+    expect(withIt.deductSso.toString()).toBe('675');
+  });
+
+  it('the allowance does NOT make an absence cost more', () => {
+    // The other half of A0.1, and the one nobody asked for: dailyRateFor reads
+    // baseSalary alone, so a day of absence costs 13,500/30 = 450 whether or not
+    // the employee holds an allowance. Folding it in would charge 550.
+    const absence: AttendanceForPayroll[] = [
+      { date: new Date('2026-05-04T00:00:00.000Z'), type: 'Absent', durationMinutes: null },
+    ];
+    const without = calcPayroll({ ...withAllowance(0), attendances: absence });
+    const withIt = calcPayroll({ ...withAllowance(3000), attendances: absence });
+    expect(without.deductAttendance.toString()).toBe('450');
+    expect(withIt.deductAttendance.toString()).toBe('450');
   });
 });

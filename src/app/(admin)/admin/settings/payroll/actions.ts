@@ -20,6 +20,8 @@ export async function updatePayrollConfig(formData: FormData) {
     absentDeductionPerDay: formData.get('absentDeductionPerDay'),
     lateDeduction: formData.get('lateDeduction'),
     earlyLeaveDeduction: formData.get('earlyLeaveDeduction'),
+    advanceMinRemaining: formData.get('advanceMinRemaining'),
+    advanceBlackoutDays: formData.get('advanceBlackoutDays'),
   });
   if (!parsed.success) {
     redirect(
@@ -56,6 +58,8 @@ export async function updatePayrollConfig(formData: FormData) {
       absentDeductionPerDay: before.absentDeductionPerDay.toString(),
       lateDeduction: before.lateDeduction.toString(),
       earlyLeaveDeduction: before.earlyLeaveDeduction.toString(),
+      advanceMinRemaining: before.advanceMinRemaining.toString(),
+      advanceBlackoutDays: before.advanceBlackoutDays,
     },
     after: {
       ssoRate: String(data.ssoRate),
@@ -67,6 +71,8 @@ export async function updatePayrollConfig(formData: FormData) {
       absentDeductionPerDay: String(data.absentDeductionPerDay),
       lateDeduction: String(data.lateDeduction),
       earlyLeaveDeduction: String(data.earlyLeaveDeduction),
+      advanceMinRemaining: String(data.advanceMinRemaining),
+      advanceBlackoutDays: data.advanceBlackoutDays,
     },
     metadata: { source: 'admin-ui', section: 'payroll-money' },
   });

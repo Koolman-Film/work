@@ -45,6 +45,25 @@ export type SalaryType = 'Monthly' | 'Daily' | 'Hourly';
 export type AdvanceBalanceInput = {
   baseSalary: Prisma.Decimal | string | number;
   salaryType: SalaryType;
+  /** Nameable recurring allowance (Employee.allowanceAmount) — part of the cap
+   *  basis, per the request "เวลาเบิกให้คิดยอดรวมจาก เงินเดือน + เงินประจำตำแหน่ง".
+   *
+   *  REQUIRED, not optional-with-default: this file is the single cap formula
+   *  behind BOTH the LIFF request form and the admin approval guard, and a
+   *  missed call site would quietly understate what an employee may draw. */
+  allowanceAmount: Prisma.Decimal | string | number;
+  /** Baht that must remain undrawn (PayrollConfig.advanceMinRemaining).
+   *
+   *  Applied as a REDUCTION OF `available`, not as a separate gate, so the
+   *  existing isOverCap enforces it on both the LIFF request form and the admin
+   *  approval guard for free — and the employee sees an honest number rather
+   *  than a rejection after the fact.
+   *
+   *  REQUIRED, not optional-with-default: an optional floor lets a call site be
+   *  missed, and a missed floor silently lets an employee draw past the exact
+   *  limit this field exists to enforce. That is the dangerous direction; a
+   *  missed allowance only under-permits. 0 = no floor. */
+  minRemaining: Prisma.Decimal | string | number;
   /** Advance rows where status ∈ {Pending, Approved} AND isDeducted=false. */
   reservedAdvances: ReadonlyArray<{
     status: 'Pending' | 'Approved';
@@ -53,10 +72,18 @@ export type AdvanceBalanceInput = {
   /** Earned-so-far this payroll period for Daily/Hourly; when provided the
    *  rate-based variant gains available/overdrawn. */
   periodEarnings?: number | null;
-  /** Standing monthly deductions to subtract from the cap so an advance can't
-   *  exceed NET pay (requirement: "ไม่ให้เบิกเกินเงินเดือนสุทธิ"). Only the
-   *  STABLE, always-known deductions belong here — SSO + active recurring
-   *  deductions — not the fluctuating attendance/leave/keyed ones. Default 0. */
+  /** NET standing adjustment to the cap so an advance can't exceed NET pay
+   *  (requirement: "ไม่ให้เบิกเกินเงินเดือนสุทธิ"). Positive lowers the cap,
+   *  NEGATIVE raises it.
+   *
+   *  Comprises SSO + active recurring deductions + this month's PayrollAdjustment
+   *  rows, where เงินลด (Deduction) adds and เงินเพิ่ม (Income) subtracts.
+   *
+   *  Leave deductions are still EXCLUDED, deliberately. computeLiveLeaveCharges
+   *  has no lower date bound and returns every un-swept over-quota charge from
+   *  all time, so feeding it here would give anyone carrying a backlog a
+   *  permanently negative balance — see §A0.2 and the ฿27,450 case. Revisit only
+   *  once that is bounded. Default 0. */
   monthlyDeductions?: number;
 };
 
@@ -64,6 +91,7 @@ export type AdvanceBalance =
   | {
       kind: 'monthly';
       baseSalary: number;
+      allowance: number; // added to baseSalary to form the cap basis
       deductions: number; // SSO + recurring subtracted to reach NET cap
       pending: number; // sum of Pending advances
       approvedNotDeducted: number; // sum of Approved-but-not-deducted advances
@@ -75,6 +103,7 @@ export type AdvanceBalance =
       kind: 'rate-based'; // Daily / Hourly
       salaryType: 'Daily' | 'Hourly';
       ratePerPeriod: number;
+      allowance: number; // monthly, so added on top of earnings rather than scaled
       deductions: number; // SSO + recurring subtracted to reach NET cap
       pending: number;
       approvedNotDeducted: number;
@@ -100,6 +129,7 @@ function toNumber(v: Prisma.Decimal | string | number): number {
 
 export function calculateAdvanceBalance(input: AdvanceBalanceInput): AdvanceBalance {
   const baseSalary = toNumber(input.baseSalary);
+  const allowance = Math.max(0, toNumber(input.allowanceAmount) || 0);
 
   let pending = 0;
   let approvedNotDeducted = 0;
@@ -110,34 +140,60 @@ export function calculateAdvanceBalance(input: AdvanceBalanceInput): AdvanceBala
     else if (a.status === 'Approved') approvedNotDeducted += n;
   }
   const reserved = pending + approvedNotDeducted;
-  const deductions = Math.max(0, input.monthlyDeductions ?? 0);
+  // NOT clamped at zero. `monthlyDeductions` is a NET figure: SSO + recurring
+  // deductions + this month's เงินลด, MINUS this month's เงินเพิ่ม. When the
+  // Income adjustments win it arrives negative and must widen the cap. A
+  // `Math.max(0, …)` here silently discarded that, so an employee handed a
+  // bonus saw no extra headroom — see the "net INCOME month" test.
+  const deductions = input.monthlyDeductions ?? 0;
+
+  // The floor is POLICY, not entitlement, and the two must not be conflated.
+  //
+  //   raw < 0  → genuinely overdrawn (reserved exceeds entitlement). Report the
+  //              true negative so the UI can say HOW FAR over; the floor is
+  //              irrelevant, they already cannot draw.
+  //   raw >= 0 → apply the floor, clamped at 0. Never negative: an employee who
+  //              owes nothing must not be shown a red "you owe money" state
+  //              merely because policy reserves some of their pay.
+  //
+  // `overdrawn` is therefore computed from RAW on both branches and keeps its
+  // original meaning.
+  const floor = Math.max(0, toNumber(input.minRemaining) || 0);
+  const applyFloor = (raw: number) => (raw < 0 ? raw : Math.max(0, raw - floor));
 
   if (input.salaryType === 'Monthly') {
-    const available = baseSalary - deductions - reserved;
+    const raw = baseSalary + allowance - deductions - reserved;
+    const available = applyFloor(raw);
     return {
       kind: 'monthly',
       baseSalary,
+      allowance,
       deductions,
       pending,
       approvedNotDeducted,
       reserved,
       available,
-      overdrawn: available < 0,
+      overdrawn: raw < 0,
     };
   }
 
   const earnings = input.periodEarnings ?? null;
-  const available = earnings == null ? null : earnings - deductions - reserved;
+  // The allowance is a monthly amount, so it is added on top of earnings-so-far
+  // rather than scaled by days worked. Null earnings stays null: we cannot say
+  // what is left, and an allowance must not turn "unknown" into a number.
+  const raw = earnings == null ? null : earnings + allowance - deductions - reserved;
+  const available = raw == null ? null : applyFloor(raw);
   return {
     kind: 'rate-based',
     salaryType: input.salaryType,
     ratePerPeriod: baseSalary,
+    allowance,
     deductions,
     pending,
     approvedNotDeducted,
     reserved,
     earnings,
     available,
-    overdrawn: available != null && available < 0,
+    overdrawn: raw != null && raw < 0,
   };
 }

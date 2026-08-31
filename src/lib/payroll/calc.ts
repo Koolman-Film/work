@@ -84,6 +84,20 @@ export type EmployeeForPayroll = {
    * never guesses an enrollment default.
    */
   hasSso: boolean;
+  /**
+   * Nameable recurring allowance (Employee.allowanceAmount) — "เงินประจำตำแหน่ง"
+   * and anything like it. Paid as its own income line.
+   *
+   * REQUIRED, not optional-with-default, for the same reason as `hasSso`: this
+   * is money owed to the employee, and an optional field lets a call site be
+   * missed. A missed call site here silently UNDERPAYS — the failure mode
+   * nobody notices until an employee reads their slip.
+   *
+   * Deliberately NOT fed to calcSsoParts or dailyRateFor (§A0.1). Both are
+   * charged AGAINST the employee; raising them because someone holds an
+   * allowance is not what was asked for.
+   */
+  allowanceAmount: string | number | Decimal;
 };
 
 /**
@@ -221,6 +235,8 @@ export type PayrollDraft = {
   employeeId: string;
 
   incomeBase: Decimal;
+  /** The allowance, kept out of incomeOther so the payslip can name it. */
+  incomeAllowance: Decimal;
   incomeOther: Decimal;
 
   deductSso: Decimal;
@@ -377,6 +393,7 @@ export function calcPayroll(input: CalcInput): PayrollDraft {
   // V1: incomeBase = full month base; no proration. incomeOther = the sum
   // of Income-kind adjustments (เงินเพิ่ม) the caller selected for this month.
   const incomeBase = baseSalary;
+  const incomeAllowance = toDec(input.employee.allowanceAmount).toDecimalPlaces(2);
   const adjustments = input.adjustments ?? [];
   const incomeOther = sumDec(
     adjustments.filter((a) => a.kind === 'Income').map((a) => ({ value: a.amount })),
@@ -468,6 +485,7 @@ export function calcPayroll(input: CalcInput): PayrollDraft {
   // surface it as an error case the caller can choose to handle —
   // typically by capping at zero AND alerting the admin.
   const netPay = incomeBase
+    .plus(incomeAllowance)
     .plus(incomeOther)
     .minus(deductSso)
     .minus(deductAdvance)
@@ -525,6 +543,7 @@ export function calcPayroll(input: CalcInput): PayrollDraft {
     month: input.month,
     employeeId: input.employee.id,
     incomeBase: incomeBase.toDecimalPlaces(2),
+    incomeAllowance,
     incomeOther,
     deductSso,
     deductAdvance,

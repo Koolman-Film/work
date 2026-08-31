@@ -28,7 +28,13 @@ export async function advanceBalanceFor(
 ): Promise<AdvanceBalance> {
   const employee = await prisma.employee.findUniqueOrThrow({
     where: { id: employeeId },
-    select: { baseSalary: true, salaryType: true, workScheduleId: true, hasSso: true },
+    select: {
+      baseSalary: true,
+      salaryType: true,
+      workScheduleId: true,
+      hasSso: true,
+      allowanceAmount: true,
+    },
   });
 
   // Fetch employee first, then parallelize: reserved advances, the payroll
@@ -45,7 +51,13 @@ export async function advanceBalanceFor(
       select: { status: true, amount: true },
     }),
     prisma.payrollConfig.findFirstOrThrow({
-      select: { ssoRate: true, ssoSalaryCap: true, ssoAmountCap: true, cutoffDay: true },
+      select: {
+        ssoRate: true,
+        ssoSalaryCap: true,
+        ssoAmountCap: true,
+        cutoffDay: true,
+        advanceMinRemaining: true,
+      },
     }),
     // "Active" matches the payroll sweep (run.ts): not ended, months left.
     prisma.recurringDeduction.findMany({
@@ -54,9 +66,11 @@ export async function advanceBalanceFor(
     }),
   ]);
 
-  // NET-pay cap basis: subtract the stable, always-known deductions only —
-  // SSO + active recurring. Fluctuating attendance/leave/keyed deductions are
-  // intentionally excluded (see balance.ts header).
+  // NET-pay cap basis: SSO + active recurring + this month's keyed
+  // เงินเพิ่ม/เงินลด. LEAVE is still excluded — computeLiveLeaveCharges has no
+  // lower date bound and returns every un-swept over-quota charge from all time,
+  // so folding it in would give anyone carrying a backlog a permanently negative
+  // balance (see §A0.2 and the ฿27,450 case).
   const ssoDeduction = employee.hasSso
     ? calcSso(new Decimal(employee.baseSalary.toString()), {
         ssoRate: cfg.ssoRate.toString(),
@@ -65,11 +79,38 @@ export async function advanceBalanceFor(
       }).toNumber()
     : 0;
   const recurringDeduction = recurring.reduce((sum, r) => sum + Number(r.monthlyAmount), 0);
-  const monthlyDeductions = ssoDeduction + recurringDeduction;
+
+  // Keyed adjustments for the payroll month that CONTAINS today — derived from
+  // the cutoff window, NOT todayYmd.slice(0, 7). Near the cutoff those differ,
+  // and the calendar month would apply next month's adjustments a few days
+  // early. Same window predicate as the payroll sweep in run.ts, so the two
+  // agree about which month an adjustment belongs to.
+  //
+  // Issued sequentially rather than inside the Promise.all above because the
+  // month depends on cfg.cutoffDay, which that batch is what fetches. One extra
+  // round-trip on a form/approval path is fine; report code must not loop this
+  // helper (see the header).
+  const todayYmd = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
+  const currentMonth = payrollPeriodFor(todayYmd, cfg.cutoffDay).end.slice(0, 7);
+  const adjustments = await prisma.payrollAdjustment.findMany({
+    where: {
+      employeeId,
+      deletedAt: null,
+      startMonth: { lte: currentMonth },
+      OR: [{ endMonth: null }, { endMonth: { gte: currentMonth } }],
+    },
+    select: { kind: true, amount: true },
+  });
+  // Symmetric on purpose: เงินลด lowers the cap, เงินเพิ่ม raises it. The sum can
+  // legitimately be NEGATIVE, and calculateAdvanceBalance no longer clamps it.
+  const adjustmentNet = adjustments.reduce(
+    (sum, a) => sum + (a.kind === 'Deduction' ? Number(a.amount) : -Number(a.amount)),
+    0,
+  );
+  const monthlyDeductions = ssoDeduction + recurringDeduction + adjustmentNet;
 
   let earnings: number | null = null;
   if (employee.salaryType !== 'Monthly') {
-    const todayYmd = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
     const period = payrollPeriodFor(todayYmd, cfg.cutoffDay);
     const rows = await prisma.attendance.findMany({
       where: {
@@ -112,6 +153,8 @@ export async function advanceBalanceFor(
 
   return calculateAdvanceBalance({
     baseSalary: employee.baseSalary,
+    allowanceAmount: employee.allowanceAmount,
+    minRemaining: cfg.advanceMinRemaining,
     salaryType: employee.salaryType,
     // Type-cast: Prisma's AdvanceStatus enum includes Rejected/Cancelled
     // too, but our `where` clause filtered those out. The balance helper

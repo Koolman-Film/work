@@ -137,6 +137,42 @@ export default async function PayrollConfigPage({
             </CardBody>
           </Card>
 
+          <Card>
+            <CardHeader>
+              <CardTitle>การเบิกล่วงหน้า</CardTitle>
+            </CardHeader>
+            <CardBody className="space-y-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <FormField
+                  label="ขั้นต่ำเงินคงเหลือ (บาท)"
+                  htmlFor="advanceMinRemaining"
+                  hint="จำนวนเงินที่ต้องเหลือไว้เสมอ ระบบจะหักออกจากวงเงินที่เบิกได้ เพื่อไม่ให้เบิกจนเงินเดือนเหลือศูนย์ — ใส่ 0 หากไม่ต้องการกำหนด"
+                >
+                  <Input
+                    id="advanceMinRemaining"
+                    name="advanceMinRemaining"
+                    inputMode="decimal"
+                    defaultValue={cfg.advanceMinRemaining.toString()}
+                    required
+                  />
+                </FormField>
+                <FormField
+                  label="ช่วงห้ามกดเบิก (วันก่อนวันตัดรอบ)"
+                  htmlFor="advanceBlackoutDays"
+                  hint="นับถอยหลังจากวันตัดรอบ รวมวันตัดรอบด้วย เช่น ใส่ 3 เมื่อวันตัดรอบคือวันที่ 25 จะห้ามกดเบิกวันที่ 23–25 — ห้ามเฉพาะการยื่นคำขอ แอดมินยังอนุมัติรายการที่ค้างอยู่ได้ ใส่ 0 หากไม่ต้องการกำหนด"
+                >
+                  <Input
+                    id="advanceBlackoutDays"
+                    name="advanceBlackoutDays"
+                    inputMode="numeric"
+                    defaultValue={String(cfg.advanceBlackoutDays)}
+                    required
+                  />
+                </FormField>
+              </div>
+            </CardBody>
+          </Card>
+
           <div className="flex justify-end">
             <Button type="submit">บันทึก</Button>
           </div>

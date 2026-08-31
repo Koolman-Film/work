@@ -28,6 +28,7 @@ import { prisma } from '@/lib/db/prisma';
 import { notifyAdminsInApp } from '@/lib/notifications/in-app-bell';
 import { advanceBalanceFor } from './available';
 import { isOverCap } from './balance';
+import { isInAdvanceBlackout } from './blackout';
 
 /** Same display-name policy as leave/actions.ts — prefer nickname, fall
  *  back to full name. Kept as a per-file helper rather than a shared util
@@ -51,7 +52,14 @@ export type SubmitAdvanceResult =
   | { ok: true; id: string }
   | {
       ok: false;
-      code: 'forbidden' | 'bad-amount' | 'too-large' | 'pending-exists' | 'over-cap' | 'db-error';
+      code:
+        | 'forbidden'
+        | 'bad-amount'
+        | 'too-large'
+        | 'pending-exists'
+        | 'over-cap'
+        | 'blackout'
+        | 'db-error';
       message: string;
     };
 
@@ -110,6 +118,29 @@ export async function submitCashAdvance(input: SubmitInput): Promise<SubmitAdvan
       code: 'pending-exists',
       message: t('errors.pendingExists'),
     };
+  }
+
+  // Blackout window around the payroll cutoff ("ตั้งช่วงวันห้ามกดเบิกล่วงหน้า").
+  //
+  // THIS is the guard. The LIFF form also disables its submit button, but that
+  // is presentation: a page held open across midnight, or a replayed submit,
+  // walks straight past it. Checked here, before the cap, so an employee in the
+  // blackout gets the reason rather than an unrelated cap message.
+  //
+  // Blocks REQUESTING only. Admin approval is untouched, or requests already in
+  // flight would strand for the length of the window.
+  const blackoutCfg = await prisma.payrollConfig.findFirst({
+    select: { cutoffDay: true, advanceBlackoutDays: true },
+  });
+  if (blackoutCfg) {
+    const todayYmd = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
+    if (isInAdvanceBlackout(todayYmd, blackoutCfg.cutoffDay, blackoutCfg.advanceBlackoutDays)) {
+      return {
+        ok: false,
+        code: 'blackout',
+        message: t('errors.blackout'),
+      };
+    }
   }
 
   // Hard cap: an advance can't exceed NET pay ("ไม่ให้เบิกเกินเงินเดือนสุทธิ").

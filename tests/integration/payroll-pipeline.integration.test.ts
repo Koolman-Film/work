@@ -55,7 +55,12 @@ async function reset() {
   await prisma.leaveConfig.create({ data: {} });
 }
 
-async function makeEmployee(opts: { baseSalary: number; hasSso?: boolean }) {
+async function makeEmployee(opts: {
+  baseSalary: number;
+  hasSso?: boolean;
+  allowanceLabel?: string;
+  allowanceAmount?: number;
+}) {
   const user = await prisma.user.create({ data: {} });
   const branch = await prisma.branch.create({ data: { name: `Branch-${uid().slice(0, 8)}` } });
   return prisma.employee.create({
@@ -67,6 +72,8 @@ async function makeEmployee(opts: { baseSalary: number; hasSso?: boolean }) {
       salaryType: 'Monthly',
       baseSalary: new Prisma.Decimal(opts.baseSalary),
       hasSso: opts.hasSso ?? false,
+      allowanceLabel: opts.allowanceLabel ?? null,
+      allowanceAmount: new Prisma.Decimal(opts.allowanceAmount ?? 0),
       status: 'Active',
       hiredAt: new Date('2026-01-01'),
     },
@@ -693,5 +700,40 @@ describe('payrollRowDetailRaw', () => {
 
   it('returns null when no computable row exists', async () => {
     expect(await payrollRowDetailRaw(MONTH, uid())).toBeNull();
+  });
+});
+
+describe('runPayrollDraft — position allowance (0042)', () => {
+  it('freezes the allowance onto its own Payroll column and into net pay', async () => {
+    const emp = await makeEmployee({
+      baseSalary: 13_500,
+      hasSso: true,
+      allowanceLabel: 'เงินประจำตำแหน่ง',
+      allowanceAmount: 3_000,
+    });
+
+    await runPayrollDraft(MONTH);
+
+    const row = await prisma.payroll.findFirstOrThrow({
+      where: { employeeId: emp.id, month: MONTH },
+    });
+    expect(Number(row.incomeBase)).toBe(13_500);
+    expect(Number(row.incomeAllowance)).toBe(3_000);
+    // 13,500 base + 3,000 allowance − 675 SSO. The allowance is paid in full and
+    // the SSO is computed on base ALONE — 675, not 825 (§A0.1).
+    expect(Number(row.deductSso)).toBe(675);
+    expect(Number(row.netPay)).toBe(15_825);
+  });
+
+  it('an employee with no allowance is unaffected', async () => {
+    const emp = await makeEmployee({ baseSalary: 13_500, hasSso: true });
+
+    await runPayrollDraft(MONTH);
+
+    const row = await prisma.payroll.findFirstOrThrow({
+      where: { employeeId: emp.id, month: MONTH },
+    });
+    expect(Number(row.incomeAllowance)).toBe(0);
+    expect(Number(row.netPay)).toBe(12_825);
   });
 });
