@@ -692,6 +692,8 @@ describe('payrollRowDetailRaw', () => {
     expect(raw.incomeAdjustments).toEqual([
       { id: expect.any(String), reason: 'ค่าคอม', amount: 1000 },
     ]);
+    // allowanceLabel joined the raw employee in 0042/30005ef so the draft slip
+    // can name the allowance line; null here because this fixture has none.
     expect(raw.employee).toEqual({
       salaryType: 'Monthly',
       baseSalary: 20000,
