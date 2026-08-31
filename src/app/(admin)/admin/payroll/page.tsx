@@ -200,7 +200,12 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
           r.deductAttendance.toFixed(2) !== f.deductAttendance.toFixed(2) ||
           r.deductLeave.toFixed(2) !== f.deductLeave.toFixed(2) ||
           r.deductDebt.toFixed(2) !== f.deductDebt.toFixed(2) ||
-          r.deductOther.toFixed(2) !== f.deductOther.toFixed(2)
+          r.deductOther.toFixed(2) !== f.deductOther.toFixed(2) ||
+          // Backstop: netPay is the sum of every bucket, so comparing it flags
+          // drift in a component nobody remembered to add to the list above.
+          // incomeAllowance was exactly that gap — a row whose allowance had
+          // changed matched on all eight compared fields and read as fresh.
+          r.netPay.toFixed(2) !== f.netPay.toFixed(2)
         );
       })
       .map((r) => r.id),
