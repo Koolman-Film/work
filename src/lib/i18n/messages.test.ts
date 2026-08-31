@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import enMessages from '../../../messages/en.json';
+import kmMessages from '../../../messages/km.json';
+import loMessages from '../../../messages/lo.json';
+import myMessages from '../../../messages/my.json';
 import thMessages from '../../../messages/th.json';
+import zhMessages from '../../../messages/zh-CN.json';
 import { deepMerge, getMessages } from './messages';
 
 /** Collect every leaf key path (dot-joined) from a nested message object. */
@@ -71,5 +75,49 @@ describe('liffAdmin namespace', () => {
     const thKeys = keyPaths(th).sort();
     const enKeys = keyPaths(en).sort();
     expect(enKeys).toEqual(thKeys);
+  });
+});
+
+describe('locale catalogs', () => {
+  // Measured 2026-08-31: th 579 keys (source), en 579 (100%), and my / lo /
+  // zh-CN / km 415 each — the SAME 415. The four are deliberately partial
+  // stubs covering the employee-facing surfaces; everything else reaches them
+  // through the target ← English ← Thai fallback in getMessages.
+  //
+  // So full six-way parity is NOT the invariant. Demanding it would require 164
+  // translations x 4 languages that the design deliberately does not want, and
+  // the test would fail on day one.
+  //
+  // What IS worth protecting is that the four stubs stay identical to EACH
+  // OTHER. Add a key to `my` and forget `lo`, and a Lao worker silently sees
+  // English on a screen a Burmese worker sees translated — nothing fails, and
+  // the fallback makes it invisible. That is real drift, and this is the only
+  // thing watching for it.
+  const STUBS: Array<{ loc: string; msgs: Record<string, unknown> }> = [
+    { loc: 'my', msgs: myMessages as Record<string, unknown> },
+    { loc: 'lo', msgs: loMessages as Record<string, unknown> },
+    { loc: 'zh-CN', msgs: zhMessages as Record<string, unknown> },
+    { loc: 'km', msgs: kmMessages as Record<string, unknown> },
+  ];
+
+  it('the four stub locales cover exactly the same keys', () => {
+    const byLocale = STUBS.map(({ loc, msgs }) => ({ loc, keys: keyPaths(msgs).sort() }));
+    const reference = byLocale[0]!;
+    for (const other of byLocale.slice(1)) {
+      // Compared against one reference rather than pairwise: a mismatch names
+      // the offending locale directly instead of a set difference.
+      expect({ loc: other.loc, keys: other.keys }).toEqual({
+        loc: other.loc,
+        keys: reference.keys,
+      });
+    }
+  });
+
+  it('every stub key exists in the Thai source (no orphaned translations)', () => {
+    const th = new Set(keyPaths(thMessages as Record<string, unknown>));
+    for (const { loc, msgs } of STUBS) {
+      const orphans = keyPaths(msgs).filter((k) => !th.has(k));
+      expect({ loc, orphans }).toEqual({ loc, orphans: [] });
+    }
   });
 });
