@@ -11,6 +11,7 @@ import { prisma } from '@/lib/db/prisma';
 import { formatTHB, formatTHB2, monthLabelTh } from '@/lib/format';
 import { deductionBreakdown, deductionBreakdownLabel } from '@/lib/payroll/deduction-breakdown';
 import { payrollPeriodLabel } from '@/lib/payroll/period';
+import { INCOME_COMPONENTS } from '@/lib/payroll/reconcile';
 import { previewPayrollDrafts } from '@/lib/payroll/run';
 import {
   asUuid,
@@ -251,12 +252,21 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
     adjByEmployee.set(a.employeeId, list);
   }
 
+  // The "เงินเพิ่ม" column and its total are every income component EXCEPT the
+  // base, which has its own column. Derived from INCOME_COMPONENTS rather than
+  // spelled out, so a component added to that list shows up here instead of
+  // silently vanishing from the column while still landing in netPay — which is
+  // precisely what incomeAllowance did.
+  const INCOME_EXTRAS = INCOME_COMPONENTS.filter((k) => k !== 'incomeBase');
+  const incomeExtrasOf = (r: (typeof rows)[number]) =>
+    INCOME_EXTRAS.reduce((acc, k) => acc + r[k].toNumber(), 0);
+
   // Totals follow the filtered view (decision: view filter — see above).
   const sum = (pick: (r: (typeof rows)[number]) => number) =>
     visibleRows.reduce((acc, r) => acc + pick(r), 0);
   const totals = {
     incomeBase: sum((r) => r.incomeBase.toNumber()),
-    incomeOther: sum((r) => r.incomeAllowance.toNumber() + r.incomeOther.toNumber()),
+    incomeOther: sum(incomeExtrasOf),
     deductSso: sum((r) => r.deductSso.toNumber()),
     deductions: sum(
       (r) =>
@@ -297,7 +307,7 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
       key: 'incomeOther',
       header: 'เงินเพิ่ม',
       cell: (r) => {
-        const total = r.incomeAllowance.toNumber() + r.incomeOther.toNumber();
+        const total = incomeExtrasOf(r);
         return total === 0 ? (
           <span className="text-xs text-ink-4">—</span>
         ) : (

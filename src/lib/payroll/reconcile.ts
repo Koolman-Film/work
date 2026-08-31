@@ -10,35 +10,40 @@ export const RECONCILE_THRESHOLDS = {
   deductionJump: 2000,
 } as const;
 
-export type DeductionComponent =
-  | 'deductSso'
-  | 'deductAdvance'
-  | 'deductAttendance'
-  | 'deductLeave'
-  | 'deductDebt'
-  | 'deductOther';
+// The money components of a Payroll row, listed ONCE. Everything below —
+// the breakdown type, the gross/deduction sums, the per-component loops — is
+// derived from these two arrays, so adding a component is a one-line change
+// that the compiler then propagates to every construction site.
+//
+// This is not hypothetical tidiness. `incomeAllowance` was added to the schema
+// and the hand-written gross in `flagRow` kept summing base + other, understating
+// it — while the DEDUCTION_COMPONENTS loop ten lines away absorbed its own new
+// component without a diff. The list-driven code was already correct; only the
+// hand-written arithmetic broke. So: no hand-written sums over these fields.
+export const INCOME_COMPONENTS = ['incomeBase', 'incomeAllowance', 'incomeOther'] as const;
 
-export const DEDUCTION_COMPONENTS: readonly DeductionComponent[] = [
+export const DEDUCTION_COMPONENTS = [
   'deductSso',
   'deductAdvance',
   'deductAttendance',
   'deductLeave',
   'deductDebt',
   'deductOther',
-];
+] as const;
 
-export type PayrollBreakdown = {
-  incomeBase: number;
-  incomeAllowance: number;
-  incomeOther: number;
-  deductSso: number;
-  deductAdvance: number;
-  deductAttendance: number;
-  deductLeave: number;
-  deductDebt: number;
-  deductOther: number;
-  netPay: number;
-};
+export type IncomeComponent = (typeof INCOME_COMPONENTS)[number];
+export type DeductionComponent = (typeof DEDUCTION_COMPONENTS)[number];
+
+export type PayrollBreakdown = Record<IncomeComponent, number> &
+  Record<DeductionComponent, number> & { netPay: number };
+
+/** Total earnings before deductions. */
+export const grossOf = (b: PayrollBreakdown): number =>
+  INCOME_COMPONENTS.reduce((sum, k) => sum + b[k], 0);
+
+/** Everything withheld this month. */
+export const deductionsOf = (b: PayrollBreakdown): number =>
+  DEDUCTION_COMPONENTS.reduce((sum, k) => sum + b[k], 0);
 
 export type ReconcileFlag =
   | { kind: 'net-nonpositive' }
@@ -81,7 +86,7 @@ export function flagRow(
   }
 
   const flags: ReconcileFlag[] = [];
-  const gross = current.incomeBase + current.incomeAllowance + current.incomeOther;
+  const gross = grossOf(current);
 
   if (current.netPay <= 0) flags.push({ kind: 'net-nonpositive' });
   if (gross > 0 && current.netPay > 0 && current.netPay < t.lowNetPct * gross) {
