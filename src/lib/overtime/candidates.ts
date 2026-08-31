@@ -1,5 +1,6 @@
 import { type PermittedBranches, viaEmployeeBranchScope } from '@/lib/auth/branch-scope';
 import { prisma } from '@/lib/db/prisma';
+import { employeeDisplayName } from '@/lib/employee/display-name';
 import { overtimeMinutes } from './rate';
 
 export type OtCandidate = {
@@ -109,7 +110,7 @@ export async function getOtCandidates(
     out.push({
       attendanceId: r.id,
       employeeId: r.employeeId,
-      employeeName: e.nickname?.trim() || `${e.firstName} ${e.lastName}`.trim(),
+      employeeName: employeeDisplayName(e),
       date: dateStr,
       scheduledEnd: sched.endTime,
       clockOut,

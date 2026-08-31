@@ -3,6 +3,7 @@
 import { ADMIN_LINE_LINK_ENABLED } from '@/lib/auth/admin-line-feature';
 import { mergeAdminIntoEmployee } from '@/lib/auth/merge-admin-into-employee';
 import { prisma } from '@/lib/db/prisma';
+import { employeeDisplayName } from '@/lib/employee/display-name';
 import { verifyMergeToken } from '@/lib/pairing/token';
 import { createClient } from '@/lib/supabase/server';
 
@@ -101,7 +102,7 @@ async function resolveMergeParties(
   }
 
   const e = employee.employee;
-  const employeeName = e.nickname?.trim() || `${e.firstName} ${e.lastName}`.trim();
+  const employeeName = employeeDisplayName(e);
   return {
     ok: true,
     parties: {

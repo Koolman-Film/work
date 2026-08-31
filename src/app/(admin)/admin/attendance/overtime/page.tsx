@@ -10,6 +10,7 @@ import {
 } from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
+import { employeeDisplayName } from '@/lib/employee/display-name';
 import { approveOt, dismissOt, voidOt } from '@/lib/overtime/actions';
 import { getOtCandidates } from '@/lib/overtime/candidates';
 import { AttendanceTabs } from '../attendance-tabs';
@@ -65,7 +66,7 @@ export default async function OvertimePage({
   ]);
 
   const empName = (e: { firstName: string; lastName: string; nickname: string | null }) =>
-    e.nickname?.trim() || `${e.firstName} ${e.lastName}`.trim();
+    employeeDisplayName(e);
   const hours = (min: number) => (min / 60).toFixed(2);
   const approvedTotal = history
     .filter((h) => h.status === 'Approved')

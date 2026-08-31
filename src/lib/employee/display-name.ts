@@ -5,10 +5,23 @@
  * Pure and free of `server-only` so it is unit-testable — the same reason
  * `inngest/functions/birthday-targets.ts` was split out of its cron.
  *
- * NOTE: this expression is currently duplicated at a dozen call sites across
- * crons, LIFF pages and admin pages, each with slightly different guards
- * (`?.trim() ||` vs `&& .trim().length > 0`). This is the shared home; new
- * callers belong here rather than adding a thirteenth copy.
+ * Five byte-identical call sites now use this. FOUR REMAIN, deliberately, and
+ * each differs in a way a blanket replacement would have changed:
+ *
+ *   attendance/check-in.ts, advance/admin.ts, advance/actions.ts, and
+ *   reports/queries.ts return the nickname UNTRIMMED
+ *     (`if (n && n.trim().length > 0) return n`). This helper returns it
+ *     trimmed. Trimming is almost certainly the better behaviour, but those
+ *     paths feed LINE notifications and reports, so changing what they render
+ *     is a behaviour change and does not belong inside a dedup commit.
+ *
+ *   settings/team/member-label.ts builds "nickname · full name" — different
+ *     semantics, not a duplicate.
+ *
+ *   inngest/functions/attendance-late-check.ts falls back to firstName ALONE,
+ *     deliberately, for a compact notification list.
+ *
+ * New callers belong here.
  */
 export type NameableEmployee = {
   firstName: string;

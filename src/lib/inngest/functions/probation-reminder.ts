@@ -17,6 +17,7 @@
  */
 
 import { prisma } from '@/lib/db/prisma';
+import { employeeDisplayName } from '@/lib/employee/display-name';
 import { notifyAdminsInApp } from '@/lib/notifications/in-app-bell';
 import { inngest } from '../client';
 
@@ -72,7 +73,7 @@ export const probationReminder = inngest.createFunction(
 
     // One notification per employee.
     for (const emp of due) {
-      const displayName = emp.nickname?.trim() || `${emp.firstName} ${emp.lastName}`.trim();
+      const displayName = employeeDisplayName(emp);
       await step.run(`notify-${emp.id}`, async () => {
         await notifyAdminsInApp({
           kind: 'probation.ending',

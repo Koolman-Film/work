@@ -2,6 +2,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { ADMIN_LINE_LINK_ENABLED } from '@/lib/auth/admin-line-feature';
 import { requireRole } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
+import { employeeDisplayName } from '@/lib/employee/display-name';
 import { LineConnectPanel } from './line-connect-panel';
 
 /**
@@ -38,7 +39,7 @@ export default async function LineSettingsPage() {
       select: { employee: { select: { firstName: true, lastName: true, nickname: true } } },
     });
     const e = linked?.employee;
-    if (e) mergedInto = e.nickname?.trim() || `${e.firstName} ${e.lastName}`.trim();
+    if (e) mergedInto = employeeDisplayName(e);
   }
 
   return (
