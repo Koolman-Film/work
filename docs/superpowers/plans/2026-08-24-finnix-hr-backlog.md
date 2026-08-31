@@ -12,6 +12,28 @@
 
 ---
 
+## Status — 31 ส.ค. 2569
+
+| Workstream | State |
+|---|---|
+| **C — Notifications** | ✅ Shipped. C2 (`03bc986`), C3a (`0bb0c87`), C3b (`a6c953a`). Only **C1.2** remains, and it needs five humans to pair LINE, not code. |
+| **D — Close-out** | ✅ Written as `docs/private/2026-08-31-customer-reply.md`. **Not committed, on purpose** — see D5. Not yet sent. |
+| **A — Advance & allowance** | ✅ Shipped. 7 tasks, migration `0042`, live in production `fa6faa8`. Customer items 5, 6, 7, 8. |
+| **B — Attendance** | ✅ Shipped. 3 tasks, migration `0043`, live in production. Customer item 1. |
+
+All eight customer items are now closed except **#3** ("18. หักเงินไปเลย"), which is
+unanswerable as written and is asked in the reply.
+
+**Open, and none of it is code:** make the repository private + ask GitHub Support to purge
+old objects · five admins pair LINE · assign nine work schedules · send the reply · click the
+four surfaces that shipped but no human has used (leave waiver, clock-time correction, the
+merged attendance table, the advance settings card).
+
+**Known debt recorded elsewhere, deliberately not fixed here:** the null `chargedMinutes`
+forward fix (the actual bug behind the ฿27,450), leave in the advance cap — gated on giving
+`computeLiveLeaveCharges` a lower date bound — and auto-absence, whose design is unapproved
+and inert until work schedules exist.
+
 ## Global Constraints
 
 - **TDD.** Failing test first, watch it fail, minimal implementation, watch it pass, commit. No exceptions for "simple" changes.
@@ -166,7 +188,7 @@ curl -s -H "Authorization: Bearer $TOKEN" https://api.line.me/v2/bot/message/quo
 
 **Files:** Modify `src/lib/notifications/admin-line.ts:11`
 
-- [ ] **Step 1: Fix the comment**
+- [x] **Step 1: Fix the comment**
 
 ```
  * with the number of admins rather than the amount of work, so linking a
@@ -174,7 +196,7 @@ curl -s -H "Authorization: Bearer $TOKEN" https://api.line.me/v2/bot/message/quo
  * digest (`admin-daily-digest.ts`), which sends each admin one message
 ```
 
-- [ ] **Step 2: Verify no other file repeats the wrong time**
+- [x] **Step 2: Verify no other file repeats the wrong time**
 
 ```bash
 grep -rn "09:30" src/ docs/
@@ -182,7 +204,7 @@ grep -rn "09:30" src/ docs/
 
 Expected: only the rejected-draft discussion inside `admin-daily-digest.ts`, which is correct as written.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/lib/notifications/admin-line.ts
@@ -210,7 +232,7 @@ git commit -m "docs(notifications): the digest runs at 08:30, not 09:30"
 
 The SQL currently lives inline in the cron. The digest needs the same rows. Extract first, prove behaviour is unchanged, then reuse — do not copy the query.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `src/lib/notifications/due-birthdays.test.ts`:
 
@@ -235,12 +257,12 @@ describe('formatBirthdayName', () => {
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `npx vitest run src/lib/notifications/due-birthdays.test.ts`
 Expected: FAIL — cannot resolve `./due-birthdays`.
 
-- [ ] **Step 3: Create the shared module**
+- [x] **Step 3: Create the shared module**
 
 `src/lib/notifications/due-birthdays.ts`:
 
@@ -317,12 +339,12 @@ second archived-guard alongside `archivedAt IS NULL` — both are in the live qu
 both must be carried across. This block is copied from
 `src/lib/inngest/functions/birthday-reminder.ts` as it stands on 2026-08-24.
 
-- [ ] **Step 4: Run the test and watch it pass**
+- [x] **Step 4: Run the test and watch it pass**
 
 Run: `npx vitest run src/lib/notifications/due-birthdays.test.ts`
 Expected: PASS (3 tests).
 
-- [ ] **Step 5: Switch the existing cron to the shared query**
+- [x] **Step 5: Switch the existing cron to the shared query**
 
 In `src/lib/inngest/functions/birthday-reminder.ts`, keep the existing
 `step.run('compute-targets', ...)` exactly as it is, then replace the `step.run('find-due', ...)`
@@ -340,12 +362,12 @@ passed to `notifyAdminsInApp` keeps its current format, derived from the same me
 targets as today. Note this cron runs at **09:00** (`0 9`), separate from the digest's 08:30 —
 do not consolidate them.
 
-- [ ] **Step 6: Verify nothing changed**
+- [x] **Step 6: Verify nothing changed**
 
 Run: `npm test`
 Expected: all pass, including the existing `birthday-targets.test.ts`.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/lib/notifications/due-birthdays.ts src/lib/notifications/due-birthdays.test.ts src/lib/inngest/functions/birthday-reminder.ts
@@ -354,7 +376,7 @@ git commit -m "refactor(notifications): share the due-birthday query between cro
 
 ### C3b: Carry birthdays through the digest payload and template
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `src/lib/inngest/functions/admin-daily-digest.test.ts`:
 
@@ -376,7 +398,7 @@ Every existing call site in this test file must gain `birthdays: 0` — that is 
 making the field required rather than optional-with-default. An optional field would let a
 future caller forget it and silently lose birthday sends.
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `npx vitest run src/lib/inngest/functions/admin-daily-digest.test.ts`
 Expected: FAIL — the object literal is not assignable, `birthdays` does not exist.
@@ -404,7 +426,7 @@ export function shouldSendDigest(c: {
 
 Run again. Expected: PASS.
 
-- [ ] **Step 3: Add the birthday line to the flex template**
+- [x] **Step 3: Add the birthday line to the flex template**
 
 In `src/lib/line/flex-templates.ts`, inside `case 'admin.daily-digest'`, extend `lines`:
 
@@ -416,7 +438,7 @@ In `src/lib/line/flex-templates.ts`, inside `case 'admin.daily-digest'`, extend 
 
 Add `birthdays: string[]` to the `admin.daily-digest` payload type in `src/lib/inngest/events.ts`.
 
-- [ ] **Step 4: Add the i18n key to all six locales**
+- [x] **Step 4: Add the i18n key to all six locales**
 
 `messages/th.json` → `notifications.adminDailyDigest`:
 
@@ -435,7 +457,7 @@ nothing will tell you if one is skipped. Note also that the parity test in
 `src/lib/i18n/messages.test.ts` only compares **th against en** — the other four locales have no
 key-parity coverage at all.
 
-- [ ] **Step 5: Wire it into the cron**
+- [x] **Step 5: Wire it into the cron**
 
 In `admin-daily-digest.ts`, fetch once outside the per-admin loop (birthdays are not branch-scoped):
 
@@ -450,13 +472,13 @@ In `admin-daily-digest.ts`, fetch once outside the per-admin loop (birthdays are
 
 and pass `birthdays` into `sendNotification(adminId, { kind: 'admin.daily-digest', ...counts, birthdays })`.
 
-- [ ] **Step 6: Full verification**
+- [x] **Step 6: Full verification**
 
 ```bash
 npm test && npm run typecheck && npm run lint
 ```
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/lib/inngest/functions/admin-daily-digest.ts src/lib/inngest/functions/admin-daily-digest.test.ts src/lib/inngest/events.ts src/lib/line/flex-templates.ts messages/
@@ -471,31 +493,32 @@ No code. This is the highest-value hour in the plan: **seven** items are already
 
 **Files:** Create `docs/customer/2026-08-24-status-reply.md`
 
-- [ ] **D1: List every verified-done item with its date**
+- [x] **D1: List every verified-done item with its date**
 
 Confirmed shipped and live: SSO cap 17,500 · branch/department/accounting-group filters · birthday reminder + admin reminder + calendar · #17 half-morning leave (`b710840`, 24 Jul) · advance ฿9,200 vs payroll ฿9,700 (`e2a1a9a`, 22 Jun — the extra ฿500 was an absence, not an advance error) · EMP-B absence day-rate (`cf980d4`, 19 Jul — flat ฿500/day replaced by each employee's own day rate) · per-row +เพิ่ม/ลด modal (`e08693d`, 11 Jun).
 
-- [ ] **D2: Explain the notification change in plain Thai**
+- [x] **D2: Explain the notification change in plain Thai**
 
 Not "it is broken" — per-event admin pushes were removed because they consumed 65% of a 300/month LINE cap and the cost grew with every admin added. They now get one 08:30 digest instead. Include what C1 found about current quota consumption.
 
-- [ ] **D3: Ask the four outstanding clarifications**
+- [x] **D3: Ask the four outstanding clarifications**
 
 1. **"18. หักเงินไปเลย"** — deduct what, from whom, from which month? Too terse to act on.
 2. **Camera-only selfie** — `selfie-step.tsx` falls back to `<input type=file capture=user>` when `getUserMedia` fails. That fallback IS the gallery route they want removed; removing it breaks check-in whenever camera permission is denied. Their call.
 3. **เงินประจำตำแหน่ง** — does it count toward the SSO base? Toward the over-quota leave day-rate? Toward the absence day-rate? (This is the A0 gate — the answer decides the schema.)
 4. **Two-step advance approval** — exactly which two states, and who may perform each?
 
-- [ ] **D4: Ask which screen showed half-afternoon leave as a full day**
+- [x] **D4: Ask which screen showed half-afternoon leave as a full day**
 
 The write path is verified correct — `leave/admin.ts` stores `durationMinutes: 240` with real 13:00–17:00 clock times. The fault is downstream. Need to know: LIFF leave list, admin calendar, leave report, or payslip? Without that this cannot be reproduced.
 
-- [ ] **D5: Commit the reply document**
+- [~] **D5: Commit the reply document — DELIBERATELY NOT DONE**
 
-```bash
-git add docs/customer/2026-08-24-status-reply.md
-git commit -m "docs(customer): status reply — seven shipped items, four clarifications"
-```
+**Superseded.** The reply names real admins and employees, and this repository is
+PUBLIC. It lives at `docs/private/2026-08-31-customer-reply.md`, which is gitignored, and
+is NOT committed. See the `chore: keep production identities out of a public repository`
+commit for why: a history rewrite does not remove anything from GitHub, so the only
+reliable protection is never pushing it.
 
 ---
 
