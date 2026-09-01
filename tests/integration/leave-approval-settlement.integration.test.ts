@@ -157,6 +157,21 @@ async function makeSevereLate(employeeId: string, date = '2026-07-01') {
   });
 }
 
+/** An ORDINARY late (10min, below the 30min severe threshold). Three of these
+ *  in a month make one LateThreeStrike day — lateThreeStrikeCount defaults to 3. */
+async function makeOrdinaryLate(employeeId: string, date: string) {
+  return prisma.attendance.create({
+    data: {
+      employeeId,
+      date: new Date(date),
+      type: 'Late',
+      durationMinutes: 10,
+      source: 'Manual',
+      createdById: uid(),
+    },
+  });
+}
+
 async function makeAbsence(employeeId: string, date = '2026-07-08') {
   return prisma.attendance.create({
     data: {
@@ -237,6 +252,52 @@ describe('approveLeaveRequest — refuses to strand a settled SevereLate (Defect
     });
     expect(settlement?.deletedAt).toBeNull();
     expect(settlement?.days.toNumber()).toBe(1);
+  });
+
+  // Added 2026-09-01 alongside the three-strike leave exemption. Before that
+  // change `leaveDates` could not affect a LateThreeStrike, which is why this
+  // guard was scoped to SevereLate alone. Now approving leave over one of the
+  // strike's dates CAN drop the count, so a settled LateThreeStrike in a frozen
+  // month is strandable in exactly the same way and must be refused too.
+  it('refuses to approve leave over a date whose LateThreeStrike is settled once the month is published', async () => {
+    const emp = await makeEmployee();
+    const vacation = await makeVacationType();
+    await makeOrdinaryLate(emp.id, '2026-07-01');
+    await makeOrdinaryLate(emp.id, '2026-07-02');
+    await makeOrdinaryLate(emp.id, '2026-07-03');
+
+    const settled = await setPenaltySettlement({
+      employeeId: emp.id,
+      month: '2026-07',
+      kind: 'LateThreeStrike',
+      leaveTypeId: vacation.id,
+      days: 1,
+      via: 'reconcile',
+    });
+    expect(settled).toEqual({ ok: true });
+
+    await runPayrollDraft('2026-07');
+    const published = await publishPayroll('2026-07', { employeeId: emp.id });
+    expect(published.published).toHaveLength(1);
+
+    const leaveReq = await makePendingLeaveRequest(emp.id, vacation.id, '2026-07-01');
+    const result = await approveLeaveRequest({ leaveRequestId: leaveReq.id, note: 'อนุมัติทดสอบ' });
+
+    expect(result).toEqual({
+      ok: false,
+      code: 'settlement-closed',
+      message: expect.any(String),
+    });
+
+    // Nothing written: the request stays Pending and the settlement is intact.
+    const row = await prisma.leaveRequest.findUniqueOrThrow({ where: { id: leaveReq.id } });
+    expect(row.status).toBe('Pending');
+    const settlement = await prisma.attendancePenaltySettlement.findUnique({
+      where: {
+        employeeId_month_kind: { employeeId: emp.id, month: '2026-07', kind: 'LateThreeStrike' },
+      },
+    });
+    expect(settlement?.deletedAt).toBeNull();
   });
 
   it('still allows the same approval while the payroll month is Draft', async () => {

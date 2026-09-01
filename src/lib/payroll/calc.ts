@@ -309,8 +309,13 @@ export type LatePenaltyResult = {
 /**
  * Pure late-penalty tally for one employee over one pay period. `lates` are the
  * employee's Late rows ({date, minutesLate}); `leaveDates` is the set of period
- * dates with an approved leave (any unit), which exempt a severe late from its
- * 1-day penalty (the leave deduction covers that day).
+ * dates with an approved leave (any unit). A late on one of those dates is not
+ * chargeable — it counts toward neither the severe penalty nor the N-lates
+ * three-strike, because the leave deduction already covers that day.
+ *
+ * `tier1Count` still reports EVERY ordinary late, chargeable or not: the payslip
+ * breakdown shows what happened, while the penalty reflects only what may be
+ * charged for.
  */
 export function computeLatePenalty(
   lates: ReadonlyArray<{ date: string; minutesLate: number }>,
@@ -318,6 +323,7 @@ export function computeLatePenalty(
   cfg: LatePolicyConfig,
 ): LatePenaltyResult {
   let tier1 = 0;
+  let tier1NoLeave = 0;
   let severe = 0;
   let severeNoLeave = 0;
   for (const l of lates) {
@@ -327,11 +333,14 @@ export function computeLatePenalty(
       if (!leaveDates.has(l.date)) severeNoLeave++;
     } else {
       tier1++;
+      // A late on a day with approved leave is not chargeable: the leave
+      // deduction already covers that day. Mirrors severeNoLeave above.
+      if (!leaveDates.has(l.date)) tier1NoLeave++;
     }
   }
   const threeStrikeDays =
     cfg.threeStrikeEnabled && cfg.threeStrikeCount > 0
-      ? Math.floor(tier1 / cfg.threeStrikeCount)
+      ? Math.floor(tier1NoLeave / cfg.threeStrikeCount)
       : 0;
   return {
     tier1Count: tier1,
