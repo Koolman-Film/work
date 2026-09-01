@@ -144,4 +144,74 @@ test.describe('Admin cash-advance approval', () => {
     expect(refreshed?.approvedAt).toBeNull();
     expect(refreshed?.approvedById).toBeNull();
   });
+
+  /**
+   * Step 2 of the customer's two-step flow, on the DESKTOP surface.
+   * `markAdvancePaid` already existed and was correct, but until now only LIFF
+   * could call it — the desktop modal showed รอจ่ายเงิน with no way to act on it.
+   *
+   * One click, no money-confirm: `moneyConfirm` stays approval-only, matching
+   * the LIFF MarkPaidButton, which also records payment in a single click.
+   */
+  test('an approved-but-unpaid advance can be marked paid from the desktop modal', async ({
+    page,
+  }) => {
+    const suffix = e2eId();
+    const { advance } = await seedPendingAdvance(suffix, 3000);
+    const employeeName = `e2e-First-${suffix} e2e-Last-${suffix}`;
+    // Start the row at step 2: approved, not yet paid.
+    await prisma.cashAdvance.update({
+      where: { id: advance.id },
+      data: { status: 'Approved', approvedAt: new Date() },
+    });
+
+    await loginAsAdmin(page);
+    // The inbox is Pending-by-default (loadAdvanceInbox), so an approved row
+    // only appears under the approved filter.
+    await page.goto('/admin/advance?status=approved');
+
+    const row = findAdvanceRow(page, employeeName);
+    await expect(row).toBeVisible({ timeout: 5_000 });
+    await row.click();
+
+    const dialog = page.getByRole('dialog');
+    // The primary button is the PAYMENT step, not a second approval.
+    const payButton = dialog.getByRole('button', { name: /^บันทึกการจ่ายเงิน ฿/ });
+    await expect(payButton).toBeVisible();
+    await expect(dialog.getByRole('button', { name: /^อนุมัติ ฿/ })).toHaveCount(0);
+    await payButton.click();
+    await expect(dialog).toBeHidden({ timeout: 5_000 });
+
+    const refreshed = await prisma.cashAdvance.findUnique({
+      where: { id: advance.id },
+      select: { status: true, paidAt: true, receiptUrl: true },
+    });
+    expect(refreshed?.paidAt).not.toBeNull();
+    // Paying does NOT change status — Approved + paidAt IS "จ่ายเงินแล้ว".
+    expect(refreshed?.status).toBe('Approved');
+    // No slip attached → the column stays null (the slip is evidence, not a gate).
+    expect(refreshed?.receiptUrl).toBeNull();
+  });
+
+  test('an already-paid advance offers neither approval nor payment', async ({ page }) => {
+    const suffix = e2eId();
+    const { advance } = await seedPendingAdvance(suffix, 1500);
+    const employeeName = `e2e-First-${suffix} e2e-Last-${suffix}`;
+    await prisma.cashAdvance.update({
+      where: { id: advance.id },
+      data: { status: 'Approved', approvedAt: new Date(), paidAt: new Date() },
+    });
+
+    await loginAsAdmin(page);
+    await page.goto('/admin/advance?status=approved');
+
+    const row = findAdvanceRow(page, employeeName);
+    await expect(row).toBeVisible({ timeout: 5_000 });
+    await row.click();
+
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole('button', { name: /^บันทึกการจ่ายเงิน/ })).toHaveCount(0);
+    await expect(dialog.getByRole('button', { name: /^อนุมัติ ฿/ })).toHaveCount(0);
+  });
 });
