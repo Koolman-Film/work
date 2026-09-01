@@ -244,6 +244,317 @@ Append the list of employees credited, with amounts and months, to
 
 ---
 
+### Task 3: Desktop "mark paid" button (step 2 of advance approval)
+
+**Files:**
+- Create: `src/lib/advance/payment-state.ts`
+- Create: `src/lib/advance/payment-state.test.ts`
+- Modify: `src/app/(admin)/admin/advance/advance-row-vm.ts:117-124` (use the helper, expose the flag)
+- Modify: `src/app/(admin)/admin/advance/advance-review-modal.tsx:90`, `:114-152` (`AdvanceRowVM` type, `doMarkPaid`, wiring)
+
+**Interfaces:**
+- Consumes: `markAdvancePaid({ cashAdvanceId: string; receiptKey?: string | null }): Promise<MarkPaidResult>` — `src/lib/advance/admin.ts:319`. Already permission-gated on `advance.approve` + branch scope; do not add another gate.
+- Produces: `isAwaitingPayment(r: { status: string; paidAt: Date | null }): boolean`, and `AdvanceRowVM.awaitingPayment: boolean`.
+
+`markAdvancePaid` is correct and used by LIFF; it simply has no desktop call site.
+The pure decision goes in its own module because `advance-row-vm.ts` starts with
+`import 'server-only'`, and **only `vitest.integration.config.ts` aliases
+`server-only`** (`vitest.integration.config.ts:32`) — a unit test cannot import it.
+A standalone pure helper keeps this testable in the fast unit suite, matching how
+`shouldSendDigest` and `computeLatePenalty` are already split out.
+
+- [ ] **Step 1: Write the failing test**
+
+Create `src/lib/advance/payment-state.test.ts`:
+
+```ts
+import { describe, expect, it } from 'vitest';
+import { isAwaitingPayment } from './payment-state';
+
+describe('isAwaitingPayment', () => {
+  it('Approved with no paidAt is awaiting payment (รอจ่ายเงิน)', () => {
+    expect(isAwaitingPayment({ status: 'Approved', paidAt: null })).toBe(true);
+  });
+
+  it('Approved and already paid is NOT awaiting payment (จ่ายเงินแล้ว)', () => {
+    expect(isAwaitingPayment({ status: 'Approved', paidAt: new Date('2026-08-01') })).toBe(false);
+  });
+
+  it('a Pending row is not awaiting payment — it is awaiting approval', () => {
+    expect(isAwaitingPayment({ status: 'Pending', paidAt: null })).toBe(false);
+  });
+
+  it('Rejected and Cancelled are never awaiting payment', () => {
+    expect(isAwaitingPayment({ status: 'Rejected', paidAt: null })).toBe(false);
+    expect(isAwaitingPayment({ status: 'Cancelled', paidAt: null })).toBe(false);
+  });
+});
+```
+
+- [ ] **Step 2: Run it and watch it fail**
+
+Run: `pnpm vitest run src/lib/advance/payment-state.test.ts`
+
+Expected: FAIL — cannot resolve `./payment-state`.
+
+- [ ] **Step 3: Create the helper**
+
+Create `src/lib/advance/payment-state.ts` (no `server-only` import — that is the point):
+
+```ts
+/**
+ * Is this advance approved but not yet paid?
+ *
+ * "Approved" is two user-facing states, per the customer's two-step payment
+ * request: อนุมัติ → รอจ่ายเงิน, then จ่ายเงินแล้ว. Pure and free of
+ * `server-only` so both the row VM and the unit suite can use it.
+ */
+export function isAwaitingPayment(r: { status: string; paidAt: Date | null }): boolean {
+  return r.status === 'Approved' && r.paidAt === null;
+}
+```
+
+- [ ] **Step 4: Run the test and watch it pass**
+
+Run: `pnpm vitest run src/lib/advance/payment-state.test.ts` — Expected: 4 passing.
+
+- [ ] **Step 5: Expose the flag on the row VM**
+
+In `src/app/(admin)/admin/advance/advance-row-vm.ts`, import the helper and reuse it
+for the label so the two can never disagree:
+
+```ts
+import { isAwaitingPayment } from '@/lib/advance/payment-state';
+```
+
+Replace the `paid` / `statusLabel` lines (currently `:117-121`) with:
+
+```ts
+  const awaitingPayment = isAwaitingPayment(r);
+  const paid = r.status === 'Approved' && !awaitingPayment;
+  const statusLabel = r.status === 'Approved' ? (paid ? 'จ่ายเงินแล้ว' : 'รอจ่ายเงิน') : info.label;
+```
+
+and add to the returned object, next to `statusLabel`:
+
+```ts
+    awaitingPayment,
+```
+
+- [ ] **Step 6: Add the field to the VM type**
+
+In `src/app/(admin)/admin/advance/advance-review-modal.tsx`, add to `AdvanceRowVM`:
+
+```ts
+  /** Approved but not yet paid — the desktop modal offers step 2 only then. */
+  awaitingPayment: boolean;
+```
+
+- [ ] **Step 7: Wire the payment action into the modal**
+
+In the same file, import `markAdvancePaid` alongside the existing admin imports:
+
+```ts
+import { approveCashAdvance, markAdvancePaid, rejectCashAdvance } from '@/lib/advance/admin';
+```
+
+Add `doMarkPaid` directly below the existing `doApprove` (which ends at `:137`),
+mirroring it — the receipt upload machinery (`receiptFile`, `compressToJpeg`,
+`uploadAdvanceReceipt`, `Dropzone`) is already present in this component:
+
+```ts
+  /** Upload the slip (if any) then record payment — ReviewModal's onApprove
+   *  when the row is awaiting payment. The slip is evidence, not a gate:
+   *  "แนบสลิปโอนเงิน (ไม่บังคับ)". */
+  async function doMarkPaid(): Promise<ActionResult> {
+    if (!row) return { ok: false, message: 'ไม่พบรายการ' };
+    try {
+      let storageKey: string | undefined;
+      if (receiptFile) {
+        const supabase = createClient();
+        const { data: authData } = await supabase.auth.getUser();
+        if (!authData.user) return { ok: false, message: 'เซสชันหมดอายุ — กรุณาเข้าสู่ระบบใหม่' };
+        const compressed = await compressToJpeg(receiptFile);
+        const uploaded = await uploadAdvanceReceipt(supabase, compressed, authData.user.id, row.id);
+        storageKey = uploaded.key;
+      }
+      const result = await markAdvancePaid({ cashAdvanceId: row.id, receiptKey: storageKey ?? null });
+      return result.ok ? { ok: true } : { ok: false, message: result.message };
+    } catch (err) {
+      const message =
+        typeof err === 'object' && err !== null && 'kind' in err
+          ? uploadErrorMessage(err as { kind: string; message?: string })
+          : err instanceof Error
+            ? err.message
+            : 'เกิดข้อผิดพลาด';
+      return { ok: false, message };
+    }
+  }
+```
+
+Then change the three `ReviewModal` props (currently `:145-149`) so the same
+primary button serves both steps, labelled for whichever step the row is at:
+
+```tsx
+      approveLabel={
+        row?.awaitingPayment ? `บันทึกการจ่ายเงิน ${row.amount}` : row ? `อนุมัติ ${row.amount}` : 'อนุมัติ'
+      }
+      onApprove={isPending ? doApprove : row?.awaitingPayment ? doMarkPaid : undefined}
+      approveDisabled={isPending ? row?.advanceGuard?.overCap : false}
+```
+
+Leave `onReject` and `moneyConfirm` gated on `isPending` as they are — rejecting is
+not available after approval, and the money confirmation belongs to the approval step.
+
+- [ ] **Step 8: Verify**
+
+Run: `pnpm typecheck && pnpm lint && pnpm test`
+
+Then check by hand at `/admin/advance`: a `รอจ่ายเงิน` row must show
+**บันทึกการจ่ายเงิน**, and after using it must read `จ่ายเงินแล้ว`; a `รออนุมัติ` row
+must still show **อนุมัติ**; a `จ่ายเงินแล้ว` row must offer neither. The bank block
+(`:188-205`) already renders — confirm it is visible at the payment step, since
+that is what the admin copies the transfer from.
+
+- [ ] **Step 9: Commit**
+
+```bash
+git add src/lib/advance/payment-state.ts src/lib/advance/payment-state.test.ts \
+        "src/app/(admin)/admin/advance/advance-row-vm.ts" \
+        "src/app/(admin)/admin/advance/advance-review-modal.tsx"
+git commit -m "feat(advance): mark-paid step in the desktop review modal"
+```
+
+---
+
+### Task 4: Leave-type picker → chips, and hide the quota
+
+**Files:**
+- Modify: `src/app/(liff)/liff/leave/new/leave-new-form.tsx:233-250` (picker), `:378-381` (remaining line)
+- Modify: `messages/{th,en,my,lo,zh-CN,km}.json` — only if the keys become unused
+
+**Interfaces:**
+- Consumes: existing `leaveTypes`, `leaveTypeId`, `setLeaveTypeId`, `selectedType` (`:79`, `:106`).
+- Produces: no exported change. Purely presentational.
+
+**Supersedes** `docs/superpowers/plans/2026-07-21-leave-type-selection-ux.md`, which
+was written to *show* each type's remaining balance at pick time. The customer has
+since asked for the opposite (*"ไม่ต้องแสดงโควต้า"*), confirmed 2026-09-01. That plan
+should be marked superseded rather than executed.
+
+**Do not remove the enforcement.** Hiding the number must not disable the rules
+built on it: `remaining` (`:147`), `exceeds` (`:148`), `overMinutes` (`:149`) and
+`blockedOverQuota` (`:204`) all stay exactly as they are, as does the over-quota
+warning at `:383-386`. The customer asked not to *display a quota*; they did not ask
+to stop blocking over-quota วันพักร้อน or to stop warning that leave will be
+deducted. Only the numeric quota/remaining displays go.
+
+**No TDD step here, and that is deliberate:** this repo's unit runner is
+`environment: 'node'` with no DOM (`vitest.config.ts:13-14` — "Add 'happy-dom' later
+if we test React components"), so a React component has nowhere to be tested.
+Adding a DOM environment for one presentational change is out of scope. Verification
+is typecheck + lint + a real check in LIFF, plus a grep proving the enforcement
+symbols are untouched.
+
+- [ ] **Step 1: Replace the `<select>` with a chip radiogroup**
+
+Replace the block at `:233-250` (the `<label>` + `<select>`). Follow the visual
+treatment in `src/components/ui/day-chip.tsx`; keep it inline rather than extracting
+a shared component — there is one call site (YAGNI):
+
+```tsx
+        <fieldset>
+          <legend className="mb-1.5 block text-sm font-medium text-ink-2">
+            {t('new.leaveType')}
+          </legend>
+          <div role="radiogroup" aria-label={t('new.leaveType')} className="flex flex-wrap gap-2">
+            {leaveTypes.map((tp) => {
+              const selected = tp.id === leaveTypeId;
+              return (
+                <button
+                  key={tp.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  onClick={() => setLeaveTypeId(tp.id)}
+                  className={`rounded-full border px-3 py-1.5 text-sm transition ${
+                    selected
+                      ? 'border-primary bg-primary text-white'
+                      : 'border-line bg-surface text-ink-2'
+                  }`}
+                >
+                  {tp.name}
+                </button>
+              );
+            })}
+          </div>
+        </fieldset>
+```
+
+Note the label is now `{tp.name}` alone — the `t('new.quotaSuffix', …)` that was
+appended at `:247` is gone. Keep the unpaid-type note at `:251-255` unchanged.
+
+- [ ] **Step 2: Remove the remaining-balance line**
+
+Delete the block at `:378-381`:
+
+```tsx
+        {remaining != null && (
+          <p …>{t('new.remaining')} <strong>{fmtDuration(remaining)}</strong></p>
+        )}
+```
+
+Leave the `exceeds` warning immediately below it in place.
+
+- [ ] **Step 3: Confirm the enforcement is genuinely untouched**
+
+Run: `grep -n "exceeds\|blockedOverQuota\|overMinutes\|remaining" "src/app/(liff)/liff/leave/new/leave-new-form.tsx"`
+
+Expected: `remaining` still computed at `:147` and still feeding `exceeds`,
+`overMinutes` and `blockedOverQuota`; the only removals are the two display sites.
+If `blockedOverQuota` no longer appears in the submit guard, stop — the change went
+too far.
+
+- [ ] **Step 4: Retire the now-unused i18n keys**
+
+Run: `grep -rn "quotaSuffix\|new\.remaining" src/`
+
+If neither key has any remaining usage, remove `quotaSuffix` and `remaining` from
+the `leave.new` block of **all six** locale files — the locale-drift test
+(`2e3ea30`) fails if they diverge. If either is still used elsewhere, leave both.
+
+- [ ] **Step 5: Verify**
+
+Run: `pnpm typecheck && pnpm lint && pnpm test`
+
+Then in LIFF: the type picker shows chips with no numbers, selecting a chip still
+switches the allowed units (`:112-119`), a วันพักร้อน request over quota is still
+blocked, and a ลากิจ request over quota still shows the deduction warning.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add "src/app/(liff)/liff/leave/new/leave-new-form.tsx" messages/
+git commit -m "feat(leave): chip picker for leave type, quota no longer displayed"
+```
+
+- [ ] **Step 7: Mark the superseded plan**
+
+Add at the top of `docs/superpowers/plans/2026-07-21-leave-type-selection-ux.md`:
+
+```markdown
+> **SUPERSEDED 2026-09-01.** The customer asked for the opposite of this plan's
+> goal — chips with no quota shown (*"ไม่ต้องแสดงโควต้า"*). Implemented as Task 4
+> of `2026-09-01-canva-board-followups.md`. Do not execute this plan.
+```
+
+```bash
+git add docs/superpowers/plans/2026-07-21-leave-type-selection-ux.md
+git commit -m "docs(plan): mark leave-type-selection-ux superseded"
+```
+
+---
+
 ## Not in this plan, and why
 
 **Auto-absence** (customer: *"พนักงาน ไม่มาทำงาน (ไม่ได้เช็คอิน / ไม่ลา) แต่ระบบไม่ขึ้นว่า
@@ -253,20 +564,6 @@ but **status "NOT yet approved — awaiting sign-off"**. It is also inert until 
 schedules are assigned (nine employees still have none, per the backlog plan). It
 needs sign-off and schedules before an implementation plan is worth writing, and
 it changes money for everyone, so it deserves its own plan.
-
-**Leave-type picker → chips, hide quota** (customer: *"เปลี่ยน ประเภทการลา จาก
-dropdown เป็น ตัวเลือก และไม่ต้องแสดงโควต้า"*). This **contradicts an existing
-unexecuted plan**: `docs/superpowers/plans/2026-07-21-leave-type-selection-ux.md`
-(34 unchecked steps) exists specifically to *show each type's remaining balance at
-the moment the employee picks*, justified by ~฿22,600/year of misfiled leave. The
-customer has now asked for the opposite. Confirm which they want before either
-plan proceeds — building both wastes the work.
-
-**Desktop "mark paid" button.** `markAdvancePaid` exists and is correct
-(`src/lib/advance/admin.ts:319`) but has no call site in the desktop `(admin)` app;
-only LIFF (`liff/admin/advance/[id]/advance-review-actions.tsx:132,193`) can
-perform step 2. Small and well-understood, but it needs the desktop modal and its
-server actions read first to specify real code rather than a sketch.
 
 **เงินเพิ่ม/เงินลด reason catalog.** Today the reason is free text with a combobox
 over hardcoded `PRESET_REASONS` plus previously-used values
@@ -287,8 +584,6 @@ Provenance is still recorded to the audit log. Re-tightening would trade false
 accusations against staff for stricter provenance, and the measured data argues
 against it.
 
-**"มาสาย เกิน 3 ครั้ง" wording.** One string, `reconcile-rows.tsx:81`
-(`LateThreeStrike: 'มาสายครบกำหนด'`). Worth folding into whichever UI task ships
-next rather than a branch of its own — but confirm the exact replacement wording
-with the customer first, since the complaint was that staff find the current term
-alarming.
+**"มาสาย เกิน 3 ครั้ง" wording — CLOSED, no action.** Decided 2026-09-01: the
+existing `'มาสายครบกำหนด'` (`reconcile-rows.tsx:81`) is fine and stays. The board
+item is answered; no string change.
