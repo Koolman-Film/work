@@ -145,6 +145,85 @@ Run: `pnpm vitest run src/lib/payroll/calc.test.ts`
 
 Expected: PASS, including every pre-existing case in that describe block.
 
+- [ ] **Step 4b: Prove it end-to-end through `calcPayroll`, not just the tally**
+
+`computeLatePenalty` returning 0 strike-days is necessary but not sufficient — the
+thing that matters is that no money is deducted. Add to `src/lib/payroll/calc.test.ts`,
+inside the top-level `describe('calcPayroll — V1 fixtures')`:
+
+```ts
+  // The ฟ้า case end-to-end: three lates, one on a day with approved leave.
+  // Two chargeable lates < threeStrikeCount 3, so attendance deduction is 0.
+  it('does not deduct a three-strike day when one late falls on a leave day', () => {
+    const att = (date: string): AttendanceForPayroll => ({
+      date: new Date(`${date}T02:15:00.000Z`), // 09:15 Bangkok
+      type: 'Late',
+      durationMinutes: 15,
+    });
+    const out = calcPayroll(
+      baseInput({
+        employee: {
+          id: 'e',
+          salaryType: 'Monthly',
+          baseSalary: '12000',
+          hasSso: false,
+          allowanceAmount: 0,
+        },
+        attendances: [att('2026-08-15'), att('2026-08-20'), att('2026-08-25')],
+        leaveDates: ['2026-08-20'],
+        config: {
+          ...DEFAULT_CONFIG,
+          lateThreeStrikeEnabled: true,
+          lateThreeStrikeCount: 3,
+          severeLateEnabled: true,
+          severeLateThresholdMin: 30,
+        },
+        month: '2026-08',
+      }),
+    );
+    expect(out.deductAttendance.toString()).toBe('0');
+    expect(out.netPay.toString()).toBe('12000');
+  });
+
+  it('DOES deduct one day when all three lates are chargeable', () => {
+    const att = (date: string): AttendanceForPayroll => ({
+      date: new Date(`${date}T02:15:00.000Z`),
+      type: 'Late',
+      durationMinutes: 15,
+    });
+    const out = calcPayroll(
+      baseInput({
+        employee: {
+          id: 'e',
+          salaryType: 'Monthly',
+          baseSalary: '12000',
+          hasSso: false,
+          allowanceAmount: 0,
+        },
+        attendances: [att('2026-08-15'), att('2026-08-20'), att('2026-08-25')],
+        leaveDates: [],
+        config: {
+          ...DEFAULT_CONFIG,
+          lateThreeStrikeEnabled: true,
+          lateThreeStrikeCount: 3,
+          severeLateEnabled: true,
+          severeLateThresholdMin: 30,
+        },
+        month: '2026-08',
+      }),
+    );
+    // ฿12,000 / 30 working days = ฿400 — exactly what was taken from ฟ้า.
+    expect(out.deductAttendance.toString()).toBe('400');
+  });
+```
+
+Run: `pnpm vitest run src/lib/payroll/calc.test.ts`
+
+Expected: the first fails before Step 3's change (deducts 400) and passes after; the
+second passes throughout, proving the penalty still fires when it should. If
+`AttendanceForPayroll` is not already imported in this file, add it to the existing
+type import from `./calc`.
+
 - [ ] **Step 5: Full verification**
 
 Run: `pnpm typecheck && pnpm lint && pnpm test`
@@ -416,12 +495,69 @@ must still show **อนุมัติ**; a `จ่ายเงินแล้�
 (`:188-205`) already renders — confirm it is visible at the payment step, since
 that is what the admin copies the transfer from.
 
+- [ ] **Step 8b: Cover the wiring with an e2e test (runs in CI)**
+
+The unit test proves the *decision*; only an e2e test proves the desktop button is
+wired to `markAdvancePaid` and gated on the right state. Append to
+`tests/e2e/admin-advance-approval.spec.ts`, reusing its `seedPendingAdvance` helper
+and `cleanupE2eRecords`:
+
+```ts
+  test('an approved-but-unpaid advance can be marked paid from the desktop modal', async ({
+    page,
+  }) => {
+    const { advance } = await seedPendingAdvance('markpaid', 3000);
+    // Start at step 2: approved, not yet paid.
+    await prisma.cashAdvance.update({
+      where: { id: advance.id },
+      data: { status: 'Approved', approvedAt: new Date() },
+    });
+
+    await loginAsAdmin(page);
+    await page.goto('/admin/advance');
+    await page.getByText('รอจ่ายเงิน').first().click();
+
+    // The primary button is the PAYMENT step, not another approval.
+    const payButton = page.getByRole('button', { name: /บันทึกการจ่ายเงิน/ });
+    await expect(payButton).toBeVisible();
+    await expect(page.getByRole('button', { name: /^อนุมัติ/ })).toHaveCount(0);
+    await payButton.click();
+
+    await expect(page.getByText('จ่ายเงินแล้ว').first()).toBeVisible();
+
+    const after = await prisma.cashAdvance.findUniqueOrThrow({ where: { id: advance.id } });
+    expect(after.paidAt).not.toBeNull();
+    expect(after.status).toBe('Approved'); // paying does not change status
+  });
+
+  test('a paid advance offers neither approval nor payment', async ({ page }) => {
+    const { advance } = await seedPendingAdvance('alreadypaid', 1500);
+    await prisma.cashAdvance.update({
+      where: { id: advance.id },
+      data: { status: 'Approved', approvedAt: new Date(), paidAt: new Date() },
+    });
+
+    await loginAsAdmin(page);
+    await page.goto('/admin/advance');
+    await page.getByText('จ่ายเงินแล้ว').first().click();
+
+    await expect(page.getByRole('button', { name: /บันทึกการจ่ายเงิน/ })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /^อนุมัติ/ })).toHaveCount(0);
+  });
+```
+
+Run: `pnpm test:e2e -- admin-advance-approval.spec.ts`
+
+Expected: both new tests pass, and the file's existing approve/reject tests still
+pass — they prove step 1 was not broken by sharing the primary button.
+
 - [ ] **Step 9: Commit**
 
 ```bash
 git add src/lib/advance/payment-state.ts src/lib/advance/payment-state.test.ts \
         "src/app/(admin)/admin/advance/advance-row-vm.ts" \
-        "src/app/(admin)/admin/advance/advance-review-modal.tsx"
+        "src/app/(admin)/admin/advance/advance-review-modal.tsx" \
+        tests/e2e/admin-advance-approval.spec.ts
 git commit -m "feat(advance): mark-paid step in the desktop review modal"
 ```
 
@@ -531,10 +667,101 @@ Then in LIFF: the type picker shows chips with no numbers, selecting a chip stil
 switches the allowed units (`:112-119`), a วันพักร้อน request over quota is still
 blocked, and a ลากิจ request over quota still shows the deduction warning.
 
+- [ ] **Step 5b: Cover it with an e2e test**
+
+`tests/e2e/liff-leave-block.spec.ts` **already asserts** the enforcement this task
+must not break — Block-policy types stay unsubmittable over quota, DeductPay types
+stay submittable. Running it unchanged is therefore the regression gate; do that
+first and only then add the new UI assertions.
+
+Create `tests/e2e/liff-leave-type-picker.spec.ts`, following the seeding pattern in
+`liff-leave-block.spec.ts` (`createE2eWorker`, `loginAsWorker`, `cleanupE2eRecords`):
+
+```ts
+import { expect, test } from '@playwright/test';
+import { loginAsWorker } from './helpers/auth';
+import { cleanupE2eRecords, createE2eWorker, type E2eWorker, prisma } from './helpers/db';
+
+/**
+ * The leave-type picker is chips, and shows no quota number (customer request
+ * 2026-09-01: "เปลี่ยน ประเภทการลา จาก dropdown เป็น ตัวเลือก และไม่ต้องแสดงโควต้า").
+ * Enforcement built on the quota is covered by liff-leave-block.spec.ts.
+ */
+test.describe('LIFF leave-type picker', () => {
+  let worker: E2eWorker;
+
+  test.beforeEach(async ({ page }) => {
+    worker = await createE2eWorker({});
+    await loginAsWorker(page, { email: worker.email, password: worker.password });
+  });
+
+  test.afterAll(async () => {
+    await cleanupE2eRecords();
+  });
+
+  test('renders selectable chips, not a dropdown, and shows no quota figure', async ({ page }) => {
+    const suffix = worker.employeeId.slice(0, 6);
+    await prisma.leaveType.create({
+      data: {
+        name: `e2e-ลากิจ-${suffix}`,
+        annualQuota: 7,
+        overQuotaPolicy: 'DeductPay',
+        allowFullDay: true,
+        isPaid: true,
+      },
+    });
+    await prisma.leaveType.create({
+      data: {
+        name: `e2e-พักร้อน-${suffix}`,
+        annualQuota: 6,
+        overQuotaPolicy: 'Block',
+        allowFullDay: true,
+        isPaid: true,
+      },
+    });
+
+    await page.goto('/liff/leave/new');
+
+    // The old <select> is gone.
+    await expect(page.locator('select#leaveTypeId')).toHaveCount(0);
+
+    const group = page.getByRole('radiogroup');
+    await expect(group).toBeVisible();
+
+    const kit = page.getByRole('radio', { name: `e2e-ลากิจ-${suffix}` });
+    const vac = page.getByRole('radio', { name: `e2e-พักร้อน-${suffix}` });
+    await expect(kit).toBeVisible();
+    await expect(vac).toBeVisible();
+
+    // Selecting a chip actually changes the selection.
+    await vac.click();
+    await expect(vac).toHaveAttribute('aria-checked', 'true');
+    await expect(kit).toHaveAttribute('aria-checked', 'false');
+
+    // No quota/remaining figure anywhere in the picker: the seeded quotas are
+    // 7 and 6, and neither may appear as a standalone number in the group.
+    await expect(group).not.toHaveText(/\b[67]\b/);
+  });
+});
+```
+
+Run: `pnpm test:e2e -- liff-leave-block.spec.ts liff-leave-type-picker.spec.ts`
+
+Expected: the existing block/deduct tests still pass (enforcement intact) and the new
+picker test passes.
+
+**Known gap, stated deliberately:** `playwright.config.ts:32` sets
+`testIgnore: process.env.CI ? ['**/liff-*.spec.ts'] : []`, because LIFF specs
+authenticate against a real LINE channel. **This test therefore does NOT run in
+CI** — it must be run locally before merging. Nothing about this task can be
+guarded automatically on the pipeline; that is a property of the LIFF suite, not
+of this change.
+
 - [ ] **Step 6: Commit**
 
 ```bash
-git add "src/app/(liff)/liff/leave/new/leave-new-form.tsx" messages/
+git add "src/app/(liff)/liff/leave/new/leave-new-form.tsx" messages/ \
+        tests/e2e/liff-leave-type-picker.spec.ts
 git commit -m "feat(leave): chip picker for leave type, quota no longer displayed"
 ```
 
@@ -554,6 +781,36 @@ git commit -m "docs(plan): mark leave-type-selection-ux superseded"
 ```
 
 ---
+
+## Test coverage — what guards each change
+
+| Task | Test | Level | Runs in CI? |
+|---|---|---|---|
+| 1 | `computeLatePenalty` — leave day does not strike; 3 clean lates still do | unit, `calc.test.ts` | ✅ |
+| 1 | `calcPayroll` — `deductAttendance` is `0` with a leave day, `400` without | unit, `calc.test.ts` | ✅ |
+| 2 | none — data remediation. Guarded by Task 1's tests and the Step 4 sweep query | — | n/a |
+| 3 | `isAwaitingPayment` — 4 cases across Pending/Approved/paid/Rejected | unit, `payment-state.test.ts` | ✅ |
+| 3 | mark-paid button wiring: right button per state, `paidAt` set, paid rows offer nothing | e2e, `admin-advance-approval.spec.ts` | ✅ |
+| 3 | existing approve/reject tests in that file prove step 1 still works | e2e | ✅ |
+| 4 | chips render, `<select>` gone, selection toggles `aria-checked`, no quota digits | e2e, `liff-leave-type-picker.spec.ts` | ❌ **local only** |
+| 4 | over-quota enforcement unchanged (Block blocks, DeductPay submits) | e2e, existing `liff-leave-block.spec.ts` | ❌ **local only** |
+
+**Two gaps, named on purpose rather than papered over:**
+
+1. **Task 4 has no CI-enforced test.** `playwright.config.ts:32` excludes
+   `liff-*.spec.ts` from CI because those specs authenticate against a real LINE
+   channel. Both the new picker test and the existing enforcement tests must be run
+   locally before merging. This is a pre-existing property of the LIFF suite, not
+   something this task introduces — but it means a later change could silently break
+   the chips or re-expose the quota and the pipeline would stay green.
+
+2. **Task 2 has no automated test**, because it is a one-off correction to already-paid
+   money. Its correctness rests on Task 1's tests plus the Step 4 sweep query, which
+   is written to be re-run by hand.
+
+**Not worth adding:** a `happy-dom` environment for component-level tests of the leave
+form. The e2e test above exercises the same behaviour against the real app, and adding
+a third test environment for one presentational change costs more than it guards.
 
 ## Not in this plan, and why
 
