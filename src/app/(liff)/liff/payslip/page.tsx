@@ -8,8 +8,8 @@ import { requireEmployee } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
 import type { Locale } from '@/lib/i18n/config';
 import { formatMoney } from '@/lib/i18n/format';
-import { localizedLeaveTypeName } from '@/lib/leave/localized-name';
 import { getPayslipDocument } from '@/lib/payslip/document';
+import { payslipLineVars } from '@/lib/payslip/line-vars';
 import type { PayslipLine } from '@/lib/payslip/types';
 import { adjacentMonths } from '@/lib/reports/period';
 
@@ -124,21 +124,15 @@ export default async function LiffPayslipPage({
     </div>
   );
 
-  // Resolves a line's label the same way the PDF's `render-html.ts` does: a
-  // literal `label` (adjustment reason) renders as-is; a `labelKey` resolves
-  // through i18n in the reader's own locale, with the settled-with-leave
-  // lines' `{leaveType}` placeholder filled from the raw name/nameByLocale
-  // data via `localizedLeaveTypeName` (this workforce reads Burmese, Lao and
-  // Khmer, not just Thai).
+  // Resolves a line's label the same way the PDF's `render-html.ts` does — via
+  // the SAME `payslipLineVars`, so the two renderers cannot drift: a literal
+  // `label` (adjustment reason) renders as-is; a `labelKey` resolves through
+  // i18n in the reader's own locale, with `{leaveType}` and `{date}` filled
+  // from the raw data the line carries (this workforce reads Burmese, Lao and
+  // Khmer, not just Thai, and Thai dates need Buddhist years).
   const lineLabel = (l: PayslipLine): string => {
     if (l.label) return l.label;
-    const vars = l.leaveType
-      ? {
-          ...l.vars,
-          leaveType: localizedLeaveTypeName(l.leaveType.name, l.leaveType.nameByLocale, locale),
-        }
-      : l.vars;
-    return t(l.labelKey! as Parameters<typeof t>[0], vars);
+    return t(l.labelKey! as Parameters<typeof t>[0], payslipLineVars(l, locale));
   };
 
   return (

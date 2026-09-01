@@ -17,6 +17,13 @@ export type PayslipLine = {
    * `localizedLeaveTypeName`.
    */
   leaveType?: { name: string; nameByLocale: unknown } | null;
+  /**
+   * Raw YYYY-MM-DD dates behind an itemised over-quota-leave line, filling its
+   * `{date}` placeholder. Raw for the same reason as `leaveType`: only the
+   * renderer knows the locale, and Thai needs Buddhist years — a date resolved
+   * here would be stuck in one calendar for every reader.
+   */
+  dates?: { start: string; end: string } | null;
   amount: number;
   detail?: { key: string; vars: Record<string, string | number> } | null;
 };

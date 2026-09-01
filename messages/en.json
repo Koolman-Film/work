@@ -541,6 +541,7 @@
       "settledLateThreeStrike": "Three-strike lateness — {days} day(s) deducted from {leaveType}",
       "settledSevereLate": "Severe lateness — {days} day(s) deducted from {leaveType}",
       "leave": "Over-quota leave",
+      "leaveItem": "Over-quota leave · {leaveType}, {date}",
       "debt": "Loan/installments",
       "other": "Other deductions",
       "none": "No deductions",

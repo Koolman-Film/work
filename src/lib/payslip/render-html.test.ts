@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { localizedLeaveTypeName } from '@/lib/leave/localized-name';
 import en from '../../../messages/en.json';
 import my from '../../../messages/my.json';
+import { formatLeaveDates } from './line-vars';
 import { buildPayslipHtml } from './render-html';
 import type { PayslipDocument } from './types';
 
@@ -280,5 +281,58 @@ describe('buildPayslipHtml — settled-with-leave note is locale-aware', () => {
     // baked into a literal `label` regardless of the employee's locale.
     expect(html).not.toContain('ขาดงาน — หักจากสิทธิลาพักร้อน 1 วัน');
     expect(html).not.toContain('ลาพักร้อน'); // Thai leave-type name must not leak into a my-locale slip
+  });
+});
+
+describe('buildPayslipHtml — itemised over-quota leave line', () => {
+  // The complaint behind this line: an employee sees a leave deduction with no
+  // date, while their leave balance for the year they are looking at still
+  // shows days remaining — because the charge came from an earlier entitlement
+  // year. The date is the whole point of the line, so prove it reaches the PDF.
+  it('prints the leave type and the day, localized for the reader', () => {
+    const leaveType = { name: 'ลาพักร้อน', nameByLocale: { my: 'ခွင့်ရက်အထူး' } };
+    const itemDoc: PayslipDocument = {
+      ...doc,
+      deduct: {
+        lines: [
+          {
+            key: 'leave-r1',
+            labelKey: 'deduct.leaveItem',
+            leaveType,
+            dates: { start: '2025-11-03', end: '2025-11-03' },
+            amount: 450,
+            detail: null,
+          },
+        ],
+        total: 450,
+      },
+    };
+
+    const resolveMy = (path: string, vars?: Record<string, string | number>): string => {
+      const v = path
+        .split('.')
+        .reduce<unknown>((o, k) => (o as Record<string, unknown>)?.[k], my as unknown);
+      if (typeof v !== 'string') throw new Error(`missing message: ${path}`);
+      return v.replace(/\{(\w+)\}/g, (_, k) => String(vars?.[k] ?? `{${k}}`));
+    };
+
+    const html = buildPayslipHtml(itemDoc, {
+      locale: 'my',
+      t: resolveMy,
+      tRef: (k: string) => k, // echo — isolate the employee-locale line
+      money: (n) => `฿${n.toFixed(2)}`,
+      fontFace: '/*f*/',
+      logoSvg: '<svg/>',
+      periodLabel: 'ယခုလ',
+      generatedAt: '2026-07-01',
+      companyEn: 'Koolman Co., Ltd.',
+      companyNative: 'บริษัท คูลแมน จำกัด',
+    });
+
+    expect(html).toContain('ခွင့်ရက်အထူး'); // the leave type, in the reader's language
+    expect(html).toContain(formatLeaveDates({ start: '2025-11-03', end: '2025-11-03' }, 'my'));
+    expect(html).toContain('2025'); // the year that makes the carried-over charge legible
+    expect(html).not.toContain('{date}'); // an unfilled placeholder is the silent failure
+    expect(html).not.toContain('{leaveType}');
   });
 });

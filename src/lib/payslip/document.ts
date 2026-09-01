@@ -9,6 +9,7 @@ import {
 } from '@/lib/payroll/penalty-settlement';
 import { loadSettlementsForMonth } from '@/lib/payroll/penalty-settlement-load';
 import { payrollMonthWindow } from '@/lib/payroll/period';
+import { itemiseLeaveCharges, type SweptLeaveCharge } from './leave-lines';
 import type { PayslipDocument, PayslipLine } from './types';
 
 export type { PayslipDocument, PayslipLine } from './types';
@@ -67,8 +68,15 @@ export type NormalizedPayslipInput = {
    * does not) can localize the note per employee.
    */
   settledLeaveTypeNames?: Partial<Record<PenaltyKindKey, { name: string; nameByLocale: unknown }>>;
-  /** Sum of over-quota leave minutes (for the leave line detail). */
+  /** Sum of over-quota leave minutes (for the aggregate leave line's detail). */
   leaveOverMinutesTotal: number;
+  /**
+   * The individual over-quota leave requests this month collected, so the slip
+   * can name the leave day each baht was for instead of showing one unexplained
+   * total. Falls back to the aggregate line when these do not reconcile with
+   * `buckets.deductLeave` — see `itemiseLeaveCharges`.
+   */
+  sweptLeaves: readonly SweptLeaveCharge[];
   /** Inputs the assembler needs to compute the SSO% label and the leave per-minute rate. */
   rateInputs: {
     ssoRate: number;
@@ -91,6 +99,7 @@ export function assemblePayslipDocument(input: NormalizedPayslipInput): PayslipD
     settledDays,
     settledLeaveTypeNames,
     leaveOverMinutesTotal,
+    sweptLeaves,
     rateInputs,
   } = input;
 
@@ -195,11 +204,34 @@ export function assemblePayslipDocument(input: NormalizedPayslipInput): PayslipD
     rateInputs.workingDaysPerMonth,
     rateInputs.standardDayMinutes,
   );
-  const leaveDetail =
-    leaveOverMinutesTotal > 0
-      ? { key: 'leave', vars: { minutes: leaveOverMinutesTotal, rate: rate.toFixed(4) } }
-      : null;
-  push('leave', 'deduct.leave', buckets.deductLeave, leaveDetail);
+  // One line per leave request when they add up to the frozen total, so the
+  // employee can see WHICH leave day was charged — the common confusion is a
+  // charge carried over from an earlier entitlement year sitting beside a leave
+  // balance that still shows days remaining for the year being viewed. When the
+  // parts cannot be reconciled the slip keeps the single aggregate line rather
+  // than printing a breakdown that does not sum to what was deducted.
+  const itemised = itemiseLeaveCharges(sweptLeaves, buckets.deductLeave);
+  if (itemised) {
+    for (const c of itemised) {
+      deduct.push({
+        key: `leave-${c.id}`,
+        labelKey: 'deduct.leaveItem',
+        leaveType: c.leaveType,
+        dates: { start: c.startDate, end: c.endDate },
+        amount: c.amount,
+        detail:
+          c.overQuotaMinutes > 0
+            ? { key: 'leave', vars: { minutes: c.overQuotaMinutes, rate: rate.toFixed(4) } }
+            : null,
+      });
+    }
+  } else {
+    const leaveDetail =
+      leaveOverMinutesTotal > 0
+        ? { key: 'leave', vars: { minutes: leaveOverMinutesTotal, rate: rate.toFixed(4) } }
+        : null;
+    push('leave', 'deduct.leave', buckets.deductLeave, leaveDetail);
+  }
 
   push('debt', 'deduct.debt', buckets.deductDebt);
 
@@ -293,7 +325,14 @@ export async function getPayslipDocument(
       }),
       prisma.leaveRequest.findMany({
         where: { deductedInPayrollId: payroll.id },
-        select: { overQuotaMinutes: true },
+        select: {
+          id: true,
+          startDate: true,
+          endDate: true,
+          overQuotaMinutes: true,
+          deductAmount: true,
+          leaveType: { select: { name: true, nameByLocale: true } },
+        },
       }),
       // Deliberately NOT gated on payroll.deductAttendance !== 0 (unlike the
       // absent/late counts below): a fully-settled month nets deductAttendance
@@ -370,6 +409,16 @@ export async function getPayslipDocument(
     settledDays: settlement?.days,
     settledLeaveTypeNames: settlement?.leaveTypeNames,
     leaveOverMinutesTotal: leaves.reduce((s, l) => s + (l.overQuotaMinutes ?? 0), 0),
+    sweptLeaves: leaves.map((l) => ({
+      id: l.id,
+      // @db.Date is UTC midnight; slicing the ISO string keeps the calendar day
+      // the admin picked, with no timezone shift.
+      startDate: l.startDate.toISOString().slice(0, 10),
+      endDate: l.endDate.toISOString().slice(0, 10),
+      overQuotaMinutes: l.overQuotaMinutes ?? 0,
+      amount: l.deductAmount ? n(l.deductAmount) : 0,
+      leaveType: l.leaveType,
+    })),
     rateInputs: {
       ssoRate: n(config.ssoRate),
       ssoSalaryCap: n(config.ssoSalaryCap),
