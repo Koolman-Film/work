@@ -228,30 +228,54 @@ export function LeaveNewForm({
           </p>
         )}
 
-        {/* Leave type */}
-        <div>
-          <label htmlFor="leaveTypeId" className="mb-1.5 block text-sm font-medium text-ink-2">
+        {/* Leave type — chips rather than a dropdown, and no quota shown.
+            Customer request 2026-09-01: "เปลี่ยน ประเภทการลา จาก dropdown เป็น
+            ตัวเลือก และไม่ต้องแสดงโควต้า".
+
+            Only the DISPLAY of the quota is gone. `remaining`, `exceeds`,
+            `overMinutes` and `blockedOverQuota` below are untouched, so a
+            Block-policy type still refuses to submit over quota and a
+            DeductPay type still warns that the excess becomes a salary
+            deduction. The unpaid marker stays too — that is a property of the
+            leave, not a quota, and the employee needs to know it. */}
+        <fieldset>
+          <legend className="mb-1.5 block text-sm font-medium text-ink-2">
             {t('new.field.leaveType')} <span className="text-red-600">*</span>
-          </label>
-          <select
-            id="leaveTypeId"
-            value={leaveTypeId}
-            onChange={(e) => setLeaveTypeId(e.target.value)}
-            required
-            className="w-full rounded-md border border-line-strong px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-          >
-            {leaveTypes.map((tp) => (
-              <option key={tp.id} value={tp.id}>
-                {tp.name}
-                {tp.isPaid ? '' : ` ${t('new.unpaid')}`}
-                {tp.annualQuota != null ? t('new.quotaSuffix', { n: tp.annualQuota }) : ''}
-              </option>
-            ))}
-          </select>
+          </legend>
+          {/* Real <input type="radio"> visually hidden behind a styled label,
+              rather than buttons with role="radio". Native radios give arrow-key
+              navigation and correct announcement for free; fieldset+legend is
+              the group, so no explicit radiogroup role is needed. */}
+          <div className="flex flex-wrap gap-2">
+            {leaveTypes.map((tp) => {
+              const selected = tp.id === leaveTypeId;
+              return (
+                <label
+                  key={tp.id}
+                  className={`cursor-pointer rounded-full border px-3 py-1.5 text-sm transition focus-within:ring-1 focus-within:ring-primary-500 ${
+                    selected
+                      ? 'border-primary-500 bg-primary-500 text-white'
+                      : 'border-line-strong bg-white text-ink-2'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="leaveTypeId"
+                    value={tp.id}
+                    checked={selected}
+                    onChange={() => setLeaveTypeId(tp.id)}
+                    className="sr-only"
+                  />
+                  {tp.name}
+                  {tp.isPaid ? '' : ` ${t('new.unpaid')}`}
+                </label>
+              );
+            })}
+          </div>
           {selectedType && !selectedType.isPaid && (
             <p className="mt-1 text-xs text-amber-700">{t('new.unpaidNote')}</p>
           )}
-        </div>
+        </fieldset>
 
         {/* Unit (granularity) — only offered when the type allows >1 option */}
         {allowedUnits.length > 1 && (
@@ -374,12 +398,11 @@ export function LeaveNewForm({
           </p>
         )}
 
-        {/* Remaining balance + over-balance soft-warn */}
-        {remaining != null && (
-          <p className="text-xs text-ink-3">
-            {t('new.remaining')} <strong>{fmtDuration(remaining)}</strong>
-          </p>
-        )}
+        {/* Over-balance soft-warn. The remaining-balance line that used to sit
+            here is gone per the same 2026-09-01 request that made the type a
+            chip picker ("ไม่ต้องแสดงโควต้า"). The WARNING stays: it is about a
+            money consequence, not a quota figure, and removing it would let
+            someone file over-quota leave without being told it costs them. */}
         {exceeds && selectedType && (
           <p className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
             {selectedType.overQuotaPolicy === 'Block'

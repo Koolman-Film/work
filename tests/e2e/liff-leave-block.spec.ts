@@ -48,7 +48,10 @@ test.describe('LIFF leave over-quota enforcement', () => {
     });
 
     await page.goto('/liff/leave/new');
-    await page.locator('#leaveTypeId').selectOption(lt.id);
+    // The type picker is chips, not a <select>, since 2026-09-01. The radio
+    // itself is sr-only, so click the LABEL — which is what a user does.
+    // The assertions below are unchanged; only the interaction moved.
+    await page.locator('label').filter({ hasText: lt.name }).click();
     await page.fill('#startDate', monday);
     await page.fill('#endDate', monday);
     await page.fill('#reason', 'e2e-test-vacation');
@@ -72,7 +75,10 @@ test.describe('LIFF leave over-quota enforcement', () => {
     });
 
     await page.goto('/liff/leave/new');
-    await page.locator('#leaveTypeId').selectOption(lt.id);
+    // The type picker is chips, not a <select>, since 2026-09-01. The radio
+    // itself is sr-only, so click the LABEL — which is what a user does.
+    // The assertions below are unchanged; only the interaction moved.
+    await page.locator('label').filter({ hasText: lt.name }).click();
     await page.fill('#startDate', monday);
     await page.fill('#endDate', monday);
     await page.fill('#reason', 'e2e-test-personal');

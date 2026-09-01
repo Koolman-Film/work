@@ -282,7 +282,6 @@
       "attachmentSizeHint": "{kb} KB before compression",
       "removeAttachment": "Remove",
       "unpaid": "(unpaid)",
-      "quotaSuffix": " — quota {n} days",
       "unpaidNote": "Note: this leave type is unpaid",
       "unit": {
         "FullDay": "Full day",
@@ -293,7 +292,6 @@
       "preview": "Estimate:",
       "previewNoSunday": "(Sundays excluded)",
       "previewAdminNote": "* Admin will recalculate including holidays at approval",
-      "remaining": "Remaining this year:",
       "exceedsBlock": "Exceeds your remaining balance — this leave type can't exceed the quota, so this request can't be submitted.",
       "exceedsDeduct": "Exceeds balance by {over} — if approved, about {amount} will be deducted from your pay",
       "reasonPlaceholder": "e.g. sick leave to see a doctor, attending a relative's wedding",
