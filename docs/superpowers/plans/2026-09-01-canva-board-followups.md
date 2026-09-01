@@ -294,27 +294,58 @@ where e.nickname = 'ฟ้า' and p.month = '2026-09';
 
 Expected: `incomeOther` 400.00, `netPay` up by 400.00.
 
-- [ ] **Step 4: Check nobody else was hit by the same bug**
+- [ ] **Step 4: Check nobody else was hit by the same bug — ALREADY RUN 2026-09-01**
+
+Two things this query must get right, both of which a naive version gets wrong:
+
+1. **The payroll month is not the calendar month.** `cutoffDay` is 26, so a late on
+   the 27th–31st belongs to the FOLLOWING payroll month. Joining on
+   `to_char(a.date,'YYYY-MM')` mis-attributes every late in those five days.
+2. **A leave-day late only costs money if it pushed the count over the threshold.**
+   Listing "lates on leave days" over-reports; the question is whether removing them
+   lowers `floor(tier1 / 3)`.
 
 ```sql
--- Employees with a Late on a day they also had approved, non-deleted leave,
--- in any month whose payroll is already Published.
-select e.nickname, a.date::text, p.month, p.status::text, p."deductAttendance"
-from "Attendance" a
-join "Employee" e on e.id = a."employeeId"
-join "LeaveRequest" lr on lr."employeeId" = a."employeeId"
-     and lr.status = 'Approved' and lr."deletedAt" is null
-     and a.date between lr."startDate" and lr."endDate"
-left join "Payroll" p on p."employeeId" = a."employeeId"
-     and p.month = to_char(a.date, 'YYYY-MM')
-where a.type = 'Late'
-order by a.date;
+with lates as (
+  select a."employeeId", a.date,
+         case when extract(day from a.date) > 26
+              then to_char(a.date + interval '1 month','YYYY-MM')
+              else to_char(a.date,'YYYY-MM') end as pmonth,
+         (coalesce(a."durationMinutes",0) <= 30) as tier1,   -- > 30 is severe
+         exists (select 1 from "LeaveRequest" lr
+                 where lr."employeeId" = a."employeeId"
+                   and lr.status = 'Approved' and lr."deletedAt" is null
+                   and a.date between lr."startDate" and lr."endDate") as on_leave
+  from "Attendance" a where a.type = 'Late'
+)
+select e.nickname, e."firstName", l.pmonth,
+       count(*) filter (where l.tier1) as tier1_total,
+       count(*) filter (where l.tier1 and l.on_leave) as on_leave_lates,
+       floor(count(*) filter (where l.tier1)::numeric / 3) as strikes_before_fix,
+       floor(count(*) filter (where l.tier1 and not l.on_leave)::numeric / 3) as strikes_after_fix,
+       p.status::text as payroll_status, p."deductAttendance", p."netPay"
+from lates l
+join "Employee" e on e.id = l."employeeId"
+left join "Payroll" p on p."employeeId" = l."employeeId" and p.month = l.pmonth
+group by e.nickname, e."firstName", l.pmonth, p.status, p."deductAttendance", p."netPay"
+having floor(count(*) filter (where l.tier1)::numeric / 3)
+     > floor(count(*) filter (where l.tier1 and not l.on_leave)::numeric / 3)
+order by l.pmonth, e.nickname;
 ```
 
-Every row is a candidate. A candidate only cost money if that employee's
-chargeable lates that month reached `lateThreeStrikeCount` (3) *because of* it —
-check each against `deductAttendance` before crediting. Credit each confirmed case
-the same way as Step 2.
+The constants `26` (cutoffDay), `30` (severeLateThresholdMin) and `3`
+(lateThreeStrikeCount) are the live production values as of 2026-09-01 — re-read
+`PayrollConfig` before re-running this, since an admin can change any of them.
+
+**Result, run 2026-09-01 against production: exactly one row.**
+
+| nickname | month | tier1 | on leave | strikes before → after | status | deducted |
+|---|---|---|---|---|---|---|
+| ฟ้า (ญาณิกา) | 2026-08 | 3 | 1 | 1 → 0 | Published | ฿400.00 |
+
+Nobody else, in any month, has ever had a leave-day late push them over the
+threshold. Task 2 is therefore a single ฿400 correction — Step 2 above — and
+nothing further.
 
 - [ ] **Step 5: Record the outcome**
 
