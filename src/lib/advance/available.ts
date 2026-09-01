@@ -1,5 +1,7 @@
 import Decimal from 'decimal.js';
 import { prisma } from '@/lib/db/prisma';
+import { outstandingLeaveInWindow } from '@/lib/leave/outstanding-in-window';
+import { computeLiveLeaveCharges } from '@/lib/leave/recompute';
 import { windowMinutes } from '@/lib/leave/units';
 import { calcSso } from '@/lib/payroll/calc';
 import { type AdvanceBalance, calculateAdvanceBalance } from './balance';
@@ -67,10 +69,15 @@ export async function advanceBalanceFor(
   ]);
 
   // NET-pay cap basis: SSO + active recurring + this month's keyed
-  // เงินเพิ่ม/เงินลด. LEAVE is still excluded — computeLiveLeaveCharges has no
-  // lower date bound and returns every un-swept over-quota charge from all time,
-  // so folding it in would give anyone carrying a backlog a permanently negative
-  // balance (see §A0.2 and the ฿27,450 case).
+  // เงินเพิ่ม/เงินลด + this period's over-quota LEAVE. Customer item 7:
+  // "เวลาคิดยอดที่เบิกได้ ต้องดู เงินหักประกันสังคม เงินหักยอดยกมา(เงินเพิ่ม/เงินลด) ลา".
+  //
+  // Leave was excluded until 2026-09-01 because computeLiveLeaveCharges has no
+  // lower date bound — it returns every un-swept charge from all time, so
+  // folding the raw result in gave anyone carrying a backlog a permanently
+  // negative balance (§A0.2, the ฿27,450 case). The sweep stays unbounded on
+  // purpose (payroll must still collect old debt); the WINDOW is applied to its
+  // result below, so the cap only counts leave that hits THIS period's pay.
   const ssoDeduction = employee.hasSso
     ? calcSso(new Decimal(employee.baseSalary.toString()), {
         ssoRate: cfg.ssoRate.toString(),
@@ -91,7 +98,8 @@ export async function advanceBalanceFor(
   // round-trip on a form/approval path is fine; report code must not loop this
   // helper (see the header).
   const todayYmd = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
-  const currentMonth = payrollPeriodFor(todayYmd, cfg.cutoffDay).end.slice(0, 7);
+  const currentPeriod = payrollPeriodFor(todayYmd, cfg.cutoffDay);
+  const currentMonth = currentPeriod.end.slice(0, 7);
   const adjustments = await prisma.payrollAdjustment.findMany({
     where: {
       employeeId,
@@ -107,7 +115,18 @@ export async function advanceBalanceFor(
     (sum, a) => sum + (a.kind === 'Deduction' ? Number(a.amount) : -Number(a.amount)),
     0,
   );
-  const monthlyDeductions = ssoDeduction + recurringDeduction + adjustmentNet;
+
+  // Over-quota leave landing on THIS period's pay. Scoped to one employee, and
+  // the window is applied to the RESULT — never to the query — because
+  // computeLiveLeaveCharges replays a whole entitlement year in approval order
+  // to decide what exceeded quota. See outstanding-in-window.ts.
+  const leaveDeduction = outstandingLeaveInWindow(
+    await computeLiveLeaveCharges([employeeId]),
+    currentPeriod.start,
+    currentPeriod.end,
+  );
+
+  const monthlyDeductions = ssoDeduction + recurringDeduction + adjustmentNet + leaveDeduction;
 
   let earnings: number | null = null;
   if (employee.salaryType !== 'Monthly') {
