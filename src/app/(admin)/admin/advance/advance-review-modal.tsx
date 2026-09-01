@@ -5,7 +5,7 @@ import type { ActionResult } from '@/components/ui/confirm-dialog';
 import { Dropzone } from '@/components/ui/dropzone';
 import { ReviewModal } from '@/components/ui/review-modal';
 import { STATUS_ICON, StatusBadge, type StatusKey } from '@/components/ui/status-badge';
-import { approveCashAdvance, rejectCashAdvance } from '@/lib/advance/admin';
+import { approveCashAdvance, markAdvancePaid, rejectCashAdvance } from '@/lib/advance/admin';
 import { voidCashAdvance } from '@/lib/advance/void';
 import { compressToJpeg, uploadAdvanceReceipt } from '@/lib/storage/upload-selfie';
 import { createClient } from '@/lib/supabase/browser';
@@ -24,6 +24,10 @@ export type AdvanceRowVM = {
   status: 'Pending' | 'Approved' | 'Rejected' | 'Cancelled';
   statusKey: StatusKey;
   statusLabel: string;
+  /** Approved but not yet paid — the modal offers step 2 (payment) only then.
+   *  Server-computed via `isAwaitingPayment` so the label and the primary
+   *  button always agree about which step this row is at. */
+  awaitingPayment: boolean;
   name: string;
   nickname: string | null;
   branch: string;
@@ -136,6 +140,39 @@ export function AdvanceReviewModal({
     }
   }
 
+  /** Upload the transfer slip (if any) then record payment — step 2 of the
+   *  customer's two-step flow, served by ReviewModal's primary button when the
+   *  row is awaiting payment. The slip is EVIDENCE, not a gate
+   *  ("แนบสลิปโอนเงิน (ไม่บังคับ)"), so paying with no file is a valid path.
+   *  Mirrors doApprove above, reusing the same upload machinery. */
+  async function doMarkPaid(): Promise<ActionResult> {
+    if (!row) return { ok: false, message: 'ไม่พบรายการ' };
+    try {
+      let storageKey: string | undefined;
+      if (receiptFile) {
+        const supabase = createClient();
+        const { data: authData } = await supabase.auth.getUser();
+        if (!authData.user) return { ok: false, message: 'เซสชันหมดอายุ — กรุณาเข้าสู่ระบบใหม่' };
+        const compressed = await compressToJpeg(receiptFile);
+        const uploaded = await uploadAdvanceReceipt(supabase, compressed, authData.user.id, row.id);
+        storageKey = uploaded.key;
+      }
+      const result = await markAdvancePaid({
+        cashAdvanceId: row.id,
+        receiptKey: storageKey ?? null,
+      });
+      return result.ok ? { ok: true } : { ok: false, message: result.message };
+    } catch (err) {
+      const message =
+        typeof err === 'object' && err !== null && 'kind' in err
+          ? uploadErrorMessage(err as { kind: string; message?: string })
+          : err instanceof Error
+            ? err.message
+            : 'เกิดข้อผิดพลาด';
+      return { ok: false, message };
+    }
+  }
+
   return (
     <ReviewModal
       open={row !== null}
@@ -143,9 +180,13 @@ export function AdvanceReviewModal({
       onActioned={onActioned}
       title="ตรวจสอบคำขอเบิก"
       moneyConfirm={isPending && row ? { amountLabel: row.amount } : undefined}
-      approveLabel={row ? `อนุมัติ ${row.amount}` : 'อนุมัติ'}
-      onApprove={isPending ? doApprove : undefined}
-      approveDisabled={row?.advanceGuard?.overCap}
+      approveLabel={
+        row?.awaitingPayment ? `บันทึกการจ่ายเงิน ${row.amount}` : row ? `อนุมัติ ${row.amount}` : 'อนุมัติ'
+      }
+      onApprove={isPending ? doApprove : row?.awaitingPayment ? doMarkPaid : undefined}
+      // The salary-cap guard belongs to APPROVAL. Money already approved is owed
+      // regardless of the cap, so it must never block recording that it was sent.
+      approveDisabled={isPending ? row?.advanceGuard?.overCap : false}
       onReject={isPending && row ? () => rejectCashAdvance({ cashAdvanceId: row.id }) : undefined}
       onVoid={row ? (reason) => voidCashAdvance(row.id, reason) : undefined}
     >

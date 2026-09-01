@@ -3,6 +3,7 @@ import 'server-only';
 import type { StatusKey } from '@/components/ui/status-badge';
 import { advanceBalanceFor } from '@/lib/advance/available';
 import { isOverCap } from '@/lib/advance/balance';
+import { isAwaitingPayment } from '@/lib/advance/payment-state';
 import type { AdvanceGuardVM, AdvanceRowVM } from './advance-review-modal';
 
 /** Prisma select covering every field `buildAdvanceRowVM` reads. */
@@ -115,16 +116,19 @@ export function buildAdvanceRowVM(
   deps: { receiptUrl: string | null; advanceGuard: AdvanceGuardVM | null; canSeePayout: boolean },
 ): AdvanceRowVM {
   const info = ADVANCE_STATUS_INFO[r.status] ?? { label: r.status, key: 'neutral' as StatusKey };
-  const paid = r.paidAt !== null;
   // "Approved" is two user-facing states, per the customer's two-step payment
-  // request: อนุมัติ → รอจ่ายเงิน, then จ่ายเงินแล้ว. Resolved here ONCE so the
-  // inbox list and the review modal cannot label the same row differently.
+  // request: อนุมัติ → รอจ่ายเงิน, then จ่ายเงินแล้ว. The predicate lives in
+  // payment-state.ts so the label below and the modal's primary button read the
+  // SAME decision — the inbox and the modal cannot disagree about the step.
+  const awaitingPayment = isAwaitingPayment(r);
+  const paid = r.status === 'Approved' && !awaitingPayment;
   const statusLabel = r.status === 'Approved' ? (paid ? 'จ่ายเงินแล้ว' : 'รอจ่ายเงิน') : info.label;
   return {
     id: r.id,
     status: r.status,
     statusKey: info.key,
     statusLabel,
+    awaitingPayment,
     name: `${r.employee.firstName} ${r.employee.lastName}`,
     nickname: r.employee.nickname,
     branch: r.employee.branch.name,
