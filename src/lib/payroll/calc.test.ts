@@ -414,6 +414,23 @@ describe('computeLatePenalty (C9)', () => {
     expect(r.threeStrikeDays).toBe(0);
     expect(r.tier1Count).toBe(6);
   });
+
+  // ฟ้า, August 2026 (customer Canva board). Late on the 15th, 20th and 25th,
+  // but the 20th had an approved 09:00–10:00 leave. Two chargeable lates, so no
+  // strike — production charged her ฿400 for a third that should not count.
+  it('does NOT count an ordinary late on a leave day toward the three-strike', () => {
+    const lates = [late('2026-08-15', 10), late('2026-08-20', 10), late('2026-08-25', 10)];
+    const r = computeLatePenalty(lates, new Set(['2026-08-20']), ON);
+    expect(r.threeStrikeDays).toBe(0);
+    // tier1Count still reports every ordinary late — the slip shows what happened,
+    // the penalty reflects only what is chargeable.
+    expect(r.tier1Count).toBe(3);
+  });
+
+  it('still strikes when three ordinary lates fall on days with no leave', () => {
+    const lates = [late('2026-08-15', 10), late('2026-08-20', 10), late('2026-08-25', 10)];
+    expect(computeLatePenalty(lates, noLeave, ON).threeStrikeDays).toBe(1);
+  });
 });
 
 describe('calcPayroll — late penalties wired through deductAttendance (C9)', () => {
@@ -489,6 +506,50 @@ describe('calcPayroll — late penalties wired through deductAttendance (C9)', (
       month: '2026-06',
     });
     expect(out.deductAttendance.toString()).toBe('200'); // 2 × ฿100 flat
+  });
+
+  // The ฟ้า case end-to-end. A zero strike-count is necessary but not
+  // sufficient — what matters is that no money moves. ฿12,000 / 30 = ฿400,
+  // which is exactly what production deducted from her August payslip.
+  const fah = { ...emp, baseSalary: '12000' };
+  const strikePolicy = {
+    ...baseConfig,
+    lateThreeStrikeEnabled: true,
+    lateThreeStrikeCount: 3,
+    severeLateEnabled: true,
+    severeLateThresholdMin: 30,
+  };
+  const augustLates = [
+    lateRow('2026-08-15', 15),
+    lateRow('2026-08-20', 15),
+    lateRow('2026-08-25', 15),
+  ];
+
+  it('deducts nothing when one of three lates falls on a day with approved leave', () => {
+    const out = calcPayroll({
+      employee: fah,
+      attendances: augustLates,
+      advances: [],
+      recurringDeductions: [],
+      leaveDates: ['2026-08-20'],
+      config: strikePolicy,
+      month: '2026-08',
+    });
+    expect(out.deductAttendance.toString()).toBe('0');
+    expect(out.netPay.toString()).toBe('12000');
+  });
+
+  it('still deducts one day when all three lates are chargeable', () => {
+    const out = calcPayroll({
+      employee: fah,
+      attendances: augustLates,
+      advances: [],
+      recurringDeductions: [],
+      leaveDates: [],
+      config: strikePolicy,
+      month: '2026-08',
+    });
+    expect(out.deductAttendance.toString()).toBe('400'); // 12000/30
   });
 });
 

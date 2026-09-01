@@ -284,11 +284,19 @@ export async function approveLeaveRequest(input: Input): Promise<ApproveResult> 
       // the penalty is gone with no way back (no unpublish, no correction
       // document).
       //
-      // Scoped to `kind: 'SevereLate'` only: `leaveDates` never exempts an
-      // Absent or a LateThreeStrike (see computeLatePenalty), so a settled
-      // one of those in the same month is unaffected by approving THIS leave
-      // — refusing for one would be a false block on ordinary month-end
-      // leave processing under time pressure.
+      // Scoped to the two penalty kinds `leaveDates` can actually erase:
+      // SevereLate and, since 2026-09-01, LateThreeStrike. A late on a leave
+      // day is no longer chargeable toward EITHER penalty (see
+      // computeLatePenalty), so a settled one of either kind is strandable the
+      // same way. `Absent` stays out: `leaveDates` does not exempt an absence,
+      // so a settled Absent in the same month is genuinely unaffected by
+      // approving THIS leave, and refusing for it would be a false block on
+      // ordinary month-end leave processing under time pressure.
+      //
+      // This scope is load-bearing, not cosmetic: it was SevereLate-only until
+      // the three-strike gained its leave exemption, and widening it was part
+      // of that change rather than a follow-up. If a future change makes leave
+      // affect another penalty kind, this list must grow with it.
       //
       // A request can span multiple dates and therefore multiple payroll
       // months — every target date's month is checked (payrollPeriodFor,
@@ -333,11 +341,16 @@ export async function approveLeaveRequest(input: Input): Promise<ApproveResult> 
       ];
 
       for (const month of monthsCovered) {
-        const liveSevereLate = await tx.attendancePenaltySettlement.findFirst({
-          where: { employeeId: req.employeeId, month, kind: 'SevereLate', deletedAt: null },
+        const liveStrandable = await tx.attendancePenaltySettlement.findFirst({
+          where: {
+            employeeId: req.employeeId,
+            month,
+            kind: { in: ['SevereLate', 'LateThreeStrike'] },
+            deletedAt: null,
+          },
           select: { id: true },
         });
-        if (!liveSevereLate) continue;
+        if (!liveStrandable) continue;
 
         const closed = await tx.payroll.findFirst({
           where: { employeeId: req.employeeId, month, status: { not: 'Draft' } },
