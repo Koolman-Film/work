@@ -1,5 +1,24 @@
 # Leave-Type Selection UX Implementation Plan
 
+> ## ⛔ SUPERSEDED 2026-09-01 — DO NOT EXECUTE
+>
+> The customer asked for the OPPOSITE of this plan's goal: a chip picker with
+> **no quota shown** — *"เปลี่ยน ประเภทการลา จาก dropdown เป็น ตัวเลือก และไม่ต้อง
+> แสดงโควต้า"* (Canva board, confirmed 2026-09-01). This plan exists to *show*
+> each type's remaining balance at the moment the employee picks, which is now
+> explicitly unwanted.
+>
+> Shipped instead as Task 4 of
+> `docs/superpowers/plans/2026-09-01-canva-board-followups.md` (commit `0341895`):
+> chips, no quota figure, with the over-quota ENFORCEMENT deliberately left
+> intact — Block still blocks, DeductPay still warns about the deduction.
+>
+> The part of this plan's reasoning that survives is its diagnosis: the form used
+> to silently default to ลากิจ for everyone, and ~฿22,600/year of misfiled leave
+> was attributed to that. The chip picker attacks it differently — every type is
+> visible up front instead of hidden behind a closed dropdown. If misfiling
+> continues, revisit the problem rather than reviving this plan.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Stop the leave form from silently choosing ลากิจ for everyone, and show each type's remaining balance at the moment the employee picks — so the ~฿22,600/year of misfiled leave stops accruing.
