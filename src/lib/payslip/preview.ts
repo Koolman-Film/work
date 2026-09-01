@@ -78,6 +78,15 @@ export async function buildPreviewPayslipDocument(
     settledDays: raw.settledDays,
     settledLeaveTypeNames: raw.settledLeaveTypeNames,
     leaveOverMinutesTotal: raw.leaveOverMinutesTotal,
+    // Empty on purpose: this path previews a DRAFT, and the per-request leave
+    // detail is only carried on the frozen `deductedInPayrollId` link, which a
+    // draft has not been stamped with yet. `itemiseLeaveCharges` treats an empty
+    // list as "cannot itemise" and falls back to the single aggregate leave
+    // line, so the draft preview shows exactly what it showed before. Once the
+    // month is published `pickPreviewSource` switches this preview to the frozen
+    // document, which itemises — so the admin and the employee see the same slip
+    // for every month that has actually been issued.
+    sweptLeaves: [],
     rateInputs: {
       ssoRate: raw.config.ssoRate,
       ssoSalaryCap: raw.config.ssoSalaryCap,

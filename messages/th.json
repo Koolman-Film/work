@@ -541,6 +541,7 @@
       "settledLateThreeStrike": "มาสายครบกำหนด — หักจากสิทธิ{leaveType} {days} วัน",
       "settledSevereLate": "มาสายรุนแรง — หักจากสิทธิ{leaveType} {days} วัน",
       "leave": "ลาเกินสิทธิ",
+      "leaveItem": "ลาเกินสิทธิ · {leaveType} {date}",
       "debt": "หนี้/ผ่อนชำระ",
       "other": "รายการหักอื่นๆ",
       "none": "ไม่มีรายการหัก",

@@ -4,8 +4,8 @@
 // No DB, no Chromium — pure function.
 
 import type { Locale } from '@/lib/i18n/config';
-import { localizedLeaveTypeName } from '@/lib/leave/localized-name';
 import { FONT_STACK } from './fonts';
+import { payslipLineVars } from './line-vars';
 import type { PayslipDocument, PayslipLine } from './types';
 
 // Brand constants — identical in all locales, no i18n needed.
@@ -194,17 +194,11 @@ export function buildPayslipHtml(doc: PayslipDocument, opts: BuildPayslipHtmlOpt
   const labelInline = (primary: string, ref: string): string =>
     `<span class="ml-n">${primary}</span><span class="t2i${refCls}">${ref}</span>`;
 
-  // Resolves a line's `vars` for one side of the bilingual label. The
-  // `{leaveType}` placeholder can't be pre-formatted upstream — `document.ts`
-  // has no locale awareness by design — so it's resolved here, per side,
-  // from the raw `name`/`nameByLocale` the line carries.
-  const lineVars = (l: PayslipLine, loc: Locale): Record<string, string | number> | undefined =>
-    l.leaveType
-      ? {
-          ...l.vars,
-          leaveType: localizedLeaveTypeName(l.leaveType.name, l.leaveType.nameByLocale, loc),
-        }
-      : l.vars;
+  // The `{leaveType}` and `{date}` placeholders can't be pre-formatted upstream
+  // — `document.ts` has no locale awareness by design — so they're resolved per
+  // side of the bilingual label, from the raw data the line carries. Shared with
+  // the on-screen slip so the two can't drift.
+  const lineVars = (l: PayslipLine, loc: Locale) => payslipLineVars(l, loc);
 
   const lineRow = (cls: 'pos' | 'neg' | '', l: PayslipLine): string => {
     // Free-text lines (adjustment reasons) have no translation — render once.

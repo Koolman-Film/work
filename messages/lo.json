@@ -496,6 +496,7 @@
       "settledLateThreeStrike": "ມາຊ້າຄົບກຳນົດ — ຫັກຈາກສິດ{leaveType} {days} ວັນ",
       "settledSevereLate": "ມາຊ້າຮ້າຍແຮງ — ຫັກຈາກສິດ{leaveType} {days} ວັນ",
       "leave": "ລາເກີນສິດ",
+      "leaveItem": "ລາເກີນສິດ · {leaveType} {date}",
       "debt": "ໜີ້/ຜ່ອນຊຳລະ",
       "other": "ລາຍການຫັກອື່ນໆ",
       "none": "ບໍ່ມີລາຍການຫັກ",

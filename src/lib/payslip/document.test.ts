@@ -30,6 +30,7 @@ const base: NormalizedPayslipInput = {
   advanceCount: 0,
   attendance: { absent: 0, late: 0 },
   leaveOverMinutesTotal: 0,
+  sweptLeaves: [],
   rateInputs: {
     ssoRate: 0.05,
     ssoSalaryCap: 15000,
@@ -110,6 +111,88 @@ describe('assemblePayslipDocument', () => {
     const leave = doc.deduct.lines.find((l) => l.key === 'leave');
     expect(leave?.detail?.key).toBe('leave');
     expect(leave?.detail?.vars.minutes).toBe(60);
+  });
+
+  it('itemises over-quota leave into one line per request, naming type and date', () => {
+    // The complaint: a charge carried over from an earlier entitlement year
+    // lands beside a leave balance that still shows days remaining, with only
+    // minutes and a rate to explain it.
+    const doc = assemblePayslipDocument({
+      ...base,
+      buckets: { ...base.buckets, deductLeave: 750, netPay: 17500 },
+      leaveOverMinutesTotal: 960,
+      sweptLeaves: [
+        {
+          id: 'r2',
+          startDate: '2026-09-20',
+          endDate: '2026-09-20',
+          overQuotaMinutes: 480,
+          amount: 300,
+          leaveType: { name: 'ลาป่วย', nameByLocale: null },
+        },
+        {
+          id: 'r1',
+          startDate: '2025-11-03',
+          endDate: '2025-11-04',
+          overQuotaMinutes: 480,
+          amount: 450,
+          leaveType: { name: 'ลากิจ', nameByLocale: null },
+        },
+      ],
+    });
+    const leave = doc.deduct.lines.filter((l) => l.key.startsWith('leave-'));
+    expect(leave.map((l) => l.key)).toEqual(['leave-r1', 'leave-r2']); // oldest first
+    expect(leave[0]).toMatchObject({
+      labelKey: 'deduct.leaveItem',
+      leaveType: { name: 'ลากิจ' },
+      dates: { start: '2025-11-03', end: '2025-11-04' },
+      amount: 450,
+    });
+    // The aggregate line is replaced, not duplicated — the total must not double.
+    expect(doc.deduct.lines.some((l) => l.key === 'leave')).toBe(false);
+    expect(doc.deduct.total).toBe(base.buckets.deductSso + 750);
+  });
+
+  it('keeps the per-request minutes on each line, not the month-wide total', () => {
+    const doc = assemblePayslipDocument({
+      ...base,
+      buckets: { ...base.buckets, deductLeave: 300, netPay: 17950 },
+      leaveOverMinutesTotal: 999,
+      sweptLeaves: [
+        {
+          id: 'r1',
+          startDate: '2026-09-20',
+          endDate: '2026-09-20',
+          overQuotaMinutes: 480,
+          amount: 300,
+          leaveType: { name: 'ลากิจ', nameByLocale: null },
+        },
+      ],
+    });
+    expect(doc.deduct.lines.find((l) => l.key === 'leave-r1')?.detail?.vars.minutes).toBe(480);
+  });
+
+  it('falls back to the aggregate line when the parts do not reconcile', () => {
+    // Instalment month: the cap collected ฿450 of a ฿900 request.
+    const doc = assemblePayslipDocument({
+      ...base,
+      buckets: { ...base.buckets, deductLeave: 450, netPay: 17800 },
+      leaveOverMinutesTotal: 960,
+      sweptLeaves: [
+        {
+          id: 'r1',
+          startDate: '2026-09-20',
+          endDate: '2026-09-20',
+          overQuotaMinutes: 960,
+          amount: 900,
+          leaveType: { name: 'ลากิจ', nameByLocale: null },
+        },
+      ],
+    });
+    expect(doc.deduct.lines.some((l) => l.key.startsWith('leave-'))).toBe(false);
+    const leave = doc.deduct.lines.find((l) => l.key === 'leave');
+    expect(leave?.amount).toBe(450);
+    expect(leave?.detail?.vars.minutes).toBe(960);
   });
 
   it('omits zero-amount deduction lines', () => {
@@ -241,6 +324,7 @@ describe('assemblePayslipDocument — letterhead passthrough', () => {
     advanceCount: 0,
     attendance: { absent: 0, late: 0 },
     leaveOverMinutesTotal: 0,
+    sweptLeaves: [],
     rateInputs: {
       ssoRate: 0.05,
       ssoSalaryCap: 15000,

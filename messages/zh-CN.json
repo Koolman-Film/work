@@ -496,6 +496,7 @@
       "settledLateThreeStrike": "迟到三次记满 — 从{leaveType}扣除{days}天",
       "settledSevereLate": "严重迟到 — 从{leaveType}扣除{days}天",
       "leave": "超额请假",
+      "leaveItem": "超额请假 · {leaveType} {date}",
       "debt": "借款/分期",
       "other": "其他扣款",
       "none": "无扣款项目",

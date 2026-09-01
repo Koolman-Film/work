@@ -496,6 +496,7 @@
       "settledLateThreeStrike": "មកយឺតដល់កំណត់បីដង — កាត់ចេញ {days} ថ្ងៃពី {leaveType}",
       "settledSevereLate": "មកយឺតធ្ងន់ធ្ងរ — កាត់ចេញ {days} ថ្ងៃពី {leaveType}",
       "leave": "ច្បាប់ឈប់លើសកំណត់",
+      "leaveItem": "ច្បាប់ឈប់លើសកំណត់ · {leaveType} {date}",
       "debt": "បំណុល/បង់រំលស់",
       "other": "ការកាត់ផ្សេងទៀត",
       "none": "គ្មានការកាត់ប្រាក់",

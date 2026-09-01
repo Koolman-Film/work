@@ -496,6 +496,7 @@
       "settledLateThreeStrike": "သုံးကြိမ်နောက်ကျမှု — {leaveType} ခွင့်မှ {days} ရက် နုတ်ယူသည်",
       "settledSevereLate": "အလွန်အမင်းနောက်ကျမှု — {leaveType} ခွင့်မှ {days} ရက် နုတ်ယူသည်",
       "leave": "ခွင့်ကျော်လွန်",
+      "leaveItem": "ခွင့်ကျော်လွန် · {leaveType} {date}",
       "debt": "အကြွေး/အရစ်ကျ",
       "other": "အခြားဖြတ်တောက်ငွေ",
       "none": "ဖြတ်တောက်ငွေမရှိပါ",

@@ -117,10 +117,67 @@ describe('getPayslipDocument', () => {
     expect(doc!.net).toBe(9_910);
     const sso = doc!.deduct.lines.find((l) => l.key === 'sso');
     expect(sso?.detail).toEqual({ key: 'sso', vars: { pct: 5, cap: '15,000' } });
-    const leave = doc!.deduct.lines.find((l) => l.key === 'leave');
+    // The leave line is itemised per request: the employee is told WHICH leave
+    // day the money was for, not just a total and a minute count.
+    const leave = doc!.deduct.lines.find((l) => l.key.startsWith('leave-'));
+    expect(leave?.labelKey).toBe('deduct.leaveItem');
+    expect(leave?.leaveType?.name).toBe('ลากิจ');
+    expect(leave?.dates).toEqual({ start: '2026-06-09', end: '2026-06-09' });
+    expect(leave?.amount).toBe(60);
     expect(leave?.detail?.vars.minutes).toBe(60);
     const adv = doc!.deduct.lines.find((l) => l.key === 'advance');
     expect(adv?.detail?.vars.count).toBe(1);
+  });
+
+  it('keeps one aggregate leave line when the stamped requests do not reconcile', async () => {
+    // The instalment case, end to end: a monthly cap collected ฿60 of a ฿900
+    // request, so `deductedInPayrollId` overstates what this month took.
+    // Printing a ฿900 line against a ฿60 deduction would be a false statement
+    // on a payslip, so the slip falls back to the single unexplained line.
+    const emp = await makeEmp();
+    const payroll = await prisma.payroll.create({
+      data: {
+        employeeId: emp.id,
+        month: MONTH,
+        status: 'Published',
+        publishedAt: new Date(),
+        incomeBase: new Prisma.Decimal(12_600),
+        incomeOther: new Prisma.Decimal(0),
+        deductSso: new Prisma.Decimal(0),
+        deductAdvance: new Prisma.Decimal(0),
+        deductAttendance: new Prisma.Decimal(0),
+        deductLeave: new Prisma.Decimal(60),
+        deductDebt: new Prisma.Decimal(0),
+        deductOther: new Prisma.Decimal(0),
+        netPay: new Prisma.Decimal(12_540),
+      },
+    });
+    const lt = await prisma.leaveType.create({
+      data: { name: 'ลากิจ', overQuotaPolicy: 'DeductPay', annualQuota: 0 },
+    });
+    await prisma.leaveRequest.create({
+      data: {
+        employeeId: emp.id,
+        leaveTypeId: lt.id,
+        startDate: new Date('2026-06-09'),
+        endDate: new Date('2026-06-09'),
+        reason: 'x',
+        status: 'Approved',
+        chargedMinutes: 960,
+        overQuotaMinutes: 960,
+        deductAmount: new Prisma.Decimal(900),
+        deductedAmountToDate: new Prisma.Decimal(60),
+        deductedInPayrollId: payroll.id,
+      },
+    });
+
+    const doc = await getPayslipDocument(emp.id, MONTH);
+    expect(doc!.deduct.lines.some((l) => l.key.startsWith('leave-'))).toBe(false);
+    const leave = doc!.deduct.lines.find((l) => l.key === 'leave');
+    expect(leave?.amount).toBe(60);
+    // Totals stay authoritative either way — that is what the fallback protects.
+    expect(doc!.deduct.total).toBe(60);
+    expect(doc!.net).toBe(12_540);
   });
 
   it('returns null for a Draft payroll (only Published/Locked are downloadable)', async () => {
