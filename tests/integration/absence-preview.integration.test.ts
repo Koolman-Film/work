@@ -275,6 +275,36 @@ describe('previewAbsences', () => {
     expect(preview.rows).toEqual([]);
   });
 
+  it('never derives a date before the employee was hired', async () => {
+    // Found against production: viewing July showed เคน and แอ็ก as absent for
+    // 25 days each (฿12,500) — but they were hired on 26 Aug and 3 Aug. The
+    // whole window predated their employment. เคน's salary is ฿12,000, so the
+    // derived deduction exceeded his entire pay.
+    const schedule = await prisma.workSchedule.create({
+      data: {
+        name: 'it-hire-date',
+        days: {
+          create: [1, 2, 3, 4, 5].map((dayOfWeek) => ({
+            dayOfWeek,
+            startTime: '09:00',
+            endTime: '17:00',
+          })),
+        },
+      },
+    });
+    const { employee } = await makeEmployee(schedule.id);
+    // Hired midway through the 2026-06 window (27 May – 26 Jun).
+    await prisma.employee.update({
+      where: { id: employee.id },
+      data: { hiredAt: new Date('2026-06-15') },
+    });
+    const preview = await previewAbsences(MONTH);
+    const row = preview.rows.find((r) => r.employeeId === employee.id);
+    const dates = row?.days.map((d) => d.date) ?? [];
+    expect(dates.length).toBeGreaterThan(0); // still derives AFTER the hire date
+    expect(dates.every((d) => d >= '2026-06-15')).toBe(true);
+  });
+
   it('writes nothing — the Attendance table is unchanged by a preview', async () => {
     const { employee } = await seed();
     const before = await prisma.attendance.count();
