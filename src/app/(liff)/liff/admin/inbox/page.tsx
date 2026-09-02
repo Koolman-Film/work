@@ -18,6 +18,7 @@ import { getUserAssignments } from '@/lib/auth/check-permission';
 import { requireLiffAdmin } from '@/lib/auth/require-liff-admin';
 import { prisma } from '@/lib/db/prisma';
 import type { Locale } from '@/lib/i18n/config';
+import { partialUnitSuffix } from '@/lib/leave/units';
 
 function formatBkk(d: Date, locale: Locale): string {
   return d.toLocaleString(locale, {
@@ -71,6 +72,11 @@ export default async function LiffAdminInboxPage() {
         id: true,
         startDate: true,
         endDate: true,
+        // A half-day request is otherwise indistinguishable here from a whole
+        // day off — both render as one date.
+        unit: true,
+        startTime: true,
+        endTime: true,
         createdAt: true,
         leaveType: { select: { name: true } },
         employee: EMPLOYEE_NAME_SELECT,
@@ -101,8 +107,12 @@ export default async function LiffAdminInboxPage() {
 
   const empty = leaves.length === 0 && advances.length === 0 && disputes.length === 0;
 
-  const [t, locale] = await Promise.all([
+  const [t, tUnit, locale] = await Promise.all([
     getTranslations('liffAdmin.inbox'),
+    // The leave-unit names live in the worker-facing `leave` namespace; this
+    // admin surface is translated (like /liff/admin/leave/[id]), so reuse them
+    // rather than hardcoding Thai.
+    getTranslations('leave.new.unit'),
     getLocale() as Promise<Locale>,
   ]);
 
@@ -123,6 +133,11 @@ export default async function LiffAdminInboxPage() {
                   {r.endDate.getTime() !== r.startDate.getTime()
                     ? ` – ${formatBkkDate(r.endDate, locale)}`
                     : ''}
+                  {partialUnitSuffix(r.unit, r.startTime, r.endTime, {
+                    HalfMorning: tUnit('HalfMorning'),
+                    HalfAfternoon: tUnit('HalfAfternoon'),
+                    Hourly: tUnit('Hourly'),
+                  })}
                 </p>
                 <p className="mt-0.5 text-[10px] text-ink-4">
                   {t('submittedAt', { datetime: formatBkk(r.createdAt, locale) })}

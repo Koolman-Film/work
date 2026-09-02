@@ -31,6 +31,7 @@ import { prisma } from '@/lib/db/prisma';
 import { employeesWithoutSchedule } from '@/lib/employee/no-schedule';
 import { getOrgCalendarData } from '@/lib/leave/team-calendar';
 import { currentMonthYM, parseMonth } from '@/lib/leave/team-calendar-shape';
+import { partialUnitSuffixTh } from '@/lib/leave/units';
 import { DashboardCalendarSummary } from './_calendar/dashboard-calendar-summary';
 import { MergeNudge } from './_components/merge-nudge';
 import { loadDashboardStats } from './_load-dashboard-stats';
@@ -213,7 +214,7 @@ export default async function AdminHomePage() {
       title: `${r.employee.firstName} ${r.employee.lastName}${
         r.employee.nickname ? ` (${r.employee.nickname})` : ''
       }`,
-      subtitle: `${r.leaveType.name} • ${formatRangeShort(r.startDate, r.endDate)}`,
+      subtitle: `${r.leaveType.name} • ${formatRangeShort(r.startDate, r.endDate)}${partialUnitSuffixTh(r.unit, r.startTime, r.endTime)}`,
       href: '/admin/leave',
     })),
     ...pendingAdvanceRecent.map<PendingRow>((r) => ({

@@ -14,6 +14,7 @@ import { requireEmployee } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
 import type { Locale } from '@/lib/i18n/config';
 import { localizedLeaveTypeName } from '@/lib/leave/localized-name';
+import { partialUnitSuffix } from '@/lib/leave/units';
 import { buildPageMeta, pageArgs, parsePageParam } from '@/lib/pagination';
 
 const STATUS_CLS: Record<string, string> = {
@@ -132,14 +133,13 @@ export default async function LiffLeaveListPage({
                           r.leaveType.nameByLocale,
                           locale as Locale,
                         )}
-                        {r.unit !== 'FullDay' && (
-                          <span className="font-normal text-ink-3">
-                            {' · '}
-                            {r.unit === 'Hourly' && r.startTime && r.endTime
-                              ? `${r.startTime}–${r.endTime}`
-                              : t(`new.unit.${r.unit}` as Parameters<typeof t>[0])}
-                          </span>
-                        )}
+                        <span className="font-normal text-ink-3">
+                          {partialUnitSuffix(r.unit, r.startTime, r.endTime, {
+                            HalfMorning: t('new.unit.HalfMorning'),
+                            HalfAfternoon: t('new.unit.HalfAfternoon'),
+                            Hourly: t('new.unit.Hourly'),
+                          })}
+                        </span>
                       </p>
                       <p className="mt-1 text-xs text-ink-2">
                         {formatRange(r.startDate, r.endDate, locale as Locale)}

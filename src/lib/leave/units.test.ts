@@ -10,6 +10,8 @@ import {
   minutesInUnit,
   minutesOf,
   morningMinutes,
+  partialUnitSuffix,
+  partialUnitSuffixTh,
   segmentFor,
   segmentsOverlap,
   splitDaysHours,
@@ -214,5 +216,52 @@ describe('adjustmentDisplay', () => {
       const d = adjustmentDisplay(m, std);
       expect(adjustmentToMinutes(d.value, d.unit, std)).toBe(m);
     }
+  });
+});
+
+/**
+ * A half-day leave used to render byte-identical to a full-day one on four
+ * surfaces — the employee's own /liff/leave/[id], the admin LIFF inbox, the
+ * admin dashboard's pending list, and the admin.leave-submitted LINE push —
+ * because each showed only "type • date range". The distinguishing suffix
+ * lived in two private copies (an inline JSX one in /liff/leave, and a
+ * Thai-hardcoded partialSuffixTh in the admin calendar); these are the shared,
+ * tested versions those surfaces use instead of a third and fourth copy.
+ */
+describe('partialUnitSuffix', () => {
+  const labels = { HalfMorning: 'Half morning', HalfAfternoon: 'Half afternoon', Hourly: 'Hourly' };
+
+  it('is empty for a full day — the date range already says everything', () => {
+    expect(partialUnitSuffix('FullDay', null, null, labels)).toBe('');
+  });
+
+  it('names the half a half-day leave falls in', () => {
+    expect(partialUnitSuffix('HalfMorning', '09:00', '12:00', labels)).toBe(' · Half morning');
+    expect(partialUnitSuffix('HalfAfternoon', '13:00', '17:00', labels)).toBe(' · Half afternoon');
+  });
+
+  it('shows the actual window for an hourly leave', () => {
+    expect(partialUnitSuffix('Hourly', '09:00', '10:30', labels)).toBe(' · 09:00–10:30');
+  });
+
+  it('falls back to the unit name when an hourly leave has no stored times', () => {
+    expect(partialUnitSuffix('Hourly', null, null, labels)).toBe(' · Hourly');
+    expect(partialUnitSuffix('Hourly', '09:00', null, labels)).toBe(' · Hourly');
+  });
+
+  it('ignores stored times on a half-day unit — the label is the point', () => {
+    // Half-day times are derived from LeaveConfig, not chosen by the employee,
+    // so echoing them adds noise and would drift if the config ever changed.
+    expect(partialUnitSuffix('HalfMorning', '08:00', '11:00', labels)).toBe(' · Half morning');
+  });
+});
+
+describe('partialUnitSuffixTh', () => {
+  it('renders the Thai labels the untranslated admin UI expects', () => {
+    expect(partialUnitSuffixTh('FullDay', null, null)).toBe('');
+    expect(partialUnitSuffixTh('HalfMorning', null, null)).toBe(' · ครึ่งเช้า');
+    expect(partialUnitSuffixTh('HalfAfternoon', null, null)).toBe(' · ครึ่งบ่าย');
+    expect(partialUnitSuffixTh('Hourly', '09:00', '10:30')).toBe(' · 09:00–10:30');
+    expect(partialUnitSuffixTh('Hourly', null, null)).toBe(' · รายชั่วโมง');
   });
 });
