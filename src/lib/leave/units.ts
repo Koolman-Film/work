@@ -192,6 +192,68 @@ export function leaveDurationLabel(
   return formatDaysHours(seg.minutes * workingDays, cfg);
 }
 
+export type LeaveUnitLabels = {
+  HalfMorning: string;
+  HalfAfternoon: string;
+  Hourly: string;
+};
+
+/**
+ * The " · ครึ่งบ่าย" / " · 09:00–10:30" suffix that tells a partial-day leave
+ * apart from a full-day one, or "" for FullDay.
+ *
+ * Exists because three surfaces rendered a leave as "type • date range" and
+ * nothing else, so a half-afternoon request was byte-identical to a whole day
+ * off: the employee's own /liff/leave/[id], the admin LIFF inbox, and the admin
+ * dashboard's pending list. Two private copies of this logic already existed
+ * when the third was needed, so it lives here now.
+ *
+ * The admin.leave-submitted LINE push omits the duration too, but has had no
+ * producer since the per-event fan-out became the 08:30 digest (events.ts), so
+ * it is deliberately left alone rather than fixed blind.
+ *
+ * Takes resolved labels rather than a translator, same as `formatDurationParts`
+ * — this module is pure, and the admin UI is deliberately untranslated while
+ * worker-facing surfaces are locale-aware (see `formatDaysHours`).
+ *
+ * Half-day times come from LeaveConfig rather than from the employee, so the
+ * label is shown instead of the window; echoing derived times would add noise
+ * and drift the day the config changed. Hourly times ARE the employee's choice,
+ * so those are shown, falling back to the unit name if either is missing.
+ */
+export function partialUnitSuffix(
+  unit: LeaveUnit,
+  startTime: string | null | undefined,
+  endTime: string | null | undefined,
+  labels: LeaveUnitLabels,
+): string {
+  switch (unit) {
+    case 'FullDay':
+      return '';
+    case 'HalfMorning':
+      return ` · ${labels.HalfMorning}`;
+    case 'HalfAfternoon':
+      return ` · ${labels.HalfAfternoon}`;
+    case 'Hourly':
+      return startTime && endTime ? ` · ${startTime}–${endTime}` : ` · ${labels.Hourly}`;
+  }
+}
+
+const THAI_UNIT_NAMES: LeaveUnitLabels = {
+  HalfMorning: 'ครึ่งเช้า',
+  HalfAfternoon: 'ครึ่งบ่าย',
+  Hourly: 'รายชั่วโมง',
+};
+
+/** Thai-only variant for the untranslated admin UI — mirrors `formatDaysHours`. */
+export function partialUnitSuffixTh(
+  unit: LeaveUnit,
+  startTime: string | null | undefined,
+  endTime: string | null | undefined,
+): string {
+  return partialUnitSuffix(unit, startTime, endTime, THAI_UNIT_NAMES);
+}
+
 /**
  * Half-open [start, end) overlap test for two same-date segments. A null
  * start/end means "whole day", which overlaps everything.

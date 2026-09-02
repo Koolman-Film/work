@@ -18,6 +18,7 @@ import { prisma } from '@/lib/db/prisma';
 import type { Locale } from '@/lib/i18n/config';
 import { formatDate, formatTime } from '@/lib/i18n/format';
 import { localizedLeaveTypeName } from '@/lib/leave/localized-name';
+import { partialUnitSuffix } from '@/lib/leave/units';
 import { resolveStoredImageUrl } from '@/lib/storage/signed-urls';
 import { LeaveDetailActions } from './leave-detail-actions';
 
@@ -49,6 +50,11 @@ export default async function LeaveDetailPage({ params }: { params: Params }) {
         leaveType: { select: { name: true, nameByLocale: true, isPaid: true } },
         startDate: true,
         endDate: true,
+        // Without these a half-day request renders byte-identical to a whole
+        // day off: both are "from 5 Sep to 5 Sep".
+        unit: true,
+        startTime: true,
+        endTime: true,
         reason: true,
         status: true,
         reviewNote: true,
@@ -88,6 +94,18 @@ export default async function LeaveDetailPage({ params }: { params: Params }) {
       <section className="space-y-1 rounded-2xl border border-line bg-surface p-6 shadow-sm">
         <DataRow label={t('detail.field.type')}>
           {localizedLeaveTypeName(row.leaveType.name, row.leaveType.nameByLocale, locale as Locale)}
+          {/* Same chip the /liff/leave list shows, so a request reads the same
+              in the list and here. A full day adds no node at all — the
+              from/to rows below already say everything about it. */}
+          {row.unit !== 'FullDay' && (
+            <span className="text-ink-3">
+              {partialUnitSuffix(row.unit, row.startTime, row.endTime, {
+                HalfMorning: t('new.unit.HalfMorning'),
+                HalfAfternoon: t('new.unit.HalfAfternoon'),
+                Hourly: t('new.unit.Hourly'),
+              })}
+            </span>
+          )}
           {!row.leaveType.isPaid && (
             <span className="ml-2 text-xs text-ink-3">{t('detail.unpaid')}</span>
           )}

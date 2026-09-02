@@ -79,6 +79,10 @@ export async function loadDashboardStats(args: {
         createdAt: true,
         startDate: true,
         endDate: true,
+        // Half-day requests read as whole days off without these.
+        unit: true,
+        startTime: true,
+        endTime: true,
         leaveType: { select: { name: true } },
         employee: { select: { firstName: true, lastName: true, nickname: true } },
       },
