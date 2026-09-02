@@ -202,12 +202,15 @@ export type LeaveUnitLabels = {
  * The " · ครึ่งบ่าย" / " · 09:00–10:30" suffix that tells a partial-day leave
  * apart from a full-day one, or "" for FullDay.
  *
- * Exists because four surfaces rendered a leave as "type • date range" and
+ * Exists because three surfaces rendered a leave as "type • date range" and
  * nothing else, so a half-afternoon request was byte-identical to a whole day
- * off: the employee's own /liff/leave/[id], the admin LIFF inbox, the admin
- * dashboard's pending list, and the admin.leave-submitted LINE push. Two
- * private copies of this logic already existed when the third was needed, so it
- * lives here now.
+ * off: the employee's own /liff/leave/[id], the admin LIFF inbox, and the admin
+ * dashboard's pending list. Two private copies of this logic already existed
+ * when the third was needed, so it lives here now.
+ *
+ * The admin.leave-submitted LINE push omits the duration too, but has had no
+ * producer since the per-event fan-out became the 08:30 digest (events.ts), so
+ * it is deliberately left alone rather than fixed blind.
  *
  * Takes resolved labels rather than a translator, same as `formatDurationParts`
  * — this module is pure, and the admin UI is deliberately untranslated while

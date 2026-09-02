@@ -220,10 +220,10 @@ describe('adjustmentDisplay', () => {
 });
 
 /**
- * A half-day leave used to render byte-identical to a full-day one on four
- * surfaces — the employee's own /liff/leave/[id], the admin LIFF inbox, the
- * admin dashboard's pending list, and the admin.leave-submitted LINE push —
- * because each showed only "type • date range". The distinguishing suffix
+ * A half-day leave used to render byte-identical to a full-day one on three
+ * surfaces — the employee's own /liff/leave/[id], the admin LIFF inbox, and the
+ * admin dashboard's pending list — because each showed only "type • date
+ * range". The distinguishing suffix
  * lived in two private copies (an inline JSX one in /liff/leave, and a
  * Thai-hardcoded partialSuffixTh in the admin calendar); these are the shared,
  * tested versions those surfaces use instead of a third and fourth copy.

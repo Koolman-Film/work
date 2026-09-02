@@ -95,14 +95,17 @@ export default async function LeaveDetailPage({ params }: { params: Params }) {
         <DataRow label={t('detail.field.type')}>
           {localizedLeaveTypeName(row.leaveType.name, row.leaveType.nameByLocale, locale as Locale)}
           {/* Same chip the /liff/leave list shows, so a request reads the same
-              in the list and here. Empty for FullDay. */}
-          <span className="text-ink-3">
-            {partialUnitSuffix(row.unit, row.startTime, row.endTime, {
-              HalfMorning: t('new.unit.HalfMorning'),
-              HalfAfternoon: t('new.unit.HalfAfternoon'),
-              Hourly: t('new.unit.Hourly'),
-            })}
-          </span>
+              in the list and here. A full day adds no node at all — the
+              from/to rows below already say everything about it. */}
+          {row.unit !== 'FullDay' && (
+            <span className="text-ink-3">
+              {partialUnitSuffix(row.unit, row.startTime, row.endTime, {
+                HalfMorning: t('new.unit.HalfMorning'),
+                HalfAfternoon: t('new.unit.HalfAfternoon'),
+                Hourly: t('new.unit.Hourly'),
+              })}
+            </span>
+          )}
           {!row.leaveType.isPaid && (
             <span className="ml-2 text-xs text-ink-3">{t('detail.unpaid')}</span>
           )}

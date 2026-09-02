@@ -133,13 +133,15 @@ export default async function LiffLeaveListPage({
                           r.leaveType.nameByLocale,
                           locale as Locale,
                         )}
-                        <span className="font-normal text-ink-3">
-                          {partialUnitSuffix(r.unit, r.startTime, r.endTime, {
-                            HalfMorning: t('new.unit.HalfMorning'),
-                            HalfAfternoon: t('new.unit.HalfAfternoon'),
-                            Hourly: t('new.unit.Hourly'),
-                          })}
-                        </span>
+                        {r.unit !== 'FullDay' && (
+                          <span className="font-normal text-ink-3">
+                            {partialUnitSuffix(r.unit, r.startTime, r.endTime, {
+                              HalfMorning: t('new.unit.HalfMorning'),
+                              HalfAfternoon: t('new.unit.HalfAfternoon'),
+                              Hourly: t('new.unit.Hourly'),
+                            })}
+                          </span>
+                        )}
                       </p>
                       <p className="mt-1 text-xs text-ink-2">
                         {formatRange(r.startDate, r.endDate, locale as Locale)}
