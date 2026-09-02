@@ -3,6 +3,7 @@ import 'server-only';
 import { prisma } from '@/lib/db/prisma';
 import { standardDayMinutes } from '@/lib/leave/units';
 import { expandHolidaysWithSubstitutes } from '@/lib/leave/working-days';
+import { isPayrollChargeableSalaryType } from '@/lib/payroll/calc';
 import { payrollMonthWindowYmd } from '@/lib/payroll/period';
 import { type BreakWindow, deriveAbsentMinutes, scheduledWorkMinutes } from './derive-absence';
 import { isScheduledWorkday } from './schedule';
@@ -29,6 +30,8 @@ export type AbsencePreview = {
   standardDayMinutes: number;
   absentDeductionPerDay: number;
   skippedNoSchedule: number;
+  /** Employees payroll refuses to process at all — see the filter below. */
+  skippedNotChargeable: number;
 };
 
 const ymd = (d: Date) => d.toISOString().slice(0, 10);
@@ -81,6 +84,7 @@ export async function previewAbsences(month: string): Promise<AbsencePreview> {
         lastName: true,
         nickname: true,
         baseSalary: true,
+        salaryType: true,
         workScheduleId: true,
         workSchedule: {
           select: { days: { select: { dayOfWeek: true, startTime: true, endTime: true } } },
@@ -135,8 +139,19 @@ export async function previewAbsences(month: string): Promise<AbsencePreview> {
 
   const rows: AbsencePreviewRow[] = [];
   let skippedNoSchedule = 0;
+  let skippedNotChargeable = 0;
 
   for (const emp of employees) {
+    // calcPayroll THROWS for any non-Monthly employee (PayrollCalcError, see
+    // calc.ts), so a derived absence for one could never become a deduction.
+    // Showing it would raise alarm about money that cannot move, and their
+    // baseSalary is a day/hour RATE, so the salary column would mislead too.
+    // Reusing payroll's own exported predicate rather than testing 'Monthly'
+    // here, so the two can never disagree about who is in scope.
+    if (!isPayrollChargeableSalaryType(emp.salaryType)) {
+      skippedNotChargeable++;
+      continue;
+    }
     // Guard #2 from the design: with no schedule the system assumes Mon–Sat, so
     // deriving would charge a day's pay for every real day off. Refuse instead.
     if (!emp.workScheduleId || !emp.workSchedule) {
@@ -196,5 +211,6 @@ export async function previewAbsences(month: string): Promise<AbsencePreview> {
     standardDayMinutes: std,
     absentDeductionPerDay: Number(payCfg.absentDeductionPerDay),
     skippedNoSchedule,
+    skippedNotChargeable,
   };
 }

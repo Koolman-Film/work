@@ -236,6 +236,34 @@ describe('previewAbsences', () => {
     expect(row?.days.some((d) => d.date === '2026-06-01')).toBe(false);
   });
 
+  it('skips Daily/Hourly employees — payroll refuses to process them at all', async () => {
+    // calcPayroll throws PayrollCalcError for any non-Monthly salaryType, so a
+    // derived absence for one could never become a deduction. Showing it raises
+    // alarm about money that cannot move, and their baseSalary is a RATE, so the
+    // salary column would mislead too. Caught by looking at the rendered page:
+    // two of its three rows were Daily employees.
+    const schedule = await prisma.workSchedule.create({
+      data: {
+        name: 'it-daily',
+        days: {
+          create: [1, 2, 3, 4, 5].map((dayOfWeek) => ({
+            dayOfWeek,
+            startTime: '09:00',
+            endTime: '17:00',
+          })),
+        },
+      },
+    });
+    const { employee } = await makeEmployee(schedule.id);
+    await prisma.employee.update({
+      where: { id: employee.id },
+      data: { salaryType: 'Daily', baseSalary: new Prisma.Decimal(600) },
+    });
+    const preview = await previewAbsences(MONTH);
+    expect(preview.rows.some((r) => r.employeeId === employee.id)).toBe(false);
+    expect(preview.skippedNotChargeable).toBeGreaterThanOrEqual(1);
+  });
+
   it('writes nothing — the Attendance table is unchanged by a preview', async () => {
     const { employee } = await seed();
     const before = await prisma.attendance.count();

@@ -61,6 +61,11 @@ export default async function AbsencePreviewPage({
           {preview.skippedNoSchedule > 0 && (
             <li>ข้ามพนักงาน {preview.skippedNoSchedule} คนที่ยังไม่ได้กำหนดตารางงาน — ระบบจะไม่เดาให้</li>
           )}
+          {preview.skippedNotChargeable > 0 && (
+            <li>
+              ข้ามพนักงานรายวัน/รายชั่วโมง {preview.skippedNotChargeable} คน — ระบบเงินเดือนไม่คิดหักกลุ่มนี้อยู่แล้ว
+            </li>
+          )}
         </ul>
       </div>
 
