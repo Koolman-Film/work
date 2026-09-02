@@ -24,9 +24,12 @@
 
 import { Prisma } from '@prisma/client';
 import { bangkokDateUtcMidnight } from '@/lib/attendance/date';
+import { deriveAbsentMinutes, scheduledWorkMinutes } from '@/lib/attendance/derive-absence';
+import { isScheduledWorkday } from '@/lib/attendance/schedule';
 import { prisma } from '@/lib/db/prisma';
 import { capLeaveCollection, monthlyLeaveCap } from '@/lib/leave/collection-cap';
 import { computeLiveLeaveCharges } from '@/lib/leave/recompute';
+import { expandHolidaysWithSubstitutes } from '@/lib/leave/working-days';
 import { invalidatePayslipPdf } from '@/lib/payslip/storage';
 import { adjustmentAppliesToMonth } from './adjustments';
 import {
@@ -107,11 +110,19 @@ async function gatherAndCalc(db: Tx | typeof prisma, month: string, employeeId?:
       baseSalary: true,
       hasSso: true,
       allowanceAmount: true,
+      // For derived absence: never before they were hired, and never for an
+      // employee with no schedule (assuming Mon-Sat would charge a day's pay for
+      // every real day off).
+      hiredAt: true,
+      workScheduleId: true,
+      workSchedule: {
+        select: { days: { select: { dayOfWeek: true, startTime: true, endTime: true } } },
+      },
     },
   });
   const empIds = employees.map((e) => e.id);
 
-  const [attendances, advances, recurring, leaveRanges, adjustments] = await Promise.all([
+  const [attendances, advances, recurring, leaveRanges, adjustments, holidays] = await Promise.all([
     db.attendance.findMany({
       where: { employeeId: { in: empIds }, date: { gte: start, lte: end }, deletedAt: null },
       select: { employeeId: true, date: true, type: true, durationMinutes: true },
@@ -158,6 +169,7 @@ async function gatherAndCalc(db: Tx | typeof prisma, month: string, employeeId?:
         endMonth: true,
       },
     }),
+    db.holiday.findMany({ where: { archivedAt: null }, select: { date: true } }),
   ]);
 
   const byEmp = <T extends { employeeId: string }>(rows: T[]) => {
@@ -252,6 +264,73 @@ async function gatherAndCalc(db: Tx | typeof prisma, month: string, employeeId?:
     }
   }
 
+  // ── Derived absence ──────────────────────────────────────────────────────
+  // Days the employee was scheduled, did not check in, had no approved leave,
+  // and no admin keyed an Absent row for. Whole days only (see
+  // deriveAbsentMinutes). OFF entirely when config.absenceDerivedFrom is null,
+  // which is its state until someone deliberately sets it — so this block is a
+  // no-op for every existing installation.
+  const derivedAbsentByEmp = new Map<string, number>();
+  if (config.absenceDerivedFrom) {
+    const holidaySet = new Set(
+      expandHolidaysWithSubstitutes(holidays.map((h) => h.date)).map((d) =>
+        d.toISOString().slice(0, 10),
+      ),
+    );
+    const leaveCfg = (await db.leaveConfig.findFirst()) ?? {
+      morningStart: '09:00',
+      morningEnd: '12:00',
+      afternoonStart: '13:00',
+      afternoonEnd: '17:00',
+    };
+    // A schedule window is wall-clock and includes the unpaid break; a leave day
+    // excludes it. Removing it here keeps the two on one basis.
+    const brk =
+      leaveCfg.afternoonStart > leaveCfg.morningEnd
+        ? { start: leaveCfg.morningEnd, end: leaveCfg.afternoonStart }
+        : null;
+    // Never derive a day that has not happened yet: the window runs to the
+    // cutoff, which for most of the month is in the future.
+    const todayYmd = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
+    const cutoffYmd = config.absenceDerivedFrom.toISOString().slice(0, 10);
+
+    for (const emp of employees) {
+      if (!emp.workScheduleId || !emp.workSchedule) continue; // never guess a schedule
+      const minutesByDow = new Map<number, number>(
+        emp.workSchedule.days.map((d) => [
+          d.dayOfWeek,
+          scheduledWorkMinutes(d.startTime, d.endTime, brk),
+        ]),
+      );
+      const dows = [...minutesByDow.keys()];
+      const leaveDates = leaveDatesByEmp.get(emp.id) ?? new Set<string>();
+      const keyed = new Set<string>();
+      const checked = new Set<string>();
+      for (const a of attByEmp.get(emp.id) ?? []) {
+        const ymdA = a.date.toISOString().slice(0, 10);
+        if (a.type === 'CheckIn') checked.add(ymdA);
+        else if (a.type === 'Absent') keyed.add(ymdA);
+      }
+
+      const hiredYmd = emp.hiredAt.toISOString().slice(0, 10);
+      let days = 0;
+      for (let t = start.getTime(); t <= end.getTime(); t += 86_400_000) {
+        const d = new Date(t);
+        const ymdD = d.toISOString().slice(0, 10);
+        if (ymdD < cutoffYmd || ymdD < hiredYmd || ymdD > todayYmd) continue;
+        const minutes = deriveAbsentMinutes({
+          scheduledMinutes: minutesByDow.get(d.getUTCDay()) ?? 0,
+          leaveMinutes: leaveDates.has(ymdD) ? 1 : 0, // any leave exempts the day
+          hasCheckIn: checked.has(ymdD),
+          hasManualAbsent: keyed.has(ymdD),
+          isWorkday: isScheduledWorkday(dows, d.getUTCDay(), holidaySet.has(ymdD)),
+        });
+        if (minutes > 0) days++;
+      }
+      if (days > 0) derivedAbsentByEmp.set(emp.id, days);
+    }
+  }
+
   // What each employee's Absent/LateThreeStrike/SevereLate penalties were
   // settled with this month (read-only — see penalty-settlement-load.ts).
   // Loaded once for the whole run, then looked up per employee below. Kept on
@@ -307,6 +386,7 @@ async function gatherAndCalc(db: Tx | typeof prisma, month: string, employeeId?:
         })),
         leaveDeductions: empSweep.map((l) => ({ amount: l.deduct.toString() })),
         leaveDates: [...(leaveDatesByEmp.get(emp.id) ?? [])],
+        derivedAbsentDays: derivedAbsentByEmp.get(emp.id) ?? 0,
         penaltySettlement: settlements.get(emp.id)?.days,
         adjustments: empAdjustments.map(
           (a): AdjustmentForPayroll => ({ kind: a.kind, amount: a.amount.toString() }),

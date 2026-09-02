@@ -188,6 +188,18 @@ export type CalcInput = {
    */
   penaltySettlement?: SettlementDays;
   /**
+   * Whole days of absence DERIVED from the work schedule: a scheduled day with
+   * no check-in, no approved leave, and no keyed `Absent` row, on or after
+   * `PayrollConfig.absenceDerivedFrom`. Omit → 0, which is the pre-feature
+   * behaviour and what every caller did before this existed.
+   *
+   * Whole days by construction (see `deriveAbsentMinutes`): a fractional value
+   * would have to flow through `actualDaysFromAttendance` and the
+   * `publishPayroll` settled-vs-actual guard, so it is truncated here rather
+   * than trusted.
+   */
+  derivedAbsentDays?: number;
+  /**
    * Earnings/deductions applicable to this month. Omit for none — both
    * incomeOther and deductOther will be 0.
    */
@@ -214,7 +226,7 @@ export type CalcBreakdown = {
     applied: Decimal;
   };
   attendance: {
-    absent: { count: number; perDay: Decimal; money: Decimal };
+    absent: { count: number; derivedDays: number; perDay: Decimal; money: Decimal };
     lateTier1: {
       mode: 'threeStrike' | 'flat';
       count: number;
@@ -446,6 +458,14 @@ export function calcPayroll(input: CalcInput): PayrollDraft {
   }
   const lateCount = lateRows.length;
 
+  // Derived days are ADDED to the keyed ones. They can never overlap: the
+  // derivation skips any date that already carries a manual `Absent` row, so the
+  // admin's explicit statement and the inference never charge the same day.
+  // Clamped and truncated rather than trusted — a negative would pay somebody,
+  // and a fraction would reach the settlement guard.
+  const derivedAbsentDays = Math.max(0, Math.trunc(input.derivedAbsentDays ?? 0));
+  absentCount += derivedAbsentDays;
+
   const cfg = input.config;
   const latePolicy: LatePolicyConfig = {
     threeStrikeEnabled: cfg.lateThreeStrikeEnabled ?? false,
@@ -512,6 +532,7 @@ export function calcPayroll(input: CalcInput): PayrollDraft {
     attendance: {
       absent: {
         count: absentCount,
+        derivedDays: derivedAbsentDays,
         perDay: dayAmount,
         money: dayAmount.times(absentMoneyDays).toDecimalPlaces(2),
       },
