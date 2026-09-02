@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { type AbsenceDayInput, deriveAbsentMinutes } from './derive-absence';
+import { type AbsenceDayInput, deriveAbsentMinutes, scheduledWorkMinutes } from './derive-absence';
 
 const day = (o: Partial<AbsenceDayInput> = {}): AbsenceDayInput => ({
   scheduledMinutes: 480,
@@ -49,5 +49,43 @@ describe('deriveAbsentMinutes', () => {
 
   it('derives nothing when the day has no scheduled minutes', () => {
     expect(deriveAbsentMinutes(day({ scheduledMinutes: 0 }))).toBe(0);
+  });
+});
+
+/**
+ * A WorkScheduleDay window and a LeaveConfig day measure different things:
+ * production's schedule is 09:00–18:00 (540 min, lunch included) while its
+ * standard leave day is 480 min (09:00–12:00 + 13:00–18:00, lunch excluded).
+ * Subtracting one from the other leaves a phantom 60-minute absence for every
+ * full day of leave anyone takes — visible on 8 employees in the first
+ * production preview. Both sides must be measured on the same basis.
+ */
+describe('scheduledWorkMinutes', () => {
+  const BREAK = { start: '12:00', end: '13:00' };
+
+  it("removes the unpaid break so a schedule day matches a leave day's basis", () => {
+    // Production's real shape: 09:00–18:00 minus the 12:00–13:00 break = 480,
+    // exactly the LeaveConfig standard day a full-day leave records.
+    expect(scheduledWorkMinutes('09:00', '18:00', BREAK)).toBe(480);
+  });
+
+  it('subtracts only the overlap for a shift ending inside the break', () => {
+    expect(scheduledWorkMinutes('09:00', '12:30', BREAK)).toBe(180);
+  });
+
+  it('subtracts nothing from a morning-only shift that never reaches the break', () => {
+    expect(scheduledWorkMinutes('09:00', '12:00', BREAK)).toBe(180);
+  });
+
+  it('subtracts nothing from an afternoon-only shift that starts after the break', () => {
+    expect(scheduledWorkMinutes('13:00', '18:00', BREAK)).toBe(300);
+  });
+
+  it('subtracts nothing when no break is configured', () => {
+    expect(scheduledWorkMinutes('09:00', '18:00', null)).toBe(540);
+  });
+
+  it('never returns negative for a shift wholly inside the break', () => {
+    expect(scheduledWorkMinutes('12:10', '12:40', BREAK)).toBe(0);
   });
 });

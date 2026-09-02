@@ -1,10 +1,10 @@
 import 'server-only';
 
 import { prisma } from '@/lib/db/prisma';
-import { standardDayMinutes, windowMinutes } from '@/lib/leave/units';
+import { standardDayMinutes } from '@/lib/leave/units';
 import { expandHolidaysWithSubstitutes } from '@/lib/leave/working-days';
 import { payrollMonthWindowYmd } from '@/lib/payroll/period';
-import { deriveAbsentMinutes } from './derive-absence';
+import { type BreakWindow, deriveAbsentMinutes, scheduledWorkMinutes } from './derive-absence';
 import { isScheduledWorkday } from './schedule';
 
 export type AbsencePreviewDay = { date: string; minutes: number };
@@ -48,17 +48,29 @@ export async function previewAbsences(month: string): Promise<AbsencePreview> {
     }),
     prisma.leaveConfig.findFirst(),
   ]);
-  const std = standardDayMinutes(
-    leaveCfg ?? {
-      morningStart: '09:00',
-      morningEnd: '12:00',
-      afternoonStart: '13:00',
-      afternoonEnd: '17:00',
-    },
-  );
+  const cfg = leaveCfg ?? {
+    morningStart: '09:00',
+    morningEnd: '12:00',
+    afternoonStart: '13:00',
+    afternoonEnd: '17:00',
+  };
+  const std = standardDayMinutes(cfg);
+  // The unpaid gap between the two leave windows. A WorkScheduleDay window is
+  // wall-clock and includes it; a leave day does not. Without removing it every
+  // full day of leave leaves a phantom absence — see scheduledWorkMinutes.
+  const brk: BreakWindow | null =
+    cfg.afternoonStart > cfg.morningEnd ? { start: cfg.morningEnd, end: cfg.afternoonStart } : null;
   const { from, to } = payrollMonthWindowYmd(month, payCfg.cutoffDay);
+  // Never derive a date that has not happened yet. The CURRENT month's window
+  // runs to its cutoff, which for most of the month is in the future — and a
+  // future workday has no check-in for the obvious reason, so iterating the
+  // whole window would derive every remaining day as a full absence for every
+  // employee. That is the default view of this page, so the clamp is not an
+  // edge case. Bangkok, because that is the day the workforce is living in.
+  const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
+  const effectiveTo = to < today ? to : today;
   const start = new Date(`${from}T00:00:00.000Z`);
-  const end = new Date(`${to}T00:00:00.000Z`);
+  const end = new Date(`${effectiveTo}T00:00:00.000Z`);
 
   const [employees, attendance, holidays] = await Promise.all([
     prisma.employee.findMany({
@@ -132,7 +144,10 @@ export async function previewAbsences(month: string): Promise<AbsencePreview> {
       continue;
     }
     const minutesByDow = new Map<number, number>(
-      emp.workSchedule.days.map((d) => [d.dayOfWeek, windowMinutes(d.startTime, d.endTime)]),
+      emp.workSchedule.days.map((d) => [
+        d.dayOfWeek,
+        scheduledWorkMinutes(d.startTime, d.endTime, brk),
+      ]),
     );
     const dows = [...minutesByDow.keys()];
 
@@ -172,7 +187,11 @@ export async function previewAbsences(month: string): Promise<AbsencePreview> {
   return {
     month,
     from,
-    to,
+    // What was actually examined, not what the cutoff window spans — the page
+    // says "งวด {from} – {to}", and claiming a range it did not inspect would
+    // read as "nobody was absent after the 2nd" rather than "we have not looked
+    // yet".
+    to: effectiveTo,
     rows,
     standardDayMinutes: std,
     absentDeductionPerDay: Number(payCfg.absentDeductionPerDay),

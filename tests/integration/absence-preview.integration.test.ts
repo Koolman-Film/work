@@ -85,9 +85,13 @@ describe('previewAbsences', () => {
   it('derives a full scheduled day when there is no check-in and no leave', async () => {
     const { employee } = await seed();
     // 2026-06-01 is a Monday, inside the 2026-06 window (27 May – 26 Jun).
+    // 420, not the 480 wall-clock span: the seeded schedule is 09:00-17:00 and
+    // the default LeaveConfig break is 12:00-13:00, so a full scheduled day is
+    // 7 paid hours — which is also exactly standardDayMinutes for that config.
+    // The schedule and leave sides are measured on the same basis by design.
     const preview = await previewAbsences(MONTH);
     const row = preview.rows.find((r) => r.employeeId === employee.id);
-    expect(row?.days.some((d) => d.date === '2026-06-01' && d.minutes === 480)).toBe(true);
+    expect(row?.days.some((d) => d.date === '2026-06-01' && d.minutes === 420)).toBe(true);
   });
 
   it('derives nothing for a date the employee checked in', async () => {
@@ -156,7 +160,8 @@ describe('previewAbsences', () => {
     });
     const preview = await previewAbsences(MONTH);
     const row = preview.rows.find((r) => r.employeeId === employee.id);
-    expect(row?.days.find((d) => d.date === '2026-06-01')?.minutes).toBe(300);
+    // 420 paid minutes in the day, 180 covered by leave.
+    expect(row?.days.find((d) => d.date === '2026-06-01')?.minutes).toBe(240);
   });
 
   it('derives nothing on a holiday', async () => {
@@ -174,6 +179,61 @@ describe('previewAbsences', () => {
     const preview = await previewAbsences(MONTH);
     expect(preview.rows.some((r) => r.employeeId === noSchedule.id)).toBe(false);
     expect(preview.skippedNoSchedule).toBeGreaterThanOrEqual(1);
+  });
+
+  it('never derives a date in the future — nobody can have checked in yet', async () => {
+    // The current payroll month's window runs to the cutoff, which for most of
+    // the month is in the FUTURE. Iterating it whole would derive every
+    // remaining workday as a full absence for every employee, which is the
+    // default view of this page. Use a month whose window straddles today.
+    const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
+    const thisMonth = today.slice(0, 7);
+    await seed();
+    const preview = await previewAbsences(thisMonth);
+    const derived = preview.rows.flatMap((r) => r.days.map((d) => d.date));
+    expect(derived.every((d) => d <= today)).toBe(true);
+  });
+
+  it('does not invent an absence from the schedule/leave basis mismatch', async () => {
+    // Production's exact shape: a 09:00-18:00 schedule (540 wall-clock minutes)
+    // against a full-day leave recorded as the 480-minute LeaveConfig standard
+    // day. Naively subtracting leaves a phantom 60-minute absence for EVERY full
+    // day of leave anyone takes — it showed up on 8 employees in the first real
+    // preview. The unpaid break has to come off the schedule side first.
+    const schedule = await prisma.workSchedule.create({
+      data: {
+        name: 'it-0900-1800',
+        days: {
+          create: [1, 2, 3, 4, 5].map((dayOfWeek) => ({
+            dayOfWeek,
+            startTime: '09:00',
+            endTime: '18:00',
+          })),
+        },
+      },
+    });
+    const { employee, userId } = await makeEmployee(schedule.id);
+    await prisma.leaveConfig.updateMany({
+      data: {
+        morningStart: '09:00',
+        morningEnd: '12:00',
+        afternoonStart: '13:00',
+        afternoonEnd: '18:00',
+      },
+    });
+    await prisma.attendance.create({
+      data: {
+        employeeId: employee.id,
+        date: new Date('2026-06-01'),
+        type: 'OnLeave',
+        source: 'Manual',
+        createdById: userId,
+        durationMinutes: 480,
+      },
+    });
+    const preview = await previewAbsences(MONTH);
+    const row = preview.rows.find((r) => r.employeeId === employee.id);
+    expect(row?.days.some((d) => d.date === '2026-06-01')).toBe(false);
   });
 
   it('writes nothing — the Attendance table is unchanged by a preview', async () => {
