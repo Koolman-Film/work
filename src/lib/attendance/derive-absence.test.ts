@@ -23,24 +23,31 @@ describe('deriveAbsentMinutes', () => {
     expect(deriveAbsentMinutes(day({ isWorkday: false }))).toBe(0);
   });
 
-  it('derives only the uncovered part when a half-day leave covers the rest', () => {
-    expect(deriveAbsentMinutes(day({ leaveMinutes: 180 }))).toBe(300);
-  });
-
-  it('derives nothing when leave covers the whole scheduled day', () => {
+  it('derives NOTHING when any approved leave touches the day', () => {
+    // Revised 2026-09-02 against production data: the partial-leave-plus-no-show
+    // case happens about once every four months (one instance in four months of
+    // records). Charging it fractionally would make absentCount fractional,
+    // which must then flow through actualDaysFromAttendance and the
+    // publishPayroll settled-vs-actual guard or that guard misfires — the path
+    // the penalty-settlement race tests protect. Not worth it for one case.
+    expect(deriveAbsentMinutes(day({ leaveMinutes: 180 }))).toBe(0);
     expect(deriveAbsentMinutes(day({ leaveMinutes: 480 }))).toBe(0);
-  });
-
-  it('clamps to zero when leave exceeds the scheduled day', () => {
     expect(deriveAbsentMinutes(day({ leaveMinutes: 600 }))).toBe(0);
+    // Even a single minute exempts the day. Under-charging is the safe
+    // direction, and leave needs admin approval so it is not freely gameable.
+    expect(deriveAbsentMinutes(day({ leaveMinutes: 1 }))).toBe(0);
   });
 
-  it('treats UNKNOWN leave duration as fully covered, never as uncovered', () => {
+  it('treats UNKNOWN leave duration as covered, never as uncovered', () => {
     // Production: 14 OnLeave rows have a null durationMinutes and every one is
-    // อีฟ's approved maternity leave. Reading null as "0 minutes of leave"
-    // would derive ~30 absent days against her. Under-deriving is recoverable;
-    // deducting a month of maternity pay is not.
+    // อีฟ's approved maternity leave. Reading null as "no leave" would derive
+    // ~30 absent days against her. Under-deriving is recoverable; deducting a
+    // month of maternity pay is not.
     expect(deriveAbsentMinutes(day({ leaveMinutes: null }))).toBe(0);
+  });
+
+  it('derives the whole scheduled day when there is no leave at all', () => {
+    expect(deriveAbsentMinutes(day({ leaveMinutes: 0 }))).toBe(480);
   });
 
   it('yields to an admin-keyed manual Absent row rather than double-counting it', () => {

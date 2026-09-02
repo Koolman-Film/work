@@ -17,8 +17,9 @@ export type AbsenceDayInput = {
   /** Minutes the employee's WorkSchedule says they work on this weekday. */
   scheduledMinutes: number;
   /**
-   * Minutes of approved leave covering this date, or `null` when leave exists
-   * but its duration was never recorded. Null is NOT zero — see below.
+   * Minutes of approved leave on this date, or `null` when leave exists but its
+   * duration was never recorded. Only 0 means "no leave": any positive value,
+   * and null, exempt the whole day. Null is NOT zero — see below.
    */
   leaveMinutes: number | null;
   /** Any CheckIn row for the date: they turned up, so this is not an absence. */
@@ -35,14 +36,23 @@ export function deriveAbsentMinutes(input: AbsenceDayInput): number {
   // The admin's explicit statement wins over the inference, so the two can
   // never both charge for the same date.
   if (input.hasManualAbsent) return 0;
-  // Unknown leave duration counts as FULL coverage, deliberately. Production
-  // has 14 OnLeave rows with a null durationMinutes and all of them are one
-  // employee's approved maternity leave; reading null as "no leave" would
-  // derive her as absent for the whole of it. An under-derived day can still be
-  // keyed by hand — a wrongly deducted month of maternity pay cannot be undone
-  // as easily.
-  if (input.leaveMinutes === null) return 0;
-  return Math.max(0, input.scheduledMinutes - input.leaveMinutes);
+  // ANY approved leave on the day exempts the WHOLE day — this is deliberately
+  // not "the uncovered part". Charging a fraction would make payroll's
+  // absentCount fractional, and fractional days must then flow through
+  // actualDaysFromAttendance and the publishPayroll settled-vs-actual guard or
+  // that guard misfires. Production sees a partial-leave-plus-no-show day about
+  // once every four months (a single instance in four months of records), which
+  // does not justify disturbing the most delicate money path in the system.
+  //
+  // A null duration is covered by the same rule and for a second reason: all 14
+  // such rows in production are one employee's approved maternity leave, and
+  // reading null as "no leave" would derive her absent for the whole of it.
+  //
+  // Under-charging is the safe direction throughout: an under-derived day can
+  // still be keyed by hand, while a wrongly deducted month cannot be undone as
+  // easily once a payslip is published.
+  if (input.leaveMinutes === null || input.leaveMinutes > 0) return 0;
+  return Math.max(0, input.scheduledMinutes);
 }
 
 /** The unpaid gap between the morning and afternoon leave windows, "HH:MM". */

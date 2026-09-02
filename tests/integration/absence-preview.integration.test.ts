@@ -146,7 +146,7 @@ describe('previewAbsences', () => {
     expect(row?.days.some((d) => d.date === '2026-06-01')).toBe(false);
   });
 
-  it('derives only the uncovered part of a half-day leave', async () => {
+  it('derives nothing at all for a day with partial leave', async () => {
     const { employee, userId } = await seed();
     await prisma.attendance.create({
       data: {
@@ -160,8 +160,9 @@ describe('previewAbsences', () => {
     });
     const preview = await previewAbsences(MONTH);
     const row = preview.rows.find((r) => r.employeeId === employee.id);
-    // 420 paid minutes in the day, 180 covered by leave.
-    expect(row?.days.find((d) => d.date === '2026-06-01')?.minutes).toBe(240);
+    // Whole days only: any approved leave exempts the day rather than charging
+    // the uncovered part. See deriveAbsentMinutes for why.
+    expect(row?.days.some((d) => d.date === '2026-06-01')).toBe(false);
   });
 
   it('derives nothing on a holiday', async () => {
