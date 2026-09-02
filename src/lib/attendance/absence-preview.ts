@@ -85,6 +85,7 @@ export async function previewAbsences(month: string): Promise<AbsencePreview> {
         nickname: true,
         baseSalary: true,
         salaryType: true,
+        hiredAt: true,
         workScheduleId: true,
         workSchedule: {
           select: { days: { select: { dayOfWeek: true, startTime: true, endTime: true } } },
@@ -166,8 +167,16 @@ export async function previewAbsences(month: string): Promise<AbsencePreview> {
     );
     const dows = [...minutesByDow.keys()];
 
+    // Never derive a date before the employee existed. Found against production:
+    // viewing July showed two employees absent for 25 days (฿12,500 each) when
+    // they had been hired on 3 and 26 August — the whole window predated their
+    // employment, and for one of them that exceeded his entire ฿12,000 salary.
+    // There is no termination date on Employee; leavers are excluded by the
+    // status filter above instead.
+    const from = new Date(Math.max(start.getTime(), emp.hiredAt.getTime()));
+
     const days: AbsencePreviewDay[] = [];
-    for (let t = start.getTime(); t <= end.getTime(); t += 86_400_000) {
+    for (let t = from.getTime(); t <= end.getTime(); t += 86_400_000) {
       const d = new Date(t);
       const date = ymd(d);
       const dow = d.getUTCDay();
