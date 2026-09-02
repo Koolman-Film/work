@@ -264,6 +264,17 @@ describe('previewAbsences', () => {
     expect(preview.skippedNotChargeable).toBeGreaterThanOrEqual(1);
   });
 
+  it('returns nothing for a month that has not happened yet', async () => {
+    // Reachable from the URL: /admin/tools/absence-preview?m=2027-01. The whole
+    // window is in the future, so clamping to today leaves start > end. Prove it
+    // yields an empty result rather than iterating backwards or throwing.
+    await seed();
+    const future = new Date();
+    future.setUTCFullYear(future.getUTCFullYear() + 1);
+    const preview = await previewAbsences(future.toISOString().slice(0, 7));
+    expect(preview.rows).toEqual([]);
+  });
+
   it('writes nothing — the Attendance table is unchanged by a preview', async () => {
     const { employee } = await seed();
     const before = await prisma.attendance.count();
