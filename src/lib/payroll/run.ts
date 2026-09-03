@@ -326,7 +326,11 @@ async function gatherAndCalc(db: Tx | typeof prisma, month: string, employeeId?:
       for (let t = start.getTime(); t <= end.getTime(); t += 86_400_000) {
         const d = new Date(t);
         const ymdD = d.toISOString().slice(0, 10);
-        if (ymdD < cutoffYmd || ymdD < hiredYmd || ymdD > todayYmd) continue;
+        // `>=` today, not `>`: a day is only assessable once it is OVER. Until
+        // then "no check-in yet" is not absence — it is the morning. Found at
+        // 00:08 on 2026-09-04, when this derived an absence for 47 of 48
+        // employees because nobody had clocked in yet that day.
+        if (ymdD < cutoffYmd || ymdD < hiredYmd || ymdD >= todayYmd) continue;
         const minutes = deriveAbsentMinutes({
           scheduledMinutes: minutesByDow.get(d.getUTCDay()) ?? 0,
           leaveMinutes: leaveDates.has(ymdD) ? 1 : 0, // any leave exempts the day
