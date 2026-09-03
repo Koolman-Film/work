@@ -70,8 +70,14 @@ export async function previewAbsences(month: string): Promise<AbsencePreview> {
   // whole window would derive every remaining day as a full absence for every
   // employee. That is the default view of this page, so the clamp is not an
   // edge case. Bangkok, because that is the day the workforce is living in.
-  const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
-  const effectiveTo = to < today ? to : today;
+  // Yesterday, not today: a day is only assessable once it is OVER. Until then
+  // "no check-in yet" is not absence — it is the morning. Read at 00:08 on
+  // 2026-09-04 this page would otherwise have listed 47 of 48 employees as
+  // absent for a day they were about to work.
+  const yesterday = new Date(Date.now() - 86_400_000).toLocaleDateString('sv-SE', {
+    timeZone: 'Asia/Bangkok',
+  });
+  const effectiveTo = to < yesterday ? to : yesterday;
   const start = new Date(`${from}T00:00:00.000Z`);
   const end = new Date(`${effectiveTo}T00:00:00.000Z`);
 

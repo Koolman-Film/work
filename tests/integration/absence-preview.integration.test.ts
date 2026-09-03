@@ -217,7 +217,11 @@ describe('previewAbsences', () => {
     await seed();
     const preview = await previewAbsences(thisMonth);
     const derived = preview.rows.flatMap((r) => r.days.map((d) => d.date));
-    expect(derived.every((d) => d <= today)).toBe(true);
+    // STRICTLY before today. A day is only assessable once it is over: until
+    // then "no check-in yet" is the morning, not an absence. Read at 00:08 this
+    // would otherwise list nearly every employee as absent for a day they were
+    // about to work.
+    expect(derived.every((d) => d < today)).toBe(true);
   });
 
   it('does not invent an absence from the schedule/leave basis mismatch', async () => {

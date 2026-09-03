@@ -189,6 +189,27 @@ describe('derived absence — the switch is on', () => {
     expect(row.deductAttendance.toString()).toBe('1000');
   });
 
+  it('never charges TODAY — the day is not over yet', async () => {
+    // Found at 00:08 on 2026-09-04: derivation included today, so 47 of 48
+    // employees read as absent simply because nobody had clocked in yet.
+    // Use the CURRENT payroll month so the window contains today.
+    const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
+    await reset(new Date('2026-01-01T00:00:00.000Z'));
+    const emp = await makeScheduledEmployee();
+    await runPayrollDraft(today.slice(0, 7));
+    const row = await prisma.payroll.findFirst({ where: { employeeId: emp.id } });
+    // Whatever it charges, it must not include today. Proven by re-running with
+    // the cutoff set to today: nothing on/after today may derive, so zero.
+    await prisma.payrollConfig.updateMany({
+      data: { absenceDerivedFrom: new Date(`${today}T00:00:00.000Z`) },
+    });
+    await prisma.payroll.deleteMany({});
+    await runPayrollDraft(today.slice(0, 7));
+    const onlyToday = await prisma.payroll.findFirstOrThrow({ where: { employeeId: emp.id } });
+    expect(onlyToday.deductAttendance.toString()).toBe('0');
+    expect(row).toBeTruthy();
+  });
+
   it('never derives for an employee with no work schedule', async () => {
     const user = await prisma.user.create({ data: {} });
     const branch = await prisma.branch.create({ data: { name: `B-${uid().slice(0, 8)}` } });
