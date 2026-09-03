@@ -75,7 +75,7 @@ export async function previewAbsences(month: string): Promise<AbsencePreview> {
   const start = new Date(`${from}T00:00:00.000Z`);
   const end = new Date(`${effectiveTo}T00:00:00.000Z`);
 
-  const [employees, attendance, holidays] = await Promise.all([
+  const [employees, attendance, holidays, leaveRanges] = await Promise.all([
     prisma.employee.findMany({
       where: { status: { in: ['Active', 'Probation'] } },
       select: {
@@ -97,18 +97,31 @@ export async function previewAbsences(month: string): Promise<AbsencePreview> {
       select: { employeeId: true, date: true, type: true, durationMinutes: true },
     }),
     prisma.holiday.findMany({ where: { archivedAt: null }, select: { date: true } }),
+    // Leave comes from approved LeaveRequest RANGES — the same source
+    // payroll's run.ts uses — not from OnLeave attendance rows. The two are not
+    // interchangeable: production has 33 dates with an approved request and no
+    // OnLeave row. Every one is a Sunday, so the workday guard hides the
+    // difference today, but that is a coincidence of the current schedules
+    // (Mon–Sat). Schedule anyone on a Sunday and this page would start showing
+    // absences payroll would never charge. Reading the same source removes the
+    // whole class of divergence.
+    prisma.leaveRequest.findMany({
+      where: {
+        status: 'Approved',
+        deletedAt: null,
+        startDate: { lte: end },
+        endDate: { gte: start },
+      },
+      select: { employeeId: true, startDate: true, endDate: true },
+    }),
   ]);
 
   const holidaySet = new Set(expandHolidaysWithSubstitutes(holidays.map((h) => h.date)).map(ymd));
 
-  // Per employee, per date: what happened. `leaveMinutes` stays `undefined`
-  // until an OnLeave row is seen, and becomes `null` if that row has no
-  // duration — the distinction deriveAbsentMinutes depends on.
-  type DayFacts = {
-    checkIn: boolean;
-    manualAbsent: boolean;
-    leaveMinutes: number | null | undefined;
-  };
+  // Per employee, per date: what happened. Mirrors run.ts exactly — a check-in,
+  // an admin-keyed Absent, or any approved leave. Durations are not needed:
+  // any leave on a day exempts the whole day (see deriveAbsentMinutes).
+  type DayFacts = { checkIn: boolean; manualAbsent: boolean };
   const facts = new Map<string, Map<string, DayFacts>>();
   const factFor = (empId: string, date: string): DayFacts => {
     let byDate = facts.get(empId);
@@ -118,7 +131,7 @@ export async function previewAbsences(month: string): Promise<AbsencePreview> {
     }
     let f = byDate.get(date);
     if (!f) {
-      f = { checkIn: false, manualAbsent: false, leaveMinutes: undefined };
+      f = { checkIn: false, manualAbsent: false };
       byDate.set(date, f);
     }
     return f;
@@ -128,14 +141,20 @@ export async function previewAbsences(month: string): Promise<AbsencePreview> {
     const f = factFor(a.employeeId, ymd(a.date));
     if (a.type === 'CheckIn') f.checkIn = true;
     else if (a.type === 'Absent') f.manualAbsent = true;
-    else if (a.type === 'OnLeave') {
-      // A null duration poisons the sum to null on purpose: unknown coverage is
-      // treated as FULL coverage downstream, never as none.
-      f.leaveMinutes =
-        a.durationMinutes === null || f.leaveMinutes === null
-          ? null
-          : (f.leaveMinutes ?? 0) + a.durationMinutes;
+  }
+
+  // Leave dates per employee, clamped to the window — same expansion run.ts
+  // does. @db.Date values are UTC midnight, so stepping a day is exact.
+  const leaveDatesByEmp = new Map<string, Set<string>>();
+  for (const r of leaveRanges) {
+    let set = leaveDatesByEmp.get(r.employeeId);
+    if (!set) {
+      set = new Set<string>();
+      leaveDatesByEmp.set(r.employeeId, set);
     }
+    const from = Math.max(r.startDate.getTime(), start.getTime());
+    const to = Math.min(r.endDate.getTime(), end.getTime());
+    for (let t = from; t <= to; t += 86_400_000) set.add(ymd(new Date(t)));
   }
 
   const rows: AbsencePreviewRow[] = [];
@@ -183,7 +202,8 @@ export async function previewAbsences(month: string): Promise<AbsencePreview> {
       const f = facts.get(emp.id)?.get(date);
       const minutes = deriveAbsentMinutes({
         scheduledMinutes: minutesByDow.get(dow) ?? 0,
-        leaveMinutes: f?.leaveMinutes === undefined ? 0 : f.leaveMinutes,
+        // Any leave exempts the day; 1 is a sentinel for "some leave".
+        leaveMinutes: leaveDatesByEmp.get(emp.id)?.has(date) ? 1 : 0,
         hasCheckIn: f?.checkIn ?? false,
         hasManualAbsent: f?.manualAbsent ?? false,
         isWorkday: isScheduledWorkday(dows, dow, holidaySet.has(date)),

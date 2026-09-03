@@ -290,7 +290,16 @@ async function gatherAndCalc(db: Tx | typeof prisma, month: string, employeeId?:
         ? { start: leaveCfg.morningEnd, end: leaveCfg.afternoonStart }
         : null;
     // Never derive a day that has not happened yet: the window runs to the
-    // cutoff, which for most of the month is in the future.
+    // cutoff, which for most of the month is in the future, and a future
+    // workday has no check-in for the obvious reason.
+    //
+    // CONSEQUENCE, and it is a real one: publishPayroll re-runs gatherAndCalc,
+    // so a month drafted on the 20th and published on the 27th derives MORE
+    // days than the draft showed — the extra days genuinely happened in
+    // between, but nobody keyed anything to cause the change. Attendance-driven
+    // deductions have always moved between draft and publish; what is new is
+    // that the passage of time alone can move this one. Draft late, or expect
+    // the published figure to exceed a mid-month draft.
     const todayYmd = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
     const cutoffYmd = config.absenceDerivedFrom.toISOString().slice(0, 10);
 
@@ -321,6 +330,11 @@ async function gatherAndCalc(db: Tx | typeof prisma, month: string, employeeId?:
         const minutes = deriveAbsentMinutes({
           scheduledMinutes: minutesByDow.get(d.getUTCDay()) ?? 0,
           leaveMinutes: leaveDates.has(ymdD) ? 1 : 0, // any leave exempts the day
+          // Any CheckIn row counts as turning up, including one an admin later
+          // marked Rejected (a disputed location, not proof of absence).
+          // Deriving a full day's charge off a geofence dispute would be the
+          // wrong direction; if they really were absent, the admin keys an
+          // Absent row, which wins outright.
           hasCheckIn: checked.has(ymdD),
           hasManualAbsent: keyed.has(ymdD),
           isWorkday: isScheduledWorkday(dows, d.getUTCDay(), holidaySet.has(ymdD)),

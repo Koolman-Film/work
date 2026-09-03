@@ -59,6 +59,29 @@ async function makeEmployee(workScheduleId: string | null) {
   return { employee, userId: user.id };
 }
 
+/** An approved LeaveRequest — the source payroll and the preview BOTH read.
+ *  Production has zero OnLeave attendance rows without one behind them, so
+ *  seeding the attendance row alone never represented real leave. */
+async function approveLeave(employeeId: string, startYmd: string, endYmd = startYmd) {
+  const lt = await prisma.leaveType.create({
+    data: {
+      name: `lt-${Math.random().toString(36).slice(2, 8)}`,
+      overQuotaPolicy: 'DeductPay',
+      annualQuota: 10,
+    },
+  });
+  return prisma.leaveRequest.create({
+    data: {
+      employeeId,
+      leaveTypeId: lt.id,
+      startDate: new Date(`${startYmd}T00:00:00.000Z`),
+      endDate: new Date(`${endYmd}T00:00:00.000Z`),
+      reason: 'it',
+      status: 'Approved',
+    },
+  });
+}
+
 async function seed() {
   const schedule = await prisma.workSchedule.create({
     data: {
@@ -127,35 +150,37 @@ describe('previewAbsences', () => {
     expect(row?.days.some((d) => d.date === '2026-06-01')).toBe(false);
   });
 
-  it('treats an OnLeave row with a NULL duration as fully covered', async () => {
-    // The maternity-leave shape: approved leave whose minutes were never
-    // recorded must never read as an absence.
-    const { employee, userId } = await seed();
-    await prisma.attendance.create({
-      data: {
-        employeeId: employee.id,
-        date: new Date('2026-06-01'),
-        type: 'OnLeave',
-        source: 'Manual',
-        createdById: userId,
-        durationMinutes: null,
-      },
-    });
+  it('exempts a day covered by approved leave whose minutes were never recorded', async () => {
+    // The maternity-leave shape: production has 14 OnLeave rows with a null
+    // durationMinutes, all one employee's approved leave. Reading leave from the
+    // REQUEST rather than the derived rows makes the duration irrelevant.
+    const { employee } = await seed();
+    await approveLeave(employee.id, '2026-06-01');
     const preview = await previewAbsences(MONTH);
     const row = preview.rows.find((r) => r.employeeId === employee.id);
     expect(row?.days.some((d) => d.date === '2026-06-01')).toBe(false);
   });
 
   it('derives nothing at all for a day with partial leave', async () => {
-    const { employee, userId } = await seed();
-    await prisma.attendance.create({
+    const { employee } = await seed();
+    const lt = await prisma.leaveType.create({
+      data: {
+        name: `half-${Math.random().toString(36).slice(2, 8)}`,
+        overQuotaPolicy: 'DeductPay',
+        annualQuota: 10,
+      },
+    });
+    await prisma.leaveRequest.create({
       data: {
         employeeId: employee.id,
-        date: new Date('2026-06-01'),
-        type: 'OnLeave',
-        source: 'Manual',
-        createdById: userId,
-        durationMinutes: 180,
+        leaveTypeId: lt.id,
+        startDate: new Date('2026-06-01'),
+        endDate: new Date('2026-06-01'),
+        unit: 'HalfMorning',
+        startTime: '09:00',
+        endTime: '12:00',
+        reason: 'it',
+        status: 'Approved',
       },
     });
     const preview = await previewAbsences(MONTH);
@@ -213,7 +238,7 @@ describe('previewAbsences', () => {
         },
       },
     });
-    const { employee, userId } = await makeEmployee(schedule.id);
+    const { employee } = await makeEmployee(schedule.id);
     await prisma.leaveConfig.updateMany({
       data: {
         morningStart: '09:00',
@@ -222,16 +247,7 @@ describe('previewAbsences', () => {
         afternoonEnd: '18:00',
       },
     });
-    await prisma.attendance.create({
-      data: {
-        employeeId: employee.id,
-        date: new Date('2026-06-01'),
-        type: 'OnLeave',
-        source: 'Manual',
-        createdById: userId,
-        durationMinutes: 480,
-      },
-    });
+    await approveLeave(employee.id, '2026-06-01');
     const preview = await previewAbsences(MONTH);
     const row = preview.rows.find((r) => r.employeeId === employee.id);
     expect(row?.days.some((d) => d.date === '2026-06-01')).toBe(false);
