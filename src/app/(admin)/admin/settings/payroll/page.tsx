@@ -145,6 +145,19 @@ export default async function PayrollConfigPage({
                   className="max-w-xs"
                 />
               </FormField>
+              <FormField
+                label="เริ่มคิดวันขาดงานอัตโนมัติตั้งแต่วันที่"
+                htmlFor="absenceDerivedFrom"
+                hint="เว้นว่าง = ปิดการคิดอัตโนมัติ ระบบจะนับขาดงานเฉพาะที่แอดมินคีย์เองเท่านั้น (พฤติกรรมเดิม) — เมื่อใส่วันที่แล้ว ระบบจะนับวันที่พนักงานมีตารางงาน แต่ไม่ได้เช็คอินและไม่มีใบลา ว่าเป็นขาดงาน ตั้งแต่วันนั้นเป็นต้นไป วันก่อนหน้าจะไม่ถูกคิดย้อนหลัง แนะนำให้ตั้งเป็นวันเริ่มรอบถัดไป ไม่ใช่วันที่ผ่านมาแล้ว"
+              >
+                <Input
+                  id="absenceDerivedFrom"
+                  name="absenceDerivedFrom"
+                  type="date"
+                  defaultValue={cfg.absenceDerivedFrom?.toISOString().slice(0, 10) ?? ''}
+                  className="max-w-xs"
+                />
+              </FormField>
               <p className="text-sm text-ink-4">
                 นโยบายมาสาย (3 ครั้ง / สายรุนแรง) ตั้งค่าที่หน้า "การมาสาย & รอบจ่าย"
               </p>

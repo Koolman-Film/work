@@ -128,6 +128,39 @@ describe('calcPayroll — V1 fixtures', () => {
     expect(out.netPay.toString()).toBe('26250');
   });
 
+  // Derived absence (phase 2). Same arithmetic as CASE 4 — 30000/30 = 1000/day —
+  // so the two are directly comparable: 1 keyed + 2 derived must cost exactly
+  // what 3 keyed rows cost.
+  it('charges derived absent days alongside keyed Absent rows', () => {
+    const out = calcPayroll(
+      baseInput({
+        attendances: [{ date: '2026-05-04', type: 'Absent' }],
+        derivedAbsentDays: 2,
+      }),
+    );
+    expect(out.breakdown.absentCount).toBe(3);
+    expect(out.breakdown.attendance.absent.derivedDays).toBe(2);
+    expect(out.deductAttendance.toString()).toBe('3000');
+    expect(out.netPay.toString()).toBe('26250');
+  });
+
+  it('treats a missing derivedAbsentDays as zero — the pre-feature behaviour', () => {
+    // Every caller before phase 2 omitted this field. Omitting it must be
+    // byte-identical to the old behaviour, or the deploy changes pay on its own.
+    const out = calcPayroll(baseInput({ attendances: [] }));
+    expect(out.breakdown.absentCount).toBe(0);
+    expect(out.breakdown.attendance.absent.derivedDays).toBe(0);
+    expect(out.deductAttendance.toString()).toBe('0');
+  });
+
+  it('ignores a negative or fractional derivedAbsentDays rather than trusting it', () => {
+    // Whole days by construction upstream; this is defence in depth so a bad
+    // caller can never produce a fractional charge or a negative one that would
+    // pay somebody.
+    expect(calcPayroll(baseInput({ derivedAbsentDays: -5 })).breakdown.absentCount).toBe(0);
+    expect(calcPayroll(baseInput({ derivedAbsentDays: 2.7 })).breakdown.absentCount).toBe(2);
+  });
+
   // CASE 5: mix of late + early-leave.
   // 5 lates × 100 + 2 early × 100 = 700.
   it('CASE 5 — mixed late + early-leave rows', () => {

@@ -15,7 +15,7 @@ function attendance(
   overrides: Partial<CalcBreakdown['attendance']> = {},
 ): CalcBreakdown['attendance'] {
   return {
-    absent: { count: 0, perDay: ZERO, money: ZERO },
+    absent: { count: 0, derivedDays: 0, perDay: ZERO, money: ZERO },
     lateTier1: { mode: 'flat', count: 0, perUnit: ZERO, money: ZERO },
     lateSevere: { days: 0, perDay: ZERO, money: ZERO },
     earlyLeave: { count: 0, perUnit: ZERO, money: ZERO },
@@ -27,9 +27,19 @@ function attendance(
 describe('actualDaysFromAttendance', () => {
   it('reads Absent straight off the absent count', () => {
     const days = actualDaysFromAttendance(
-      attendance({ absent: { count: 2, perDay: ZERO, money: ZERO } }),
+      attendance({ absent: { count: 2, derivedDays: 0, perDay: ZERO, money: ZERO } }),
     );
     expect(days.Absent).toBe(2);
+  });
+
+  it('counts DERIVED absent days too — they are settleable like any other', () => {
+    // absent.count already includes derivedDays (calc.ts), so a day the system
+    // inferred can be settled with leave exactly as a keyed one can. It stays a
+    // whole number, so the settled-vs-actual guard is unaffected structurally.
+    const days = actualDaysFromAttendance(
+      attendance({ absent: { count: 3, derivedDays: 3, perDay: ZERO, money: ZERO } }),
+    );
+    expect(days.Absent).toBe(3);
   });
 
   it('reads LateThreeStrike from lateTier1.days only in threeStrike mode', () => {

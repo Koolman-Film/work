@@ -71,6 +71,15 @@ export const payrollMoneySchema = z.object({
     .int('ช่วงห้ามเบิก: ต้องเป็นจำนวนเต็ม')
     .min(0, 'ช่วงห้ามเบิก: ต้องไม่ติดลบ')
     .max(27, 'ช่วงห้ามเบิก: ต้องไม่เกิน 27 วัน'),
+  // Master switch for derived absence. Empty string (the default state of the
+  // form field) means OFF — not "today" — so an admin who never touches this
+  // field can never switch the feature on by saving some other setting.
+  absenceDerivedFrom: z
+    .string()
+    .trim()
+    .regex(/^(\d{4}-\d{2}-\d{2})?$/, 'วันเริ่มคิดขาดงาน: ต้องเป็นวันที่ (YYYY-MM-DD) หรือเว้นว่าง')
+    .optional()
+    .default(''),
 });
 
 export type PayrollMoneyInput = z.infer<typeof payrollMoneySchema>;
@@ -90,5 +99,10 @@ export function toPayrollConfigData(input: PayrollMoneyInput): Prisma.PayrollCon
     advanceMinRemaining: new Prisma.Decimal(input.advanceMinRemaining),
     advanceBlackoutDays: input.advanceBlackoutDays,
     leaveDeductMaxPercent: input.leaveDeductMaxPercent,
+    // Empty => null => feature OFF. Parsed as UTC midnight to match @db.Date,
+    // which every other date column in this schema stores that way.
+    absenceDerivedFrom: input.absenceDerivedFrom
+      ? new Date(`${input.absenceDerivedFrom}T00:00:00.000Z`)
+      : null,
   };
 }

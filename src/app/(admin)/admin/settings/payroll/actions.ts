@@ -23,6 +23,7 @@ export async function updatePayrollConfig(formData: FormData) {
     advanceMinRemaining: formData.get('advanceMinRemaining'),
     advanceBlackoutDays: formData.get('advanceBlackoutDays'),
     leaveDeductMaxPercent: formData.get('leaveDeductMaxPercent'),
+    absenceDerivedFrom: formData.get('absenceDerivedFrom'),
   });
   if (!parsed.success) {
     redirect(
@@ -62,6 +63,10 @@ export async function updatePayrollConfig(formData: FormData) {
       advanceMinRemaining: before.advanceMinRemaining.toString(),
       advanceBlackoutDays: before.advanceBlackoutDays,
       leaveDeductMaxPercent: before.leaveDeductMaxPercent,
+      // Audit-logged deliberately: this switch decides whether payroll charges
+      // for days nobody keyed. Turning it on, or moving it earlier, changes
+      // people's pay, so the trail has to show who did it and when.
+      absenceDerivedFrom: before.absenceDerivedFrom?.toISOString().slice(0, 10) ?? null,
     },
     after: {
       ssoRate: String(data.ssoRate),
@@ -76,6 +81,10 @@ export async function updatePayrollConfig(formData: FormData) {
       advanceMinRemaining: String(data.advanceMinRemaining),
       advanceBlackoutDays: data.advanceBlackoutDays,
       leaveDeductMaxPercent: data.leaveDeductMaxPercent,
+      absenceDerivedFrom:
+        data.absenceDerivedFrom instanceof Date
+          ? data.absenceDerivedFrom.toISOString().slice(0, 10)
+          : null,
     },
     metadata: { source: 'admin-ui', section: 'payroll-money' },
   });
