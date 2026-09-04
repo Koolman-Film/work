@@ -10,6 +10,29 @@
 
 **Spec:** `docs/superpowers/specs/2026-09-04-theme-tokens-dark-mode-design.md`
 
+## Progress
+
+Tick a task when its final commit lands. Step-level checkboxes live in each task.
+**Nothing started as of 2026-09-04 16:50.**
+
+- [ ] **Task 1** — Contrast harness (lands RED on purpose; captures the baseline)
+- [ ] **Task 2** — Theme config module
+- [ ] **Task 3** — `setTheme` server action
+- [ ] **Task 4** — SSR stamp on `<html>`
+- [ ] **Task 5** — Split hover tokens *(must be a provable no-op — this is the safety net)*
+- [ ] **Task 6** — Light ink ramp to AA *(harness turns green here)*
+- [ ] **Task 7** — Dark palette + drift test
+- [ ] **Task 8** — Dark status ramps
+- [ ] **Task 9** — Solid-fill exceptions *(highest consequence — Reject/Approve buttons)*
+- [ ] **Task 10** — Theme toggle
+- [ ] **Task 11** — Full verification + restore local seed
+
+**Resuming:** `cd /Users/tong/Works/fai/work/.claude/worktrees/ui-dark-mode`, then
+`git log --oneline main..HEAD` to see which tasks already committed. Each task ends in
+exactly one commit, so the log is the source of truth if these boxes drift.
+
+---
+
 ## Global Constraints
 
 - **Worktree:** `/Users/tong/Works/fai/work/.claude/worktrees/ui-dark-mode`, branch `claude/ui-dark-mode`. Run every command there. `node_modules` is a symlink to the main checkout.
