@@ -109,7 +109,7 @@ describe('dark surfaces respect the ink-4 ceiling', () => {
 /**
  * The scrim is the seventh instance of the inversion trap: a token used as a
  * FILL cannot be defined in terms of the ink ramp, because the ramp inverts
- * between themes. `bg-ink-1/40` dimmed correctly in light and washed the page
+ * between themes. A 40%-alpha ink-1 fill dimmed correctly in light and washed
  * pale in dark, where ink-1 is near-white.
  *
  * The contrast e2e suite structurally cannot catch this — it walks pages at

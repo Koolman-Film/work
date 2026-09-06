@@ -69,7 +69,7 @@
   /* Modal/drawer scrim. Deliberately NOT part of the ink ramp and deliberately
      NOT redefined per theme: a scrim's job is to dim the page behind an
      overlay, which means it must stay near-black in dark mode too. This was
-     `bg-ink-1/40`, and ink-1 inverts to near-WHITE in dark — so the backdrop
+     ink-1 at 40% alpha, and ink-1 inverts to near-WHITE in dark — so the backdrop
      lightened the page instead of dimming it. Seeded with light-mode ink-1 so
      `bg-scrim/40` renders identically to what light mode already shipped. */
   --color-scrim:  #0f172a;
