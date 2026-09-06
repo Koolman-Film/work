@@ -8,11 +8,13 @@ import { UPDATES } from '@/lib/product-updates/registry';
 import { pickText, sortByDateDesc, unseenItems } from '@/lib/product-updates/selectors';
 import { useProductUpdates } from '@/lib/product-updates/store';
 import { UI } from '@/lib/product-updates/ui-text';
+import { UpdateList } from './update-list';
 
 /**
- * Lists all updates newest-first. Opening the panel marks every listed item
- * seen (clears the sidebar dot). Items with a tour show a replay button; tours
- * stay replayable regardless of seen-state.
+ * The full history, newest-first — every entry, not just the unseen ones.
+ * That is the difference from the announcement modal, which carries only what
+ * is new to this reader. Opening the panel marks everything seen (clears the
+ * sidebar dot). Tours stay replayable regardless of seen-state.
  */
 export function WhatsNewPanel() {
   const locale = useLocale() as Locale;
@@ -31,36 +33,15 @@ export function WhatsNewPanel() {
     if (unseenIds.length > 0) markManySeen(unseenIds);
   }, [panelOpen]);
 
-  const items = sortByDateDesc(UPDATES);
-
   return (
     <Dialog open={panelOpen} onClose={closePanel} title={pickText(UI.whatsNewTitle, locale)}>
-      <ul className="divide-y divide-line-soft">
-        {items.map((item) => (
-          <li key={item.id} className="py-3 first:pt-0 last:pb-0">
-            <p className="font-display text-[11px] font-semibold uppercase tracking-wide text-ink-4">
-              {item.date}
-            </p>
-            <p className="mt-0.5 text-sm font-semibold text-ink-1">
-              {pickText(item.title, locale)}
-            </p>
-            <p className="mt-1 text-sm leading-relaxed text-ink-2">{pickText(item.body, locale)}</p>
-            {item.tour && (
-              <button
-                type="button"
-                onClick={() => {
-                  const tourId = item.tour as string;
-                  closePanel();
-                  startTour(tourId);
-                }}
-                className="mt-2 text-sm font-medium text-primary-700 transition hover:text-primary-800"
-              >
-                {pickText(UI.takeTheTourArrow, locale)}
-              </button>
-            )}
-          </li>
-        ))}
-      </ul>
+      <UpdateList
+        items={sortByDateDesc(UPDATES)}
+        onStartTour={(tourId) => {
+          closePanel();
+          startTour(tourId);
+        }}
+      />
     </Dialog>
   );
 }
