@@ -300,6 +300,71 @@ body {
 /* Respect the same reduced-motion posture as the rest of the app: the shadows
    are static paint, not animation, so they stay — nothing to disable here. */
 
+/* ── driver.js tour, themed ────────────────────────────────────────────────
+ * driver.css hardcodes a light popover: #fff background, #2d2d2d title,
+ * #727272 description, #ccc borders, #f7f7f7 buttons. None of it goes through
+ * our tokens, so the tour stayed bright white on a dark page.
+ *
+ * The arrow is the part that is easy to miss: it is a CSS triangle drawn with
+ * `border: 5px solid #fff`, with three sides made transparent. Recolouring
+ * only the popover leaves a white pointer stuck to a dark card, so each of the
+ * four directions needs its ONE opaque side re-pointed at the surface token.
+ *
+ * Selectors are doubled (`.driver-popover.driver-popover`) to reach 0,2,0.
+ * driver.css is imported from a JS module (run-tour.ts), so which stylesheet
+ * the bundler emits last is not guaranteed — at equal specificity the winner
+ * would be decided by build order. Doubling settles it without !important.
+ */
+.driver-popover.driver-popover {
+  background-color: var(--color-surface);
+  color: var(--color-ink-1);
+  border: 1px solid var(--color-line);
+  box-shadow: var(--shadow-card);
+}
+.driver-popover-title.driver-popover-title {
+  color: var(--color-ink-1);
+}
+.driver-popover-description.driver-popover-description {
+  color: var(--color-ink-3);
+}
+.driver-popover-progress-text.driver-popover-progress-text {
+  color: var(--color-ink-4);
+}
+.driver-popover-close-btn.driver-popover-close-btn {
+  color: var(--color-ink-4);
+}
+.driver-popover-close-btn.driver-popover-close-btn:hover,
+.driver-popover-close-btn.driver-popover-close-btn:focus {
+  color: var(--color-ink-1);
+}
+.driver-popover-footer-btn.driver-popover-footer-btn {
+  background-color: var(--color-surface-muted);
+  color: var(--color-ink-2);
+  border: 1px solid var(--color-line-strong);
+  text-shadow: none;
+}
+.driver-popover-footer-btn.driver-popover-footer-btn:hover:not(.driver-popover-btn-disabled) {
+  background-color: var(--color-surface-hover-strong);
+  color: var(--color-ink-1);
+}
+.driver-popover-btn-disabled.driver-popover-btn-disabled {
+  color: var(--color-ink-4);
+  opacity: 0.6;
+}
+/* The pointer: one opaque side per direction, the other three transparent. */
+.driver-popover-arrow-side-left.driver-popover-arrow-side-left {
+  border-left-color: var(--color-surface);
+}
+.driver-popover-arrow-side-right.driver-popover-arrow-side-right {
+  border-right-color: var(--color-surface);
+}
+.driver-popover-arrow-side-top.driver-popover-arrow-side-top {
+  border-top-color: var(--color-surface);
+}
+.driver-popover-arrow-side-bottom.driver-popover-arrow-side-bottom {
+  border-bottom-color: var(--color-surface);
+}
+
 /* ── Motion keyframes (transform/opacity only) ─────────────────────────── */
 @keyframes enter-rise {
   from { opacity: 0; transform: translateY(6px); }
