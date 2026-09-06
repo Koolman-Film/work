@@ -188,7 +188,7 @@ export function CalendarMonth({
             key={w}
             className={cn(
               'text-center text-[11px] font-medium',
-              i === 0 ? 'text-red-500' : 'text-ink-3',
+              i === 0 ? 'text-red-600' : 'text-ink-3',
             )}
           >
             {w}

@@ -254,8 +254,8 @@ export function LeaveNewForm({
                   key={tp.id}
                   className={`cursor-pointer rounded-full border px-3 py-1.5 text-sm transition focus-within:ring-1 focus-within:ring-primary-500 ${
                     selected
-                      ? 'border-primary-500 bg-primary-500 text-white'
-                      : 'border-line-strong bg-white text-ink-2'
+                      ? 'border-brand-solid bg-brand-solid text-white'
+                      : 'border-line-strong bg-surface text-ink-2'
                   }`}
                 >
                   <input
@@ -390,7 +390,7 @@ export function LeaveNewForm({
               <>
                 {' '}
                 <span className="text-primary-600">{t('new.previewNoSunday')}</span>
-                <span className="block text-[10px] text-primary-600/80">
+                <span className="block text-[10px] text-primary-800">
                   {t('new.previewAdminNote')}
                 </span>
               </>

@@ -243,7 +243,7 @@ export function CalendarGrid({
               className={cn(
                 'text-center text-[10px] font-medium',
                 // Sunday + Saturday colored to match cell day colors.
-                i === 0 ? 'text-red-500' : 'text-ink-3',
+                i === 0 ? 'text-red-600' : 'text-ink-3',
               )}
             >
               {w}
