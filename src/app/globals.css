@@ -1,5 +1,12 @@
 @import "tailwindcss";
 
+/* Tailwind 4 auto-detects sources across the whole project and cannot tell
+   prose from markup: every utility class NAMED in a design doc or mockup is
+   compiled into the shipped stylesheet. `docs/` holds ~100 specs plus the v1
+   HTML mockups, none of which the app renders — including references to
+   classes this codebase has deliberately retired. */
+@source not "../../docs";
+
 /* ─────────────────────────────────────────────────────────────────────────
  * Tailwind 4 CSS-first config
  *
