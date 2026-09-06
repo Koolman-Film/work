@@ -30,7 +30,7 @@ export default async function EditRolePage({
   const archiveBound = archiveRole.bind(null, id);
 
   return (
-    <div className="px-4 py-6 sm:px-6 lg:px-8">
+    <div className="p-4">
       <PageHeader breadcrumb="ตั้งค่า · บทบาทและสิทธิ์" title="แก้ไขบทบาท" />
       <div>
         <RoleForm

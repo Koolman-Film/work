@@ -34,12 +34,12 @@ export function AttendanceTabs({
             className={
               active
                 ? 'inline-flex items-center gap-1.5 rounded-lg bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-700 ring-1 ring-primary-200'
-                : 'inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-ink-4 transition hover:bg-surface-muted hover:text-ink-2'
+                : 'inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-ink-4 transition hover:bg-surface-hover hover:text-ink-2'
             }
           >
             {t.label}
             {t.key === 'disputed' && disputedCount ? (
-              <span className="inline-flex min-w-[18px] items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-semibold text-white">
+              <span className="inline-flex min-w-[18px] items-center justify-center rounded-full bg-warning-solid px-1 text-[10px] font-semibold text-ink-1">
                 {disputedCount}
               </span>
             ) : null}

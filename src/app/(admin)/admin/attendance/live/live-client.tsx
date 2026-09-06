@@ -118,7 +118,7 @@ export function LiveBoardClient({
         <div className="flex items-center gap-3 text-xs text-ink-3">
           <a
             href="/admin/attendance/manual"
-            className="rounded-lg border border-line bg-surface px-2.5 py-1 font-medium text-ink-2 transition hover:bg-surface-muted"
+            className="rounded-lg border border-line bg-surface px-2.5 py-1 font-medium text-ink-2 transition hover:bg-surface-hover"
           >
             + บันทึกด้วยตนเอง
           </a>
@@ -179,7 +179,7 @@ export function LiveBoardClient({
         <Legend color="bg-amber-400" label="ตรวจสอบ" />
         <Legend color="bg-ink-5" label="ออกแล้ว" />
         <Legend color="bg-red-400" label="ปฏิเสธ" />
-        <span className="ml-auto text-ink-5">realtime · supabase channel + 30s polling</span>
+        <span className="ml-auto text-ink-4">realtime · supabase channel + 30s polling</span>
       </div>
     </div>
   );
@@ -257,7 +257,7 @@ function BranchGroups<T extends { branchName: string }>({
 function Chip({ row }: { row: LiveAttendanceRow }) {
   return (
     <div
-      className={`flex items-center gap-2.5 rounded-lg border border-line border-l-4 ${chipRail(row)} bg-surface px-3 py-2 shadow-sm`}
+      className={`flex items-center gap-2.5 rounded-lg border border-line border-l-4 ${chipRail(row)} bg-surface px-3 py-2`}
     >
       <Avatar name={row.employeeName} src={row.photoUrl} size="sm" />
       <div className="min-w-0 flex-1">
@@ -284,7 +284,7 @@ function Chip({ row }: { row: LiveAttendanceRow }) {
 
 function RosterChip({ person }: { person: RosterEmployee }) {
   return (
-    <div className="flex items-center gap-2.5 rounded-lg border border-line border-l-4 border-l-slate-300 bg-surface px-3 py-2 shadow-sm">
+    <div className="flex items-center gap-2.5 rounded-lg border border-line border-l-4 border-l-slate-300 bg-surface px-3 py-2">
       <Avatar name={person.employeeName} src={person.photoUrl} size="sm" />
       <div className="min-w-0 flex-1">
         <p className="truncate text-xs font-medium text-ink-1">
@@ -306,7 +306,7 @@ function RosterChip({ person }: { person: RosterEmployee }) {
 
 function LeaveChip({ person }: { person: OnLeaveEmployee }) {
   return (
-    <div className="flex items-center gap-2.5 rounded-lg border border-line border-l-4 border-l-amber-400 bg-surface px-3 py-2 shadow-sm">
+    <div className="flex items-center gap-2.5 rounded-lg border border-line border-l-4 border-l-amber-400 bg-surface px-3 py-2">
       <Avatar name={person.employeeName} src={person.photoUrl} size="sm" />
       <div className="min-w-0 flex-1">
         <p className="truncate text-xs font-medium text-ink-1">
@@ -343,7 +343,7 @@ function StatusPill({ status }: { status: Status }) {
   }
   return (
     <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-800">
-      <span className="size-1.5 rounded-full bg-amber-500" aria-hidden="true" />
+      <span className="size-1.5 rounded-full bg-warning-solid" aria-hidden="true" />
       อัปเดตทุก 30 วินาที
     </span>
   );

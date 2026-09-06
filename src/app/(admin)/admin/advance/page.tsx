@@ -67,8 +67,15 @@ export default async function AdminAdvanceInboxPage({
   // List URL preserving active status + search; resets page unless given.
   function listHref(overrides: { status?: string; page?: number }): string {
     const params = new URLSearchParams();
-    if (isTrash) {
-      // Trash is its own view (no status/search chips); only paging applies.
+    // A caller that passes `status` is a filter chip, and clicking one means
+    // "leave the bin and show me that status". A caller that passes only
+    // `page` is the pager, which must stay in the bin.
+    //
+    // The original kept `trash=1` for BOTH, so every chip pointed back at
+    // the page you were already on: the chips rendered, looked clickable, and
+    // did nothing. The only way out was the browser's back button.
+    const stayInTrash = isTrash && overrides.status === undefined;
+    if (stayInTrash) {
       params.set('trash', '1');
     } else {
       const nextStatus = overrides.status !== undefined ? overrides.status : status;
@@ -106,7 +113,7 @@ export default async function AdminAdvanceInboxPage({
       );
 
   return (
-    <div className="px-4 py-6 sm:px-6 lg:px-8">
+    <div className="p-4">
       <PageHeader
         breadcrumb="คำขอเบิก"
         title="คำขอเบิก"
@@ -136,7 +143,7 @@ export default async function AdminAdvanceInboxPage({
               className={
                 active
                   ? 'rounded-lg bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-700 ring-1 ring-primary-200'
-                  : 'rounded-lg px-3 py-1.5 text-xs font-semibold text-ink-4 hover:bg-surface-muted hover:text-ink-2'
+                  : 'rounded-lg px-3 py-1.5 text-xs font-semibold text-ink-4 hover:bg-surface-hover hover:text-ink-2'
               }
             >
               {opt.label}
@@ -149,7 +156,7 @@ export default async function AdminAdvanceInboxPage({
           className={
             isTrash
               ? 'rounded-lg bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-700 ring-1 ring-primary-200'
-              : 'rounded-lg px-3 py-1.5 text-xs font-semibold text-ink-4 hover:bg-surface-muted hover:text-ink-2'
+              : 'rounded-lg px-3 py-1.5 text-xs font-semibold text-ink-4 hover:bg-surface-hover hover:text-ink-2'
           }
         >
           🗑️ ถังขยะ
@@ -158,7 +165,7 @@ export default async function AdminAdvanceInboxPage({
             (e.g. broken phone). Creates a Pending request to approve here. */}
         <Link
           href="/admin/advance/new"
-          className="ml-auto rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-primary-700"
+          className="ml-auto rounded-lg bg-brand-solid px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-brand-solid-hover"
         >
           + บันทึกการเบิก (แทนพนักงาน)
         </Link>

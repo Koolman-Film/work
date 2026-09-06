@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageHeader } from '@/components/ui/page-header';
 import { type Column, ResponsiveTable } from '@/components/ui/responsive-table';
+import { RowAction } from '@/components/ui/row-action';
 import { prisma } from '@/lib/db/prisma';
 
 /**
@@ -78,7 +79,7 @@ export default async function HolidayListPage({ searchParams }: { searchParams: 
   ];
 
   return (
-    <div className="px-4 py-6 sm:px-6 lg:px-8">
+    <div className="p-4">
       <PageHeader
         breadcrumb="ตั้งค่า"
         title="วันหยุด"
@@ -103,14 +104,7 @@ export default async function HolidayListPage({ searchParams }: { searchParams: 
         columns={columns}
         rows={rows}
         rowKey={(h) => h.id}
-        actions={(h) => (
-          <Link
-            href={`/admin/settings/holidays/${h.id}/edit`}
-            className="text-sm font-medium text-primary-700 hover:text-primary-800"
-          >
-            แก้ไข
-          </Link>
-        )}
+        actions={(h) => <RowAction href={`/admin/settings/holidays/${h.id}/edit`} />}
         empty={
           <div className="surface">
             <EmptyState

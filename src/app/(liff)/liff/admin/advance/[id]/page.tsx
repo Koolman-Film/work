@@ -105,7 +105,7 @@ export default async function LiffAdminAdvanceDetailPage({ params }: { params: P
         </div>
       </header>
 
-      <section className="rounded-xl border border-line bg-surface p-4 text-center shadow-sm">
+      <section className="rounded-xl border border-line bg-surface p-4 text-center">
         <p className="text-sm font-medium text-ink-1">
           {name}
           {row.employee.nickname && <span className="text-ink-3"> ({row.employee.nickname})</span>}
@@ -126,7 +126,7 @@ export default async function LiffAdminAdvanceDetailPage({ params }: { params: P
         )}
       </section>
 
-      <section className="mt-3 rounded-xl border border-line bg-surface p-4 shadow-sm">
+      <section className="mt-3 rounded-xl border border-line bg-surface p-4">
         <h2 className="text-xs font-medium uppercase tracking-wide text-ink-3">
           {t('creditTitle')}
         </h2>

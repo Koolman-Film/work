@@ -2,6 +2,7 @@ import { Download } from 'lucide-react';
 import Link from 'next/link';
 import { loadReportFilterOptions } from '@/app/(admin)/admin/reports/_load-filter-options';
 import { PageHeader } from '@/components/ui/page-header';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { getPermittedBranches } from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { loadSsoFiling } from '@/lib/filings/sso';
@@ -29,7 +30,7 @@ export default async function SsoFilingPage({ searchParams }: { searchParams: Se
   const downloadHref = `/admin/filings/sso/export?m=${month}&branchId=${branchId}`;
 
   return (
-    <div className="px-4 py-6 sm:px-6 lg:px-8">
+    <div className="p-4">
       <PageHeader
         breadcrumb="ยื่นประกันสังคม"
         title="ยื่นประกันสังคม (สปส.1-10)"
@@ -57,7 +58,7 @@ export default async function SsoFilingPage({ searchParams }: { searchParams: Se
             </div>
           )}
 
-          <div className="surface overflow-x-auto">
+          <ScrollArea className="surface">
             <table className="min-w-full text-sm">
               <thead className="bg-surface-muted text-left text-xs text-ink-3">
                 <tr>
@@ -97,13 +98,13 @@ export default async function SsoFilingPage({ searchParams }: { searchParams: Se
                 </tr>
               </tfoot>
             </table>
-          </div>
+          </ScrollArea>
 
           <div className="mt-4">
             {canDownload ? (
               <Link
                 href={downloadHref}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-brand-solid px-4 py-2 text-sm font-medium text-white hover:bg-brand-solid-hover"
                 download
               >
                 <Download size={16} /> ดาวน์โหลด Excel (สปส.1-10)

@@ -41,11 +41,28 @@
   --color-warning:      #f59e0b;
   --color-info:         #3955e8;
 
-  /* Ink / text ramp */
-  --color-ink-1:  #0f172a;
-  --color-ink-2:  #334155;
-  --color-ink-3:  #64748b;
-  --color-ink-4:  #94a3b8;
+  /* ── Ink / text ramp ───────────────────────────────────────────────────
+   * ink-3 and ink-4 are DERIVED, not picked. Re-derive with
+   * `node scripts/derive-theme-tokens.mjs`; do not hand-tune.
+   *
+   * Two AA-passing greys on the #f6f8fb canvas land ~1.7% lightness apart —
+   * the same colour to the eye — so the old five-level ramp and WCAG AA were
+   * mutually exclusive. ink-3 is darkened to open room for a compliant ink-4
+   * beneath it, and ink-1/ink-2 (which already passed comfortably) do not move.
+   *
+   * Before: ink-3 4.47:1 on canvas — it passes on WHITE at 4.76 and so was
+   * invisible to every check that assumed a white background. ink-4 2.41:1
+   * across 180 usages. ink-5 1.40:1.
+   *
+   * Ratios below are measured against the canvas, the worse of the two
+   * backgrounds these actually render on.
+   */
+  --color-ink-1:  #0f172a;  /* 16.78:1 on canvas — unchanged */
+  --color-ink-2:  #334155;  /*  9.73:1 on canvas — unchanged */
+  --color-ink-3:  #4d5a6b;  /*  6.60:1 on canvas, 7.02 on white */
+  --color-ink-4:  #657284;  /*  4.60:1 on canvas, 4.89 on white */
+  /* NON-TEXT ONLY — checkbox borders, a legend swatch, a status dot. At
+     1.40:1 it is not legible as text; its 7 text usages moved to ink-4. */
   --color-ink-5:  #cbd5e1;
   --color-canvas: #f6f8fb;
 
@@ -76,6 +93,74 @@
   --color-line:           oklch(92.8% 0.006 264.531); /* was *-gray-200   */
   --color-line-strong:    oklch(87.2% 0.01 258.338);  /* was *-gray-300   */
 
+  /* ── Hover fills ───────────────────────────────────────────────────────
+   * Separate from `surface-muted` / `surface-sunken` because those carry two
+   * meanings that light mode happens to conflate and dark mode cannot:
+   * "you are hovering this" and "this panel is recessed".
+   *
+   * In light, a hover goes DARKER than the card it sits on. In dark it must
+   * go LIGHTER, or the element fades into the page exactly as you point at
+   * it. One variable cannot do both, and 93 usages depended on it doing both
+   * (surface-muted: 68 hover / 57 static; surface-sunken: 25 / 25).
+   *
+   * Seeded with the exact values they replace, so this split changes no
+   * pixel in light mode. TWO tokens rather than one: surface-muted and
+   * surface-sunken are different colours, and collapsing both hovers into a
+   * single token would silently restyle 25 hover states.
+   */
+  --color-surface-hover:        oklch(98.5% 0.002 247.839); /* == surface-muted  */
+  --color-surface-hover-strong: oklch(96.7% 0.003 264.542); /* == surface-sunken */
+
+  /* ── Solid CTA fills ───────────────────────────────────────────────────
+   * These need their own names because the SAME palette step serves two
+   * irreconcilable jobs. `text-red-700` is error text (77 uses) and must
+   * become LIGHT in dark mode; `bg-red-700` is the destructive button's HOVER
+   * fill (6 uses) and must stay a saturated red carrying white text. One
+   * variable cannot do both — every Reject button would turn pale pink with
+   * white text on it, and only on hover.
+   *
+   * Those are the Approve/Reject buttons an admin taps in LINE to decide
+   * someone's leave and cash advance, so "illegible" is not cosmetic.
+   *
+   * Seeded verbatim from tailwindcss/theme.css, so light mode is unchanged.
+   */
+  --color-danger-solid:         oklch(57.7% 0.245 27.325);  /* == red-600   */
+  --color-danger-solid-hover:   oklch(50.5% 0.213 27.518);  /* == red-700   */
+  --color-danger-accent:        oklch(63.7% 0.237 25.331);  /* == red-500   */
+  --color-success-solid:        oklch(62.7% 0.194 149.214); /* == green-600 */
+  --color-success-solid-hover:  oklch(52.7% 0.154 150.069); /* == green-700 */
+  --color-warning-solid:        oklch(76.9% 0.188 70.08);   /* == amber-500 */
+  --color-warning-solid-hover:  oklch(66.6% 0.179 58.318);  /* == amber-600 */
+
+  /* ── Brand + semantic solid fills ──────────────────────────────────────
+   * Same reason as the CTA fills above: primary-600/700, `success` and
+   * `danger` are each used BOTH as a solid background and as a text colour
+   * (primary-700: 23 bg vs 95 text; danger: 36 bg vs 41 text). Dark mode
+   * needs the text light and the fill saturated, so the fill gets its own
+   * name. Seeded with the exact value it replaces — light mode unchanged.
+   */
+  --color-brand-solid:        #3955e8;  /* == primary-600 */
+  --color-brand-solid-hover:  #2f43c4;  /* == primary-700 */
+  --color-success-fill:       #10b981;  /* == success      */
+  --color-success-fill-deep:  #047857;  /* == success-deep */
+  --color-danger-fill:        #ef4444;  /* == danger       */
+  --color-warning-fill:       #f59e0b;  /* == warning      */
+
+  /* ── Brand gradients ───────────────────────────────────────────────────
+   * The hero and sidebar gradients were built from primary-700/900 and
+   * primary-600/800 — which are TEXT tones. Inverting those for dark mode
+   * turned the hero into a pale blue panel with white text on it (1.53:1).
+   *
+   * These are deliberately theme-INVARIANT: the hero is a deep-blue brand
+   * moment that reads correctly on a light or a dark page, and its white
+   * text and amber figures are chosen against that blue, not against the
+   * page. No dark override — that is the point.
+   */
+  --color-brand-grad-from:     #2f43c4;  /* was primary-700 */
+  --color-brand-grad-to:       #1e2d7a;  /* was primary-900 */
+  --color-brand-grad-alt-from: #3955e8;  /* was primary-600 */
+  --color-brand-grad-alt-to:   #283a9e;  /* was primary-800 */
+
   /* Radii */
   --radius-sm: 5px;
   --radius:    8px;
@@ -96,25 +181,39 @@
   --ease-overshoot: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-/* ─── Shadows + borders (Sapphire Editorial: layered) ─── */
-:root {
-  /* Legacy aliases, retoned to Sapphire, so existing .shadow-brand keeps
-     working until the AppShell restyle (PR-1). */
-  --shadow-sm: 0 2px 4px 0 rgb(0 0 0 / 0.04);
-  --shadow:    0 4px 8px -2px rgb(0 0 0 / 0.05), 0 2px 4px -1px rgb(0 0 0 / 0.03);
+/* ─── Elevation ────────────────────────────────────────────────────────────
+ * ONE RULE: things that float cast a shadow; things in the flow do not.
+ * Floating = the shell (sidebar, topbar) and true overlays (menus, popovers,
+ * toasts, the mobile drawer). Cards, buttons and inputs sit in the page and
+ * are separated by their border alone.
+ *
+ * These live in @theme, NOT :root. That distinction is not cosmetic: Tailwind
+ * only generates utilities from @theme, so while these sat in :root
+ * `shadow-card` resolved to nothing at all — the sidebar and topbar claimed a
+ * shadow for months and painted none — and `shadow-sm` silently fell back to
+ * Tailwind's own default at black 10%, not the 4% intended here. The result
+ * was the exact inverse of the design: flat shell, shadowed cards.
+ *
+ * Deleted along the way: --shadow-sm, --shadow and --shadow-glow, which
+ * nothing consumed.
+ */
+@theme {
+  --shadow-card: 0 1px 2px rgb(15 23 42 / 0.04), 0 4px 12px rgb(15 23 42 / 0.05),
+    0 12px 32px rgb(15 23 42 / 0.06);
+  --shadow-cta: 0 1px 2px rgb(57 85 232 / 0.15), 0 8px 24px rgb(57 85 232 / 0.28);
+  --shadow-hero: 0 20px 60px rgb(30 45 122 / 0.28), 0 4px 12px rgb(30 45 122 / 0.18);
+  /* Consumed by the legacy .shadow-brand helpers below. */
   --shadow-md: 0 8px 16px -4px rgb(57 85 232 / 0.12), 0 4px 8px -2px rgb(0 0 0 / 0.05);
   --shadow-lg: 0 16px 32px -8px rgb(57 85 232 / 0.15), 0 8px 16px -4px rgb(0 0 0 / 0.06);
-  --shadow-glow: 0 0 0 4px rgb(57 85 232 / 0.15);
+}
 
-  /* Sapphire Editorial layered shadows (tokens.json) */
-  --shadow-card: 0 1px 2px rgb(15 23 42 / 0.04), 0 4px 12px rgb(15 23 42 / 0.05), 0 12px 32px rgb(15 23 42 / 0.06);
-  --shadow-cta:  0 1px 2px rgb(57 85 232 / 0.15), 0 8px 24px rgb(57 85 232 / 0.28);
-  --shadow-hero: 0 20px 60px rgb(30 45 122 / 0.28), 0 4px 12px rgb(30 45 122 / 0.18);
-  --border-color:  rgb(15 23 42 / 0.08);
+:root {
+  --border-color: rgb(15 23 42 / 0.08);
   --border-strong: rgb(15 23 42 / 0.14);
-  --brand-glow:  rgb(57 85 232 / 0.32);
+  --brand-glow: rgb(57 85 232 / 0.32);
   --accent-glow: rgb(251 191 36 / 0.5);
-  color-scheme: light; /* lock light — dark mode out of scope */
+  /* color-scheme is set per-visitor on <html> by the root layout — see
+     src/lib/theme/config.ts. It must NOT be locked here. */
 }
 
 /* ─── Base ─── */
@@ -145,14 +244,126 @@ body {
    Defined via @apply so it matches the `Card` component exactly; this is the
    single source of truth for card surfaces (StatCard, list cards, etc.). */
 .surface {
-  @apply rounded-xl border border-line bg-surface shadow-sm;
+  /* No shadow: a card sits in the flow. See the elevation rule above. */
+  @apply rounded-xl border border-line bg-surface;
 }
-.shadow-cta  { box-shadow: var(--shadow-cta); }
-.shadow-hero { box-shadow: var(--shadow-hero); }
 
 /* Legacy brand-glow utilities (used by sidebar/topbar until PR-1 restyle) */
 .shadow-brand    { box-shadow: var(--shadow-md); }
 .shadow-brand-lg { box-shadow: var(--shadow-lg); }
+
+/* ── Scroll affordance ─────────────────────────────────────────────────────
+ * Horizontal scrollers use <ScrollArea> (src/components/ui/scroll-area.tsx),
+ * whose shadow is an OVERLAY drawn above the content. This was first built as
+ * a `background-attachment: local` trick, which is elegant and wrong for this
+ * app: a background paints behind its element's content, so buttons in the
+ * last column drew on top of the shadow and were hard-clipped at the edge.
+ *
+ * `.u-scroll-y` keeps the background technique. Vertical scrollers here are
+ * menus and notification lists whose rows end well before the edge, so
+ * nothing gets clipped and no JS is warranted.
+ */
+:root {
+  --scroll-cover: var(--color-surface);
+  /* Light: slate at low alpha. Dark is overridden in the theme block — black
+     at 13% is invisible on a #22252a card, so it needs far more weight. */
+  --scroll-shadow: rgb(15 23 42 / 0.13);
+}
+
+.u-scroll-y {
+  background-image:
+    linear-gradient(to bottom, var(--scroll-cover), transparent),
+    linear-gradient(to top, var(--scroll-cover), transparent),
+    radial-gradient(farthest-side at 50% 0, var(--scroll-shadow), transparent),
+    radial-gradient(farthest-side at 50% 100%, var(--scroll-shadow), transparent);
+  background-position: 0 0, 0 100%, 0 0, 0 100%;
+  background-size: 100% 32px, 100% 32px, 100% 14px, 100% 14px;
+  background-repeat: no-repeat;
+  background-attachment: local, local, scroll, scroll;
+}
+
+/* Cells inside a horizontally-scrollable box do not wrap.
+ *
+ * Wrapping is what makes a wide table unreadable — a date breaks across two
+ * lines, rows grow to different heights, and the eye loses the row it was
+ * following. Scrolling is the better trade whenever scrolling is possible,
+ * which is exactly the condition this selector encodes.
+ *
+ * `:where()` keeps specificity at 0,1,0 — identical to a Tailwind utility —
+ * so a column that really is prose (a leave reason, an audit note) opts back
+ * in with `whitespace-normal` and wins on source order.
+ */
+[data-scroll-area] :where(th, td) {
+  white-space: nowrap;
+}
+
+/* Respect the same reduced-motion posture as the rest of the app: the shadows
+   are static paint, not animation, so they stay — nothing to disable here. */
+
+/* ── driver.js tour, themed ────────────────────────────────────────────────
+ * driver.css hardcodes a light popover: #fff background, #2d2d2d title,
+ * #727272 description, #ccc borders, #f7f7f7 buttons. None of it goes through
+ * our tokens, so the tour stayed bright white on a dark page.
+ *
+ * The arrow is the part that is easy to miss: it is a CSS triangle drawn with
+ * `border: 5px solid #fff`, with three sides made transparent. Recolouring
+ * only the popover leaves a white pointer stuck to a dark card, so each of the
+ * four directions needs its ONE opaque side re-pointed at the surface token.
+ *
+ * Selectors are doubled (`.driver-popover.driver-popover`) to reach 0,2,0.
+ * driver.css is imported from a JS module (run-tour.ts), so which stylesheet
+ * the bundler emits last is not guaranteed — at equal specificity the winner
+ * would be decided by build order. Doubling settles it without !important.
+ */
+.driver-popover.driver-popover {
+  background-color: var(--color-surface);
+  color: var(--color-ink-1);
+  border: 1px solid var(--color-line);
+  box-shadow: var(--shadow-card);
+}
+.driver-popover-title.driver-popover-title {
+  color: var(--color-ink-1);
+}
+.driver-popover-description.driver-popover-description {
+  color: var(--color-ink-3);
+}
+.driver-popover-progress-text.driver-popover-progress-text {
+  color: var(--color-ink-4);
+}
+.driver-popover-close-btn.driver-popover-close-btn {
+  color: var(--color-ink-4);
+}
+.driver-popover-close-btn.driver-popover-close-btn:hover,
+.driver-popover-close-btn.driver-popover-close-btn:focus {
+  color: var(--color-ink-1);
+}
+.driver-popover-footer-btn.driver-popover-footer-btn {
+  background-color: var(--color-surface-muted);
+  color: var(--color-ink-2);
+  border: 1px solid var(--color-line-strong);
+  text-shadow: none;
+}
+.driver-popover-footer-btn.driver-popover-footer-btn:hover:not(.driver-popover-btn-disabled) {
+  background-color: var(--color-surface-hover-strong);
+  color: var(--color-ink-1);
+}
+.driver-popover-btn-disabled.driver-popover-btn-disabled {
+  color: var(--color-ink-4);
+  opacity: 0.6;
+}
+/* The pointer: one opaque side per direction, the other three transparent. */
+.driver-popover-arrow-side-left.driver-popover-arrow-side-left {
+  border-left-color: var(--color-surface);
+}
+.driver-popover-arrow-side-right.driver-popover-arrow-side-right {
+  border-right-color: var(--color-surface);
+}
+.driver-popover-arrow-side-top.driver-popover-arrow-side-top {
+  border-top-color: var(--color-surface);
+}
+.driver-popover-arrow-side-bottom.driver-popover-arrow-side-bottom {
+  border-bottom-color: var(--color-surface);
+}
 
 /* ── Motion keyframes (transform/opacity only) ─────────────────────────── */
 @keyframes enter-rise {
@@ -216,4 +427,299 @@ body {
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* ─── Dark theme ───────────────────────────────────────────────────────────
+ * Declared TWICE with identical bodies. A CSS rule cannot span a media query,
+ * so a visitor who has not chosen (media query) and one who has (data-theme)
+ * need separate rules. src/app/globals.dark.test.ts asserts they never drift.
+ *
+ * `:not([data-theme='light'])` is what lets an explicit Light choice win on a
+ * dark OS. Without it the override only works in one direction.
+ *
+ * Values come from scripts/derive-theme-tokens.mjs. Do not hand-edit.
+ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    /* DARK:media */
+    /* ── Surfaces. Elevation is LIGHTNESS, not shadow: a surface gets lighter
+     * as it comes forward. Steps are ΔL 2.5–4.5, all perceptible.
+     *
+     * HARD CEILING: no surface above OKLCH L 32.95. That is where ink-4 still
+     * reaches 4.5:1, and globals.dark.test.ts enforces it. A draft at L 36
+     * silently dropped ink-4 to 3.99.
+     *
+     * Note surface-hover goes LIGHTER than surface here, the opposite of
+     * light mode. That inversion is why hover needed its own tokens.       */
+    --color-surface-sunken:       #0b0d12;  /* L 16.0 */
+    --color-canvas:               #101317;  /* L 18.5 */
+    --color-surface-muted:        #1a1d22;  /* L 23.0 */
+    --color-surface:              #22252a;  /* L 26.5 */
+    --color-surface-hover:        #292d32;  /* L 29.5 */
+    --color-surface-hover-strong: #313439;  /* L 32.5 */
+    --color-line-soft:            #2d3135;
+    --color-line:                 #3a3d42;
+    --color-line-strong:          #52565b;
+    /* Ink, checked against the LIGHTEST surface (the worst case for light
+     * text): 10.89 / 7.88 / 5.53 / 4.57. */
+    --color-ink-1:                #e9f0f9;
+    --color-ink-2:                #c7ced7;
+    --color-ink-3:                #a7adb5;
+    --color-ink-4:                #979da5;
+    --color-ink-5:                #6e7277;  /* non-text */
+    --border-color:               rgb(255 255 255 / 0.10);
+    --border-strong:              rgb(255 255 255 / 0.18);
+
+    /* ── Status ramps. Soft tints (50/100/200) sit ABOVE both canvas and
+     * surface so an alert still reads as a block; at equal lightness it goes
+     * flat, and for colour-blind readers it vanishes entirely. Text tones
+     * (700/800/900) invert to light. All 14 alert pairs this app renders
+     * pass, lowest 6.43.                                                   */
+    --color-red-50:      #482d2b;
+    --color-red-100:     #55322f;
+    --color-red-200:     #663935;
+    --color-red-300:     #904d48;
+    --color-red-400:     #c25d57;
+    --color-red-700:     #ffb1a9;
+    --color-red-800:     #ffc2bb;
+    --color-red-900:     #ffd0ca;
+    --color-amber-50:    #43321e;
+    --color-amber-100:   #4f381d;
+    --color-amber-200:   #5e411d;
+    --color-amber-300:   #845922;
+    --color-amber-400:   #b17000;
+    --color-amber-700:   #f5bf81;
+    --color-amber-800:   #fcce9a;
+    --color-amber-900:   #ffdaaf;
+    --color-green-50:    #283b29;
+    --color-green-100:   #2b442c;
+    --color-green-200:   #305132;
+    --color-green-300:   #3f7142;
+    --color-green-700:   #a1dca3;
+    --color-green-800:   #b5e7b6;
+    --color-green-900:   #c5eec5;
+    --color-emerald-50:  #213c2f;
+    --color-emerald-400: #039869;
+    --color-emerald-500: #008550;
+    --color-emerald-700: #8cdfb7;
+    --color-blue-50:     #29364a;
+    --color-blue-100:    #2d3d58;
+    --color-blue-500:    #3972ce;
+    --color-blue-700:    #a4ccff;
+    --color-blue-800:    #b7d9ff;
+    --color-purple-50:   #3a3046;
+    --color-purple-100:  #433653;
+    --color-purple-700:  #d8bbff;
+    --color-purple-800:  #e3caff;
+    --color-rose-100:    #553234;
+    --color-rose-700:    #ffb0b4;
+    --color-rose-800:    #ffc1c4;
+    --color-violet-50:   #363148;
+    --color-violet-700:  #cdbeff;
+    --color-yellow-100:  #493b1b;
+    --color-yellow-800:  #f1d496;
+    /* 2 leftover raw greys from the earlier token migration — pointed at real
+     * tokens rather than re-derived. */
+    --color-gray-100:    #2d3135;
+    --color-gray-700:    #c7ced7;
+
+    /* ── Solid CTA fills, solved so WHITE text clears AA on each. Note the
+     * direction: in LIGHT a button hover goes DARKER; in DARK it must go
+     * LIGHTER, exactly like surface-hover. Same inversion, second place.   */
+    --color-danger-solid:         #b9423a;  /* white 5.38 */
+    --color-danger-solid-hover:   #c64e45;  /* white 4.59 */
+    --color-danger-accent:        #c44d43;  /* white 4.68 */
+    --color-success-solid:        #007b2d;  /* white 5.42 */
+    --color-success-solid-hover:  #008738;  /* white 4.64 */
+    --color-warning-solid:        #ac4f00;  /* white 5.42 */
+    --color-warning-solid-hover:  #b95b00;  /* white 4.61 */
+    /* ── Brand ramp. Hue 268.7 preserved from #3955e8 — only lightness and
+     * chroma are re-derived, so it still reads as the same blue.          */
+    --color-primary-50:   #2c344d;
+    --color-primary-100:  #313c5a;
+    --color-primary-200:  #38466e;
+    --color-primary-300:  #43558a;
+    --color-primary-400:  #556db7;
+    --color-primary-500:  #6380da;
+    --color-primary-600:  #93aaed;  /* 6.74 on surface */
+    --color-primary-700:  #a9c1ff;  /* 8.61 on surface */
+    --color-primary-800:  #c0d6ff;
+    --color-primary-900:  #cfe1ff;
+    /* Semantic text tones invert to light; their -soft partners stay dark
+     * and sit above the surface. text-on-tint: 6.89-7.51.                 */
+    --color-success:      #71c49d;
+    --color-success-deep: #92d7b5;
+    --color-success-soft: #1a3d2e;
+    --color-danger:       #f19f97;
+    --color-danger-deep:  #ffb7af;
+    --color-danger-soft:  #4c2b28;
+    --color-warning:      #e2b27c;
+    --color-info:         #a9c1ff;
+    --color-accent-400:   #d8953d;  /* decorative fill; ink-1 on it = 7.04 */
+    --color-accent-500:   #d8953d;
+    --color-accent-600:   #e2b27c;
+    /* Brand + semantic solid fills: white text clears AA on each.         */
+    --color-brand-solid:        #4964c2;  /* white 5.41 */
+    --color-brand-solid-hover:  #5370cf;  /* white 4.58, lighter per the inversion */
+    --color-success-fill:       #007a4d;  /* white 5.40 */
+    --color-success-fill-deep:  #006d41;  /* white 6.43 */
+    --color-danger-fill:        #bb3f3c;  /* white 5.40 */
+    --color-warning-fill:       #9e5a00;  /* white 5.36 */
+    /* red/amber 500-600 are TEXT and border tones here: their solid-fill uses
+     * were re-pointed to the danger-/warning-solid tokens, so nothing depends
+     * on them staying saturated. Missing these left Sunday dates on the LIFF
+     * calendar at 3.22:1.                                                  */
+    --color-red-500:     #e3877f;
+    --color-red-600:     #ed978f;
+    --color-amber-500:   #d0954b;
+    --color-amber-600:   #daa462;
+    /* Elevation in dark comes from the surface lightness steps above, not
+     * from shadow — black at 6% is invisible on a #101317 canvas. */
+    --shadow-card:  none;
+
+    /* Scroll shadows sit ON a dark card, so they need real weight. */
+    --scroll-shadow: rgb(0 0 0 / 0.55);
+
+  }
+}
+:root[data-theme='dark'] {
+  /* DARK:attr */
+    /* ── Surfaces. Elevation is LIGHTNESS, not shadow: a surface gets lighter
+     * as it comes forward. Steps are ΔL 2.5–4.5, all perceptible.
+     *
+     * HARD CEILING: no surface above OKLCH L 32.95. That is where ink-4 still
+     * reaches 4.5:1, and globals.dark.test.ts enforces it. A draft at L 36
+     * silently dropped ink-4 to 3.99.
+     *
+     * Note surface-hover goes LIGHTER than surface here, the opposite of
+     * light mode. That inversion is why hover needed its own tokens.       */
+    --color-surface-sunken:       #0b0d12;  /* L 16.0 */
+    --color-canvas:               #101317;  /* L 18.5 */
+    --color-surface-muted:        #1a1d22;  /* L 23.0 */
+    --color-surface:              #22252a;  /* L 26.5 */
+    --color-surface-hover:        #292d32;  /* L 29.5 */
+    --color-surface-hover-strong: #313439;  /* L 32.5 */
+    --color-line-soft:            #2d3135;
+    --color-line:                 #3a3d42;
+    --color-line-strong:          #52565b;
+    /* Ink, checked against the LIGHTEST surface (the worst case for light
+     * text): 10.89 / 7.88 / 5.53 / 4.57. */
+    --color-ink-1:                #e9f0f9;
+    --color-ink-2:                #c7ced7;
+    --color-ink-3:                #a7adb5;
+    --color-ink-4:                #979da5;
+    --color-ink-5:                #6e7277;  /* non-text */
+    --border-color:               rgb(255 255 255 / 0.10);
+    --border-strong:              rgb(255 255 255 / 0.18);
+
+    /* ── Status ramps. Soft tints (50/100/200) sit ABOVE both canvas and
+     * surface so an alert still reads as a block; at equal lightness it goes
+     * flat, and for colour-blind readers it vanishes entirely. Text tones
+     * (700/800/900) invert to light. All 14 alert pairs this app renders
+     * pass, lowest 6.43.                                                   */
+    --color-red-50:      #482d2b;
+    --color-red-100:     #55322f;
+    --color-red-200:     #663935;
+    --color-red-300:     #904d48;
+    --color-red-400:     #c25d57;
+    --color-red-700:     #ffb1a9;
+    --color-red-800:     #ffc2bb;
+    --color-red-900:     #ffd0ca;
+    --color-amber-50:    #43321e;
+    --color-amber-100:   #4f381d;
+    --color-amber-200:   #5e411d;
+    --color-amber-300:   #845922;
+    --color-amber-400:   #b17000;
+    --color-amber-700:   #f5bf81;
+    --color-amber-800:   #fcce9a;
+    --color-amber-900:   #ffdaaf;
+    --color-green-50:    #283b29;
+    --color-green-100:   #2b442c;
+    --color-green-200:   #305132;
+    --color-green-300:   #3f7142;
+    --color-green-700:   #a1dca3;
+    --color-green-800:   #b5e7b6;
+    --color-green-900:   #c5eec5;
+    --color-emerald-50:  #213c2f;
+    --color-emerald-400: #039869;
+    --color-emerald-500: #008550;
+    --color-emerald-700: #8cdfb7;
+    --color-blue-50:     #29364a;
+    --color-blue-100:    #2d3d58;
+    --color-blue-500:    #3972ce;
+    --color-blue-700:    #a4ccff;
+    --color-blue-800:    #b7d9ff;
+    --color-purple-50:   #3a3046;
+    --color-purple-100:  #433653;
+    --color-purple-700:  #d8bbff;
+    --color-purple-800:  #e3caff;
+    --color-rose-100:    #553234;
+    --color-rose-700:    #ffb0b4;
+    --color-rose-800:    #ffc1c4;
+    --color-violet-50:   #363148;
+    --color-violet-700:  #cdbeff;
+    --color-yellow-100:  #493b1b;
+    --color-yellow-800:  #f1d496;
+    /* 2 leftover raw greys from the earlier token migration — pointed at real
+     * tokens rather than re-derived. */
+    --color-gray-100:    #2d3135;
+    --color-gray-700:    #c7ced7;
+
+    /* ── Solid CTA fills, solved so WHITE text clears AA on each. Note the
+     * direction: in LIGHT a button hover goes DARKER; in DARK it must go
+     * LIGHTER, exactly like surface-hover. Same inversion, second place.   */
+    --color-danger-solid:         #b9423a;  /* white 5.38 */
+    --color-danger-solid-hover:   #c64e45;  /* white 4.59 */
+    --color-danger-accent:        #c44d43;  /* white 4.68 */
+    --color-success-solid:        #007b2d;  /* white 5.42 */
+    --color-success-solid-hover:  #008738;  /* white 4.64 */
+    --color-warning-solid:        #ac4f00;  /* white 5.42 */
+    --color-warning-solid-hover:  #b95b00;  /* white 4.61 */
+    /* ── Brand ramp. Hue 268.7 preserved from #3955e8 — only lightness and
+     * chroma are re-derived, so it still reads as the same blue.          */
+    --color-primary-50:   #2c344d;
+    --color-primary-100:  #313c5a;
+    --color-primary-200:  #38466e;
+    --color-primary-300:  #43558a;
+    --color-primary-400:  #556db7;
+    --color-primary-500:  #6380da;
+    --color-primary-600:  #93aaed;  /* 6.74 on surface */
+    --color-primary-700:  #a9c1ff;  /* 8.61 on surface */
+    --color-primary-800:  #c0d6ff;
+    --color-primary-900:  #cfe1ff;
+    /* Semantic text tones invert to light; their -soft partners stay dark
+     * and sit above the surface. text-on-tint: 6.89-7.51.                 */
+    --color-success:      #71c49d;
+    --color-success-deep: #92d7b5;
+    --color-success-soft: #1a3d2e;
+    --color-danger:       #f19f97;
+    --color-danger-deep:  #ffb7af;
+    --color-danger-soft:  #4c2b28;
+    --color-warning:      #e2b27c;
+    --color-info:         #a9c1ff;
+    --color-accent-400:   #d8953d;  /* decorative fill; ink-1 on it = 7.04 */
+    --color-accent-500:   #d8953d;
+    --color-accent-600:   #e2b27c;
+    /* Brand + semantic solid fills: white text clears AA on each.         */
+    --color-brand-solid:        #4964c2;  /* white 5.41 */
+    --color-brand-solid-hover:  #5370cf;  /* white 4.58, lighter per the inversion */
+    --color-success-fill:       #007a4d;  /* white 5.40 */
+    --color-success-fill-deep:  #006d41;  /* white 6.43 */
+    --color-danger-fill:        #bb3f3c;  /* white 5.40 */
+    --color-warning-fill:       #9e5a00;  /* white 5.36 */
+    /* red/amber 500-600 are TEXT and border tones here: their solid-fill uses
+     * were re-pointed to the danger-/warning-solid tokens, so nothing depends
+     * on them staying saturated. Missing these left Sunday dates on the LIFF
+     * calendar at 3.22:1.                                                  */
+    --color-red-500:     #e3877f;
+    --color-red-600:     #ed978f;
+    --color-amber-500:   #d0954b;
+    --color-amber-600:   #daa462;
+    /* Elevation in dark comes from the surface lightness steps above, not
+     * from shadow — black at 6% is invisible on a #101317 canvas. */
+    --shadow-card:  none;
+
+    /* Scroll shadows sit ON a dark card, so they need real weight. */
+    --scroll-shadow: rgb(0 0 0 / 0.55);
+
 }

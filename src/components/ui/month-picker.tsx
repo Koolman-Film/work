@@ -117,7 +117,7 @@ export function MonthPicker({ id, name, defaultValue, min, max, className }: Pro
               type="button"
               onClick={() => setViewYear((y) => y - 1)}
               aria-label="ปีก่อนหน้า"
-              className="grid size-7 place-items-center rounded-md text-ink-3 hover:bg-surface-sunken hover:text-ink-2"
+              className="grid size-7 place-items-center rounded-md text-ink-3 hover:bg-surface-hover-strong hover:text-ink-2"
             >
               ‹
             </button>
@@ -126,7 +126,7 @@ export function MonthPicker({ id, name, defaultValue, min, max, className }: Pro
               type="button"
               onClick={() => setViewYear((y) => y + 1)}
               aria-label="ปีถัดไป"
-              className="grid size-7 place-items-center rounded-md text-ink-3 hover:bg-surface-sunken hover:text-ink-2"
+              className="grid size-7 place-items-center rounded-md text-ink-3 hover:bg-surface-hover-strong hover:text-ink-2"
             >
               ›
             </button>
@@ -150,9 +150,9 @@ export function MonthPicker({ id, name, defaultValue, min, max, className }: Pro
                   className={cn(
                     'rounded-lg px-2 py-2 text-sm transition',
                     isSelected
-                      ? 'bg-primary-600 font-semibold text-white'
+                      ? 'bg-brand-solid font-semibold text-white'
                       : isDisabled
-                        ? 'cursor-not-allowed text-ink-5'
+                        ? 'cursor-not-allowed text-ink-4'
                         : 'text-ink-2 hover:bg-primary-50 hover:text-primary-700',
                   )}
                 >

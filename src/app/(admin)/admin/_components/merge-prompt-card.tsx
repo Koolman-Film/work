@@ -38,7 +38,7 @@ function RowAvatar({ name, src }: { name: string; src: string | null }) {
   );
 }
 
-const CARD = 'rounded-2xl border border-line bg-surface p-5 shadow-sm';
+const CARD = 'rounded-2xl border border-line bg-surface p-5';
 
 export function MergePromptCard() {
   const t = useTranslations('mergeWizard');
@@ -95,7 +95,7 @@ export function MergePromptCard() {
     return (
       <div className={cn(CARD, 'flex flex-col items-center text-center')}>
         <p className="text-sm font-semibold text-ink-1">{t('scanHint')}</p>
-        <div className="mt-4 rounded-2xl border border-line bg-surface p-3 shadow-sm">
+        <div className="mt-4 rounded-2xl border border-line bg-surface p-3">
           {/* biome-ignore lint/performance/noImgElement: inline data: URL (QR), not a storage asset */}
           <img src={qr.qrDataUrl} alt="QR code" width={208} height={208} className="rounded-lg" />
         </div>
@@ -161,7 +161,7 @@ export function MergePromptCard() {
                 aria-pressed={isSelected}
                 className={cn(
                   'flex w-full items-center gap-3 px-3 py-2.5 text-left transition',
-                  isSelected ? 'bg-primary-50' : 'hover:bg-surface-muted',
+                  isSelected ? 'bg-primary-50' : 'hover:bg-surface-hover',
                 )}
               >
                 <RowAvatar name={name} src={emp.photoUrl} />
@@ -174,7 +174,7 @@ export function MergePromptCard() {
                 {isSelected && (
                   <span
                     aria-hidden="true"
-                    className="grid size-5 shrink-0 place-items-center rounded-full bg-primary-600 text-[11px] font-bold text-white"
+                    className="grid size-5 shrink-0 place-items-center rounded-full bg-brand-solid text-[11px] font-bold text-white"
                   >
                     ✓
                   </span>

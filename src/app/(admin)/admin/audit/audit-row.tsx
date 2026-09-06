@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { diffValues } from '@/lib/audit/diff';
 import { actionLabel, entityLabel, isSensitive } from '@/lib/audit/labels';
@@ -55,18 +56,20 @@ export function AuditRow({ row }: { row: AuditRowData }) {
           </a>
 
           {diff.length > 0 ? (
-            <table className="min-w-full text-sm">
-              <tbody className="divide-y divide-line-soft">
-                {diff.map((d) => (
-                  <tr key={d.field} className={d.changed ? '' : 'text-ink-4'}>
-                    <td className="py-1 pr-4 font-medium text-ink-2">{d.label}</td>
-                    <td className="py-1 pr-2 text-ink-3">{d.before}</td>
-                    <td className="py-1 pr-2">→</td>
-                    <td className="py-1 text-ink-1">{d.after}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <ScrollArea>
+              <table className="min-w-full text-sm">
+                <tbody className="divide-y divide-line-soft">
+                  {diff.map((d) => (
+                    <tr key={d.field} className={d.changed ? '' : 'text-ink-4'}>
+                      <td className="py-1 pr-4 font-medium text-ink-2">{d.label}</td>
+                      <td className="py-1 pr-2 text-ink-3">{d.before}</td>
+                      <td className="py-1 pr-2">→</td>
+                      <td className="py-1 text-ink-1">{d.after}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </ScrollArea>
           ) : (
             <p className="text-ink-4">ไม่มีรายละเอียดการเปลี่ยนแปลง</p>
           )}

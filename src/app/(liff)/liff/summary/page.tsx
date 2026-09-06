@@ -142,7 +142,7 @@ export default async function LiffSummaryPage({
   const displayYear = locale === 'th' ? year + 543 : year;
   const todayYm = todayYmd.slice(0, 7);
 
-  const cardCls = 'rounded-2xl border border-line bg-surface p-5 shadow-sm';
+  const cardCls = 'rounded-2xl border border-line bg-surface p-5';
   return (
     <main className="mx-auto max-w-md space-y-4 px-4 pt-8 pb-12">
       <header className="flex items-center justify-between gap-2">
@@ -155,7 +155,7 @@ export default async function LiffSummaryPage({
           // `todayYm` in custom mode and wrongly hide the shortcut.
           <Link
             href="/liff/summary"
-            className="rounded-md border border-line bg-surface px-2.5 py-1 text-xs font-medium text-ink-2 hover:bg-surface-muted"
+            className="rounded-md border border-line bg-surface px-2.5 py-1 text-xs font-medium text-ink-2 hover:bg-surface-hover"
           >
             {t('thisMonth')}
           </Link>

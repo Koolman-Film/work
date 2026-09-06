@@ -126,7 +126,7 @@ export function ApprovalsList({
                         type="button"
                         onClick={() => open(card)}
                         disabled={!clickable || loading}
-                        className="flex w-full items-center justify-between gap-3 text-left transition hover:-translate-y-px hover:shadow-sm active:scale-[0.99] disabled:cursor-default"
+                        className="flex w-full items-center justify-between gap-3 text-left transition hover:-translate-y-px hover:active:scale-[0.99] disabled:cursor-default"
                       >
                         <span className="flex flex-wrap items-center gap-2">
                           <StatusBadge status="neutral">{TYPE_LABEL[card.type]}</StatusBadge>

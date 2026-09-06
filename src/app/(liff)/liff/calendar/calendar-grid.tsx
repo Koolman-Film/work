@@ -243,7 +243,7 @@ export function CalendarGrid({
               className={cn(
                 'text-center text-[10px] font-medium',
                 // Sunday + Saturday colored to match cell day colors.
-                i === 0 ? 'text-red-500' : 'text-ink-3',
+                i === 0 ? 'text-red-600' : 'text-ink-3',
               )}
             >
               {w}
@@ -297,7 +297,7 @@ export function CalendarGrid({
                 className={cn(
                   'relative flex aspect-square flex-col rounded-md border p-1 text-left transition',
                   // Out-of-month cells: muted background + ghost text.
-                  !cell.inMonth && 'border-transparent bg-transparent text-ink-5',
+                  !cell.inMonth && 'border-transparent bg-transparent text-ink-4',
                   cell.inMonth && !isSelected && 'border-line bg-surface hover:border-primary-200',
                   isSelected && 'border-primary-500 bg-primary-50 ring-2 ring-primary-200',
                   holiday && cell.inMonth && !isSelected && 'border-red-100 bg-red-50/40',
@@ -308,7 +308,7 @@ export function CalendarGrid({
                     'text-[11px] font-medium leading-none',
                     cell.inMonth && isSunday && 'text-red-600',
                     cell.inMonth && !isSunday && 'text-ink-1',
-                    isToday && cell.inMonth && 'rounded-full bg-primary-600 px-1 text-white',
+                    isToday && cell.inMonth && 'rounded-full bg-brand-solid px-1 text-white',
                   )}
                 >
                   {cell.day}
@@ -375,7 +375,7 @@ export function CalendarGrid({
                 {holiday && cell.inMonth && dayBirthdays.length === 0 && (
                   <span
                     aria-hidden="true"
-                    className="absolute right-1 top-1 size-1.5 rounded-full bg-red-500"
+                    className="absolute right-1 top-1 size-1.5 rounded-full bg-danger-accent"
                   />
                 )}
               </button>
@@ -477,7 +477,7 @@ export function CalendarGrid({
                       type="button"
                       disabled={busyId === e.leaveRequestId}
                       onClick={() => onLeaveClick(e.leaveRequestId)}
-                      className="flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-surface-muted disabled:opacity-60"
+                      className="flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-surface-hover disabled:opacity-60"
                     >
                       {body}
                     </button>
@@ -510,7 +510,7 @@ export function CalendarGrid({
                       type="button"
                       disabled={busyId === a.cashAdvanceId}
                       onClick={() => onAdvanceClick(a.cashAdvanceId)}
-                      className="flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-surface-muted disabled:opacity-60"
+                      className="flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-surface-hover disabled:opacity-60"
                     >
                       {body}
                     </button>

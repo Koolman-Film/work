@@ -266,7 +266,7 @@ export function Sidebar({
           // Mobile: slide in/out
           open ? 'translate-x-0 shadow-xl' : '-translate-x-full',
           // Desktop: floating rounded card on the canvas, sticky
-          'lg:sticky lg:top-4 lg:m-4 lg:h-[calc(100dvh-2rem)] lg:translate-x-0 lg:rounded-2xl lg:border lg:border-[var(--border-color)] lg:shadow-card',
+          'lg:sticky lg:top-4 lg:my-4 lg:ml-4 lg:h-[calc(100dvh-2rem)] lg:translate-x-0 lg:rounded-2xl lg:border lg:border-[var(--border-color)] lg:shadow-card',
         )}
         aria-label="แผงควบคุมผู้ดูแล"
       >
@@ -278,7 +278,7 @@ export function Sidebar({
                 className="grid size-10 place-items-center rounded-xl text-white shadow-cta"
                 style={{
                   background:
-                    'linear-gradient(135deg, var(--color-primary-600), var(--color-primary-800))',
+                    'linear-gradient(135deg, var(--color-brand-grad-alt-from), var(--color-brand-grad-alt-to))',
                 }}
               >
                 <svg
@@ -312,7 +312,7 @@ export function Sidebar({
               type="button"
               onClick={close}
               aria-label="ปิดเมนู"
-              className="grid size-8 place-items-center rounded-md text-ink-3 hover:bg-surface-sunken hover:text-ink-1 lg:hidden"
+              className="grid size-8 place-items-center rounded-md text-ink-3 hover:bg-surface-hover-strong hover:text-ink-1 lg:hidden"
             >
               <X size={18} strokeWidth={2} aria-hidden="true" />
             </button>
@@ -339,7 +339,7 @@ export function Sidebar({
                       return (
                         <li key={item.href}>
                           <span
-                            className="flex cursor-not-allowed items-center justify-between rounded-lg px-3 py-2 text-sm text-ink-5"
+                            className="flex cursor-not-allowed items-center justify-between rounded-lg px-3 py-2 text-sm text-ink-4"
                             title="เร็วๆ นี้"
                           >
                             <span className="flex items-center gap-2.5">
@@ -363,14 +363,14 @@ export function Sidebar({
                           className={cn(
                             'relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition',
                             active
-                              ? 'bg-primary-50 font-medium text-primary-700 before:absolute before:bottom-1.5 before:left-0 before:top-1.5 before:w-0.5 before:rounded-full before:bg-primary-600'
-                              : 'text-ink-2 hover:bg-surface-muted',
+                              ? 'bg-primary-50 font-medium text-primary-700 before:absolute before:bottom-1.5 before:left-0 before:top-1.5 before:w-0.5 before:rounded-full before:bg-brand-solid'
+                              : 'text-ink-2 hover:bg-surface-hover',
                           )}
                         >
                           <Icon size={18} strokeWidth={active ? 2.5 : 2} aria-hidden="true" />
                           <span className="flex-1">{item.label}</span>
                           {count > 0 && (
-                            <span className="rounded-full bg-primary-600 px-1.5 py-0.5 font-display text-[10px] font-bold leading-none text-white">
+                            <span className="rounded-full bg-brand-solid px-1.5 py-0.5 font-display text-[10px] font-bold leading-none text-white">
                               {count > 99 ? '99+' : count}
                               <span className="sr-only"> รายการรอดำเนินการ</span>
                             </span>
@@ -393,12 +393,12 @@ export function Sidebar({
                 openPanel();
                 close();
               }}
-              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-ink-2 transition hover:bg-surface-muted"
+              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-ink-2 transition hover:bg-surface-hover"
             >
               <span className="relative">
                 <Sparkles size={18} strokeWidth={2} aria-hidden="true" />
                 {unseen > 0 && (
-                  <span className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-primary-600 ring-2 ring-white">
+                  <span className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-brand-solid ring-2 ring-white">
                     <span className="sr-only">มีอัปเดตใหม่</span>
                   </span>
                 )}

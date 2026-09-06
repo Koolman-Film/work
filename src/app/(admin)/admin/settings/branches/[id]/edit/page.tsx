@@ -47,7 +47,7 @@ export default async function EditBranchPage({
   const updateBound = updateBranch.bind(null, id);
 
   return (
-    <div className="px-4 py-6 sm:px-6 lg:px-8">
+    <div className="p-4">
       <PageHeader breadcrumb="ตั้งค่า · สาขา" title="แก้ไขสาขา" />
       <div>
         <BranchForm

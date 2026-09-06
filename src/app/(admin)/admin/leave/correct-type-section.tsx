@@ -144,7 +144,7 @@ export function CorrectTypeSection({
               type="button"
               onClick={confirm}
               disabled={pending || note.trim() === ''}
-              className="rounded-md bg-primary-600 px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50"
+              className="rounded-md bg-brand-solid px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50"
             >
               ยืนยันการแก้ประเภท
             </button>

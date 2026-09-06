@@ -33,7 +33,7 @@ export async function BalanceCard({ balance, locale }: Props) {
     return (
       <section
         className={[
-          'rounded-2xl border bg-surface p-5 shadow-sm',
+          'rounded-2xl border bg-surface p-5',
           balance.overdrawn ? 'border-red-300' : 'border-line',
         ].join(' ')}
       >
@@ -67,7 +67,11 @@ export async function BalanceCard({ balance, locale }: Props) {
           <div
             className={[
               'h-full rounded-full transition-all',
-              balance.overdrawn ? 'bg-red-500' : usedPct > 80 ? 'bg-amber-500' : 'bg-primary-500',
+              balance.overdrawn
+                ? 'bg-danger-accent'
+                : usedPct > 80
+                  ? 'bg-warning-solid'
+                  : 'bg-primary-500',
             ].join(' ')}
             style={{ width: `${usedPct}%` }}
           />
@@ -108,7 +112,7 @@ export async function BalanceCard({ balance, locale }: Props) {
   return (
     <section
       className={[
-        'rounded-2xl border bg-surface p-5 shadow-sm',
+        'rounded-2xl border bg-surface p-5',
         balance.overdrawn ? 'border-red-300' : 'border-line',
       ].join(' ')}
     >

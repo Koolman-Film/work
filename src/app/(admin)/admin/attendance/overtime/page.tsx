@@ -3,6 +3,7 @@ import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
 import { DateField } from '@/components/ui/date-field';
 import { Input } from '@/components/ui/input';
 import { PageHeader } from '@/components/ui/page-header';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   employeeBranchScope,
   getPermittedBranches,
@@ -73,7 +74,7 @@ export default async function OvertimePage({
     .reduce((s, h) => s + Number(h.computedAmount), 0);
 
   return (
-    <div className="space-y-6 px-4 py-6 sm:px-6 lg:px-8">
+    <div className="space-y-6 p-4">
       <PageHeader
         breadcrumb="ลงเวลา"
         title="ค่าล่วงเวลา (OT)"
@@ -112,7 +113,7 @@ export default async function OvertimePage({
           {candidates.length === 0 ? (
             <p className="text-sm text-ink-3">ไม่มีรายการเข้าข่ายในเดือนนี้</p>
           ) : (
-            <div className="overflow-x-auto">
+            <ScrollArea>
               <table className="w-full min-w-[760px] text-sm">
                 <thead>
                   <tr className="border-b text-left text-xs text-ink-4">
@@ -176,7 +177,7 @@ export default async function OvertimePage({
                   })}
                 </tbody>
               </table>
-            </div>
+            </ScrollArea>
           )}
         </CardBody>
       </Card>
@@ -192,7 +193,7 @@ export default async function OvertimePage({
             <select
               name="employeeId"
               required
-              className="min-h-[38px] rounded-md border border-line-strong px-2 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
+              className="min-h-[38px] rounded-md border border-line-strong px-2 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
             >
               <option value="">— เลือกพนักงาน —</option>
               {employees.map((e) => (
@@ -228,7 +229,7 @@ export default async function OvertimePage({
           {history.length === 0 ? (
             <p className="text-sm text-ink-3">ยังไม่มีรายการ</p>
           ) : (
-            <div className="overflow-x-auto">
+            <ScrollArea>
               <table className="w-full min-w-[680px] text-sm">
                 <thead>
                   <tr className="border-b text-left text-xs text-ink-4">
@@ -269,7 +270,7 @@ export default async function OvertimePage({
                   ))}
                 </tbody>
               </table>
-            </div>
+            </ScrollArea>
           )}
         </CardBody>
       </Card>

@@ -91,7 +91,7 @@ export default async function LeaveDetailPage({ params }: { params: Params }) {
         </div>
       </header>
 
-      <section className="space-y-1 rounded-2xl border border-line bg-surface p-6 shadow-sm">
+      <section className="space-y-1 rounded-2xl border border-line bg-surface p-6">
         <DataRow label={t('detail.field.type')}>
           {localizedLeaveTypeName(row.leaveType.name, row.leaveType.nameByLocale, locale as Locale)}
           {/* Same chip the /liff/leave list shows, so a request reads the same
@@ -119,7 +119,7 @@ export default async function LeaveDetailPage({ params }: { params: Params }) {
         </DataRow>
       </section>
 
-      <section className="mt-4 rounded-2xl border border-line bg-surface p-6 shadow-sm">
+      <section className="mt-4 rounded-2xl border border-line bg-surface p-6">
         <h2 className="text-xs font-medium uppercase tracking-wide text-ink-3">
           {t('detail.reasonHeading')}
         </h2>
@@ -127,7 +127,7 @@ export default async function LeaveDetailPage({ params }: { params: Params }) {
       </section>
 
       {resolvedAttachmentUrl && (
-        <section className="mt-4 rounded-2xl border border-line bg-surface p-6 shadow-sm">
+        <section className="mt-4 rounded-2xl border border-line bg-surface p-6">
           <h2 className="text-xs font-medium uppercase tracking-wide text-ink-3">
             {t('detail.attachmentHeading')}
           </h2>

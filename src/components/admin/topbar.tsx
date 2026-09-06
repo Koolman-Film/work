@@ -1,8 +1,9 @@
 'use client';
 
-import { ChevronDown, LogOut, Menu, Search, Sparkles, UserCog } from 'lucide-react';
+import { ChevronDown, LogOut, Menu, Sparkles, UserCog } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
+import { ThemeToggle } from '@/components/theme/theme-toggle';
 import { useProductUpdates } from '@/lib/product-updates/store';
 import { cn } from '@/lib/utils';
 import { NotificationBell } from './notification-bell';
@@ -11,12 +12,22 @@ import { useMobileNav } from './use-mobile-nav';
 /**
  * Admin topbar (Sapphire Editorial) — sticky 56px header.
  *
- * Layout: [hamburger (mobile)] [⌘K search] ............ [bell] [avatar ▾]
+ * Layout: [hamburger (mobile)] ............ [theme] [bell] [avatar ▾]
  *
- * The breadcrumb now lives in each page's <PageHeader>, so the topbar no longer
- * renders one (no double breadcrumb). The ⌘K search is a visual placeholder for
- * now — the command palette is a later enhancement. Bell + user menu (profile /
- * language / sign-out) are unchanged.
+ * The breadcrumb lives in each page's <PageHeader>, so the topbar does not
+ * render one (no double breadcrumb).
+ *
+ * There is deliberately NO search box here. One used to sit in this slot: a
+ * button with no onClick, no ⌘K handler anywhere in the codebase, and its own
+ * tooltip reading "ค้นหา (เร็วๆ นี้)". It rendered a keyboard-shortcut hint for
+ * a shortcut that did not exist, which is worse than an empty slot — a hint
+ * that specific reads as a promise, so people try it, nothing happens, and
+ * they conclude the app is broken rather than the feature unbuilt.
+ *
+ * A command palette is worth building for an app with 59 admin pages, and the
+ * per-page `?q=` search already works on 7 of them. When it is built it needs
+ * permission scoping (getPermittedBranches) so results cannot leak rows across
+ * branches — which is why it is a feature, not a slot filler.
  */
 
 type Props = {
@@ -31,40 +42,45 @@ export function Topbar({ userLabel, userId }: Props) {
   const toggleMobileNav = useMobileNav((s) => s.toggle);
 
   return (
-    <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-2 border-b border-[var(--border-color)] bg-white/80 px-3 backdrop-blur sm:px-5">
+    <header
+      className={cn(
+        'sticky top-0 z-20 flex h-14 items-center justify-between gap-2 bg-surface/80 backdrop-blur',
+        // 1rem — the same number every page wrapper uses — so the bar's
+        // contents sit on exactly the rails the page content below them uses.
+        'px-4',
+        // Mobile: a flush bar with a hairline under it — the sidebar is
+        // off-canvas here, so there is no floating card to be coherent with.
+        'border-b border-[var(--border-color)]',
+        // Desktop: the same floating card as the sidebar — same radius,
+        // border, shadow and 1rem gutter. The shell then reads as two panels
+        // on a canvas rather than one panel plus a bar stuck to the window.
+        // The bar owns its own right gutter so the content column can stay
+        // full-width and pages are not inset twice.
+        'lg:top-4 lg:mx-4 lg:mt-4 lg:rounded-2xl lg:border lg:shadow-card',
+        // A floating sticky bar leaves a 1rem hole above itself, and page
+        // content scrolls straight through it — the page title was visible,
+        // clipped, above the bar. This paints the canvas colour across that
+        // strip so content disappears BEHIND the shell instead of above it.
+        // Scoped to lg: the mobile bar is flush and has no gap to cover.
+        'lg:before:pointer-events-none lg:before:absolute lg:before:inset-x-0',
+        'lg:before:bottom-full lg:before:h-4 lg:before:bg-canvas',
+      )}
+    >
       <div className="flex min-w-0 items-center gap-2">
         {/* Hamburger — mobile-only (opens the sidebar drawer). */}
         <button
           type="button"
           onClick={toggleMobileNav}
           aria-label="เปิดเมนู"
-          className="grid size-9 place-items-center rounded-md text-ink-3 transition hover:bg-surface-sunken hover:text-ink-1 lg:hidden"
+          className="grid size-9 place-items-center rounded-md text-ink-3 transition hover:bg-surface-hover-strong hover:text-ink-1 lg:hidden"
         >
           <Menu size={18} strokeWidth={2} aria-hidden="true" />
-        </button>
-
-        {/* ⌘K search — visual placeholder (command palette is a later enhancement). */}
-        <button
-          type="button"
-          title="ค้นหา (เร็วๆ นี้)"
-          aria-label="ค้นหา"
-          className="flex items-center gap-2 rounded-lg border border-[var(--border-color)] bg-surface-muted px-3 py-1.5 text-xs text-ink-4 transition hover:bg-surface-sunken sm:min-w-[210px]"
-        >
-          <Search size={14} strokeWidth={2} aria-hidden="true" />
-          <span className="hidden flex-1 text-left sm:inline">ค้นหา…</span>
-          <span className="ml-auto hidden gap-1 sm:flex">
-            <kbd className="rounded border border-[var(--border-color)] bg-surface px-1.5 font-display text-[10px] font-semibold text-ink-3">
-              ⌘
-            </kbd>
-            <kbd className="rounded border border-[var(--border-color)] bg-surface px-1.5 font-display text-[10px] font-semibold text-ink-3">
-              K
-            </kbd>
-          </span>
         </button>
       </div>
 
       {/* Right cluster */}
       <div className="flex items-center gap-2">
+        <ThemeToggle />
         <span data-tour="topbar-bell">
           <NotificationBell userId={userId} />
         </span>
@@ -96,7 +112,7 @@ function UserMenu({ userLabel }: { userLabel: string }) {
         aria-expanded={open}
         className={cn(
           'flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition',
-          open ? 'bg-surface-sunken' : 'hover:bg-surface-sunken',
+          open ? 'bg-surface-sunken' : 'hover:bg-surface-hover-strong',
         )}
       >
         <span className="grid size-8 place-items-center rounded-full bg-primary-100 font-display text-xs font-bold text-primary-700">
@@ -119,7 +135,7 @@ function UserMenu({ userLabel }: { userLabel: string }) {
             href="/admin/profile"
             role="menuitem"
             onClick={() => setOpen(false)}
-            className="flex w-full items-center gap-2 px-3 py-2 text-sm text-ink-2 transition hover:bg-surface-muted"
+            className="flex w-full items-center gap-2 px-3 py-2 text-sm text-ink-2 transition hover:bg-surface-hover"
           >
             <UserCog size={16} aria-hidden="true" />
             <span>โปรไฟล์ของฉัน</span>
@@ -133,7 +149,7 @@ function UserMenu({ userLabel }: { userLabel: string }) {
               setOpen(false);
               startTour('welcome');
             }}
-            className="flex w-full items-center gap-2 border-t border-line-soft px-3 py-2 text-sm text-ink-2 transition hover:bg-surface-muted"
+            className="flex w-full items-center gap-2 border-t border-line-soft px-3 py-2 text-sm text-ink-2 transition hover:bg-surface-hover"
           >
             <Sparkles size={16} aria-hidden="true" />
             <span>เริ่มทัวร์แนะนำใหม่</span>
@@ -141,7 +157,7 @@ function UserMenu({ userLabel }: { userLabel: string }) {
           <form action="/logout" method="post" className="border-t border-line-soft">
             <button
               type="submit"
-              className="flex w-full items-center gap-2 px-3 py-2 text-sm text-ink-2 transition hover:bg-surface-muted"
+              className="flex w-full items-center gap-2 px-3 py-2 text-sm text-ink-2 transition hover:bg-surface-hover"
             >
               <LogOut size={16} aria-hidden="true" />
               <span>ออกจากระบบ</span>

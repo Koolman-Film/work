@@ -166,7 +166,7 @@ export function CalendarMonth({
           type="button"
           onClick={() => onNavMonth(-1)}
           aria-label={locale === 'th' ? 'เดือนก่อนหน้า' : 'Previous month'}
-          className="grid size-7 place-items-center rounded-md text-ink-3 hover:bg-surface-sunken hover:text-ink-2"
+          className="grid size-7 place-items-center rounded-md text-ink-3 hover:bg-surface-hover-strong hover:text-ink-2"
         >
           ‹
         </button>
@@ -175,7 +175,7 @@ export function CalendarMonth({
           type="button"
           onClick={() => onNavMonth(1)}
           aria-label={locale === 'th' ? 'เดือนถัดไป' : 'Next month'}
-          className="grid size-7 place-items-center rounded-md text-ink-3 hover:bg-surface-sunken hover:text-ink-2"
+          className="grid size-7 place-items-center rounded-md text-ink-3 hover:bg-surface-hover-strong hover:text-ink-2"
         >
           ›
         </button>
@@ -188,7 +188,7 @@ export function CalendarMonth({
             key={w}
             className={cn(
               'text-center text-[11px] font-medium',
-              i === 0 ? 'text-red-500' : 'text-ink-3',
+              i === 0 ? 'text-red-600' : 'text-ink-3',
             )}
           >
             {w}
@@ -235,15 +235,15 @@ export function CalendarMonth({
               onMouseLeave={() => onHover?.(null)}
               className={cn(
                 'grid min-h-9 place-items-center rounded-md text-sm transition',
-                !cell.inMonth && 'text-ink-5',
-                cell.disabled && 'cursor-not-allowed text-ink-5',
+                !cell.inMonth && 'text-ink-4',
+                cell.disabled && 'cursor-not-allowed text-ink-4',
                 cell.inMonth &&
                   !cell.disabled &&
                   !isSelected &&
                   !inRange &&
                   'text-ink-2 hover:bg-primary-50 hover:text-primary-700',
                 inRange && !isSelected && 'bg-primary-50 text-primary-700',
-                isSelected && 'bg-primary-600 font-semibold text-white',
+                isSelected && 'bg-brand-solid font-semibold text-white',
                 cell.today && !isSelected && 'ring-1 ring-primary-400',
                 isFocused && 'ring-2 ring-primary-500 ring-offset-1',
               )}

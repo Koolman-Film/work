@@ -26,7 +26,7 @@ export function AdvanceInbox({ rows }: { rows: AdvanceRowVM[] }) {
               type="button"
               onClick={() => setOpen(row)}
               aria-label={`ตรวจสอบคำขอเบิกของ ${row.name}`}
-              className={`block w-full border-l-4 ${statusRail(row.statusKey)} px-5 py-4 text-left transition hover:bg-surface-muted/70`}
+              className={`block w-full border-l-4 ${statusRail(row.statusKey)} px-5 py-4 text-left transition hover:bg-surface-hover/70`}
             >
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0 flex-1">

@@ -319,7 +319,7 @@ export default function PairClient({
 
   return (
     <div className="grid min-h-dvh place-items-center px-4 py-12">
-      <div className="w-full max-w-sm rounded-xl border border-line bg-surface p-8 shadow-sm">
+      <div className="w-full max-w-sm rounded-xl border border-line bg-surface p-8">
         <p className="text-center text-sm text-ink-3">Koolman Work</p>
         {/* The "Link your LINE account" heading only belongs to the actual
             first-time binding — a returning user tapping a rich-menu button
@@ -431,7 +431,7 @@ function ErrorBlock({ message, canRetry }: { message: string; canRetry: boolean 
         <button
           type="button"
           onClick={() => window.location.reload()}
-          className="mt-2 rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-700"
+          className="mt-2 rounded-md bg-brand-solid px-4 py-2 text-sm font-medium text-white hover:bg-brand-solid-hover"
         >
           {t('retry')}
         </button>

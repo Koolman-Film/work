@@ -116,7 +116,7 @@ export function Combobox({
         }}
         aria-haspopup="listbox"
         aria-expanded={open}
-        className="flex w-full items-center justify-between gap-2 rounded-md border border-line-strong bg-surface px-3 py-2 text-left text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
+        className="flex w-full items-center justify-between gap-2 rounded-md border border-line-strong bg-surface px-3 py-2 text-left text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
       >
         <span className={cn('truncate', value ? 'text-ink-1' : 'text-ink-4')}>
           {value || placeholder}

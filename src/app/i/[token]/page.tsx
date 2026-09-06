@@ -90,7 +90,7 @@ export default async function PairingLandingPage({ params }: { params: Params })
 
   return (
     <div className="grid min-h-dvh place-items-center bg-surface-muted px-4 py-12">
-      <div className="w-full max-w-sm space-y-6 rounded-xl border border-line bg-surface p-8 shadow-sm">
+      <div className="w-full max-w-sm space-y-6 rounded-xl border border-line bg-surface p-8">
         <div className="text-center">
           <p className="text-sm text-ink-3">Koolman Work</p>
           <h1 className="mt-1 text-xl font-semibold text-ink-1">สวัสดี, {emp.firstName}</h1>
@@ -104,13 +104,13 @@ export default async function PairingLandingPage({ params }: { params: Params })
           <div className="flex justify-center gap-2">
             <a
               href="https://apps.apple.com/app/line/id443904275"
-              className="rounded-md border border-line-strong px-3 py-1.5 text-xs font-medium text-ink-2 hover:bg-surface-muted"
+              className="rounded-md border border-line-strong px-3 py-1.5 text-xs font-medium text-ink-2 hover:bg-surface-hover"
             >
               App Store
             </a>
             <a
               href="https://play.google.com/store/apps/details?id=jp.naver.line.android"
-              className="rounded-md border border-line-strong px-3 py-1.5 text-xs font-medium text-ink-2 hover:bg-surface-muted"
+              className="rounded-md border border-line-strong px-3 py-1.5 text-xs font-medium text-ink-2 hover:bg-surface-hover"
             >
               Google Play
             </a>
@@ -120,7 +120,7 @@ export default async function PairingLandingPage({ params }: { params: Params })
         {liffId && (
           <a
             href={liffUrl}
-            className="block rounded-md bg-primary-600 px-4 py-2.5 text-center text-sm font-medium text-white shadow-sm hover:bg-primary-700"
+            className="block rounded-md bg-brand-solid px-4 py-2.5 text-center text-sm font-medium text-white hover:bg-brand-solid-hover"
           >
             เปิดในแอป LINE →
           </a>
@@ -161,7 +161,7 @@ function ExpiredLink({
 
   return (
     <div className="grid min-h-dvh place-items-center bg-surface-muted px-4 py-12">
-      <div className="w-full max-w-sm space-y-3 rounded-xl border border-line bg-surface p-8 text-center shadow-sm">
+      <div className="w-full max-w-sm space-y-3 rounded-xl border border-line bg-surface p-8 text-center">
         <p className="text-sm text-ink-3">Koolman Work</p>
         <h1 className="text-xl font-semibold text-ink-1">{m.title}</h1>
         <p className="text-sm text-ink-2">{m.body}</p>

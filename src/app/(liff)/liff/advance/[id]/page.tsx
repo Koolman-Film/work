@@ -88,14 +88,14 @@ export default async function AdvanceDetailPage({ params }: { params: Params }) 
         </div>
       </header>
 
-      <section className="rounded-2xl border border-line bg-surface p-6 text-center shadow-sm">
+      <section className="rounded-2xl border border-line bg-surface p-6 text-center">
         <p className="text-xs text-ink-3">{t('detail.amountLabel')}</p>
         <p className="mt-2 text-3xl font-bold tabular-nums text-ink-1">
           {formatMoney(row.amount.toString(), locale as Locale)}
         </p>
       </section>
 
-      <section className="mt-4 space-y-1 rounded-2xl border border-line bg-surface p-6 shadow-sm">
+      <section className="mt-4 space-y-1 rounded-2xl border border-line bg-surface p-6">
         <DataRow label={t('detail.field.submittedAt')}>
           {formatDateTime(row.requestedAt, locale as Locale)}
         </DataRow>

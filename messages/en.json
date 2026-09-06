@@ -763,5 +763,11 @@
       "confirmReject": "Confirm reject?",
       "reject": "Reject"
     }
+  },
+  "theme": {
+    "label": "Colour theme",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
   }
 }

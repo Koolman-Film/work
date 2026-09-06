@@ -240,7 +240,7 @@ export default async function AdminHomePage() {
   });
 
   return (
-    <div className="px-4 py-6 sm:px-6 lg:px-8">
+    <div className="p-4">
       <PageHeader
         breadcrumb="ภาพรวม"
         title="ภาพรวม"
@@ -341,7 +341,7 @@ export default async function AdminHomePage() {
                   <li key={`${r.kind}:${r.id}`}>
                     <Link
                       href={r.href}
-                      className="flex items-start justify-between gap-3 px-5 py-3 transition hover:bg-surface-muted"
+                      className="flex items-start justify-between gap-3 px-5 py-3 transition hover:bg-surface-hover"
                     >
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">

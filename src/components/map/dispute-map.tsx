@@ -65,6 +65,11 @@ export function DisputeMap({ branch, employee }: Props) {
   }, [branch, employee]);
 
   return (
-    <div ref={containerRef} className="h-56 w-full overflow-hidden rounded-lg border border-line" />
+    // `isolate` keeps Leaflet's z-index scale (up to 1000) from painting
+    // over the sticky topbar — see geofence-picker for the full note.
+    <div
+      ref={containerRef}
+      className="isolate h-56 w-full overflow-hidden rounded-lg border border-line"
+    />
   );
 }

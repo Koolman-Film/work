@@ -139,7 +139,7 @@ export function NotificationBell({ userId }: Props) {
           'relative grid size-9 place-items-center rounded-full transition',
           open
             ? 'bg-surface-sunken text-ink-2'
-            : 'text-ink-3 hover:bg-surface-sunken hover:text-ink-2',
+            : 'text-ink-3 hover:bg-surface-hover-strong hover:text-ink-2',
         )}
       >
         <Icon
@@ -149,7 +149,7 @@ export function NotificationBell({ userId }: Props) {
           aria-hidden="true"
         />
         {unreadCount > 0 && (
-          <span className="absolute right-1.5 top-1.5 grid min-w-[18px] place-items-center rounded-full bg-red-500 px-1 text-[10px] font-semibold text-white">
+          <span className="absolute right-1.5 top-1.5 grid min-w-[18px] place-items-center rounded-full bg-danger-solid px-1 text-[10px] font-semibold text-white">
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}
@@ -181,7 +181,7 @@ export function NotificationBell({ userId }: Props) {
               <p className="mt-1 text-xs text-ink-4">ระบบจะแจ้งเตือนเมื่อพนักงานส่งคำขอ</p>
             </div>
           ) : (
-            <ul className="max-h-[420px] divide-y divide-line-soft overflow-y-auto">
+            <ul className="u-scroll-y max-h-[420px] divide-y divide-line-soft overflow-y-auto">
               {notifications.map((n) => (
                 <NotificationRow key={n.id} notification={n} onClick={() => onClickItem(n)} />
               ))}
@@ -347,7 +347,7 @@ function NotificationRow({
         href={r.href}
         onClick={onClick}
         className={cn(
-          'flex items-start gap-3 px-4 py-3 transition hover:bg-surface-muted',
+          'flex items-start gap-3 px-4 py-3 transition hover:bg-surface-hover',
           unread && 'bg-primary-50/30',
         )}
       >
@@ -369,7 +369,7 @@ function NotificationRow({
             // because spans have no implicit role.
             role="img"
             aria-label="ยังไม่ได้อ่าน"
-            className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary-600"
+            className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-brand-solid"
           />
         )}
       </Link>

@@ -84,7 +84,7 @@ export function LanguageModal({ preselect, onClose }: { preselect: Locale; onClo
           type="button"
           onClick={confirm}
           disabled={pending}
-          className="mt-5 w-full rounded-xl bg-primary-600 px-4 py-3 text-base font-medium text-white hover:bg-primary-700 disabled:opacity-60"
+          className="mt-5 w-full rounded-xl bg-brand-solid px-4 py-3 text-base font-medium text-white hover:bg-brand-solid-hover disabled:opacity-60"
         >
           {chrome.ok}
         </button>

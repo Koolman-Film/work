@@ -28,7 +28,7 @@ export function PageHeader({
             aria-label="breadcrumb"
           >
             <span className="font-display">Workspace</span>
-            <span className="text-ink-5">›</span>
+            <span className="text-ink-4">›</span>
             <span className="font-medium text-ink-2">{breadcrumb}</span>
           </nav>
         )}

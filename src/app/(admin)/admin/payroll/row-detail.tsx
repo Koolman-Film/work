@@ -80,7 +80,7 @@ function SlipPreviewPane({ month, employeeId }: { month: string; employeeId: str
       </div>
       <div className="relative">
         {previewLoading && (
-          <div className="absolute inset-0 z-10 grid place-items-center rounded-lg bg-white/80">
+          <div className="absolute inset-0 z-10 grid place-items-center rounded-lg bg-surface/80">
             <div className="flex flex-col items-center gap-2">
               <span
                 className="size-7 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600"

@@ -1,5 +1,6 @@
 import { BarChart3 } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { getPermittedBranches } from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { resolveReportPeriod } from '@/lib/reports/period';
@@ -59,7 +60,7 @@ export default async function AttendanceReportPage({
           />
         </div>
       </div>
-      <div className="overflow-x-auto rounded-xl border border-line bg-surface">
+      <ScrollArea className="rounded-xl border border-line bg-surface">
         {rows.length === 0 ? (
           <EmptyState icon={<BarChart3 size={28} />} title="ไม่มีข้อมูลในช่วงนี้" />
         ) : (
@@ -77,7 +78,7 @@ export default async function AttendanceReportPage({
             </thead>
             <tbody className="divide-y divide-line-soft">
               {rows.map((r) => (
-                <tr key={r.employeeId} className="hover:bg-surface-muted">
+                <tr key={r.employeeId} className="hover:bg-surface-hover">
                   <td className="px-4 py-2.5">{r.name}</td>
                   <td className="px-4 py-2.5 text-right">{r.lateCount}</td>
                   <td className="px-4 py-2.5 text-right">
@@ -111,7 +112,7 @@ export default async function AttendanceReportPage({
             </tfoot>
           </table>
         )}
-      </div>
+      </ScrollArea>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageHeader } from '@/components/ui/page-header';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { previewAbsences } from '@/lib/attendance/absence-preview';
 import { requireGlobalPermission } from '@/lib/auth/require-global-permission';
 import { formatTHB } from '@/lib/format';
@@ -40,7 +41,7 @@ export default async function AbsencePreviewPage({
   const preview = await previewAbsences(month);
 
   return (
-    <div className="px-4 py-6 sm:px-6 lg:px-8">
+    <div className="p-4">
       <PageHeader
         breadcrumb="เครื่องมือ"
         title="ตัวอย่างการคิดวันขาดงานอัตโนมัติ"
@@ -72,7 +73,7 @@ export default async function AbsencePreviewPage({
       {preview.rows.length === 0 ? (
         <EmptyState title="ไม่มีวันขาดงานที่จะคิดในงวดนี้" />
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-line">
+        <ScrollArea className="rounded-lg border border-line">
           <table className="min-w-full text-sm">
             <thead className="bg-surface-sunken text-left text-xs text-ink-3">
               <tr>
@@ -99,7 +100,7 @@ export default async function AbsencePreviewPage({
               ))}
             </tbody>
           </table>
-        </div>
+        </ScrollArea>
       )}
     </div>
   );

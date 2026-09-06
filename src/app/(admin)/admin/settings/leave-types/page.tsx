@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageHeader } from '@/components/ui/page-header';
 import { type Column, ResponsiveTable } from '@/components/ui/responsive-table';
+import { RowAction } from '@/components/ui/row-action';
 import { prisma } from '@/lib/db/prisma';
 
 type SearchParams = Promise<{ error?: string }>;
@@ -72,7 +73,7 @@ export default async function LeaveTypeListPage({ searchParams }: { searchParams
   ];
 
   return (
-    <div className="px-4 py-6 sm:px-6 lg:px-8">
+    <div className="p-4">
       <PageHeader
         breadcrumb="ตั้งค่า"
         title="ประเภทการลา"
@@ -97,14 +98,7 @@ export default async function LeaveTypeListPage({ searchParams }: { searchParams
         columns={columns}
         rows={rows}
         rowKey={(t) => t.id}
-        actions={(t) => (
-          <Link
-            href={`/admin/settings/leave-types/${t.id}/edit`}
-            className="text-sm font-medium text-primary-700 hover:text-primary-800"
-          >
-            แก้ไข
-          </Link>
-        )}
+        actions={(t) => <RowAction href={`/admin/settings/leave-types/${t.id}/edit`} />}
         empty={
           <div className="surface">
             <EmptyState

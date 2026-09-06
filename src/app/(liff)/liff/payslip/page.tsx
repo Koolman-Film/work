@@ -40,7 +40,7 @@ export default async function LiffPayslipPage({
 }) {
   const { employee } = await requireEmployee();
   const params = await searchParams;
-  const cardCls = 'rounded-2xl border border-line bg-surface p-5 shadow-sm';
+  const cardCls = 'rounded-2xl border border-line bg-surface p-5';
 
   // Bare /liff/payslip (no valid ?m=) lists every Published/Locked month so
   // employees can browse history instead of only seeing the current month.
@@ -78,7 +78,7 @@ export default async function LiffPayslipPage({
               </Link>
               <a
                 href={`/liff/payslip/pdf?m=${m.month}`}
-                className="rounded-md border border-line bg-surface px-2.5 py-1 text-xs font-medium text-ink-2 hover:bg-surface-muted"
+                className="rounded-md border border-line bg-surface px-2.5 py-1 text-xs font-medium text-ink-2 hover:bg-surface-hover"
               >
                 {tPdf('download')}
               </a>
@@ -143,7 +143,7 @@ export default async function LiffPayslipPage({
           {doc && (
             <a
               href={`/liff/payslip/pdf?m=${month}`}
-              className="rounded-md border border-line bg-surface px-2.5 py-1 text-xs font-medium text-ink-2 hover:bg-surface-muted"
+              className="rounded-md border border-line bg-surface px-2.5 py-1 text-xs font-medium text-ink-2 hover:bg-surface-hover"
             >
               {tPdf('download')}
             </a>
@@ -151,7 +151,7 @@ export default async function LiffPayslipPage({
           {month !== todayYm && (
             <Link
               href="/liff/payslip"
-              className="rounded-md border border-line bg-surface px-2.5 py-1 text-xs font-medium text-ink-2 hover:bg-surface-muted"
+              className="rounded-md border border-line bg-surface px-2.5 py-1 text-xs font-medium text-ink-2 hover:bg-surface-hover"
             >
               {t('thisMonth')}
             </Link>
@@ -164,7 +164,7 @@ export default async function LiffPayslipPage({
         <Link
           href={`/liff/payslip?m=${prev}`}
           aria-label={t('prevMonth')}
-          className="grid size-8 place-items-center rounded-md text-ink-3 hover:bg-surface-sunken hover:text-ink-2"
+          className="grid size-8 place-items-center rounded-md text-ink-3 hover:bg-surface-hover-strong hover:text-ink-2"
         >
           ‹
         </Link>
@@ -172,7 +172,7 @@ export default async function LiffPayslipPage({
         <Link
           href={`/liff/payslip?m=${next}`}
           aria-label={t('nextMonth')}
-          className="grid size-8 place-items-center rounded-md text-ink-3 hover:bg-surface-sunken hover:text-ink-2"
+          className="grid size-8 place-items-center rounded-md text-ink-3 hover:bg-surface-hover-strong hover:text-ink-2"
         >
           ›
         </Link>

@@ -62,7 +62,7 @@ export function PeriodPicker({
           <Link
             href={monthUrl(prev)}
             aria-label={labels.prevMonth}
-            className="grid size-8 place-items-center rounded-md text-ink-3 hover:bg-surface-sunken hover:text-ink-2"
+            className="grid size-8 place-items-center rounded-md text-ink-3 hover:bg-surface-hover-strong hover:text-ink-2"
           >
             ‹
           </Link>
@@ -75,7 +75,7 @@ export function PeriodPicker({
           <Link
             href={monthUrl(next)}
             aria-label={labels.nextMonth}
-            className="grid size-8 place-items-center rounded-md text-ink-3 hover:bg-surface-sunken hover:text-ink-2"
+            className="grid size-8 place-items-center rounded-md text-ink-3 hover:bg-surface-hover-strong hover:text-ink-2"
           >
             ›
           </Link>
@@ -105,7 +105,7 @@ export function PeriodPicker({
           type="button"
           disabled={target === null}
           onClick={() => target && router.push(target)}
-          className="flex-1 rounded-md bg-primary-600 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+          className="flex-1 rounded-md bg-brand-solid px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
         >
           {labels.applyRange}
         </button>
@@ -118,7 +118,7 @@ export function PeriodPicker({
           // `||` — not `??` — is what actually falls back to today.
           <Link
             href={monthUrl((range.from || todayYmd).slice(0, 7))}
-            className="rounded-md px-3 py-2 text-xs font-medium text-ink-2 hover:bg-surface-sunken"
+            className="rounded-md px-3 py-2 text-xs font-medium text-ink-2 hover:bg-surface-hover-strong"
           >
             {labels.backToMonthly}
           </Link>
@@ -130,7 +130,7 @@ export function PeriodPicker({
           <button
             type="button"
             onClick={() => setCustom(false)}
-            className="rounded-md px-3 py-2 text-xs font-medium text-ink-2 hover:bg-surface-sunken"
+            className="rounded-md px-3 py-2 text-xs font-medium text-ink-2 hover:bg-surface-hover-strong"
           >
             {labels.backToMonthly}
           </button>

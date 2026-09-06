@@ -9,8 +9,10 @@ import {
   Noto_Sans_Lao,
   Noto_Sans_Myanmar,
 } from 'next/font/google';
+import { cookies } from 'next/headers';
 import { NextIntlClientProvider } from 'next-intl';
 import { getLocale } from 'next-intl/server';
+import { resolveThemeAttrs, THEME_COOKIE_NAME } from '@/lib/theme/config';
 import './globals.css';
 
 /**
@@ -89,9 +91,20 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // bundle automatically.
   const locale = await getLocale();
 
+  // Theme is resolved on the server so <html> carries the right attribute in
+  // the very first byte of HTML. `system` deliberately stamps nothing — see
+  // resolveThemeAttrs — which is why the default case runs no client script,
+  // needs no hydration step, and structurally cannot flash.
+  const themeCookie = (await cookies()).get(THEME_COOKIE_NAME)?.value ?? null;
+  const { dataTheme, colorScheme } = resolveThemeAttrs(themeCookie);
+
   return (
     <html
       lang={locale}
+      // `undefined` renders no attribute at all — exactly the "let
+      // prefers-color-scheme decide" behaviour `system` needs.
+      data-theme={dataTheme}
+      style={{ colorScheme }}
       className={`${inter.variable} ${plexThai.variable} ${plexMono.variable} ${notoMyanmar.variable} ${notoKhmer.variable} ${notoLao.variable}`}
     >
       <body className="min-h-dvh bg-surface text-ink-1 antialiased">

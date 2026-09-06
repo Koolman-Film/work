@@ -207,7 +207,7 @@ function ItemCard({ href, children }: { href: string; children: React.ReactNode 
     <li>
       <Link
         href={href}
-        className="block rounded-xl border border-line bg-surface p-4 shadow-sm transition hover:border-primary-200 hover:bg-primary-50/30"
+        className="block rounded-xl border border-line bg-surface p-4 transition hover:border-primary-200 hover:bg-primary-50/30"
       >
         {children}
       </Link>

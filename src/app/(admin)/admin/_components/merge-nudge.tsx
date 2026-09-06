@@ -21,7 +21,7 @@ export function MergeNudge({ dismissible = true }: { dismissible?: boolean }) {
   if (dismissed) return null;
 
   return (
-    <div className="mb-4 rounded-xl border border-primary-200 bg-primary-50 px-5 py-4 shadow-sm">
+    <div className="mb-4 rounded-xl border border-primary-200 bg-primary-50 px-5 py-4">
       <div className="flex items-center justify-between gap-4">
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-primary-900">{t('cardTitle')}</p>
@@ -30,7 +30,7 @@ export function MergeNudge({ dismissible = true }: { dismissible?: boolean }) {
         <div className="flex shrink-0 items-center gap-2">
           <Link
             href="/admin/settings/line"
-            className="rounded-md bg-primary-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700"
+            className="rounded-md bg-brand-solid px-3 py-1.5 text-sm font-medium text-white transition hover:bg-brand-solid-hover"
           >
             {t('cardCta')}
           </Link>

@@ -76,7 +76,7 @@ export default async function LiffAdminDisputeDetailPage({ params }: { params: P
         </div>
       </header>
 
-      <section className="rounded-xl border border-line bg-surface p-4 shadow-sm">
+      <section className="rounded-xl border border-line bg-surface p-4">
         <p className="text-sm font-medium text-ink-1">
           {name}
           {row.employee.nickname && <span className="text-ink-3"> ({row.employee.nickname})</span>}
@@ -124,7 +124,7 @@ export default async function LiffAdminDisputeDetailPage({ params }: { params: P
       {isPending ? (
         <DisputeReviewActions attendanceId={row.id} />
       ) : (
-        <section className="mt-3 rounded-xl border border-line bg-surface p-4 text-sm text-ink-2 shadow-sm">
+        <section className="mt-3 rounded-xl border border-line bg-surface p-4 text-sm text-ink-2">
           {t('alreadyReviewed')}
         </section>
       )}

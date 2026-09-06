@@ -174,7 +174,7 @@ export function DateField({
               <button
                 type="button"
                 onClick={clear}
-                className="rounded-md px-2 py-1 text-xs font-medium text-ink-3 hover:bg-surface-sunken hover:text-ink-2"
+                className="rounded-md px-2 py-1 text-xs font-medium text-ink-3 hover:bg-surface-hover-strong hover:text-ink-2"
               >
                 ล้าง
               </button>

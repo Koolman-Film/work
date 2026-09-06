@@ -27,7 +27,7 @@ export default async function NewEmployeePage({ searchParams }: { searchParams: 
   // so a scoped admin with zero permitted branches sees the no-branches message).
   if (options.branches.length === 0) {
     return (
-      <div className="px-4 py-6 sm:px-6">
+      <div className="p-4">
         <Card>
           <CardBody className="space-y-3 text-center">
             <h2 className="h-page text-lg text-ink-1">ยังไม่มีสาขา</h2>
@@ -54,7 +54,7 @@ export default async function NewEmployeePage({ searchParams }: { searchParams: 
   const defaultWorkScheduleId = scheduleUsage[0]?.workScheduleId ?? null;
 
   return (
-    <div className="px-4 py-6 sm:px-6 lg:px-8">
+    <div className="p-4">
       <PageHeader breadcrumb="พนักงาน" title="เพิ่มพนักงาน" />
       <EmployeeForm
         mode="create"

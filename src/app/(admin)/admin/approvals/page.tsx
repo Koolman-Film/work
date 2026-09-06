@@ -41,7 +41,7 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Se
   };
 
   return (
-    <div className="px-4 py-6 sm:px-6 lg:px-8">
+    <div className="p-4">
       <PageHeader
         breadcrumb="รออนุมัติ"
         title={`รออนุมัติ${counts.total > 0 ? ` (${counts.total})` : ''}`}

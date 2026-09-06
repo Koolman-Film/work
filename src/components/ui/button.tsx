@@ -12,22 +12,22 @@ type Variant =
 type Size = 'sm' | 'md' | 'lg';
 
 const variantClasses: Record<Variant, string> = {
-  primary:
-    'bg-primary-600 text-white shadow-sm hover:bg-primary-700 focus-visible:ring-primary-500/50',
+  primary: 'bg-brand-solid text-white hover:bg-brand-solid-hover focus-visible:ring-primary-500/50',
   secondary:
-    'border border-line-strong bg-surface text-ink-2 hover:bg-surface-muted focus-visible:ring-primary-500/30',
-  destructive: 'bg-red-600 text-white shadow-sm hover:bg-red-700 focus-visible:ring-red-500/50',
-  ghost: 'text-ink-2 hover:bg-surface-sunken focus-visible:ring-primary-500/30',
+    'border border-line-strong bg-surface text-ink-2 hover:bg-surface-hover focus-visible:ring-primary-500/30',
+  destructive:
+    'bg-danger-solid text-white hover:bg-danger-solid-hover focus-visible:ring-red-500/50',
+  ghost: 'text-ink-2 hover:bg-surface-hover-strong focus-visible:ring-primary-500/30',
   // Approve = positive/confirming action (green gradient CTA, per mockups).
   approve:
     'bg-gradient-to-b from-success to-success-deep text-white shadow-cta hover:brightness-105 focus-visible:ring-success/40',
   // Reject = neutral-bordered (the dangerous part is confirmed in the dialog).
   reject:
-    'border border-line-strong bg-surface text-ink-2 hover:bg-surface-muted focus-visible:ring-primary-500/30',
+    'border border-line-strong bg-surface text-ink-2 hover:bg-surface-hover focus-visible:ring-primary-500/30',
   // Attention = "action needed now" (amber CTA). Used when state is stale and a
   // recompute is required — matches the amber stale-warning banner's language.
   attention:
-    'bg-amber-500 text-white shadow-sm ring-2 ring-amber-300 ring-offset-1 hover:bg-amber-600 focus-visible:ring-amber-500/60',
+    'bg-warning-solid text-ink-1 ring-2 ring-amber-300 ring-offset-1 hover:bg-warning-solid-hover focus-visible:ring-amber-500/60',
 };
 
 const sizeClasses: Record<Size, string> = {

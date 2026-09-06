@@ -71,7 +71,7 @@ export function LineConnectPanel({
         <div className="flex items-start gap-3">
           <span
             aria-hidden="true"
-            className="grid size-8 shrink-0 place-items-center rounded-full bg-success-deep text-sm font-bold text-white"
+            className="grid size-8 shrink-0 place-items-center rounded-full bg-success-fill-deep text-sm font-bold text-white"
           >
             ✓
           </span>

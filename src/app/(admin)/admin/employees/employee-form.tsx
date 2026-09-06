@@ -76,7 +76,7 @@ type Props =
     };
 
 const selectClasses = cn(
-  'block w-full rounded-md border border-line-strong bg-surface px-3 py-2 text-sm shadow-sm',
+  'block w-full rounded-md border border-line-strong bg-surface px-3 py-2 text-sm',
   'focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30',
 );
 
@@ -300,7 +300,7 @@ export function EmployeeForm({
                       id="defaultOtRateType"
                       name="defaultOtRateType"
                       defaultValue={initial?.defaultOtRateType ?? ''}
-                      className="w-full rounded-md border border-line-strong px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                      className="w-full rounded-md border border-line-strong px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
                     >
                       <option value="">— ไม่กำหนด —</option>
                       <option value="PerHourAmount">฿/ชม.</option>
@@ -410,7 +410,7 @@ export function EmployeeForm({
                       return (
                         <label
                           key={b.id}
-                          className="inline-flex items-center gap-2 rounded-md border border-line bg-surface-muted px-3 py-1.5 text-sm text-ink-2 hover:bg-surface-sunken"
+                          className="inline-flex items-center gap-2 rounded-md border border-line bg-surface-muted px-3 py-1.5 text-sm text-ink-2 hover:bg-surface-hover-strong"
                         >
                           <input
                             type="checkbox"

@@ -6,6 +6,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { PageHeader } from '@/components/ui/page-header';
 import { Pagination } from '@/components/ui/pagination';
 import { type Column, ResponsiveTable } from '@/components/ui/responsive-table';
+import { RowAction } from '@/components/ui/row-action';
 import { StatusBadge, type StatusKey } from '@/components/ui/status-badge';
 import { employeeBranchScope, getPermittedBranches } from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
@@ -236,7 +237,7 @@ export default async function EmployeeListPage({ searchParams }: { searchParams:
   ];
 
   return (
-    <div className="px-4 py-6 sm:px-6 lg:px-8">
+    <div className="p-4">
       <PageHeader
         breadcrumb="พนักงาน"
         title="พนักงาน"
@@ -301,14 +302,7 @@ export default async function EmployeeListPage({ searchParams }: { searchParams:
         columns={columns}
         rows={employees}
         rowKey={(e) => e.id}
-        actions={(e) => (
-          <Link
-            href={`/admin/employees/${e.id}/edit`}
-            className="text-sm font-medium text-primary-700 hover:text-primary-800"
-          >
-            แก้ไข
-          </Link>
-        )}
+        actions={(e) => <RowAction href={`/admin/employees/${e.id}/edit`} />}
         empty={
           <div className="surface">
             <EmptyState

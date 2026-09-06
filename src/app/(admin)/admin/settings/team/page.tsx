@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageHeader } from '@/components/ui/page-header';
 import { type Column, ResponsiveTable } from '@/components/ui/responsive-table';
+import { RowAction } from '@/components/ui/row-action';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { computeTier } from '@/lib/auth/user-tier';
 import { prisma } from '@/lib/db/prisma';
@@ -121,7 +122,7 @@ export default async function TeamListPage({ searchParams }: { searchParams: Sea
   ];
 
   return (
-    <div className="px-4 py-6 sm:px-6 lg:px-8">
+    <div className="p-4">
       <PageHeader
         breadcrumb="ตั้งค่า"
         title="ทีมผู้ดูแล"
@@ -157,17 +158,14 @@ export default async function TeamListPage({ searchParams }: { searchParams: Sea
           // that won't work. tier is computed per-row from the
           // member's role assignments (Phase 4).
           const canEdit = actorTier === 'Superadmin' || m.tier === 'Admin';
-          return canEdit ? (
-            <Link
+          // Same control either way, so the column stays one shape — a bare
+          // span next to a button reads as a rendering glitch.
+          return (
+            <RowAction
               href={`/admin/settings/team/${m.id}/edit`}
-              className="text-sm font-medium text-primary-700 hover:text-primary-800"
-            >
-              แก้ไข
-            </Link>
-          ) : (
-            <span className="text-sm text-ink-4" title="ต้องเป็น Superadmin">
-              อ่านอย่างเดียว
-            </span>
+              disabled={!canEdit}
+              label={canEdit ? 'แก้ไข' : 'อ่านอย่างเดียว'}
+            />
           );
         }}
         empty={
