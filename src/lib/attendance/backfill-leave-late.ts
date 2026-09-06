@@ -2,7 +2,7 @@
  * Undo the auto-`Late` rows that predate the leave-aware lateness fix
  * (2026-07-23). Before it, a check-in on a day the employee had an approved
  * MORNING leave was measured from 09:00, so an afternoon arrival recorded ~3h
- * of bogus lateness (e.g. กมล 15 Jul "3 ชม. 1 นาที", ภัทธริดา 16 Jul "3 ชม. 16
+ * of bogus lateness (e.g. กมล 15 Jul "3 ชม. 1 นาที", EMP-M 16 Jul "3 ชม. 16
  * นาที" — see check-in.ts / leave-late-context.ts for the live-path fix).
  *
  * For every non-deleted `Late` row on a day the same employee has an approved

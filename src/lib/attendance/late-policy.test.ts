@@ -92,7 +92,7 @@ describe('lateMinutesForCheckIn with approved leave + lunch break', () => {
   const ctx = { leaveWindows: [MORNING_LEAVE], breakWindow: LUNCH };
 
   it('morning leave + check-in during lunch → 0 (the reported bug)', () => {
-    // ภัทธริดา: leave 09:00–12:00, checked in 12:16 — was shown "3 ชม. 16 นาที".
+    // EMP-M: leave 09:00–12:00, checked in 12:16 — was shown "3 ชม. 16 นาที".
     expect(lateMinutesForCheckIn(bkk('12:16'), DEFAULT_LATE_POLICY, ctx)).toBe(0);
     // กมล: leave 09:00–12:00, checked in 12:01 — was shown "3 ชม. 1 นาที".
     expect(lateMinutesForCheckIn(bkk('12:01'), DEFAULT_LATE_POLICY, ctx)).toBe(0);

@@ -41,7 +41,7 @@ Queried production 2026-09-01:
 
 | Fact | Value |
 |---|---|
-| ญาณิกา (ฟ้า) `Late` rows, Aug 2026 | **2026-08-15, 2026-08-20, 2026-08-25** |
+| EMP-J (ฟ้า) `Late` rows, Aug 2026 | **2026-08-15, 2026-08-20, 2026-08-25** |
 | Leave on 2026-08-20 | `Hourly` **09:00–10:00**, `Approved`, not deleted |
 | Shift start (`PayrollConfig.workStartTime`) | `09:00` |
 | Aug payroll | **Published** 2026-08-31 03:28, `deductAttendance` **฿400**, net ฿10,800 on ฿12,000 base |
@@ -247,7 +247,7 @@ git commit -m "fix(payroll): a late on a leave day no longer counts toward the t
 
 ---
 
-### Task 2: Repay ญาณิกา (ฟ้า) the ฿400 taken in August
+### Task 2: Repay EMP-J (ฟ้า) the ฿400 taken in August
 
 **Files:** none — this is a data action taken through the admin UI, recorded by
 the app's own audit log. No script.
@@ -274,7 +274,7 @@ the amount differs, stop and re-check before crediting anything.
 
 - [ ] **Step 2: Add the correction as a September income adjustment**
 
-In `/admin/payroll` → September → ญาณิกา's row → **เพิ่ม/ลด** → add an **Income**
+In `/admin/payroll` → September → EMP-J's row → **เพิ่ม/ลด** → add an **Income**
 adjustment:
 
 - amount: **400.00**
@@ -341,7 +341,7 @@ The constants `26` (cutoffDay), `30` (severeLateThresholdMin) and `3`
 
 | nickname | month | tier1 | on leave | strikes before → after | status | deducted |
 |---|---|---|---|---|---|---|
-| ฟ้า (ญาณิกา) | 2026-08 | 3 | 1 | 1 → 0 | Published | ฿400.00 |
+| ฟ้า (EMP-J) | 2026-08 | 3 | 1 | 1 → 0 | Published | ฿400.00 |
 
 Nobody else, in any month, has ever had a leave-day late push them over the
 threshold. Task 2 is therefore a single ฿400 correction — Step 2 above — and

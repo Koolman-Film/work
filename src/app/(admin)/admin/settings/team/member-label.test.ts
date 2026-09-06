@@ -13,7 +13,7 @@ describe('memberIdentity', () => {
     expect(
       memberIdentity({
         email: 'a@b.com',
-        employee: { nickname: 'EMP-D', firstName: 'ไพริน', lastName: 'EMP-B' },
+        employee: { nickname: 'EMP-D', firstName: 'EMP-F', lastName: 'EMP-B' },
       }),
     ).toEqual({ kind: 'email', label: 'a@b.com' });
   });
@@ -22,18 +22,18 @@ describe('memberIdentity', () => {
     expect(
       memberIdentity({
         email: null,
-        employee: { nickname: 'EMP-D', firstName: 'ไพริน', lastName: 'EMP-B' },
+        employee: { nickname: 'EMP-D', firstName: 'EMP-F', lastName: 'EMP-B' },
       }),
-    ).toEqual({ kind: 'line', label: 'EMP-D · ไพริน EMP-B' });
+    ).toEqual({ kind: 'line', label: 'EMP-D · EMP-F EMP-B' });
   });
 
   it('no nickname → full name only', () => {
     expect(
       memberIdentity({
         email: null,
-        employee: { nickname: null, firstName: 'ธนพัฒ', lastName: 'กมลทิพย์วงศ์' },
+        employee: { nickname: null, firstName: 'EMP-K', lastName: 'EMP-H' },
       }),
-    ).toEqual({ kind: 'line', label: 'ธนพัฒ กมลทิพย์วงศ์' });
+    ).toEqual({ kind: 'line', label: 'EMP-K EMP-H' });
   });
 
   it('nickname but empty name → nickname only', () => {
@@ -71,9 +71,9 @@ describe('memberSortKey', () => {
     expect(
       memberSortKey({
         email: null,
-        employee: { nickname: 'EMP-D', firstName: 'ไพริน', lastName: 'EMP-B' },
+        employee: { nickname: 'EMP-D', firstName: 'EMP-F', lastName: 'EMP-B' },
       }),
-    ).toBe('EMP-D · ไพริน EMP-B');
+    ).toBe('EMP-D · EMP-F EMP-B');
   });
 
   it('empty string for unknown so it sorts first', () => {
