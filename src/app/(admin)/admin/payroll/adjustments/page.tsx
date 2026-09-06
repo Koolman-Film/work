@@ -4,6 +4,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { PageHeader } from '@/components/ui/page-header';
 import { Pill } from '@/components/ui/pill';
 import { type Column, ResponsiveTable } from '@/components/ui/responsive-table';
+import { RowAction } from '@/components/ui/row-action';
 import { prisma } from '@/lib/db/prisma';
 import { formatTHB2, monthLabelTh } from '@/lib/format';
 import { frequencyOf } from './adjustment-schema';
@@ -111,14 +112,7 @@ export default async function AdjustmentListPage({ searchParams }: { searchParam
         columns={columns}
         rows={rows}
         rowKey={(r) => r.id}
-        actions={(r) => (
-          <Link
-            href={`/admin/payroll/adjustments/${r.id}`}
-            className="text-sm font-medium text-primary-700 hover:text-primary-800"
-          >
-            แก้ไข
-          </Link>
-        )}
+        actions={(r) => <RowAction href={`/admin/payroll/adjustments/${r.id}`} />}
         empty={
           <div className="surface">
             <EmptyState

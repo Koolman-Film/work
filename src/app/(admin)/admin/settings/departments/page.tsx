@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageHeader } from '@/components/ui/page-header';
 import { type Column, ResponsiveTable } from '@/components/ui/responsive-table';
+import { RowAction } from '@/components/ui/row-action';
 import { prisma } from '@/lib/db/prisma';
 
 type SearchParams = Promise<{ error?: string }>;
@@ -65,14 +66,7 @@ export default async function DepartmentListPage({ searchParams }: { searchParam
         columns={columns}
         rows={rows}
         rowKey={(d) => d.id}
-        actions={(d) => (
-          <Link
-            href={`/admin/settings/departments/${d.id}/edit`}
-            className="text-sm font-medium text-primary-700 hover:text-primary-800"
-          >
-            แก้ไข
-          </Link>
-        )}
+        actions={(d) => <RowAction href={`/admin/settings/departments/${d.id}/edit`} />}
         empty={
           <div className="surface">
             <EmptyState
