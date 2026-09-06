@@ -150,7 +150,7 @@ export function AdminCalendarCard({ branches, initialYm, initialData }: Props) {
               type="button"
               onClick={goPrev}
               aria-label="เดือนก่อนหน้า"
-              className="grid size-8 place-items-center rounded-md text-ink-3 hover:bg-surface-sunken hover:text-ink-1"
+              className="grid size-8 place-items-center rounded-md text-ink-3 hover:bg-surface-hover-strong hover:text-ink-1"
             >
               ‹
             </button>
@@ -161,7 +161,7 @@ export function AdminCalendarCard({ branches, initialYm, initialData }: Props) {
               type="button"
               onClick={goNext}
               aria-label="เดือนถัดไป"
-              className="grid size-8 place-items-center rounded-md text-ink-3 hover:bg-surface-sunken hover:text-ink-1"
+              className="grid size-8 place-items-center rounded-md text-ink-3 hover:bg-surface-hover-strong hover:text-ink-1"
             >
               ›
             </button>
@@ -171,7 +171,7 @@ export function AdminCalendarCard({ branches, initialYm, initialData }: Props) {
             <button
               type="button"
               onClick={goToday}
-              className="rounded-lg border border-line bg-surface px-2.5 py-2 text-xs font-medium text-ink-2 hover:bg-surface-muted"
+              className="rounded-lg border border-line bg-surface px-2.5 py-2 text-xs font-medium text-ink-2 hover:bg-surface-hover"
             >
               วันนี้
             </button>

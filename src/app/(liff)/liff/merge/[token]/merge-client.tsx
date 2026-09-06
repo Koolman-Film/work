@@ -102,7 +102,7 @@ export default function MergeClient({ mergeToken }: { mergeToken: string }) {
                 <button
                   type="button"
                   onClick={() => setState({ phase: 'cancelled' })}
-                  className="flex-1 rounded-md border border-line-strong bg-surface px-4 py-2 text-sm font-medium text-ink-2 hover:bg-surface-muted"
+                  className="flex-1 rounded-md border border-line-strong bg-surface px-4 py-2 text-sm font-medium text-ink-2 hover:bg-surface-hover"
                 >
                   {t('cancel')}
                 </button>

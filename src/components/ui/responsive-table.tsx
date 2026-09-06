@@ -82,7 +82,7 @@ export function ResponsiveTable<T>({
               <tr
                 key={rowKey(row)}
                 className={cn(
-                  'hover:bg-surface-muted/50',
+                  'hover:bg-surface-hover/50',
                   onRowClick &&
                     'cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-400',
                 )}

@@ -161,7 +161,7 @@ export function MergePromptCard() {
                 aria-pressed={isSelected}
                 className={cn(
                   'flex w-full items-center gap-3 px-3 py-2.5 text-left transition',
-                  isSelected ? 'bg-primary-50' : 'hover:bg-surface-muted',
+                  isSelected ? 'bg-primary-50' : 'hover:bg-surface-hover',
                 )}
               >
                 <RowAvatar name={name} src={emp.photoUrl} />

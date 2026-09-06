@@ -97,7 +97,7 @@ export default async function LiffCalendarPage({ searchParams }: { searchParams:
           // "Today" jump — preserves muscle memory after scrubbing months.
           <Link
             href="/liff/calendar"
-            className="rounded-md border border-line bg-surface px-2.5 py-1 text-xs font-medium text-ink-2 hover:bg-surface-muted"
+            className="rounded-md border border-line bg-surface px-2.5 py-1 text-xs font-medium text-ink-2 hover:bg-surface-hover"
           >
             {t('today')}
           </Link>
@@ -109,7 +109,7 @@ export default async function LiffCalendarPage({ searchParams }: { searchParams:
         <Link
           href={`/liff/calendar?ym=${prevYm}`}
           aria-label={t('nav.prevMonth')}
-          className="grid size-8 place-items-center rounded-md text-ink-3 hover:bg-surface-sunken hover:text-ink-2"
+          className="grid size-8 place-items-center rounded-md text-ink-3 hover:bg-surface-hover-strong hover:text-ink-2"
         >
           ‹
         </Link>
@@ -117,7 +117,7 @@ export default async function LiffCalendarPage({ searchParams }: { searchParams:
         <Link
           href={`/liff/calendar?ym=${nextYm}`}
           aria-label={t('nav.nextMonth')}
-          className="grid size-8 place-items-center rounded-md text-ink-3 hover:bg-surface-sunken hover:text-ink-2"
+          className="grid size-8 place-items-center rounded-md text-ink-3 hover:bg-surface-hover-strong hover:text-ink-2"
         >
           ›
         </Link>

@@ -158,7 +158,7 @@ export function Dialog({ open, onClose, title, children, dismissable = true, cla
               if (open) onClose();
             }}
             aria-label="ปิด"
-            className="absolute right-3 top-3 inline-flex size-8 items-center justify-center rounded-lg text-ink-4 transition hover:bg-surface-sunken hover:text-ink-2"
+            className="absolute right-3 top-3 inline-flex size-8 items-center justify-center rounded-lg text-ink-4 transition hover:bg-surface-hover-strong hover:text-ink-2"
           >
             <svg
               width="16"

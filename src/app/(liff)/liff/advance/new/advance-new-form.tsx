@@ -123,7 +123,7 @@ export function AdvanceNewForm({
                 type="button"
                 onClick={() => setAmount(n.toString())}
                 disabled={pending}
-                className="rounded-full border border-line bg-surface px-3 py-1.5 text-xs font-medium text-ink-2 hover:bg-surface-muted"
+                className="rounded-full border border-line bg-surface px-3 py-1.5 text-xs font-medium text-ink-2 hover:bg-surface-hover"
               >
                 {formatMoney(n, locale)}
               </button>

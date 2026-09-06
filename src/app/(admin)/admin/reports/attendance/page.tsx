@@ -77,7 +77,7 @@ export default async function AttendanceReportPage({
             </thead>
             <tbody className="divide-y divide-line-soft">
               {rows.map((r) => (
-                <tr key={r.employeeId} className="hover:bg-surface-muted">
+                <tr key={r.employeeId} className="hover:bg-surface-hover">
                   <td className="px-4 py-2.5">{r.name}</td>
                   <td className="px-4 py-2.5 text-right">{r.lateCount}</td>
                   <td className="px-4 py-2.5 text-right">

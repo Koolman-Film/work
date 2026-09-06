@@ -410,7 +410,7 @@ export function EmployeeForm({
                       return (
                         <label
                           key={b.id}
-                          className="inline-flex items-center gap-2 rounded-md border border-line bg-surface-muted px-3 py-1.5 text-sm text-ink-2 hover:bg-surface-sunken"
+                          className="inline-flex items-center gap-2 rounded-md border border-line bg-surface-muted px-3 py-1.5 text-sm text-ink-2 hover:bg-surface-hover-strong"
                         >
                           <input
                             type="checkbox"

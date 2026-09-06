@@ -43,7 +43,7 @@ export function ExpandableReportRows({ rows }: { rows: ExpandableRow[] }) {
           <Fragment key={r.id}>
             <tr
               className={
-                hasDetail ? 'cursor-pointer hover:bg-surface-muted' : 'hover:bg-surface-muted'
+                hasDetail ? 'cursor-pointer hover:bg-surface-hover' : 'hover:bg-surface-hover'
               }
               onClick={hasDetail ? () => toggle(r.id) : undefined}
             >

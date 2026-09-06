@@ -86,7 +86,7 @@ export function DisputedClient({ rows, total }: { rows: DisputedVM[]; total: num
                   className={`block w-full rounded-lg border px-3 py-2.5 text-left transition ${
                     on
                       ? 'border-primary-200 bg-primary-50 ring-1 ring-primary-200'
-                      : 'border-line bg-surface hover:bg-surface-muted'
+                      : 'border-line bg-surface hover:bg-surface-hover'
                   }`}
                 >
                   <div className="flex items-center justify-between gap-2">

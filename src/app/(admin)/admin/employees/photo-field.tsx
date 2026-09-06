@@ -85,7 +85,7 @@ export function PhotoField({ employeeId, initialKey, initialUrl }: Props) {
           )}
         </div>
         <div className="space-y-2">
-          <label className="inline-flex cursor-pointer items-center rounded-md border border-line-strong bg-surface px-3 py-1.5 text-sm shadow-sm hover:bg-surface-muted">
+          <label className="inline-flex cursor-pointer items-center rounded-md border border-line-strong bg-surface px-3 py-1.5 text-sm shadow-sm hover:bg-surface-hover">
             <input
               id="employee-photo-file"
               type="file"

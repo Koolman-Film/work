@@ -18,7 +18,7 @@ export function TBody({ className, ...rest }: HTMLAttributes<HTMLTableSectionEle
 }
 
 export function TR({ className, ...rest }: HTMLAttributes<HTMLTableRowElement>) {
-  return <tr className={cn('hover:bg-surface-muted', className)} {...rest} />;
+  return <tr className={cn('hover:bg-surface-hover', className)} {...rest} />;
 }
 
 export function TH({ className, scope = 'col', ...rest }: ThHTMLAttributes<HTMLTableCellElement>) {

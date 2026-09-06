@@ -446,7 +446,7 @@ function PrimaryButton({
   const cls =
     tone === 'primary'
       ? `${base} bg-primary-600 text-white hover:bg-primary-700`
-      : `${base} border border-line-strong bg-surface text-ink-1 hover:bg-surface-muted`;
+      : `${base} border border-line-strong bg-surface text-ink-1 hover:bg-surface-hover`;
   return (
     <button type="button" onClick={onClick} disabled={disabled} className={cls}>
       {label}

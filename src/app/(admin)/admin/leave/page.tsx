@@ -167,7 +167,7 @@ export default async function AdminLeaveInboxPage({
               className={
                 active
                   ? 'rounded-lg bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-700 ring-1 ring-primary-200'
-                  : 'rounded-lg px-3 py-1.5 text-xs font-semibold text-ink-4 hover:bg-surface-muted hover:text-ink-2'
+                  : 'rounded-lg px-3 py-1.5 text-xs font-semibold text-ink-4 hover:bg-surface-hover hover:text-ink-2'
               }
             >
               {opt.label}
@@ -180,7 +180,7 @@ export default async function AdminLeaveInboxPage({
           className={
             isTrash
               ? 'rounded-lg bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-700 ring-1 ring-primary-200'
-              : 'rounded-lg px-3 py-1.5 text-xs font-semibold text-ink-4 hover:bg-surface-muted hover:text-ink-2'
+              : 'rounded-lg px-3 py-1.5 text-xs font-semibold text-ink-4 hover:bg-surface-hover hover:text-ink-2'
           }
         >
           🗑️ ถังขยะ

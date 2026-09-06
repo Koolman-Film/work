@@ -166,7 +166,7 @@ export function CalendarMonth({
           type="button"
           onClick={() => onNavMonth(-1)}
           aria-label={locale === 'th' ? 'เดือนก่อนหน้า' : 'Previous month'}
-          className="grid size-7 place-items-center rounded-md text-ink-3 hover:bg-surface-sunken hover:text-ink-2"
+          className="grid size-7 place-items-center rounded-md text-ink-3 hover:bg-surface-hover-strong hover:text-ink-2"
         >
           ‹
         </button>
@@ -175,7 +175,7 @@ export function CalendarMonth({
           type="button"
           onClick={() => onNavMonth(1)}
           aria-label={locale === 'th' ? 'เดือนถัดไป' : 'Next month'}
-          className="grid size-7 place-items-center rounded-md text-ink-3 hover:bg-surface-sunken hover:text-ink-2"
+          className="grid size-7 place-items-center rounded-md text-ink-3 hover:bg-surface-hover-strong hover:text-ink-2"
         >
           ›
         </button>

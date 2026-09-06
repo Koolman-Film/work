@@ -38,7 +38,7 @@ export function AdminTabs() {
             className={
               active
                 ? 'rounded-full bg-primary-50 px-3 py-1.5 font-semibold text-primary-700 ring-1 ring-primary-200'
-                : 'rounded-full px-3 py-1.5 font-medium text-ink-3 hover:bg-surface-sunken hover:text-ink-2'
+                : 'rounded-full px-3 py-1.5 font-medium text-ink-3 hover:bg-surface-hover-strong hover:text-ink-2'
             }
           >
             {t(tab.labelKey)}

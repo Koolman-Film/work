@@ -139,7 +139,7 @@ export function NotificationBell({ userId }: Props) {
           'relative grid size-9 place-items-center rounded-full transition',
           open
             ? 'bg-surface-sunken text-ink-2'
-            : 'text-ink-3 hover:bg-surface-sunken hover:text-ink-2',
+            : 'text-ink-3 hover:bg-surface-hover-strong hover:text-ink-2',
         )}
       >
         <Icon
@@ -347,7 +347,7 @@ function NotificationRow({
         href={r.href}
         onClick={onClick}
         className={cn(
-          'flex items-start gap-3 px-4 py-3 transition hover:bg-surface-muted',
+          'flex items-start gap-3 px-4 py-3 transition hover:bg-surface-hover',
           unread && 'bg-primary-50/30',
         )}
       >

@@ -118,7 +118,7 @@ export function LiveBoardClient({
         <div className="flex items-center gap-3 text-xs text-ink-3">
           <a
             href="/admin/attendance/manual"
-            className="rounded-lg border border-line bg-surface px-2.5 py-1 font-medium text-ink-2 transition hover:bg-surface-muted"
+            className="rounded-lg border border-line bg-surface px-2.5 py-1 font-medium text-ink-2 transition hover:bg-surface-hover"
           >
             + บันทึกด้วยตนเอง
           </a>

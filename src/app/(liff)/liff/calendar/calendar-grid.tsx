@@ -477,7 +477,7 @@ export function CalendarGrid({
                       type="button"
                       disabled={busyId === e.leaveRequestId}
                       onClick={() => onLeaveClick(e.leaveRequestId)}
-                      className="flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-surface-muted disabled:opacity-60"
+                      className="flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-surface-hover disabled:opacity-60"
                     >
                       {body}
                     </button>
@@ -510,7 +510,7 @@ export function CalendarGrid({
                       type="button"
                       disabled={busyId === a.cashAdvanceId}
                       onClick={() => onAdvanceClick(a.cashAdvanceId)}
-                      className="flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-surface-muted disabled:opacity-60"
+                      className="flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-surface-hover disabled:opacity-60"
                     >
                       {body}
                     </button>

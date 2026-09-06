@@ -50,7 +50,7 @@ export function Tabs({
               'inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-display text-xs font-semibold transition',
               on
                 ? 'bg-primary-50 text-primary-700 ring-1 ring-primary-200'
-                : 'text-ink-4 hover:bg-surface-muted hover:text-ink-2',
+                : 'text-ink-4 hover:bg-surface-hover hover:text-ink-2',
             )}
           >
             {it.label}

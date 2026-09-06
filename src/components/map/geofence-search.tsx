@@ -94,7 +94,7 @@ export function GeofenceSearch({ onSelect }: Props) {
           type="button"
           onClick={runSearch}
           disabled={status === 'loading'}
-          className="shrink-0 rounded-md border border-line-strong px-3 py-2 text-sm font-medium text-ink-2 hover:bg-surface-muted disabled:opacity-50"
+          className="shrink-0 rounded-md border border-line-strong px-3 py-2 text-sm font-medium text-ink-2 hover:bg-surface-hover disabled:opacity-50"
         >
           {status === 'loading' ? 'กำลังค้นหา…' : 'ค้นหา'}
         </button>
@@ -115,7 +115,7 @@ export function GeofenceSearch({ onSelect }: Props) {
                   <button
                     type="button"
                     onClick={() => handlePick(r)}
-                    className="block w-full px-3 py-2 text-left text-xs text-ink-2 hover:bg-surface-muted"
+                    className="block w-full px-3 py-2 text-left text-xs text-ink-2 hover:bg-surface-hover"
                   >
                     {r.displayName}
                   </button>

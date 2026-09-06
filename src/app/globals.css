@@ -76,6 +76,24 @@
   --color-line:           oklch(92.8% 0.006 264.531); /* was *-gray-200   */
   --color-line-strong:    oklch(87.2% 0.01 258.338);  /* was *-gray-300   */
 
+  /* ── Hover fills ───────────────────────────────────────────────────────
+   * Separate from `surface-muted` / `surface-sunken` because those carry two
+   * meanings that light mode happens to conflate and dark mode cannot:
+   * "you are hovering this" and "this panel is recessed".
+   *
+   * In light, a hover goes DARKER than the card it sits on. In dark it must
+   * go LIGHTER, or the element fades into the page exactly as you point at
+   * it. One variable cannot do both, and 93 usages depended on it doing both
+   * (surface-muted: 68 hover / 57 static; surface-sunken: 25 / 25).
+   *
+   * Seeded with the exact values they replace, so this split changes no
+   * pixel in light mode. TWO tokens rather than one: surface-muted and
+   * surface-sunken are different colours, and collapsing both hovers into a
+   * single token would silently restyle 25 hover states.
+   */
+  --color-surface-hover:        oklch(98.5% 0.002 247.839); /* == surface-muted  */
+  --color-surface-hover-strong: oklch(96.7% 0.003 264.542); /* == surface-sunken */
+
   /* Radii */
   --radius-sm: 5px;
   --radius:    8px;

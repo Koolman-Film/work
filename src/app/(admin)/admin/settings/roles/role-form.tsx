@@ -197,7 +197,7 @@ export function RoleForm({ mode, action, initial, error, extraActions }: Props) 
                     {group.permissions.map((p) => (
                       <label
                         key={p}
-                        className="flex items-start gap-2 rounded-md px-2 py-1.5 text-sm text-ink-2 transition hover:bg-surface-muted"
+                        className="flex items-start gap-2 rounded-md px-2 py-1.5 text-sm text-ink-2 transition hover:bg-surface-hover"
                       >
                         <input
                           type="checkbox"

@@ -22,6 +22,14 @@ test.describe('WCAG AA contrast — light mode, admin', () => {
       await page.goto(path);
       await page.waitForLoadState('networkidle');
 
+      // Park the cursor off-content before measuring. `loginAsAdmin` ends in a
+      // click, which leaves the pointer mid-viewport; after a goto it stays
+      // there and lands on whatever now occupies that spot. On /admin/leave
+      // that is a row with `hover:bg-surface-muted/70`, so the sweep measured
+      // a randomly-hovered element and results flickered between runs.
+      // A contrast audit must measure the page, not the cursor's resting place.
+      await page.mouse.move(0, 0);
+
       const { scanned, measured, failures } = await auditContrast(page);
 
       // A zero-failure result is only meaningful if the sweep actually ran.

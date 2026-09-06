@@ -104,13 +104,13 @@ export default async function PairingLandingPage({ params }: { params: Params })
           <div className="flex justify-center gap-2">
             <a
               href="https://apps.apple.com/app/line/id443904275"
-              className="rounded-md border border-line-strong px-3 py-1.5 text-xs font-medium text-ink-2 hover:bg-surface-muted"
+              className="rounded-md border border-line-strong px-3 py-1.5 text-xs font-medium text-ink-2 hover:bg-surface-hover"
             >
               App Store
             </a>
             <a
               href="https://play.google.com/store/apps/details?id=jp.naver.line.android"
-              className="rounded-md border border-line-strong px-3 py-1.5 text-xs font-medium text-ink-2 hover:bg-surface-muted"
+              className="rounded-md border border-line-strong px-3 py-1.5 text-xs font-medium text-ink-2 hover:bg-surface-hover"
             >
               Google Play
             </a>
