@@ -12,26 +12,53 @@
 
 ## Progress
 
-Tick a task when its final commit lands. Step-level checkboxes live in each task.
-**Nothing started as of 2026-09-04 16:50.**
+**All 11 tasks complete.** Executed inline 2026-09-06 on `claude/ui-dark-mode`.
 
-- [ ] **Task 1** — Contrast harness (lands RED on purpose; captures the baseline)
-- [ ] **Task 2** — Theme config module
-- [ ] **Task 3** — `setTheme` server action
-- [ ] **Task 4** — SSR stamp on `<html>`
-- [ ] **Task 5** — Split hover tokens *(must be a provable no-op — this is the safety net)*
-- [ ] **Task 6** — Light ink ramp to AA *(harness turns green here)*
-- [ ] **Task 7** — Dark palette + drift test
-- [ ] **Task 8** — Dark status ramps
-- [ ] **Task 9** — Solid-fill exceptions *(highest consequence — Reject/Approve buttons)*
-- [ ] **Task 10** — Theme toggle
-- [ ] **Task 11** — Full verification + restore local seed
+- [x] **Task 1** — Contrast harness (landed RED as designed; baseline captured)
+- [x] **Task 2** — Theme config module
+- [x] **Task 3** — `setTheme` server action
+- [x] **Task 4** — SSR stamp on `<html>` (verified for all 4 cookie states)
+- [x] **Task 5** — Split hover tokens — **proven a no-op**, byte-identical sweep
+- [x] **Task 6** — Light ink ramp to AA
+- [x] **Task 7** — Dark palette + drift test
+- [x] **Task 8** — Dark status ramps
+- [x] **Task 9** — Solid-fill exceptions
+- [x] **Task 10** — Theme toggle (admin + LIFF, 6 locales)
+- [x] **Task 11** — Full verification; local seed restored
 
-**Resuming:** `cd /Users/tong/Works/fai/work/.claude/worktrees/ui-dark-mode`, then
-`git log --oneline main..HEAD` to see which tasks already committed. Each task ends in
-exactly one commit, so the log is the source of truth if these boxes drift.
+### What the plan got wrong
 
----
+Five things the plan and spec missed, all caught by the tests rather than by review:
+
+1. **The app's own brand ramps had no dark values.** I scoped the raw Tailwind
+   palette and the surface/ink scaffolding and forgot `primary-*`, `success`,
+   `danger`, `accent`, `warning` — about 640 usages. The dark sweep found it.
+2. **The fill-vs-text conflict recurred three more times**, each disguised:
+   `primary-600/700` and `success`/`danger` as both fill and text; the KPI hero
+   and sidebar building gradients out of *text* tones (the hero went pale blue
+   with white text at 1.53:1); and `bg-white/80` on the topbar, which is a
+   translucent SURFACE rather than a scrim.
+3. **Light-mode badge failures were never scoped.** The plan fixed white-on-red
+   and white-on-amber only in dark, which would have left light failing forever.
+4. **`red`/`amber` 500–600 were left without dark values** once their fills moved
+   to dedicated tokens, stranding 42 text usages. Found on `/liff/calendar`.
+5. **LIFF coverage mattered.** Adding it found four more failures, three of them
+   pre-existing in LIGHT mode — including a bare `bg-white` chip that put
+   light-grey text on white at 1.59:1 in dark.
+
+### Tooling lessons worth keeping
+
+- **BSD `sed` has no `\b`.** `sed -i '' 's/x\b/y/'` silently matches nothing and
+  exits 0. Use `perl -pi -e` or Python. The plan's own commands were wrong.
+- **`grep -Z` on BSD means decompress**, not NUL-delimit, so `xargs -0` receives
+  one giant filename. Paths here contain `[id]` and `(liff)`, which zsh also
+  glob-expands — do bulk renames in Python.
+- **Swapping `src` between commits does not invalidate Turbopack's CSS cache.**
+  A stale stylesheet served old and new rules together and made the hover split
+  look like a regression for three runs. `rm -rf .next` before any before/after.
+- **A bulk rename can corrupt its own output**: `\bbg-warning\b` matched inside
+  `bg-warning-solid`, which the previous pass had just created.
+  `globals.tokens.test.ts` now guards that.
 
 ## Global Constraints
 
