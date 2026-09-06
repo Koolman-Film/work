@@ -88,7 +88,7 @@ export default async function EditTeamMemberPage({
   const deleteBound = deleteTeamMember.bind(null, id);
 
   return (
-    <div className="px-4 py-6 sm:px-6 lg:px-8">
+    <div className="p-4">
       <PageHeader
         breadcrumb="ตั้งค่า · ทีมผู้ดูแล"
         title={target.email ?? 'แก้ไขผู้ดูแล'}

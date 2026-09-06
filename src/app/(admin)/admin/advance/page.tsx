@@ -106,7 +106,7 @@ export default async function AdminAdvanceInboxPage({
       );
 
   return (
-    <div className="px-4 py-6 sm:px-6 lg:px-8">
+    <div className="p-4">
       <PageHeader
         breadcrumb="คำขอเบิก"
         title="คำขอเบิก"
@@ -158,7 +158,7 @@ export default async function AdminAdvanceInboxPage({
             (e.g. broken phone). Creates a Pending request to approve here. */}
         <Link
           href="/admin/advance/new"
-          className="ml-auto rounded-lg bg-brand-solid px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-brand-solid-hover"
+          className="ml-auto rounded-lg bg-brand-solid px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-brand-solid-hover"
         >
           + บันทึกการเบิก (แทนพนักงาน)
         </Link>

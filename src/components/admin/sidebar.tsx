@@ -266,7 +266,7 @@ export function Sidebar({
           // Mobile: slide in/out
           open ? 'translate-x-0 shadow-xl' : '-translate-x-full',
           // Desktop: floating rounded card on the canvas, sticky
-          'lg:sticky lg:top-4 lg:m-4 lg:h-[calc(100dvh-2rem)] lg:translate-x-0 lg:rounded-2xl lg:border lg:border-[var(--border-color)] lg:shadow-card',
+          'lg:sticky lg:top-4 lg:my-4 lg:ml-4 lg:h-[calc(100dvh-2rem)] lg:translate-x-0 lg:rounded-2xl lg:border lg:border-[var(--border-color)] lg:shadow-card',
         )}
         aria-label="แผงควบคุมผู้ดูแล"
       >

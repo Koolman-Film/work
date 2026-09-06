@@ -270,7 +270,7 @@ export default function CheckInClient({
         </div>
 
         {/* Today's status card */}
-        <section className="mt-6 rounded-2xl border border-line bg-surface p-6 shadow-sm">
+        <section className="mt-6 rounded-2xl border border-line bg-surface p-6">
           <h2 className="text-xs font-medium uppercase tracking-wide text-ink-3">
             {t('status.heading')}
           </h2>
@@ -354,31 +354,31 @@ export default function CheckInClient({
         <section className="mt-6 grid grid-cols-2 gap-2.5">
           <a
             href="/liff/leave"
-            className="rounded-xl border border-line bg-surface px-3 py-3 text-center text-sm font-medium text-ink-2 shadow-sm transition hover:border-primary-200 hover:text-primary-700"
+            className="rounded-xl border border-line bg-surface px-3 py-3 text-center text-sm font-medium text-ink-2 transition hover:border-primary-200 hover:text-primary-700"
           >
             {t('quickAction.leave')}
           </a>
           <a
             href="/liff/advance"
-            className="rounded-xl border border-line bg-surface px-3 py-3 text-center text-sm font-medium text-ink-2 shadow-sm transition hover:border-primary-200 hover:text-primary-700"
+            className="rounded-xl border border-line bg-surface px-3 py-3 text-center text-sm font-medium text-ink-2 transition hover:border-primary-200 hover:text-primary-700"
           >
             {t('quickAction.advance')}
           </a>
           <a
             href="/liff/calendar"
-            className="rounded-xl border border-line bg-surface px-3 py-3 text-center text-sm font-medium text-ink-2 shadow-sm transition hover:border-primary-200 hover:text-primary-700"
+            className="rounded-xl border border-line bg-surface px-3 py-3 text-center text-sm font-medium text-ink-2 transition hover:border-primary-200 hover:text-primary-700"
           >
             {t('quickAction.calendar')}
           </a>
           <a
             href="/liff/profile"
-            className="rounded-xl border border-line bg-surface px-3 py-3 text-center text-sm font-medium text-ink-2 shadow-sm transition hover:border-primary-200 hover:text-primary-700"
+            className="rounded-xl border border-line bg-surface px-3 py-3 text-center text-sm font-medium text-ink-2 transition hover:border-primary-200 hover:text-primary-700"
           >
             {t('quickAction.profile')}
           </a>
           <a
             href="/liff/summary"
-            className="rounded-xl border border-line bg-surface px-3 py-3 text-center text-sm font-medium text-ink-2 shadow-sm transition hover:border-primary-200 hover:text-primary-700"
+            className="rounded-xl border border-line bg-surface px-3 py-3 text-center text-sm font-medium text-ink-2 transition hover:border-primary-200 hover:text-primary-700"
           >
             {t('quickAction.summary')}
           </a>
@@ -441,8 +441,7 @@ function PrimaryButton({
   disabled: boolean;
   tone: 'primary' | 'secondary';
 }) {
-  const base =
-    'w-full rounded-xl px-5 py-4 text-base font-medium shadow-sm transition disabled:opacity-60';
+  const base = 'w-full rounded-xl px-5 py-4 text-base font-medium transition disabled:opacity-60';
   const cls =
     tone === 'primary'
       ? `${base} bg-brand-solid text-white hover:bg-brand-solid-hover`

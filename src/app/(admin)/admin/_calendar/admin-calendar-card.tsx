@@ -134,7 +134,7 @@ export function AdminCalendarCard({ branches, initialYm, initialData }: Props) {
             aria-label="กรองตามสาขา"
             value={branchId}
             onChange={onBranchChange}
-            className="max-w-[200px] rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm shadow-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100"
+            className="max-w-[200px] rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100"
           >
             <option value="">สาขาทั้งหมด</option>
             {branches.map((b) => (

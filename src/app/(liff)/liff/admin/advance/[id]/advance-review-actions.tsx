@@ -66,14 +66,14 @@ export function AdvanceReviewActions({ cashAdvanceId }: { cashAdvanceId: string 
   }
 
   return (
-    <section className="mt-3 rounded-xl border border-line bg-surface p-4 shadow-sm">
+    <section className="mt-3 rounded-xl border border-line bg-surface p-4">
       {error && <p className="mb-2 text-xs text-red-600">{error}</p>}
       <div className="grid grid-cols-2 gap-2">
         <button
           type="button"
           disabled={isPending}
           onClick={() => fire('approve')}
-          className="rounded-lg bg-success-solid px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-success-solid-hover disabled:opacity-50"
+          className="rounded-lg bg-success-solid px-4 py-2.5 text-sm font-medium text-white hover:bg-success-solid-hover disabled:opacity-50"
         >
           {isPending && firing === 'approve'
             ? t('saving')
@@ -85,7 +85,7 @@ export function AdvanceReviewActions({ cashAdvanceId }: { cashAdvanceId: string 
           type="button"
           disabled={isPending}
           onClick={() => fire('reject')}
-          className="rounded-lg bg-danger-solid px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-danger-solid-hover disabled:opacity-50"
+          className="rounded-lg bg-danger-solid px-4 py-2.5 text-sm font-medium text-white hover:bg-danger-solid-hover disabled:opacity-50"
         >
           {isPending && firing === 'reject'
             ? t('saving')
@@ -146,7 +146,7 @@ export function SlipUploadBlock({
   }
 
   return (
-    <section className="mt-3 rounded-xl border border-line bg-surface p-4 shadow-sm">
+    <section className="mt-3 rounded-xl border border-line bg-surface p-4">
       <h2 className="text-xs font-medium uppercase tracking-wide text-ink-3">{heading}</h2>
       {doneOnce && (
         <p className="mt-2 rounded-lg bg-green-50 p-2 text-xs text-green-800">{t('slipDone')}</p>
@@ -163,7 +163,7 @@ export function SlipUploadBlock({
         type="button"
         disabled={uploading}
         onClick={() => inputRef.current?.click()}
-        className="mt-3 w-full rounded-lg bg-brand-solid px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-brand-solid-hover disabled:opacity-50"
+        className="mt-3 w-full rounded-lg bg-brand-solid px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-solid-hover disabled:opacity-50"
       >
         {uploading ? t('uploading') : buttonLabel}
       </button>

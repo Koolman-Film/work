@@ -48,6 +48,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             badges={{ leave, advance, attendance, approvals: leave + advance + attendance }}
             allowedPermissions={[...permissions]}
           />
+          {/* One 1rem rhythm for the whole shell: the sidebar's own margin, the
+              gap between sidebar and topbar, the topbar's right gutter, and
+              every page's `p-4` are all the same number. The column stays
+              full-width — the topbar owns its right gutter, the pages own
+              their inset — so nothing pays the gutter twice. */}
           <div className="flex min-w-0 flex-1 flex-col">
             <Topbar userLabel={user.email ?? 'Admin'} userId={user.id} />
             <main className="min-w-0 flex-1">

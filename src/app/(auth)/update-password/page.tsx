@@ -36,7 +36,7 @@ export default async function UpdatePasswordPage({ searchParams }: { searchParam
           required
           minLength={8}
           autoComplete="new-password"
-          className="mt-1.5 block w-full rounded-md border border-line-strong px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
+          className="mt-1.5 block w-full rounded-md border border-line-strong px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
         />
       </div>
 
@@ -51,7 +51,7 @@ export default async function UpdatePasswordPage({ searchParams }: { searchParam
           required
           minLength={8}
           autoComplete="new-password"
-          className="mt-1.5 block w-full rounded-md border border-line-strong px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
+          className="mt-1.5 block w-full rounded-md border border-line-strong px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
         />
       </div>
 
@@ -63,7 +63,7 @@ export default async function UpdatePasswordPage({ searchParams }: { searchParam
 
       <button
         type="submit"
-        className="w-full rounded-md bg-brand-solid px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-brand-solid-hover focus:outline-none focus:ring-2 focus:ring-primary-500/50"
+        className="w-full rounded-md bg-brand-solid px-4 py-2.5 text-sm font-medium text-white transition hover:bg-brand-solid-hover focus:outline-none focus:ring-2 focus:ring-primary-500/50"
       >
         บันทึกรหัสผ่านใหม่
       </button>

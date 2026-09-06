@@ -68,7 +68,7 @@ export default function PairAdminClient({ pairingToken }: { pairingToken: string
 
   return (
     <div className="grid min-h-dvh place-items-center px-4 py-12">
-      <div className="w-full max-w-sm rounded-xl border border-line bg-surface p-8 shadow-sm">
+      <div className="w-full max-w-sm rounded-xl border border-line bg-surface p-8">
         <p className="text-center text-sm text-ink-3">Koolman Work</p>
         <h1 className="mt-1 text-center text-xl font-semibold text-ink-1">เชื่อมต่อ LINE สำหรับผู้ดูแล</h1>
 
@@ -121,7 +121,7 @@ export default function PairAdminClient({ pairingToken }: { pairingToken: string
                 <button
                   type="button"
                   onClick={() => window.location.reload()}
-                  className="mt-2 rounded-md bg-brand-solid px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-brand-solid-hover"
+                  className="mt-2 rounded-md bg-brand-solid px-4 py-2 text-sm font-medium text-white hover:bg-brand-solid-hover"
                 >
                   ลองใหม่
                 </button>

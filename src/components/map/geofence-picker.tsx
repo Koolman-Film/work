@@ -237,7 +237,12 @@ export function GeofencePicker({
         ref={containerRef}
         role="application"
         aria-label="แผนที่สำหรับเลือกตำแหน่งสาขา"
-        className="h-72 w-full rounded-md border border-line"
+        // `isolate` contains Leaflet's z-index scale. Leaflet ships panes at
+        // 200-700, controls at 800 and .leaflet-top/.leaflet-bottom at 1000;
+        // with no stacking context here those compete in the ROOT context and
+        // paint straight over the sticky topbar (z-20). Isolating makes the
+        // whole scale local, so no library number can reach app chrome.
+        className="isolate h-72 w-full rounded-md border border-line"
       />
 
       {/* Editable lat/long fields — two-way synced with the pin. These carry

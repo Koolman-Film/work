@@ -85,7 +85,7 @@ export default async function LiffAdminLeaveDetailPage({ params }: { params: Par
         </div>
       </header>
 
-      <section className="rounded-xl border border-line bg-surface p-4 shadow-sm">
+      <section className="rounded-xl border border-line bg-surface p-4">
         <p className="text-sm font-medium text-ink-1">
           {vm.name}
           {vm.nickname && <span className="text-ink-3"> ({vm.nickname})</span>}
@@ -107,7 +107,7 @@ export default async function LiffAdminLeaveDetailPage({ params }: { params: Par
       </section>
 
       {vm.overQuota && (
-        <section className="mt-3 rounded-xl border border-line bg-surface p-4 shadow-sm">
+        <section className="mt-3 rounded-xl border border-line bg-surface p-4">
           <h2 className="text-xs font-medium uppercase tracking-wide text-ink-3">
             {t('quotaTitle')}
           </h2>
@@ -157,7 +157,7 @@ export default async function LiffAdminLeaveDetailPage({ params }: { params: Par
           approveBlocked={vm.overQuota?.blocksApproval ?? false}
         />
       ) : (
-        <section className="mt-3 rounded-xl border border-line bg-surface p-4 shadow-sm">
+        <section className="mt-3 rounded-xl border border-line bg-surface p-4">
           <h2 className="text-xs font-medium uppercase tracking-wide text-ink-3">
             {t('reviewResult')}
           </h2>

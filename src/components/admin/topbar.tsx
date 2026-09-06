@@ -32,7 +32,30 @@ export function Topbar({ userLabel, userId }: Props) {
   const toggleMobileNav = useMobileNav((s) => s.toggle);
 
   return (
-    <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-2 border-b border-[var(--border-color)] bg-surface/80 px-3 backdrop-blur sm:px-5">
+    <header
+      className={cn(
+        'sticky top-0 z-20 flex h-14 items-center justify-between gap-2 bg-surface/80 backdrop-blur',
+        // 1rem — the same number every page wrapper uses — so the bar's
+        // contents sit on exactly the rails the page content below them uses.
+        'px-4',
+        // Mobile: a flush bar with a hairline under it — the sidebar is
+        // off-canvas here, so there is no floating card to be coherent with.
+        'border-b border-[var(--border-color)]',
+        // Desktop: the same floating card as the sidebar — same radius,
+        // border, shadow and 1rem gutter. The shell then reads as two panels
+        // on a canvas rather than one panel plus a bar stuck to the window.
+        // The bar owns its own right gutter so the content column can stay
+        // full-width and pages are not inset twice.
+        'lg:top-4 lg:mx-4 lg:mt-4 lg:rounded-2xl lg:border lg:shadow-card',
+        // A floating sticky bar leaves a 1rem hole above itself, and page
+        // content scrolls straight through it — the page title was visible,
+        // clipped, above the bar. This paints the canvas colour across that
+        // strip so content disappears BEHIND the shell instead of above it.
+        // Scoped to lg: the mobile bar is flush and has no gap to cover.
+        'lg:before:pointer-events-none lg:before:absolute lg:before:inset-x-0',
+        'lg:before:bottom-full lg:before:h-4 lg:before:bg-canvas',
+      )}
+    >
       <div className="flex min-w-0 items-center gap-2">
         {/* Hamburger — mobile-only (opens the sidebar drawer). */}
         <button

@@ -240,7 +240,7 @@ export default async function AdminHomePage() {
   });
 
   return (
-    <div className="px-4 py-6 sm:px-6 lg:px-8">
+    <div className="p-4">
       <PageHeader
         breadcrumb="ภาพรวม"
         title="ภาพรวม"

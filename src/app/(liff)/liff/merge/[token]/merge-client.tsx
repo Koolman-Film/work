@@ -79,7 +79,7 @@ export default function MergeClient({ mergeToken }: { mergeToken: string }) {
 
   return (
     <div className="grid min-h-dvh place-items-center px-4 py-12">
-      <div className="w-full max-w-sm rounded-xl border border-line bg-surface p-8 shadow-sm">
+      <div className="w-full max-w-sm rounded-xl border border-line bg-surface p-8">
         <p className="text-center text-sm text-ink-3">Koolman Work</p>
         <div className="mt-6">
           {(state.phase === 'working' || state.phase === 'merging') && (
@@ -109,7 +109,7 @@ export default function MergeClient({ mergeToken }: { mergeToken: string }) {
                 <button
                   type="button"
                   onClick={confirm}
-                  className="flex-1 rounded-md bg-brand-solid px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-brand-solid-hover"
+                  className="flex-1 rounded-md bg-brand-solid px-4 py-2 text-sm font-medium text-white hover:bg-brand-solid-hover"
                 >
                   {t('confirmCta')}
                 </button>
@@ -144,7 +144,7 @@ export default function MergeClient({ mergeToken }: { mergeToken: string }) {
               <p className="text-sm text-ink-2">{t('successBody')}</p>
               <Link
                 href="/liff/home"
-                className="mt-2 rounded-md bg-brand-solid px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-brand-solid-hover"
+                className="mt-2 rounded-md bg-brand-solid px-4 py-2 text-sm font-medium text-white hover:bg-brand-solid-hover"
               >
                 {t('openHome')}
               </Link>
@@ -175,7 +175,7 @@ export default function MergeClient({ mergeToken }: { mergeToken: string }) {
                 <button
                   type="button"
                   onClick={() => window.location.reload()}
-                  className="mt-2 rounded-md bg-brand-solid px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-brand-solid-hover"
+                  className="mt-2 rounded-md bg-brand-solid px-4 py-2 text-sm font-medium text-white hover:bg-brand-solid-hover"
                 >
                   {t('retry')}
                 </button>

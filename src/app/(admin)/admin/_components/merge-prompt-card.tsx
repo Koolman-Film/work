@@ -38,7 +38,7 @@ function RowAvatar({ name, src }: { name: string; src: string | null }) {
   );
 }
 
-const CARD = 'rounded-2xl border border-line bg-surface p-5 shadow-sm';
+const CARD = 'rounded-2xl border border-line bg-surface p-5';
 
 export function MergePromptCard() {
   const t = useTranslations('mergeWizard');
@@ -95,7 +95,7 @@ export function MergePromptCard() {
     return (
       <div className={cn(CARD, 'flex flex-col items-center text-center')}>
         <p className="text-sm font-semibold text-ink-1">{t('scanHint')}</p>
-        <div className="mt-4 rounded-2xl border border-line bg-surface p-3 shadow-sm">
+        <div className="mt-4 rounded-2xl border border-line bg-surface p-3">
           {/* biome-ignore lint/performance/noImgElement: inline data: URL (QR), not a storage asset */}
           <img src={qr.qrDataUrl} alt="QR code" width={208} height={208} className="rounded-lg" />
         </div>

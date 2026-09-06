@@ -88,7 +88,7 @@ export function GeofenceSearch({ onSelect }: Props) {
           onKeyDown={handleKeyDown}
           placeholder="ค้นหาสถานที่ / ที่อยู่ แล้วกด Enter"
           aria-label="ค้นหาสถานที่เพื่อปักหมุด"
-          className="w-full rounded-md border border-line-strong px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
+          className="w-full rounded-md border border-line-strong px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
         />
         <button
           type="button"

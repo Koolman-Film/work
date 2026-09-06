@@ -44,7 +44,7 @@ export default async function AdminCalendarPage() {
   ]);
 
   return (
-    <div className="px-4 py-6 sm:px-6 lg:px-8">
+    <div className="p-4">
       <PageHeader breadcrumb="ปฏิทินงาน" title="ปฏิทินงาน" subtitle="วันลาและวันหยุดของทุกสาขา" />
       <AdminCalendarCard branches={branches} initialYm={initialYm} initialData={initialData} />
     </div>

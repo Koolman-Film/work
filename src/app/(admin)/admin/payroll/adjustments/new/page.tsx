@@ -17,7 +17,7 @@ export default async function NewAdjustmentPage({ searchParams }: { searchParams
     .slice(0, 7);
 
   return (
-    <div className="px-4 py-6 sm:px-6 lg:px-8">
+    <div className="p-4">
       <PageHeader breadcrumb="เงินเดือน · เงินเพิ่ม/เงินลด" title="เพิ่มรายการ" />
       <div>
         <AdjustmentForm

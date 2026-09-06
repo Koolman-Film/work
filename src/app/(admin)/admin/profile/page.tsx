@@ -36,7 +36,7 @@ export default async function AdminProfilePage() {
   const isPureAdmin = me?.employee == null;
 
   return (
-    <div className="space-y-6 px-4 py-6 sm:px-6 lg:px-8">
+    <div className="space-y-6 p-4">
       <PageHeader breadcrumb="โปรไฟล์ของฉัน" title="โปรไฟล์ของฉัน" subtitle="ข้อมูลบัญชี + เปลี่ยนรหัสผ่าน" />
 
       {/* ─── Identity card (readonly) ─────────────────────────────────── */}

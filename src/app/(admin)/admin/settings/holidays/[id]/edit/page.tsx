@@ -35,7 +35,7 @@ export default async function EditHolidayPage({
   };
 
   return (
-    <div className="px-4 py-6 sm:px-6 lg:px-8">
+    <div className="p-4">
       <PageHeader breadcrumb="ตั้งค่า · วันหยุด" title="แก้ไขวันหยุด" />
       <div>
         <HolidayForm

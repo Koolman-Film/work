@@ -33,7 +33,7 @@ export async function BalanceCard({ balance, locale }: Props) {
     return (
       <section
         className={[
-          'rounded-2xl border bg-surface p-5 shadow-sm',
+          'rounded-2xl border bg-surface p-5',
           balance.overdrawn ? 'border-red-300' : 'border-line',
         ].join(' ')}
       >
@@ -112,7 +112,7 @@ export async function BalanceCard({ balance, locale }: Props) {
   return (
     <section
       className={[
-        'rounded-2xl border bg-surface p-5 shadow-sm',
+        'rounded-2xl border bg-surface p-5',
         balance.overdrawn ? 'border-red-300' : 'border-line',
       ].join(' ')}
     >

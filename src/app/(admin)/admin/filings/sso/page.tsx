@@ -29,7 +29,7 @@ export default async function SsoFilingPage({ searchParams }: { searchParams: Se
   const downloadHref = `/admin/filings/sso/export?m=${month}&branchId=${branchId}`;
 
   return (
-    <div className="px-4 py-6 sm:px-6 lg:px-8">
+    <div className="p-4">
       <PageHeader
         breadcrumb="ยื่นประกันสังคม"
         title="ยื่นประกันสังคม (สปส.1-10)"

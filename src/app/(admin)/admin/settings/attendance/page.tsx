@@ -46,7 +46,7 @@ export default async function AttendanceSettingsPage({
   const winTo = formatThaiDate(new Date(`${win.to}T00:00:00.000Z`));
 
   return (
-    <div className="px-4 py-6 sm:px-6 lg:px-8">
+    <div className="p-4">
       <PageHeader
         breadcrumb="ตั้งค่า"
         title="การมาสาย & รอบจ่ายเงินเดือน"

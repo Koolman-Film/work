@@ -86,7 +86,7 @@ export default async function AdjustmentListPage({ searchParams }: { searchParam
   ];
 
   return (
-    <div className="px-4 py-6 sm:px-6 lg:px-8">
+    <div className="p-4">
       <PageHeader
         breadcrumb="เงินเดือน"
         title="เงินเพิ่ม / เงินลด"

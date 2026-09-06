@@ -136,7 +136,7 @@ export function LeaveTypeForm({ mode, action, initial, error, extraActions }: Pr
                 id="overQuotaPolicy"
                 name="overQuotaPolicy"
                 defaultValue={initial?.overQuotaPolicy ?? 'DeductPay'}
-                className="w-full rounded-md border border-line-strong px-3 py-2 text-sm shadow-sm"
+                className="w-full rounded-md border border-line-strong px-3 py-2 text-sm"
               >
                 <option value="DeductPay">อนุมัติได้ แต่หักเงินเดือนส่วนที่เกิน</option>
                 <option value="Block">ไม่อนุญาต (อนุมัติเกินสิทธิไม่ได้)</option>

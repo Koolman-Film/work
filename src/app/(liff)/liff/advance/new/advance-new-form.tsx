@@ -77,7 +77,7 @@ export function AdvanceNewForm({
 
       <form
         onSubmit={onSubmit}
-        className="mt-6 space-y-5 rounded-2xl border border-line bg-surface p-6 shadow-sm"
+        className="mt-6 space-y-5 rounded-2xl border border-line bg-surface p-6"
       >
         {error && (
           <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -101,7 +101,7 @@ export function AdvanceNewForm({
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               required
-              className="w-full rounded-md border border-line-strong py-3 pr-3 pl-8 text-right text-lg font-semibold tabular-nums shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+              className="w-full rounded-md border border-line-strong py-3 pr-3 pl-8 text-right text-lg font-semibold tabular-nums focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
             />
           </div>
           {/* Over-cap → blocks submission (server enforces it too at submit +
@@ -153,7 +153,7 @@ export function AdvanceNewForm({
           <button
             type="submit"
             disabled={pending || parsed == null || overCap || blackout}
-            className="rounded-lg bg-brand-solid px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-brand-solid-hover disabled:cursor-not-allowed disabled:opacity-60"
+            className="rounded-lg bg-brand-solid px-5 py-2.5 text-sm font-medium text-white transition hover:bg-brand-solid-hover disabled:cursor-not-allowed disabled:opacity-60"
           >
             {pending ? t('new.submitting') : t('new.submit')}
           </button>

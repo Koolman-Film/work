@@ -68,7 +68,7 @@ export function DisputeReviewActions({ attendanceId }: { attendanceId: string })
   }
 
   return (
-    <section className="mt-3 rounded-xl border border-line bg-surface p-4 shadow-sm">
+    <section className="mt-3 rounded-xl border border-line bg-surface p-4">
       <label htmlFor="dispute-note" className="text-xs font-medium text-ink-3">
         {t('noteLabel')}
       </label>
@@ -89,7 +89,7 @@ export function DisputeReviewActions({ attendanceId }: { attendanceId: string })
           type="button"
           disabled={isPending}
           onClick={() => fire('approve')}
-          className="rounded-lg bg-success-solid px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-success-solid-hover disabled:opacity-50"
+          className="rounded-lg bg-success-solid px-4 py-2.5 text-sm font-medium text-white hover:bg-success-solid-hover disabled:opacity-50"
         >
           {isPending && firing === 'approve'
             ? t('saving')
@@ -101,7 +101,7 @@ export function DisputeReviewActions({ attendanceId }: { attendanceId: string })
           type="button"
           disabled={isPending}
           onClick={() => fire('reject')}
-          className="rounded-lg bg-danger-solid px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-danger-solid-hover disabled:opacity-50"
+          className="rounded-lg bg-danger-solid px-4 py-2.5 text-sm font-medium text-white hover:bg-danger-solid-hover disabled:opacity-50"
         >
           {isPending && firing === 'reject'
             ? t('saving')

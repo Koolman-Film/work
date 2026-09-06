@@ -11,7 +11,7 @@ export default async function NewAccountingGroupPage({
 }) {
   const { error } = await searchParams;
   return (
-    <div className="px-4 py-6 sm:px-6 lg:px-8">
+    <div className="p-4">
       <PageHeader breadcrumb="ตั้งค่า · กลุ่มบัญชี" title="เพิ่มกลุ่มบัญชี" />
       <div>
         <AccountingGroupForm

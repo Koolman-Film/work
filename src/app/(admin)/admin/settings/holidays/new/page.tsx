@@ -8,7 +8,7 @@ export default async function NewHolidayPage({ searchParams }: { searchParams: S
   const { error } = await searchParams;
 
   return (
-    <div className="px-4 py-6 sm:px-6 lg:px-8">
+    <div className="p-4">
       <PageHeader breadcrumb="ตั้งค่า · วันหยุด" title="เพิ่มวันหยุด" />
       <div>
         <HolidayForm

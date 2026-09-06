@@ -137,7 +137,7 @@ export default async function AdminLeaveInboxPage({
       );
 
   return (
-    <div className="px-4 py-6 sm:px-6 lg:px-8">
+    <div className="p-4">
       <PageHeader
         breadcrumb="คำขอลา"
         title="คำขอลา"
@@ -189,7 +189,7 @@ export default async function AdminLeaveInboxPage({
             back-dating beyond the worker self-file window. */}
         <Link
           href="/admin/leave/new"
-          className="ml-auto rounded-lg bg-brand-solid px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-brand-solid-hover"
+          className="ml-auto rounded-lg bg-brand-solid px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-brand-solid-hover"
         >
           + บันทึกการลา (ย้อนหลัง)
         </Link>

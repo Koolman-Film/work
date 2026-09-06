@@ -103,7 +103,7 @@ export default async function LeaveBacklogPage() {
   const grand = rows.reduce((s, r) => s + r.total, 0);
 
   return (
-    <div className="px-4 py-6 sm:px-6 lg:px-8">
+    <div className="p-4">
       <PageHeader
         breadcrumb="เครื่องมือ"
         title="วันลาเกินสิทธิที่ยังไม่ได้หัก"

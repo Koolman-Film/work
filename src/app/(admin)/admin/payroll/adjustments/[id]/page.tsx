@@ -39,7 +39,7 @@ export default async function EditAdjustmentPage({
   };
 
   return (
-    <div className="px-4 py-6 sm:px-6 lg:px-8">
+    <div className="p-4">
       <PageHeader breadcrumb="เงินเดือน · เงินเพิ่ม/เงินลด" title="แก้ไขรายการ" />
       <div>
         <AdjustmentForm

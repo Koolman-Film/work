@@ -40,7 +40,7 @@ export default async function LiffPayslipPage({
 }) {
   const { employee } = await requireEmployee();
   const params = await searchParams;
-  const cardCls = 'rounded-2xl border border-line bg-surface p-5 shadow-sm';
+  const cardCls = 'rounded-2xl border border-line bg-surface p-5';
 
   // Bare /liff/payslip (no valid ?m=) lists every Published/Locked month so
   // employees can browse history instead of only seeing the current month.

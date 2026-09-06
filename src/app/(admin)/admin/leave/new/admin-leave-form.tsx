@@ -122,7 +122,7 @@ export function AdminLeaveForm({ employees, leaveTypes }: Props) {
           id="employeeId"
           value={employeeId}
           onChange={(e) => setEmployeeId(e.target.value)}
-          className="w-full rounded-md border border-line-strong px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+          className="w-full rounded-md border border-line-strong px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
           required
         >
           <option value="">— เลือกพนักงาน —</option>
@@ -139,7 +139,7 @@ export function AdminLeaveForm({ employees, leaveTypes }: Props) {
           id="leaveTypeId"
           value={leaveTypeId}
           onChange={(e) => setLeaveTypeId(e.target.value)}
-          className="w-full rounded-md border border-line-strong px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+          className="w-full rounded-md border border-line-strong px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
           required
         >
           {leaveTypes.map((t) => (
@@ -240,7 +240,7 @@ export function AdminLeaveForm({ employees, leaveTypes }: Props) {
           maxLength={500}
           required
           placeholder="เช่น ป่วย — ยื่นเอกสารย้อนหลัง / ลืมแจ้งลา"
-          className="w-full rounded-md border border-line-strong px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+          className="w-full rounded-md border border-line-strong px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
         />
       </FormField>
 

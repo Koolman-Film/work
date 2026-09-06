@@ -281,7 +281,7 @@ function PenaltySettlementLine({
               <select
                 value={leaveTypeId}
                 onChange={(e) => setLeaveTypeId(e.target.value)}
-                className="rounded-md border border-line-strong px-2 py-1 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                className="rounded-md border border-line-strong px-2 py-1 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
               >
                 <option value="">— เลือกประเภทวันลา —</option>
                 {leaveTypeOptions.map((t) => {
@@ -299,7 +299,7 @@ function PenaltySettlementLine({
                 max={Math.max(1, actualDays)}
                 value={days}
                 onChange={(e) => setDays(Number(e.target.value))}
-                className="w-20 rounded-md border border-line-strong px-2 py-1 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                className="w-20 rounded-md border border-line-strong px-2 py-1 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
               />
               <span className="text-xs text-ink-4">วัน</span>
             </div>

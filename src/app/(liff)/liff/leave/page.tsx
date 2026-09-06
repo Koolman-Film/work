@@ -98,7 +98,7 @@ export default async function LiffLeaveListPage({
         </div>
         <Link
           href="/liff/leave/new"
-          className="rounded-lg bg-brand-solid px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-brand-solid-hover"
+          className="rounded-lg bg-brand-solid px-4 py-2 text-sm font-medium text-white hover:bg-brand-solid-hover"
         >
           {t('list.newRequest')}
         </Link>
@@ -123,7 +123,7 @@ export default async function LiffLeaveListPage({
               <li key={r.id}>
                 <Link
                   href={`/liff/leave/${r.id}`}
-                  className="block rounded-xl border border-line bg-surface p-4 shadow-sm transition hover:border-primary-200 hover:bg-primary-50/30"
+                  className="block rounded-xl border border-line bg-surface p-4 transition hover:border-primary-200 hover:bg-primary-50/30"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">

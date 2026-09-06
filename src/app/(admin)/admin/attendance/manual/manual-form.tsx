@@ -389,7 +389,7 @@ export function ManualAttendanceForm({
           name="employeeId"
           value={employeeId}
           onChange={(e) => setEmployeeId(e.target.value)}
-          className="w-full rounded-md border border-line-strong px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+          className="w-full rounded-md border border-line-strong px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
           required
         >
           <option value="">— เลือกพนักงาน —</option>
@@ -535,7 +535,7 @@ export function ManualAttendanceForm({
                 name="settleLeaveTypeId"
                 value={settleLeaveTypeId}
                 onChange={(e) => setSettleLeaveTypeId(e.target.value)}
-                className="w-full rounded-md border border-line-strong px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                className="w-full rounded-md border border-line-strong px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
                 required
               >
                 <option value="">— เลือกประเภทวันลา —</option>
@@ -606,7 +606,7 @@ export function ManualAttendanceForm({
           onChange={(e) => setNote(e.target.value)}
           rows={3}
           maxLength={500}
-          className="w-full rounded-md border border-line-strong px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+          className="w-full rounded-md border border-line-strong px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
           placeholder="เช่น โทรศัพท์พนักงานเสีย — ยืนยันกับหัวหน้าสาขาแล้ว"
         />
       </FormField>

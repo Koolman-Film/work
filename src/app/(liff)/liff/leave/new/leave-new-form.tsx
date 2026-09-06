@@ -220,7 +220,7 @@ export function LeaveNewForm({
 
       <form
         onSubmit={onSubmit}
-        className="mt-6 space-y-5 rounded-2xl border border-line bg-surface p-6 shadow-sm"
+        className="mt-6 space-y-5 rounded-2xl border border-line bg-surface p-6"
       >
         {error && (
           <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -428,7 +428,7 @@ export function LeaveNewForm({
             maxLength={500}
             required
             placeholder={t('new.reasonPlaceholder')}
-            className="w-full rounded-md border border-line-strong px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+            className="w-full rounded-md border border-line-strong px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
           />
           <p className="mt-1 text-right text-[10px] text-ink-4">{reason.length}/500</p>
         </div>
@@ -511,7 +511,7 @@ export function LeaveNewForm({
           <button
             type="submit"
             disabled={submitDisabled}
-            className="rounded-lg bg-brand-solid px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-brand-solid-hover disabled:cursor-not-allowed disabled:opacity-60"
+            className="rounded-lg bg-brand-solid px-5 py-2.5 text-sm font-medium text-white transition hover:bg-brand-solid-hover disabled:cursor-not-allowed disabled:opacity-60"
           >
             {pending
               ? attachmentFile

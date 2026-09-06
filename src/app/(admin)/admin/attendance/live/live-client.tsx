@@ -257,7 +257,7 @@ function BranchGroups<T extends { branchName: string }>({
 function Chip({ row }: { row: LiveAttendanceRow }) {
   return (
     <div
-      className={`flex items-center gap-2.5 rounded-lg border border-line border-l-4 ${chipRail(row)} bg-surface px-3 py-2 shadow-sm`}
+      className={`flex items-center gap-2.5 rounded-lg border border-line border-l-4 ${chipRail(row)} bg-surface px-3 py-2`}
     >
       <Avatar name={row.employeeName} src={row.photoUrl} size="sm" />
       <div className="min-w-0 flex-1">
@@ -284,7 +284,7 @@ function Chip({ row }: { row: LiveAttendanceRow }) {
 
 function RosterChip({ person }: { person: RosterEmployee }) {
   return (
-    <div className="flex items-center gap-2.5 rounded-lg border border-line border-l-4 border-l-slate-300 bg-surface px-3 py-2 shadow-sm">
+    <div className="flex items-center gap-2.5 rounded-lg border border-line border-l-4 border-l-slate-300 bg-surface px-3 py-2">
       <Avatar name={person.employeeName} src={person.photoUrl} size="sm" />
       <div className="min-w-0 flex-1">
         <p className="truncate text-xs font-medium text-ink-1">
@@ -306,7 +306,7 @@ function RosterChip({ person }: { person: RosterEmployee }) {
 
 function LeaveChip({ person }: { person: OnLeaveEmployee }) {
   return (
-    <div className="flex items-center gap-2.5 rounded-lg border border-line border-l-4 border-l-amber-400 bg-surface px-3 py-2 shadow-sm">
+    <div className="flex items-center gap-2.5 rounded-lg border border-line border-l-4 border-l-amber-400 bg-surface px-3 py-2">
       <Avatar name={person.employeeName} src={person.photoUrl} size="sm" />
       <div className="min-w-0 flex-1">
         <p className="truncate text-xs font-medium text-ink-1">
