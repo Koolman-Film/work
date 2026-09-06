@@ -5,6 +5,7 @@ import {
   mapDisputedCard,
   mapLeaveCard,
   sortApprovalCardsDesc,
+  waitingDays,
 } from './cards';
 
 const emp = {
@@ -163,5 +164,38 @@ describe('sortApprovalCardsDesc', () => {
       employee: { ...emp, branchId: 'b1' },
     });
     expect(sortApprovalCardsDesc([a, l]).map((c) => c.id)).toEqual(['l1', 'a1']);
+  });
+});
+
+describe('waitingDays', () => {
+  // Bangkok is UTC+7, so a UTC instant late in the day is already the next
+  // calendar date locally. These fixtures are written as UTC on purpose.
+  const bkk = (isoDate: string, hhmm = '00:00') => new Date(`${isoDate}T${hhmm}:00+07:00`);
+
+  it('is 0 on the day of submission', () => {
+    expect(waitingDays(bkk('2026-09-06', '09:00'), bkk('2026-09-06', '23:00'))).toBe(0);
+  });
+
+  it('counts calendar days, not 24-hour spans', () => {
+    // Two hours apart, but across midnight — an admin reading the queue the
+    // next morning is looking at yesterday's request.
+    expect(waitingDays(bkk('2026-09-06', '23:00'), bkk('2026-09-07', '01:00'))).toBe(1);
+  });
+
+  it('counts the real gap between the two disputes this page could not tell apart', () => {
+    expect(waitingDays(bkk('2026-06-22'), bkk('2026-07-31'))).toBe(39);
+  });
+
+  it('never returns a negative age for a future-dated row', () => {
+    expect(waitingDays(bkk('2026-09-10'), bkk('2026-09-06'))).toBe(0);
+  });
+
+  it('uses the Bangkok calendar day, not the runtime timezone', () => {
+    // 2026-09-06T18:30Z is already 2026-09-07 in Bangkok. Submitted then and
+    // read at 2026-09-07T04:00Z (11:00 Bangkok, same local day) is 0 days —
+    // a UTC-based implementation would say 1.
+    const submitted = new Date('2026-09-06T18:30:00Z');
+    const now = new Date('2026-09-07T04:00:00Z');
+    expect(waitingDays(submitted, now)).toBe(0);
   });
 });

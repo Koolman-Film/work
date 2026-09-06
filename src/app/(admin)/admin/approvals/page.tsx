@@ -54,7 +54,10 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Se
         <p className="mb-3 text-xs text-ink-4">แสดงรายการล่าสุดบางส่วน — ใช้ตัวกรองเพื่อจำกัดผลลัพธ์</p>
       )}
 
-      <ApprovalsList cards={cards} canReview={canReview} />
+      {/* `now` is computed once here, on the server, and passed down. The list
+          is a client component that also renders on the server, so deriving
+          "today" on both sides would disagree around midnight. */}
+      <ApprovalsList cards={cards} canReview={canReview} now={Date.now()} />
     </div>
   );
 }

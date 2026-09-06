@@ -7,8 +7,10 @@ import type { AdvanceRowVM } from '@/app/(admin)/admin/advance/advance-review-mo
 import { AdvanceReviewModal } from '@/app/(admin)/admin/advance/advance-review-modal';
 import type { LeaveRowVM } from '@/app/(admin)/admin/leave/leave-review-modal';
 import { LeaveReviewModal } from '@/app/(admin)/admin/leave/leave-review-modal';
+import { type Column, ResponsiveTable } from '@/components/ui/responsive-table';
 import { StatusBadge } from '@/components/ui/status-badge';
-import type { ApprovalCard } from '@/lib/approvals/cards';
+import { type ApprovalCard, waitingDays } from '@/lib/approvals/cards';
+import { formatThaiDate } from '@/lib/format';
 import { reconcileApprovals } from '@/lib/motion/approvals-reconcile';
 import { useToast } from '@/lib/motion/toast-context';
 import { useExitTransition } from '@/lib/motion/use-exit-transition';
@@ -23,12 +25,39 @@ const TYPE_LABEL: Record<ApprovalCard['type'], string> = {
 
 const keyOf = (c: ApprovalCard) => `${c.type}:${c.id}`;
 
+/** How long a request has sat. The single most useful triage signal on this
+ *  page, and the one it never showed: with no date and no age, a 45-day-old
+ *  dispute looked exactly like a 3-day-old one.
+ *
+ *  Two weeks is the threshold for colour. `danger-deep` rather than a literal
+ *  red — it is redefined for dark mode (#b91c1c → #ffb7af), which a hardcoded
+ *  hex would not be. */
+const OVERDUE_DAYS = 14;
+
+function WaitingFor({ days }: { days: number }) {
+  const label = days === 0 ? 'วันนี้' : `${days} วัน`;
+  return (
+    <span
+      className={days >= OVERDUE_DAYS ? 'font-medium text-danger-deep' : 'text-ink-3'}
+      title={days === 0 ? 'ยื่นวันนี้' : `รอมาแล้ว ${days} วัน`}
+    >
+      {label}
+    </span>
+  );
+}
+
 export function ApprovalsList({
   cards,
   canReview,
+  now,
 }: {
   cards: ApprovalCard[];
   canReview: { leave: boolean; advance: boolean; disputed: boolean };
+  /** Server-rendered "today" as epoch ms. Passed in rather than read from
+   *  Date.now() here: this is a client component that also renders on the
+   *  server, and deriving today on both sides produces two different ages
+   *  around midnight and a hydration mismatch. */
+  now: number;
 }) {
   const [items, setItems] = useState(() => cards);
   const removed = useRef(new Set<string>());
@@ -89,11 +118,89 @@ export function ApprovalsList({
     toast('อัปเดตคำขอแล้ว', 'success');
   }
 
-  function summary(card: ApprovalCard): string {
-    if (card.type === 'leave') return `${card.leaveType} · ${card.range}`;
-    if (card.type === 'advance') return card.amount;
-    return `${card.clockInLabel}${card.distanceMeters === null ? '' : ` · ${card.distanceMeters} ม.`} · ${card.reason}`;
+  /** The type-specific detail cell.
+   *
+   * Returns nodes, not a joined string. The previous version built
+   * `· a · b · c` as text inside a flex-wrap span, so at mobile widths each
+   * fragment wrapped onto its own line still carrying its leading separator —
+   * rows literally began with a dangling "·". Separators now belong to the
+   * layout, and the date has a column of its own. */
+  function detail(card: ApprovalCard) {
+    if (card.type === 'leave') {
+      return (
+        <>
+          <span className="text-ink-1">{card.leaveType}</span>
+          <span className="text-ink-3">
+            {'\u00a0'}· {card.range}
+          </span>
+        </>
+      );
+    }
+    if (card.type === 'advance') return <span className="tabular text-ink-1">{card.amount}</span>;
+    // The stored reason for a geofence dispute already spells out the
+    // distance ("อยู่นอกรัศมี geofence (≈240 ม. เกิน 150 ม.)"), so printing
+    // the computed metres beside it says the same number twice. Fall back to
+    // the computed distance only when there is no reason to show.
+    const why =
+      card.reason !== 'ไม่ระบุ'
+        ? card.reason
+        : card.distanceMeters !== null
+          ? `นอกรัศมี ${card.distanceMeters} ม.`
+          : card.reason;
+    return (
+      <>
+        <span className="tabular text-ink-1">{card.clockInLabel}</span>
+        <span className="text-ink-3">
+          {'\u00a0'}· {why}
+        </span>
+      </>
+    );
   }
+
+  const columns: Column<ApprovalCard>[] = [
+    {
+      key: 'type',
+      header: 'ประเภท',
+      cell: (c) => <StatusBadge status="neutral">{TYPE_LABEL[c.type]}</StatusBadge>,
+    },
+    {
+      key: 'employee',
+      header: 'พนักงาน',
+      cell: (c) => (
+        <span className="font-medium text-ink-1">
+          {c.employeeName}
+          {c.nickname && <span className="text-ink-3"> ({c.nickname})</span>}
+        </span>
+      ),
+    },
+    {
+      key: 'date',
+      header: 'วันที่',
+      cell: (c) => <span className="tabular text-ink-2">{formatThaiDate(c.submittedAt)}</span>,
+    },
+    {
+      key: 'detail',
+      header: 'รายละเอียด',
+      // The one column allowed to wrap: a dispute reason is prose, and the
+      // no-wrap default would push the table into a horizontal scroll.
+      cell: (c) => detail(c),
+      // The one column allowed to wrap: a dispute reason is prose, and the
+      // no-wrap default would push the table into a horizontal scroll. The
+      // rest size from their content.
+      className: 'whitespace-normal',
+    },
+    {
+      key: 'branch',
+      header: 'สาขา',
+      cell: (c) => <span className="text-xs text-ink-4">{c.branch}</span>,
+    },
+    {
+      key: 'waiting',
+      header: 'รอมาแล้ว',
+      cell: (c) => <WaitingFor days={waitingDays(c.submittedAt, new Date(now))} />,
+      className: 'text-right',
+    },
+  ];
 
   return (
     <>
@@ -109,44 +216,58 @@ export function ApprovalsList({
             <span>รายการ</span>
           </div>
 
-          <ul className="space-y-2">
-            {items.map((card, index) => {
-              const key = keyOf(card);
-              const clickable = canReview[card.type];
-              const loading = loadingId === card.id;
+          <ResponsiveTable
+            columns={columns}
+            rows={items}
+            rowKey={keyOf}
+            // Room for every column at its natural width. Without it auto
+            // layout squeezes the nowrap columns and `.u-collapse-cell`'s
+            // hidden overflow truncates them silently; the ScrollArea scrolls
+            // instead, which is what `minWidth` exists for.
+            minWidth="md:min-w-[64rem]"
+            onRowClick={(c) => open(c)}
+            collapsing={(c) => isExiting(keyOf(c))}
+            rowClassName={(c) => `u-enter-rise${loadingId === c.id ? ' u-shimmer' : ''}`}
+            // Cap the cascade at 8: past that the last rows wait on an
+            // animation nobody is still watching.
+            rowStyle={(_c, i) => ({ animationDelay: `${Math.min(i, 8) * 40}ms` })}
+            actions={(c) =>
+              loadingId === c.id ? (
+                <span className="text-xs text-ink-4">กำลังโหลด…</span>
+              ) : canReview[c.type] ? (
+                // A span, not a button: the whole row is already clickable and
+                // a nested button would swallow the row's own click.
+                <span className="whitespace-nowrap rounded-lg border border-[var(--border-color)] px-2.5 py-1 text-xs text-ink-1">
+                  ตรวจสอบ
+                </span>
+              ) : null
+            }
+            renderMobileRow={(c) => {
+              const clickable = canReview[c.type];
               return (
-                <li
-                  key={key}
-                  className="u-enter-rise"
-                  style={{ animationDelay: `calc(${Math.min(index, 8)} * 40ms)` }}
-                >
-                  <div className="u-collapse-wrap" data-exiting={isExiting(key)}>
-                    <div className={`surface px-4 py-3 ${loading ? 'u-shimmer' : ''}`}>
-                      <button
-                        type="button"
-                        onClick={() => open(card)}
-                        disabled={!clickable || loading}
-                        className="flex w-full items-center justify-between gap-3 text-left transition hover:-translate-y-px hover:active:scale-[0.99] disabled:cursor-default"
-                      >
-                        <span className="flex flex-wrap items-center gap-2">
-                          <StatusBadge status="neutral">{TYPE_LABEL[card.type]}</StatusBadge>
-                          <span className="font-medium text-ink-1">
-                            {card.employeeName}
-                            {card.nickname && (
-                              <span className="text-ink-3"> ({card.nickname})</span>
-                            )}
-                          </span>
-                          <span className="text-ink-3">· {summary(card)}</span>
-                          <span className="text-xs text-ink-4">· {card.branch}</span>
-                        </span>
-                        {loading && <span className="text-xs text-ink-4">กำลังโหลด…</span>}
-                      </button>
-                    </div>
+                <div className="px-4 py-3 text-sm">
+                  <div className="flex items-center justify-between gap-2">
+                    <StatusBadge status="neutral">{TYPE_LABEL[c.type]}</StatusBadge>
+                    <WaitingFor days={waitingDays(c.submittedAt, new Date(now))} />
                   </div>
-                </li>
+                  <p className="mt-2 font-medium text-ink-1">
+                    {c.employeeName}
+                    {c.nickname && <span className="text-ink-3"> ({c.nickname})</span>}
+                  </p>
+                  <p className="mt-0.5 tabular text-xs text-ink-2">
+                    {formatThaiDate(c.submittedAt)}
+                  </p>
+                  <p className="mt-0.5">{detail(c)}</p>
+                  <p className="mt-0.5 text-xs text-ink-4">{c.branch}</p>
+                  {clickable && (
+                    <p className="mt-3 rounded-lg border border-[var(--border-color)] py-2 text-center text-ink-1">
+                      {loadingId === c.id ? 'กำลังโหลด…' : 'ตรวจสอบ'}
+                    </p>
+                  )}
+                </div>
               );
-            })}
-          </ul>
+            }}
+          />
         </>
       )}
 

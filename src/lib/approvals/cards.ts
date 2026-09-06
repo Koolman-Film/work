@@ -126,6 +126,32 @@ export function mapDisputedCard(r: DisputedCardInput): ApprovalCard {
   };
 }
 
+/** Bangkok-calendar days a request has been waiting, floored at 0.
+ *
+ * `now` is a parameter rather than `Date.now()` so this stays pure and
+ * testable, and so the page can compute it ONCE on the server and pass it
+ * down: a client component deriving "today" itself would render a different
+ * number on the server than on the client and trip hydration.
+ *
+ * Counted on calendar days in Asia/Bangkok, not 24-hour spans — an admin
+ * reading "3 วัน" means three dates on the wall calendar, and a request made
+ * at 23:00 is one day old at 01:00 the next morning, not zero.
+ */
+export function waitingDays(submittedAt: Date, now: Date): number {
+  const day = (d: Date) => {
+    // en-CA gives ISO-shaped yyyy-mm-dd, which sorts and parses predictably.
+    const [y, m, dd] = d
+      .toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' })
+      .split('-')
+      .map(Number);
+    return Date.UTC(y as number, (m as number) - 1, dd as number);
+  };
+  const diff = Math.round((day(now) - day(submittedAt)) / 86_400_000);
+  // A future-dated row (clock skew, a back-dated fixture) reads as 0, never
+  // as a negative age.
+  return diff > 0 ? diff : 0;
+}
+
 function clean(v: string | undefined): string | undefined {
   const t = v?.trim();
   return t ? t : undefined;
