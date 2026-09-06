@@ -339,7 +339,7 @@ export function Sidebar({
                       return (
                         <li key={item.href}>
                           <span
-                            className="flex cursor-not-allowed items-center justify-between rounded-lg px-3 py-2 text-sm text-ink-5"
+                            className="flex cursor-not-allowed items-center justify-between rounded-lg px-3 py-2 text-sm text-ink-4"
                             title="เร็วๆ นี้"
                           >
                             <span className="flex items-center gap-2.5">

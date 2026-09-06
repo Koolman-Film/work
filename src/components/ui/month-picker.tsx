@@ -152,7 +152,7 @@ export function MonthPicker({ id, name, defaultValue, min, max, className }: Pro
                     isSelected
                       ? 'bg-primary-600 font-semibold text-white'
                       : isDisabled
-                        ? 'cursor-not-allowed text-ink-5'
+                        ? 'cursor-not-allowed text-ink-4'
                         : 'text-ink-2 hover:bg-primary-50 hover:text-primary-700',
                   )}
                 >

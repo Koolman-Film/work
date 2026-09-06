@@ -179,7 +179,7 @@ export function LiveBoardClient({
         <Legend color="bg-amber-400" label="ตรวจสอบ" />
         <Legend color="bg-ink-5" label="ออกแล้ว" />
         <Legend color="bg-red-400" label="ปฏิเสธ" />
-        <span className="ml-auto text-ink-5">realtime · supabase channel + 30s polling</span>
+        <span className="ml-auto text-ink-4">realtime · supabase channel + 30s polling</span>
       </div>
     </div>
   );

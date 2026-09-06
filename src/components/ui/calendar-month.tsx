@@ -235,8 +235,8 @@ export function CalendarMonth({
               onMouseLeave={() => onHover?.(null)}
               className={cn(
                 'grid min-h-9 place-items-center rounded-md text-sm transition',
-                !cell.inMonth && 'text-ink-5',
-                cell.disabled && 'cursor-not-allowed text-ink-5',
+                !cell.inMonth && 'text-ink-4',
+                cell.disabled && 'cursor-not-allowed text-ink-4',
                 cell.inMonth &&
                   !cell.disabled &&
                   !isSelected &&

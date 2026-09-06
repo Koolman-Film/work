@@ -41,11 +41,28 @@
   --color-warning:      #f59e0b;
   --color-info:         #3955e8;
 
-  /* Ink / text ramp */
-  --color-ink-1:  #0f172a;
-  --color-ink-2:  #334155;
-  --color-ink-3:  #64748b;
-  --color-ink-4:  #94a3b8;
+  /* ── Ink / text ramp ───────────────────────────────────────────────────
+   * ink-3 and ink-4 are DERIVED, not picked. Re-derive with
+   * `node scripts/derive-theme-tokens.mjs`; do not hand-tune.
+   *
+   * Two AA-passing greys on the #f6f8fb canvas land ~1.7% lightness apart —
+   * the same colour to the eye — so the old five-level ramp and WCAG AA were
+   * mutually exclusive. ink-3 is darkened to open room for a compliant ink-4
+   * beneath it, and ink-1/ink-2 (which already passed comfortably) do not move.
+   *
+   * Before: ink-3 4.47:1 on canvas — it passes on WHITE at 4.76 and so was
+   * invisible to every check that assumed a white background. ink-4 2.41:1
+   * across 180 usages. ink-5 1.40:1.
+   *
+   * Ratios below are measured against the canvas, the worse of the two
+   * backgrounds these actually render on.
+   */
+  --color-ink-1:  #0f172a;  /* 16.78:1 on canvas — unchanged */
+  --color-ink-2:  #334155;  /*  9.73:1 on canvas — unchanged */
+  --color-ink-3:  #4d5a6b;  /*  6.60:1 on canvas, 7.02 on white */
+  --color-ink-4:  #657284;  /*  4.60:1 on canvas, 4.89 on white */
+  /* NON-TEXT ONLY — checkbox borders, a legend swatch, a status dot. At
+     1.40:1 it is not legible as text; its 7 text usages moved to ink-4. */
   --color-ink-5:  #cbd5e1;
   --color-canvas: #f6f8fb;
 

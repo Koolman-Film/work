@@ -297,7 +297,7 @@ export function CalendarGrid({
                 className={cn(
                   'relative flex aspect-square flex-col rounded-md border p-1 text-left transition',
                   // Out-of-month cells: muted background + ghost text.
-                  !cell.inMonth && 'border-transparent bg-transparent text-ink-5',
+                  !cell.inMonth && 'border-transparent bg-transparent text-ink-4',
                   cell.inMonth && !isSelected && 'border-line bg-surface hover:border-primary-200',
                   isSelected && 'border-primary-500 bg-primary-50 ring-2 ring-primary-200',
                   holiday && cell.inMonth && !isSelected && 'border-red-100 bg-red-50/40',
