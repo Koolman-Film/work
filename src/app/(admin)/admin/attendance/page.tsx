@@ -311,7 +311,7 @@ function EmployeeSelect({
         <span className="font-medium text-ink-1">{label}</span>
         <span className="text-ink-4">▾</span>
       </summary>
-      <div className="absolute left-0 z-20 mt-1 max-h-[60vh] w-64 overflow-y-auto rounded-lg border border-line bg-surface py-1 shadow-card">
+      <div className="absolute left-0 z-20 mt-1 u-scroll-y max-h-[60vh] w-64 overflow-y-auto rounded-lg border border-line bg-surface py-1 shadow-card">
         <Link
           href={urlFor('all')}
           className="block px-3 py-1.5 text-sm text-ink-2 hover:bg-surface-hover"

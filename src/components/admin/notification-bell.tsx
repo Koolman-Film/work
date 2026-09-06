@@ -181,7 +181,7 @@ export function NotificationBell({ userId }: Props) {
               <p className="mt-1 text-xs text-ink-4">ระบบจะแจ้งเตือนเมื่อพนักงานส่งคำขอ</p>
             </div>
           ) : (
-            <ul className="max-h-[420px] divide-y divide-line-soft overflow-y-auto">
+            <ul className="u-scroll-y max-h-[420px] divide-y divide-line-soft overflow-y-auto">
               {notifications.map((n) => (
                 <NotificationRow key={n.id} notification={n} onClick={() => onClickItem(n)} />
               ))}

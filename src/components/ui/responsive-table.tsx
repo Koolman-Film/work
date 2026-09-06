@@ -12,6 +12,12 @@ export type Column<T> = {
   cell: (row: T) => ReactNode;
   /** Omit this field from the mobile card (e.g. a redundant avatar column). */
   hideOnMobile?: boolean;
+  /**
+   * Extra classes for this column's th/td. Applied AFTER the defaults, so
+   * tailwind-merge lets a column opt out of the no-wrap default with
+   * `whitespace-normal` — do that for genuinely long prose (a leave reason,
+   * an audit note). Everything else reads better scrolled than stacked.
+   */
   className?: string;
 };
 
@@ -65,7 +71,7 @@ export function ResponsiveTable<T>({
           overflow-x-auto so wide tables scroll horizontally rather than crush
           their columns; only kicks in when a `minWidth` pushes the table past
           its container. */}
-      <div className="hidden overflow-x-auto rounded-xl border border-line bg-surface md:block">
+      <div className="u-scroll-x hidden overflow-x-auto rounded-xl border border-line bg-surface md:block">
         <table className={cn('w-full text-sm', minWidth)}>
           <thead className="bg-surface-muted/60 text-left font-display text-xs font-semibold text-ink-3">
             <tr>

@@ -57,7 +57,7 @@ export default async function SsoFilingPage({ searchParams }: { searchParams: Se
             </div>
           )}
 
-          <div className="surface overflow-x-auto">
+          <div className="surface u-scroll-x overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead className="bg-surface-muted text-left text-xs text-ink-3">
                 <tr>

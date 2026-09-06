@@ -133,9 +133,21 @@ export async function auditContrast(page: Page): Promise<AuditResult> {
       while (n) {
         const cs = getComputedStyle(n);
         if (cs.backgroundImage && cs.backgroundImage !== 'none') {
-          const g = gradAvg(cs.backgroundImage);
-          if (g) return { c: acc ? blend(acc, g) : g };
-          return { unknown: true }; // a real image — we cannot reason about it
+          // A gradient with a `transparent` stop is a decorative overlay — the
+          // scroll-shadow affordance, a fade, a scrim — and what you actually
+          // SEE through it is the element's own background-color. Averaging
+          // its stops invents a colour that is never painted: the scroll
+          // shadows averaged white cover + transparent + black shadow into
+          // #44464a and reported seven false failures.
+          //
+          // An OPAQUE gradient (the KPI hero) really is the background, so it
+          // is still averaged.
+          if (!/\btransparent\b|rgba?\([^)]*,\s*0\s*\)/i.test(cs.backgroundImage)) {
+            const g = gradAvg(cs.backgroundImage);
+            if (g) return { c: acc ? blend(acc, g) : g };
+            return { unknown: true }; // a real image — we cannot reason about it
+          }
+          // fall through to this element's background-color
         }
         const c = parse(cs.backgroundColor);
         if (c && c.a > 0) {

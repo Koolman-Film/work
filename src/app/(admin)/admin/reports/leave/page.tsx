@@ -57,7 +57,7 @@ export default async function LeaveReportPage({
           />
         </div>
       </div>
-      <div className="overflow-x-auto rounded-xl border border-line bg-surface">
+      <div className="u-scroll-x overflow-x-auto rounded-xl border border-line bg-surface">
         {rows.length === 0 ? (
           <EmptyState icon={<Calendar size={28} />} title="ไม่มีข้อมูลในช่วงนี้" />
         ) : (

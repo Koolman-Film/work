@@ -72,7 +72,7 @@ export default async function AbsencePreviewPage({
       {preview.rows.length === 0 ? (
         <EmptyState title="ไม่มีวันขาดงานที่จะคิดในงวดนี้" />
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-line">
+        <div className="u-scroll-x overflow-x-auto rounded-lg border border-line">
           <table className="min-w-full text-sm">
             <thead className="bg-surface-sunken text-left text-xs text-ink-3">
               <tr>

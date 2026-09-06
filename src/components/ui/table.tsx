@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 
 export function Table({ className, ...rest }: HTMLAttributes<HTMLTableElement>) {
   return (
-    <div className="overflow-x-auto">
+    <div className="u-scroll-x overflow-x-auto">
       <table className={cn('min-w-full divide-y divide-line', className)} {...rest} />
     </div>
   );
