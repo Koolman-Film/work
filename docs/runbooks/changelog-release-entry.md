@@ -19,17 +19,19 @@ a changelog dialog, the answer is not to write one.
 | A one-time popup on a new version | `AnnouncementModal` — fires for any entry with `announce: true` |
 | Show it only once per user | `User.productUpdatesSeen` (Json column), server-hydrated so it cannot flash |
 | A tour of the new features | `tours.ts` + `run-tour.ts` (driver.js), attached per entry via `tour: '<id>'` |
-| Tests | `store`, `selectors`, `actions`, `seen-json`, `i18n-completeness` |
+| Tests | `store`, `selectors`, `actions`, `seen-json`, `i18n-completeness`, `registry`, `rich-text`, `ui-text` |
 
-**Why it looks missing:** the registry has exactly ONE entry, `welcome-2026-06`,
-from June 2026. Nobody has added a second one since. A feature nobody feeds is
-indistinguishable from a feature nobody built.
+**Why it looked missing until 2026-09-06:** the registry held exactly ONE entry,
+`welcome-2026-06`, from June 2026, and every admin had dismissed it. So the
+sidebar dot never lit and no modal ever fired. A feature nobody feeds is
+indistinguishable from a feature nobody built. It now holds three entries.
 
 ### Where it lives
 
 ```
 src/lib/product-updates/
   registry.ts      <- THE CHANGELOG. This is the only file you normally edit.
+  rich-text.ts     <- the bullet/bold/italic/highlight markup bodies may use
   types.ts         <- UpdateItem shape
   selectors.ts     <- nextAnnounce / unseenItems / unseenCount
   store.ts         <- zustand: seen set, panelOpen, activeTourId
@@ -37,8 +39,9 @@ src/lib/product-updates/
   tours.ts         <- tour definitions (anchors are data-tour="...", NOT selectors)
 src/components/admin/product-updates/
   product-updates.tsx    <- single mount, owns hydration + tour running
-  announcement-modal.tsx <- the one-time popup
-  whats-new-panel.tsx    <- the openable changelog
+  announcement-modal.tsx <- the one-time popup (every UNSEEN entry)
+  whats-new-panel.tsx    <- the openable changelog (the FULL history)
+  update-list.tsx        <- the rows both surfaces share; owns the scroll
 ```
 
 Mounted once in `src/app/(admin)/layout.tsx` as `<ProductUpdates initialSeen={…} />`.
@@ -54,6 +57,33 @@ Mounted once in `src/app/(admin)/layout.tsx` as `<ProductUpdates initialSeen={�
   eight Thai admins; nobody reads a bullet list of 24 commits.
 - **No tour unless the feature has real steps.** Spending a tour on "here is a
   button" trains people to dismiss the tours that matter.
+
+### `announce` is a trigger, not a selector (settled 2026-09-06)
+
+The modal shows **every unseen entry**, in one scrollable list. `announce`
+only answers "is this release worth interrupting for" — any number of entries
+may carry it, and they all arrive together.
+
+It was briefly the other way round: the modal rendered `nextAnnounce`, a single
+item. That could not survive two entries landing at once — it showed the newest,
+then either popped a second time the instant the first closed, or lost the other
+entirely if the reader took **ดูทั้งหมด** (which marks everything seen on the
+way out). Which of the two you got depended on which button you clicked. The
+batch modal removes the choice, and with it the bug. `registry.test.ts` pins
+that no announce entry can be stranded.
+
+The panel still shows the **full history**; the modal shows only what is new to
+that reader. That is the whole difference between the two surfaces now — they
+share `UpdateList` for everything else.
+
+### Tour anchors must live in the persistent shell
+
+`runTour` resolves `data-tour` anchors against whatever page the reader is
+standing on and **silently drops the steps it cannot find**. Tours start from
+the panel, which opens anywhere, so a step anchored to a page element vanishes
+for most readers. Anchor to topbar/sidebar only. `registry.test.ts` fails the
+build if a tour names an anchor that no `.tsx` renders — a guard that exists
+because `theme-toggle` had no anchor until the tour needed one.
 
 ---
 
@@ -86,7 +116,28 @@ production. Write the Thai first (that is the real audience), then the rest.
 Copy tone from `welcome-2026-06`: plain language, no jargon, name the thing so
 people can find it ("ปุ่มสลับโหมดมืดอยู่มุมขวาบน").
 
-### 3. Verify
+### 3. Format the body so it can be skimmed
+
+Bodies accept a small markup, parsed by `rich-text.ts` (not markdown, not a
+dependency — four constructs and a token tree, never HTML):
+
+```
+- bullet          a line starting with "- "; consecutive lines form one list
+**bold**          strong — use it for the lead-in word of each bullet
+_italic_          emphasis
+==highlight==     a brand-tinted chip; at most ONE per entry
+```
+
+Lead with one sentence of prose, then bullet the rules. Eight admins skim; they
+do not read a paragraph. `registry.test.ts` fails the build on an unmatched
+delimiter (which would otherwise render as literal asterisks) and on a second
+highlight in one entry.
+
+There is deliberately **no underline**: on the web an underline reads as a
+link, and a modal full of real buttons is the worst place to teach people
+otherwise.
+
+### 4. Verify
 
 ```bash
 npx vitest run src/lib/product-updates      # i18n completeness + selectors
@@ -108,64 +159,52 @@ update "User" set "productUpdatesSeen" = null where email = 'admin@koolman.local
 
 ---
 
-## Known bug to fix while you are here (found 2026-09-06, NOT yet fixed)
+## Fixed 2026-09-06 — modal scrims washed the page pale in dark mode
 
-**Modal scrims wash the page pale in dark mode.**
+`bg-ink-1/40` was used as a backdrop in `ui/dialog.tsx` and
+`admin/sidebar.tsx`. `--color-ink-1` is `#0f172a` in light but `#e9f0f9` in
+dark, so the scrim *lightened* the page instead of dimming it.
 
-Two sites use `bg-ink-1/40` as a backdrop:
+Fixed in `a332845` by adding a `--color-scrim` token that stays near-black in
+both themes, seeded with light-mode `ink-1` so light rendering is provably
+unchanged. `globals.dark.test.ts` now asserts the token is declared exactly
+once, is not redefined by either dark block, and that no component reintroduces
+a `bg-ink-*/<alpha>` fill.
 
-- `src/components/ui/dialog.tsx:115` — every modal in the app
-- `src/components/admin/sidebar.tsx:257` — the mobile drawer backdrop
-
-In light, `--color-ink-1` is `#0f172a`, so the scrim dims correctly. In dark it
-is `#e9f0f9` — near-white — so the scrim *lightens* the page behind the modal
-instead of dimming it. Reproduce by opening the What's New panel in dark mode.
-
-**Fix:** add a `--color-scrim` token that stays near-black in BOTH themes (a
-scrim's job is to dim regardless of theme) and point both sites at it. Seed the
-light value with today's exact `ink-1` at 40% so light mode is provably
-unchanged.
-
-This is the **seventh** instance of the inversion trap described in the theme
-notes: a token whose light-mode meaning is "a step toward the ink" cannot simply
-be flipped. The contrast e2e suite cannot catch it — that suite walks pages at
-rest, and a scrim only exists while a dialog is open.
+Leaving the lesson here because it recurs: a token whose light-mode meaning is
+"a step toward the ink" cannot simply be flipped for dark. The contrast e2e
+suite cannot catch it — that suite walks pages at rest, and a scrim only exists
+while a dialog is open.
 
 ---
 
-## Suggested prompt for the next session
+## Shipped 2026-09-06
 
-Paste this:
+Two entries and one tour, in `1732f5d`'s successor:
 
-> Add a changelog entry announcing the UI refresh, cut off at <DATE>.
->
-> Read `docs/runbooks/changelog-release-entry.md` FIRST — the What's New system
-> already exists and must not be rebuilt. You are adding one entry to
-> `src/lib/product-updates/registry.ts`, not writing a feature.
->
-> Also fix the modal scrim bug documented in that runbook (`bg-ink-1/40` turns
-> into a white haze in dark mode). Do that as its own commit — it touches every
-> modal in the app, not just this one.
->
-> The entry should cover: dark mode with a Light/Dark/System toggle, and
-> readability improvements across the app. One entry, `announce: true`, no tour.
-> Thai first, then the other five locales.
->
-> Before finishing, open it in the browser in BOTH themes and confirm: the modal
-> appears once, does not return after dismissal, and the page behind it gets
-> darker rather than paler.
+- `auto-absence-2026-09` (`announce: true`, no tour) — payroll starts charging
+  derived absences from 27 Sep. This is the one that interrupts.
+- `ui-refresh-2026-09` (no announce, `tour: 'ui-refresh'`) — dark mode,
+  readability, row-action buttons.
+- `ui-refresh` tour: theme toggle → notification bell → What's New, all
+  shell-anchored. Added `data-tour="theme-toggle"` to `topbar.tsx` (wrapping,
+  not annotating, `ThemeToggle` — that component is shared with LIFF).
+- Batch announcement modal + shared `UpdateList` + `rich-text.ts` markup.
+- driver.js chrome localized (`nextBtnText`/`prevBtnText`/`doneBtnText`/
+  `progressText` in `run-tour.ts`); `ui-text.test.ts` guards the template
+  placeholders.
 
-### Also worth telling that session
+Verified in the browser in both themes: modal fires once, dismissal survives a
+reload, no second modal stacks, panel lists all three newest-first, all three
+tour steps resolve.
 
-- **Test the second-entry path end to end.** `nextAnnounce` is unit-tested, but
-  the real path — an admin with a populated `productUpdatesSeen` meeting a new
-  entry — has never run in production. It is about to, for eight real people.
-  That is exactly the shape of defect this codebase keeps producing: correct
-  logic, untested range.
-- Suggested test: an integration test asserting that a user who has already seen
-  `welcome-2026-06` is announced the new entry.
+### Still worth doing
 
----
+- `/admin/tools/absence-preview` is reachable only by typing the URL — nothing
+  in the sidebar links it. The auto-absence entry therefore cannot point admins
+  at the page that would let them check the derivation before payday.
+- The What's New panel prints `item.date` raw (`2026-09-02`), while the rest of
+  the Thai UI renders Buddhist-era dates via `src/lib/i18n/format.ts`.
 
 ## Related
 

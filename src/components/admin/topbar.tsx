@@ -80,7 +80,12 @@ export function Topbar({ userLabel, userId }: Props) {
 
       {/* Right cluster */}
       <div className="flex items-center gap-2">
-        <ThemeToggle />
+        {/* Anchor lives here, not inside ThemeToggle: that component is shared
+            with LIFF, and a data-tour attribute is admin-tour vocabulary. Same
+            reason topbar-bell wraps rather than annotates NotificationBell. */}
+        <span data-tour="theme-toggle">
+          <ThemeToggle />
+        </span>
         <span data-tour="topbar-bell">
           <NotificationBell userId={userId} />
         </span>
