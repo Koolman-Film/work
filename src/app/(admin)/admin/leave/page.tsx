@@ -90,8 +90,15 @@ export default async function AdminLeaveInboxPage({
   // a page (→ keep status + q).
   function listHref(overrides: { status?: string; page?: number }): string {
     const params = new URLSearchParams();
-    if (isTrash) {
-      // Trash is its own view (no status/search chips); only paging applies.
+    // A caller that passes `status` is a filter chip, and clicking one means
+    // "leave the bin and show me that status". A caller that passes only
+    // `page` is the pager, which must stay in the bin.
+    //
+    // The original kept `trash=1` for BOTH, so every chip pointed back at
+    // the page you were already on: the chips rendered, looked clickable, and
+    // did nothing. The only way out was the browser's back button.
+    const stayInTrash = isTrash && overrides.status === undefined;
+    if (stayInTrash) {
       params.set('trash', '1');
     } else {
       const nextStatus = overrides.status !== undefined ? overrides.status : status;
