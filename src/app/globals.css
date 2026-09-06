@@ -434,6 +434,39 @@ body {
 /* Shimmer loading sweep. */
 .u-shimmer { background-image: linear-gradient(90deg, transparent 0%, rgb(0 0 0 / 0.04) 50%, transparent 100%); background-size: 200% 100%; animation: shimmer 1.1s linear infinite; }
 
+/* ── Theme switch: cross-fade the palette instead of cutting to it ───────
+ * Painted only while <html data-theme-switching> is present, which the theme
+ * toggle stamps for one duration around the swap. A permanent `* { transition:
+ * background-color }` would animate every hover and focus in the app and cost
+ * that on every interaction; this costs it once, for 200ms, when the whole
+ * palette legitimately changes at once.
+ *
+ * Transitions the CONSUMING declarations, never the custom properties. The
+ * tokens flip instantly, so anything reading getPropertyValue('--color-canvas')
+ * — tests/e2e/theme-toggle.spec.ts does — still sees the new value the moment
+ * the attribute lands, with no wait and no mid-animation reading.
+ *
+ * `no-preference` rather than leaning on the reduced-motion block below: both
+ * rules carry !important, and this selector is the more specific of the two,
+ * so it would WIN that fight and animate for exactly the people who asked not
+ * to be animated at. Guarding here inverts that — the rule never exists for
+ * them in the first place.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  html[data-theme-switching],
+  html[data-theme-switching] *,
+  html[data-theme-switching] *::before,
+  html[data-theme-switching] *::after {
+    transition:
+      background-color var(--duration-base) var(--ease-out-soft),
+      border-color var(--duration-base) var(--ease-out-soft),
+      color var(--duration-base) var(--ease-out-soft),
+      fill var(--duration-base) var(--ease-out-soft),
+      stroke var(--duration-base) var(--ease-out-soft),
+      box-shadow var(--duration-base) var(--ease-out-soft) !important;
+  }
+}
+
 /* ── Reduced-motion: degrade everything to instant ─────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

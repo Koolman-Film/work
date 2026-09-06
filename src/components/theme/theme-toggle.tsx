@@ -12,6 +12,14 @@ const OPTIONS = [
   { value: 'system', Icon: Monitor, key: 'system' },
 ] as const satisfies readonly { value: Theme; Icon: typeof Sun; key: string }[];
 
+/** Marks <html> while the palette is mid-swap. The matching rule lives in
+ *  globals.css under a `prefers-reduced-motion: no-preference` guard. */
+const SWITCHING_ATTR = 'data-theme-switching';
+
+/** Must stay >= the `--duration-base` the CSS rule animates over, or the
+ *  attribute is pulled before the fade finishes and the colours snap. */
+const SWITCH_MS = 250;
+
 function readCookie(): Theme {
   const raw = document.cookie
     .split('; ')
@@ -43,6 +51,21 @@ export function ThemeToggle() {
     setCurrent(readCookie());
   }, []);
 
+  // Clear the cross-fade window one duration AFTER the swap has landed.
+  //
+  // The palette does not change on click — setTheme sets a cookie and
+  // revalidates, and <html data-theme> only moves when that re-render commits.
+  // A timer started at click would therefore often expire before the colours
+  // did, and the fade would never be seen. `pending` falling to false is the
+  // commit, so the window is anchored to that instead.
+  useEffect(() => {
+    if (pending) return;
+    const root = document.documentElement;
+    if (!root.hasAttribute(SWITCHING_ATTR)) return;
+    const timer = setTimeout(() => root.removeAttribute(SWITCHING_ATTR), SWITCH_MS);
+    return () => clearTimeout(timer);
+  }, [pending]);
+
   return (
     // <fieldset> rather than role="group": same semantics, native element,
     // and it is what a screen reader announces the set by. min-w-0 undoes the
@@ -64,6 +87,12 @@ export function ThemeToggle() {
             title={t(key)}
             disabled={pending}
             onClick={() => {
+              // Re-picking the current mode changes nothing on screen, so it
+              // buys a server round-trip and a fade of identical colours.
+              if (value === current) return;
+              // Stamped BEFORE the request so the rule is already in force
+              // whenever the re-render commits, however slow the round-trip.
+              document.documentElement.setAttribute(SWITCHING_ATTR, '');
               // Optimistic, so the highlight moves on the click rather than
               // after the server round-trip and revalidate.
               setCurrent(value);

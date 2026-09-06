@@ -60,6 +60,31 @@ Five things the plan and spec missed, all caught by the tests rather than by rev
   `bg-warning-solid`, which the previous pass had just created.
   `globals.tokens.test.ts` now guards that.
 
+### Added 2026-09-06 — the theme cross-fade
+
+`<html data-theme-switching>` cross-fades the palette for one `--duration-base`
+around a swap (`globals.css`, stamped by `theme-toggle.tsx`). Two things about
+it are not obvious:
+
+- **A blanket reduced-motion override does not protect a more specific rule.**
+  The global `@media (prefers-reduced-motion: reduce) { *, *::before, *::after
+  { transition-duration: 0.001ms !important } }` is specificity (0,0,0). A rule
+  like `html[data-theme-switching] *` is (0,1,1) and also `!important`, so it
+  WINS and animates for exactly the people who opted out. The cross-fade is
+  therefore declared inside `@media (prefers-reduced-motion: no-preference)`,
+  so it does not exist for them at all. `globals.theme-switch.test.ts` fails
+  the build if a copy escapes that guard.
+- **The window must be anchored to the commit, not the click.** The palette
+  moves when `revalidatePath`'s re-render lands, one server round-trip after
+  the click — measured at ~150ms locally and longer in production. A timer
+  started on click expires before the colours move and the fade never plays.
+  The toggle clears the attribute `SWITCH_MS` after `useTransition`'s `pending`
+  falls to false.
+
+Transitions the consuming declarations (`background-color`, `color`, …), never
+the custom properties, so `getPropertyValue('--color-canvas')` still returns
+the new value instantly — which is what `tests/e2e/theme-toggle.spec.ts` reads.
+
 ## Global Constraints
 
 - **Worktree:** `/Users/tong/Works/fai/work/.claude/worktrees/ui-dark-mode`, branch `claude/ui-dark-mode`. Run every command there. `node_modules` is a symlink to the main checkout.
