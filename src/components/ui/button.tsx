@@ -27,7 +27,7 @@ const variantClasses: Record<Variant, string> = {
   // Attention = "action needed now" (amber CTA). Used when state is stale and a
   // recompute is required — matches the amber stale-warning banner's language.
   attention:
-    'bg-amber-500 text-white shadow-sm ring-2 ring-amber-300 ring-offset-1 hover:bg-amber-600 focus-visible:ring-amber-500/60',
+    'bg-amber-500 text-ink-1 shadow-sm ring-2 ring-amber-300 ring-offset-1 hover:bg-amber-600 focus-visible:ring-amber-500/60',
 };
 
 const sizeClasses: Record<Size, string> = {

@@ -149,7 +149,7 @@ export function NotificationBell({ userId }: Props) {
           aria-hidden="true"
         />
         {unreadCount > 0 && (
-          <span className="absolute right-1.5 top-1.5 grid min-w-[18px] place-items-center rounded-full bg-red-500 px-1 text-[10px] font-semibold text-white">
+          <span className="absolute right-1.5 top-1.5 grid min-w-[18px] place-items-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white">
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}
