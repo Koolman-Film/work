@@ -2,6 +2,7 @@ import { Download } from 'lucide-react';
 import Link from 'next/link';
 import { loadReportFilterOptions } from '@/app/(admin)/admin/reports/_load-filter-options';
 import { PageHeader } from '@/components/ui/page-header';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { getPermittedBranches } from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { loadSsoFiling } from '@/lib/filings/sso';
@@ -57,7 +58,7 @@ export default async function SsoFilingPage({ searchParams }: { searchParams: Se
             </div>
           )}
 
-          <div className="surface u-scroll-x overflow-x-auto">
+          <ScrollArea className="surface">
             <table className="min-w-full text-sm">
               <thead className="bg-surface-muted text-left text-xs text-ink-3">
                 <tr>
@@ -97,7 +98,7 @@ export default async function SsoFilingPage({ searchParams }: { searchParams: Se
                 </tr>
               </tfoot>
             </table>
-          </div>
+          </ScrollArea>
 
           <div className="mt-4">
             {canDownload ? (

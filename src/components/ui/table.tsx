@@ -1,11 +1,12 @@
 import type { HTMLAttributes, TdHTMLAttributes, ThHTMLAttributes } from 'react';
 import { cn } from '@/lib/utils';
+import { ScrollArea } from './scroll-area';
 
 export function Table({ className, ...rest }: HTMLAttributes<HTMLTableElement>) {
   return (
-    <div className="u-scroll-x overflow-x-auto">
+    <ScrollArea>
       <table className={cn('min-w-full divide-y divide-line', className)} {...rest} />
-    </div>
+    </ScrollArea>
   );
 }
 

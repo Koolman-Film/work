@@ -1,5 +1,6 @@
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageHeader } from '@/components/ui/page-header';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { requireGlobalPermission } from '@/lib/auth/require-global-permission';
 import { prisma } from '@/lib/db/prisma';
 import { formatTHB } from '@/lib/format';
@@ -185,30 +186,32 @@ export default async function LeaveBacklogPage() {
                   </p>
                 )}
 
-                <table className="min-w-full divide-y divide-line-soft text-sm">
-                  <thead className="bg-surface-muted text-left text-xs text-ink-4">
-                    <tr>
-                      <th className="px-4 py-2">วันที่เริ่ม</th>
-                      <th className="px-4 py-2">ประเภท</th>
-                      <th className="px-4 py-2 text-right">เกินสิทธิ (วัน)</th>
-                      <th className="px-4 py-2 text-right">จะถูกหัก</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-line-soft">
-                    {r.list.map((c) => (
-                      <tr key={c.leaveRequestId}>
-                        <td className="px-4 py-2 tabular-nums">{c.date}</td>
-                        <td className="px-4 py-2 text-ink-2">{c.leaveTypeName}</td>
-                        <td className="px-4 py-2 text-right tabular-nums">
-                          {(c.overQuotaMinutes / std).toFixed(1)}
-                        </td>
-                        <td className="px-4 py-2 text-right font-mono tabular-nums">
-                          {formatTHB(c.deductAmount ?? 0)}
-                        </td>
+                <ScrollArea>
+                  <table className="min-w-full divide-y divide-line-soft text-sm">
+                    <thead className="bg-surface-muted text-left text-xs text-ink-4">
+                      <tr>
+                        <th className="px-4 py-2">วันที่เริ่ม</th>
+                        <th className="px-4 py-2">ประเภท</th>
+                        <th className="px-4 py-2 text-right">เกินสิทธิ (วัน)</th>
+                        <th className="px-4 py-2 text-right">จะถูกหัก</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-line-soft">
+                      {r.list.map((c) => (
+                        <tr key={c.leaveRequestId}>
+                          <td className="px-4 py-2 tabular-nums">{c.date}</td>
+                          <td className="px-4 py-2 text-ink-2">{c.leaveTypeName}</td>
+                          <td className="px-4 py-2 text-right tabular-nums">
+                            {(c.overQuotaMinutes / std).toFixed(1)}
+                          </td>
+                          <td className="px-4 py-2 text-right font-mono tabular-nums">
+                            {formatTHB(c.deductAmount ?? 0)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </ScrollArea>
               </div>
             ))}
           </div>

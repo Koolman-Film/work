@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { Button } from '@/components/ui/button';
 import { DateField } from '@/components/ui/date-field';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import type { BackfillReport } from '@/lib/attendance/backfill-leave-late';
 import { runBackfillLeaveLateRows } from './actions';
 
@@ -125,7 +126,7 @@ export function BackfillPanel() {
           {changes.length === 0 ? (
             <p className="text-sm text-ink-4">ไม่พบรายการที่ต้องแก้ — ข้อมูลถูกต้องแล้ว</p>
           ) : (
-            <div className="u-scroll-x overflow-x-auto rounded-xl border border-line bg-surface">
+            <ScrollArea className="rounded-xl border border-line bg-surface">
               <table className="min-w-full divide-y divide-line text-sm">
                 <thead className="bg-surface-muted text-left text-xs text-ink-4">
                   <tr>
@@ -153,7 +154,7 @@ export function BackfillPanel() {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </ScrollArea>
           )}
         </>
       )}

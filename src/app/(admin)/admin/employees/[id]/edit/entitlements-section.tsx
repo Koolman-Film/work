@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { getOrSeedEntitlements } from '@/lib/leave/balance';
 import { getLeaveConfig } from '@/lib/leave/leave-config';
 import { formatDaysHours, standardDayMinutes } from '@/lib/leave/units';
@@ -46,7 +47,7 @@ export async function EntitlementsSection({
           กรอกเป็น “วัน” (เช่น 6, 5.5). ปรับปรุง (Adjustment) ใส่ค่าติดลบได้ เช่น −3.5 และเลือกหน่วยเป็น วัน หรือ
           ชม. ได้ (สำหรับวันลาที่ใช้ไปก่อนเริ่มใช้ระบบ). แสดงผลเป็น วัน/ชม. (1 วัน = {std / 60} ชม.).
         </p>
-        <div className="overflow-x-auto">
+        <ScrollArea>
           <table className="w-full min-w-[640px] text-sm">
             <thead>
               <tr className="border-b text-left text-xs text-ink-4">
@@ -146,7 +147,7 @@ export async function EntitlementsSection({
               ))}
             </tbody>
           </table>
-        </div>
+        </ScrollArea>
       </CardBody>
     </Card>
   );

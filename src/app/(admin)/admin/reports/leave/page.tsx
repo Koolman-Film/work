@@ -1,5 +1,6 @@
 import { Calendar } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { getPermittedBranches } from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { formatTHB2, formatThaiDate } from '@/lib/format';
@@ -57,7 +58,7 @@ export default async function LeaveReportPage({
           />
         </div>
       </div>
-      <div className="u-scroll-x overflow-x-auto rounded-xl border border-line bg-surface">
+      <ScrollArea className="rounded-xl border border-line bg-surface">
         {rows.length === 0 ? (
           <EmptyState icon={<Calendar size={28} />} title="ไม่มีข้อมูลในช่วงนี้" />
         ) : (
@@ -144,7 +145,7 @@ export default async function LeaveReportPage({
             </tbody>
           </table>
         )}
-      </div>
+      </ScrollArea>
       <p className="text-xs text-ink-3">
         * &quot;ใช้ไป&quot; นับเฉพาะช่วงเวลาที่เลือก — &quot;คงเหลือ&quot; เป็นสิทธิคงเหลือของทั้งปี {year + 543}
       </p>

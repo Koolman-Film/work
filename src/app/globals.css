@@ -252,38 +252,22 @@ body {
 .shadow-brand    { box-shadow: var(--shadow-md); }
 .shadow-brand-lg { box-shadow: var(--shadow-lg); }
 
-/* ── Scroll affordance (iOS-style) ─────────────────────────────────────────
- * Shows a soft shadow on the edge you can still scroll toward, and nothing on
- * the edge you have reached. Wide tables otherwise give no hint that a column
- * is cut off — you only find out by dragging.
+/* ── Scroll affordance ─────────────────────────────────────────────────────
+ * Horizontal scrollers use <ScrollArea> (src/components/ui/scroll-area.tsx),
+ * whose shadow is an OVERLAY drawn above the content. This was first built as
+ * a `background-attachment: local` trick, which is elegant and wrong for this
+ * app: a background paints behind its element's content, so buttons in the
+ * last column drew on top of the shadow and were hard-clipped at the edge.
  *
- * Pure CSS, no scroll listeners: two "cover" gradients painted in the surface
- * colour are `background-attachment: local` so they travel WITH the content,
- * while the shadows underneath are `scroll` so they stay pinned to the box.
- * At the start of the scroll the cover sits exactly on top of the shadow and
- * hides it; scroll away and the cover moves off, revealing it.
- *
- * Only `background-image` is set, never the `background` shorthand, so an
- * element's own `bg-*` colour still shows through. Elements on a surface other
- * than the default must say so: style={{ '--scroll-cover': 'var(--color-surface-muted)' }}
+ * `.u-scroll-y` keeps the background technique. Vertical scrollers here are
+ * menus and notification lists whose rows end well before the edge, so
+ * nothing gets clipped and no JS is warranted.
  */
 :root {
   --scroll-cover: var(--color-surface);
-  /* Light: the usual slate at low alpha. Dark is overridden below — black at
-     13% is invisible on a #22252a card, so it needs to be far heavier. */
+  /* Light: slate at low alpha. Dark is overridden in the theme block — black
+     at 13% is invisible on a #22252a card, so it needs far more weight. */
   --scroll-shadow: rgb(15 23 42 / 0.13);
-}
-
-.u-scroll-x {
-  background-image:
-    linear-gradient(to right, var(--scroll-cover), transparent),
-    linear-gradient(to left, var(--scroll-cover), transparent),
-    radial-gradient(farthest-side at 0 50%, var(--scroll-shadow), transparent),
-    radial-gradient(farthest-side at 100% 50%, var(--scroll-shadow), transparent);
-  background-position: 0 0, 100% 0, 0 0, 100% 0;
-  background-size: 32px 100%, 32px 100%, 14px 100%, 14px 100%;
-  background-repeat: no-repeat;
-  background-attachment: local, local, scroll, scroll;
 }
 
 .u-scroll-y {
@@ -309,7 +293,7 @@ body {
  * so a column that really is prose (a leave reason, an audit note) opts back
  * in with `whitespace-normal` and wins on source order.
  */
-.u-scroll-x :where(th, td) {
+[data-scroll-area] :where(th, td) {
   white-space: nowrap;
 }
 

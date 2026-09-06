@@ -1,5 +1,6 @@
 import type { KeyboardEvent, ReactNode } from 'react';
 import { cn } from '@/lib/utils';
+import { ScrollArea } from './scroll-area';
 
 /**
  * Column-driven table that is a semantic <table> at ≥md and stacked
@@ -71,7 +72,7 @@ export function ResponsiveTable<T>({
           overflow-x-auto so wide tables scroll horizontally rather than crush
           their columns; only kicks in when a `minWidth` pushes the table past
           its container. */}
-      <div className="u-scroll-x hidden overflow-x-auto rounded-xl border border-line bg-surface md:block">
+      <ScrollArea className="hidden rounded-xl border border-line bg-surface md:block">
         <table className={cn('w-full text-sm', minWidth)}>
           <thead className="bg-surface-muted/60 text-left font-display text-xs font-semibold text-ink-3">
             <tr>
@@ -104,7 +105,7 @@ export function ResponsiveTable<T>({
             ))}
           </tbody>
         </table>
-      </div>
+      </ScrollArea>
 
       {/* Mobile: stacked cards */}
       <ul className="space-y-3 md:hidden">
