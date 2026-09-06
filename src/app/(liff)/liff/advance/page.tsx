@@ -75,7 +75,7 @@ export default async function LiffAdvanceListPage({
         </div>
         <Link
           href="/liff/advance/new"
-          className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-700"
+          className="rounded-lg bg-brand-solid px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-brand-solid-hover"
         >
           {t('list.newRequest')}
         </Link>

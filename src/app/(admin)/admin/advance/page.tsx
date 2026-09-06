@@ -158,7 +158,7 @@ export default async function AdminAdvanceInboxPage({
             (e.g. broken phone). Creates a Pending request to approve here. */}
         <Link
           href="/admin/advance/new"
-          className="ml-auto rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-primary-700"
+          className="ml-auto rounded-lg bg-brand-solid px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-brand-solid-hover"
         >
           + บันทึกการเบิก (แทนพนักงาน)
         </Link>

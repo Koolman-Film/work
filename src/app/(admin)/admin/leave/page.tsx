@@ -189,7 +189,7 @@ export default async function AdminLeaveInboxPage({
             back-dating beyond the worker self-file window. */}
         <Link
           href="/admin/leave/new"
-          className="ml-auto rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-primary-700"
+          className="ml-auto rounded-lg bg-brand-solid px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-brand-solid-hover"
         >
           + บันทึกการลา (ย้อนหลัง)
         </Link>

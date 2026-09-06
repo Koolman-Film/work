@@ -278,7 +278,7 @@ export function Sidebar({
                 className="grid size-10 place-items-center rounded-xl text-white shadow-cta"
                 style={{
                   background:
-                    'linear-gradient(135deg, var(--color-primary-600), var(--color-primary-800))',
+                    'linear-gradient(135deg, var(--color-brand-grad-alt-from), var(--color-brand-grad-alt-to))',
                 }}
               >
                 <svg
@@ -363,14 +363,14 @@ export function Sidebar({
                           className={cn(
                             'relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition',
                             active
-                              ? 'bg-primary-50 font-medium text-primary-700 before:absolute before:bottom-1.5 before:left-0 before:top-1.5 before:w-0.5 before:rounded-full before:bg-primary-600'
+                              ? 'bg-primary-50 font-medium text-primary-700 before:absolute before:bottom-1.5 before:left-0 before:top-1.5 before:w-0.5 before:rounded-full before:bg-brand-solid'
                               : 'text-ink-2 hover:bg-surface-hover',
                           )}
                         >
                           <Icon size={18} strokeWidth={active ? 2.5 : 2} aria-hidden="true" />
                           <span className="flex-1">{item.label}</span>
                           {count > 0 && (
-                            <span className="rounded-full bg-primary-600 px-1.5 py-0.5 font-display text-[10px] font-bold leading-none text-white">
+                            <span className="rounded-full bg-brand-solid px-1.5 py-0.5 font-display text-[10px] font-bold leading-none text-white">
                               {count > 99 ? '99+' : count}
                               <span className="sr-only"> รายการรอดำเนินการ</span>
                             </span>
@@ -398,7 +398,7 @@ export function Sidebar({
               <span className="relative">
                 <Sparkles size={18} strokeWidth={2} aria-hidden="true" />
                 {unseen > 0 && (
-                  <span className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-primary-600 ring-2 ring-white">
+                  <span className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-brand-solid ring-2 ring-white">
                     <span className="sr-only">มีอัปเดตใหม่</span>
                   </span>
                 )}

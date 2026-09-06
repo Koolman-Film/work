@@ -369,7 +369,7 @@ function NotificationRow({
             // because spans have no implicit role.
             role="img"
             aria-label="ยังไม่ได้อ่าน"
-            className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary-600"
+            className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-brand-solid"
           />
         )}
       </Link>

@@ -109,7 +109,7 @@ export default function MergeClient({ mergeToken }: { mergeToken: string }) {
                 <button
                   type="button"
                   onClick={confirm}
-                  className="flex-1 rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-700"
+                  className="flex-1 rounded-md bg-brand-solid px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-brand-solid-hover"
                 >
                   {t('confirmCta')}
                 </button>
@@ -144,7 +144,7 @@ export default function MergeClient({ mergeToken }: { mergeToken: string }) {
               <p className="text-sm text-ink-2">{t('successBody')}</p>
               <Link
                 href="/liff/home"
-                className="mt-2 rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-700"
+                className="mt-2 rounded-md bg-brand-solid px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-brand-solid-hover"
               >
                 {t('openHome')}
               </Link>
@@ -175,7 +175,7 @@ export default function MergeClient({ mergeToken }: { mergeToken: string }) {
                 <button
                   type="button"
                   onClick={() => window.location.reload()}
-                  className="mt-2 rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-700"
+                  className="mt-2 rounded-md bg-brand-solid px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-brand-solid-hover"
                 >
                   {t('retry')}
                 </button>

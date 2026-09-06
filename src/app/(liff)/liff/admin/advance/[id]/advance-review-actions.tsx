@@ -73,7 +73,7 @@ export function AdvanceReviewActions({ cashAdvanceId }: { cashAdvanceId: string 
           type="button"
           disabled={isPending}
           onClick={() => fire('approve')}
-          className="rounded-lg bg-success-solid px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-success-solid-hover disabled:opacity-50"
+          className="rounded-lg bg-success-solid px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-success-fill-solid-hover disabled:opacity-50"
         >
           {isPending && firing === 'approve'
             ? t('saving')
@@ -163,7 +163,7 @@ export function SlipUploadBlock({
         type="button"
         disabled={uploading}
         onClick={() => inputRef.current?.click()}
-        className="mt-3 w-full rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-primary-700 disabled:opacity-50"
+        className="mt-3 w-full rounded-lg bg-brand-solid px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-brand-solid-hover disabled:opacity-50"
       >
         {uploading ? t('uploading') : buttonLabel}
       </button>
@@ -195,7 +195,7 @@ export function MarkPaidButton({ cashAdvanceId, label }: { cashAdvanceId: string
             else setError(result.message);
           })
         }
-        className="w-full rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-60"
+        className="w-full rounded-lg bg-brand-solid px-4 py-2.5 text-sm font-medium text-white disabled:opacity-60"
       >
         {pending ? '...' : label}
       </button>

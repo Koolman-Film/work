@@ -445,7 +445,7 @@ function PrimaryButton({
     'w-full rounded-xl px-5 py-4 text-base font-medium shadow-sm transition disabled:opacity-60';
   const cls =
     tone === 'primary'
-      ? `${base} bg-primary-600 text-white hover:bg-primary-700`
+      ? `${base} bg-brand-solid text-white hover:bg-brand-solid-hover`
       : `${base} border border-line-strong bg-surface text-ink-1 hover:bg-surface-hover`;
   return (
     <button type="button" onClick={onClick} disabled={disabled} className={cls}>

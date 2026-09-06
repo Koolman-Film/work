@@ -153,7 +153,7 @@ export function AdvanceNewForm({
           <button
             type="submit"
             disabled={pending || parsed == null || overCap || blackout}
-            className="rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-60"
+            className="rounded-lg bg-brand-solid px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-brand-solid-hover disabled:cursor-not-allowed disabled:opacity-60"
           >
             {pending ? t('new.submitting') : t('new.submit')}
           </button>

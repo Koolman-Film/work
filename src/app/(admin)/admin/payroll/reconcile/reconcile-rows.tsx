@@ -313,7 +313,7 @@ function PenaltySettlementLine({
                 type="button"
                 onClick={handleSave}
                 disabled={pending}
-                className="rounded-md bg-primary-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-primary-700 disabled:opacity-60"
+                className="rounded-md bg-brand-solid px-2.5 py-1 text-xs font-medium text-white hover:bg-brand-solid-hover disabled:opacity-60"
               >
                 {pending ? 'กำลังบันทึก...' : 'บันทึก'}
               </button>

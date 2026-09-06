@@ -150,7 +150,7 @@ export function MonthPicker({ id, name, defaultValue, min, max, className }: Pro
                   className={cn(
                     'rounded-lg px-2 py-2 text-sm transition',
                     isSelected
-                      ? 'bg-primary-600 font-semibold text-white'
+                      ? 'bg-brand-solid font-semibold text-white'
                       : isDisabled
                         ? 'cursor-not-allowed text-ink-4'
                         : 'text-ink-2 hover:bg-primary-50 hover:text-primary-700',

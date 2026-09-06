@@ -105,7 +105,7 @@ export function CorrectTimeSection({
               }
             })
           }
-          className="rounded-md bg-primary-600 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
+          className="rounded-md bg-brand-solid px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
         >
           {pending ? 'กำลังบันทึก…' : 'บันทึก'}
         </button>

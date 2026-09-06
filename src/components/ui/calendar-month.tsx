@@ -243,7 +243,7 @@ export function CalendarMonth({
                   !inRange &&
                   'text-ink-2 hover:bg-primary-50 hover:text-primary-700',
                 inRange && !isSelected && 'bg-primary-50 text-primary-700',
-                isSelected && 'bg-primary-600 font-semibold text-white',
+                isSelected && 'bg-brand-solid font-semibold text-white',
                 cell.today && !isSelected && 'ring-1 ring-primary-400',
                 isFocused && 'ring-2 ring-primary-500 ring-offset-1',
               )}

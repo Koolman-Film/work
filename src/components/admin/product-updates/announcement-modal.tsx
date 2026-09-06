@@ -67,7 +67,7 @@ export function AnnouncementModal() {
             <button
               type="button"
               onClick={dismiss}
-              className="rounded-lg bg-primary-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-primary-700"
+              className="rounded-lg bg-brand-solid px-3 py-2 text-sm font-medium text-white transition hover:bg-brand-solid-hover"
             >
               {pickText(UI.gotIt, locale)}
             </button>

@@ -120,7 +120,7 @@ export default async function PairingLandingPage({ params }: { params: Params })
         {liffId && (
           <a
             href={liffUrl}
-            className="block rounded-md bg-primary-600 px-4 py-2.5 text-center text-sm font-medium text-white shadow-sm hover:bg-primary-700"
+            className="block rounded-md bg-brand-solid px-4 py-2.5 text-center text-sm font-medium text-white shadow-sm hover:bg-brand-solid-hover"
           >
             เปิดในแอป LINE →
           </a>

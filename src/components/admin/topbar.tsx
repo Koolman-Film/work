@@ -31,7 +31,7 @@ export function Topbar({ userLabel, userId }: Props) {
   const toggleMobileNav = useMobileNav((s) => s.toggle);
 
   return (
-    <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-2 border-b border-[var(--border-color)] bg-white/80 px-3 backdrop-blur sm:px-5">
+    <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-2 border-b border-[var(--border-color)] bg-surface/80 px-3 backdrop-blur sm:px-5">
       <div className="flex min-w-0 items-center gap-2">
         {/* Hamburger — mobile-only (opens the sidebar drawer). */}
         <button

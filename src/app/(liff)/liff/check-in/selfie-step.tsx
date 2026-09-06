@@ -188,7 +188,7 @@ export function SelfieStep({ onConfirm, onCancel }: Props) {
               <button
                 type="button"
                 onClick={confirm}
-                className="flex-1 rounded-xl bg-primary-600 px-4 py-3 text-sm font-semibold text-white shadow-lg hover:bg-primary-700"
+                className="flex-1 rounded-xl bg-brand-solid px-4 py-3 text-sm font-semibold text-white shadow-lg hover:bg-brand-solid-hover"
               >
                 {t('selfie.usePhoto')}
               </button>

@@ -30,7 +30,7 @@ export function MergeNudge({ dismissible = true }: { dismissible?: boolean }) {
         <div className="flex shrink-0 items-center gap-2">
           <Link
             href="/admin/settings/line"
-            className="rounded-md bg-primary-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700"
+            className="rounded-md bg-brand-solid px-3 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-brand-solid-hover"
           >
             {t('cardCta')}
           </Link>

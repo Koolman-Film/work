@@ -103,7 +103,7 @@ export default async function SsoFilingPage({ searchParams }: { searchParams: Se
             {canDownload ? (
               <Link
                 href={downloadHref}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-brand-solid px-4 py-2 text-sm font-medium text-white hover:bg-brand-solid-hover"
                 download
               >
                 <Download size={16} /> ดาวน์โหลด Excel (สปส.1-10)

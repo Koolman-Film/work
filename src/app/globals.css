@@ -132,6 +132,35 @@
   --color-warning-solid:        oklch(76.9% 0.188 70.08);   /* == amber-500 */
   --color-warning-solid-hover:  oklch(66.6% 0.179 58.318);  /* == amber-600 */
 
+  /* ── Brand + semantic solid fills ──────────────────────────────────────
+   * Same reason as the CTA fills above: primary-600/700, `success` and
+   * `danger` are each used BOTH as a solid background and as a text colour
+   * (primary-700: 23 bg vs 95 text; danger: 36 bg vs 41 text). Dark mode
+   * needs the text light and the fill saturated, so the fill gets its own
+   * name. Seeded with the exact value it replaces — light mode unchanged.
+   */
+  --color-brand-solid:        #3955e8;  /* == primary-600 */
+  --color-brand-solid-hover:  #2f43c4;  /* == primary-700 */
+  --color-success-fill:       #10b981;  /* == success      */
+  --color-success-fill-deep:  #047857;  /* == success-deep */
+  --color-danger-fill:        #ef4444;  /* == danger       */
+  --color-warning-fill:       #f59e0b;  /* == warning      */
+
+  /* ── Brand gradients ───────────────────────────────────────────────────
+   * The hero and sidebar gradients were built from primary-700/900 and
+   * primary-600/800 — which are TEXT tones. Inverting those for dark mode
+   * turned the hero into a pale blue panel with white text on it (1.53:1).
+   *
+   * These are deliberately theme-INVARIANT: the hero is a deep-blue brand
+   * moment that reads correctly on a light or a dark page, and its white
+   * text and amber figures are chosen against that blue, not against the
+   * page. No dark override — that is the point.
+   */
+  --color-brand-grad-from:     #2f43c4;  /* was primary-700 */
+  --color-brand-grad-to:       #1e2d7a;  /* was primary-900 */
+  --color-brand-grad-alt-from: #3955e8;  /* was primary-600 */
+  --color-brand-grad-alt-to:   #283a9e;  /* was primary-800 */
+
   /* Radii */
   --radius-sm: 5px;
   --radius:    8px;
@@ -379,6 +408,38 @@ body {
     --color-success-solid-hover:  #008738;  /* white 4.64 */
     --color-warning-solid:        #ac4f00;  /* white 5.42 */
     --color-warning-solid-hover:  #b95b00;  /* white 4.61 */
+    /* ── Brand ramp. Hue 268.7 preserved from #3955e8 — only lightness and
+     * chroma are re-derived, so it still reads as the same blue.          */
+    --color-primary-50:   #2c344d;
+    --color-primary-100:  #313c5a;
+    --color-primary-200:  #38466e;
+    --color-primary-300:  #43558a;
+    --color-primary-400:  #556db7;
+    --color-primary-500:  #6380da;
+    --color-primary-600:  #93aaed;  /* 6.74 on surface */
+    --color-primary-700:  #a9c1ff;  /* 8.61 on surface */
+    --color-primary-800:  #c0d6ff;
+    --color-primary-900:  #cfe1ff;
+    /* Semantic text tones invert to light; their -soft partners stay dark
+     * and sit above the surface. text-on-tint: 6.89-7.51.                 */
+    --color-success:      #71c49d;
+    --color-success-deep: #92d7b5;
+    --color-success-soft: #1a3d2e;
+    --color-danger:       #f19f97;
+    --color-danger-deep:  #ffb7af;
+    --color-danger-soft:  #4c2b28;
+    --color-warning:      #e2b27c;
+    --color-info:         #a9c1ff;
+    --color-accent-400:   #d8953d;  /* decorative fill; ink-1 on it = 7.04 */
+    --color-accent-500:   #d8953d;
+    --color-accent-600:   #e2b27c;
+    /* Brand + semantic solid fills: white text clears AA on each.         */
+    --color-brand-solid:        #4964c2;  /* white 5.41 */
+    --color-brand-solid-hover:  #5370cf;  /* white 4.58, lighter per the inversion */
+    --color-success-fill:       #007a4d;  /* white 5.40 */
+    --color-success-fill-deep:  #006d41;  /* white 6.43 */
+    --color-danger-fill:        #bb3f3c;  /* white 5.40 */
+    --color-warning-fill:       #9e5a00;  /* white 5.36 */
   }
 }
 :root[data-theme='dark'] {
@@ -474,4 +535,36 @@ body {
     --color-success-solid-hover:  #008738;  /* white 4.64 */
     --color-warning-solid:        #ac4f00;  /* white 5.42 */
     --color-warning-solid-hover:  #b95b00;  /* white 4.61 */
+    /* ── Brand ramp. Hue 268.7 preserved from #3955e8 — only lightness and
+     * chroma are re-derived, so it still reads as the same blue.          */
+    --color-primary-50:   #2c344d;
+    --color-primary-100:  #313c5a;
+    --color-primary-200:  #38466e;
+    --color-primary-300:  #43558a;
+    --color-primary-400:  #556db7;
+    --color-primary-500:  #6380da;
+    --color-primary-600:  #93aaed;  /* 6.74 on surface */
+    --color-primary-700:  #a9c1ff;  /* 8.61 on surface */
+    --color-primary-800:  #c0d6ff;
+    --color-primary-900:  #cfe1ff;
+    /* Semantic text tones invert to light; their -soft partners stay dark
+     * and sit above the surface. text-on-tint: 6.89-7.51.                 */
+    --color-success:      #71c49d;
+    --color-success-deep: #92d7b5;
+    --color-success-soft: #1a3d2e;
+    --color-danger:       #f19f97;
+    --color-danger-deep:  #ffb7af;
+    --color-danger-soft:  #4c2b28;
+    --color-warning:      #e2b27c;
+    --color-info:         #a9c1ff;
+    --color-accent-400:   #d8953d;  /* decorative fill; ink-1 on it = 7.04 */
+    --color-accent-500:   #d8953d;
+    --color-accent-600:   #e2b27c;
+    /* Brand + semantic solid fills: white text clears AA on each.         */
+    --color-brand-solid:        #4964c2;  /* white 5.41 */
+    --color-brand-solid-hover:  #5370cf;  /* white 4.58, lighter per the inversion */
+    --color-success-fill:       #007a4d;  /* white 5.40 */
+    --color-success-fill-deep:  #006d41;  /* white 6.43 */
+    --color-danger-fill:        #bb3f3c;  /* white 5.40 */
+    --color-warning-fill:       #9e5a00;  /* white 5.36 */
 }

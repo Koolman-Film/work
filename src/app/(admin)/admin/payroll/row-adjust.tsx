@@ -44,7 +44,7 @@ function PendingOverlay({ label }: { label: string }) {
   const { pending } = useFormStatus();
   if (!pending) return null;
   return (
-    <div className="absolute inset-0 z-10 grid place-items-center rounded-2xl bg-white/80">
+    <div className="absolute inset-0 z-10 grid place-items-center rounded-2xl bg-surface/80">
       <div className="flex flex-col items-center gap-3">
         <span
           className="size-8 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600"
@@ -88,7 +88,7 @@ export function RowAdjust({
       >
         + เพิ่ม/ลด
         {adjustments.length > 0 && (
-          <span className="ml-1.5 rounded-full bg-primary-600 px-1.5 py-0.5 font-display text-[10px] font-bold leading-none text-white">
+          <span className="ml-1.5 rounded-full bg-brand-solid px-1.5 py-0.5 font-display text-[10px] font-bold leading-none text-white">
             {adjustments.length}
           </span>
         )}

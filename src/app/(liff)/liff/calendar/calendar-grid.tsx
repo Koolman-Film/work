@@ -308,7 +308,7 @@ export function CalendarGrid({
                     'text-[11px] font-medium leading-none',
                     cell.inMonth && isSunday && 'text-red-600',
                     cell.inMonth && !isSunday && 'text-ink-1',
-                    isToday && cell.inMonth && 'rounded-full bg-primary-600 px-1 text-white',
+                    isToday && cell.inMonth && 'rounded-full bg-brand-solid px-1 text-white',
                   )}
                 >
                   {cell.day}

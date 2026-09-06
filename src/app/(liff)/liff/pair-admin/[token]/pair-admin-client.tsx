@@ -121,7 +121,7 @@ export default function PairAdminClient({ pairingToken }: { pairingToken: string
                 <button
                   type="button"
                   onClick={() => window.location.reload()}
-                  className="mt-2 rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-700"
+                  className="mt-2 rounded-md bg-brand-solid px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-brand-solid-hover"
                 >
                   ลองใหม่
                 </button>

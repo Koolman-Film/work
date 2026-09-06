@@ -142,7 +142,7 @@ export function SettingsNav({ allowedPermissions }: { allowedPermissions: Permis
             className={cn(
               'relative flex shrink-0 items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition lg:items-start lg:gap-3 lg:py-2.5',
               active
-                ? 'bg-primary-50 font-medium text-primary-700 lg:before:absolute lg:before:bottom-2 lg:before:left-0 lg:before:top-2 lg:before:w-0.5 lg:before:rounded-full lg:before:bg-primary-600'
+                ? 'bg-primary-50 font-medium text-primary-700 lg:before:absolute lg:before:bottom-2 lg:before:left-0 lg:before:top-2 lg:before:w-0.5 lg:before:rounded-full lg:before:bg-brand-solid'
                 : 'text-ink-3 hover:bg-surface-hover hover:text-ink-1',
             )}
           >

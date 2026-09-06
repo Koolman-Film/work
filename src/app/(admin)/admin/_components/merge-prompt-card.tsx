@@ -174,7 +174,7 @@ export function MergePromptCard() {
                 {isSelected && (
                   <span
                     aria-hidden="true"
-                    className="grid size-5 shrink-0 place-items-center rounded-full bg-primary-600 text-[11px] font-bold text-white"
+                    className="grid size-5 shrink-0 place-items-center rounded-full bg-brand-solid text-[11px] font-bold text-white"
                   >
                     ✓
                   </span>

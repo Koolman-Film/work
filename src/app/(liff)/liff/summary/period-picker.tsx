@@ -105,7 +105,7 @@ export function PeriodPicker({
           type="button"
           disabled={target === null}
           onClick={() => target && router.push(target)}
-          className="flex-1 rounded-md bg-primary-600 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+          className="flex-1 rounded-md bg-brand-solid px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
         >
           {labels.applyRange}
         </button>

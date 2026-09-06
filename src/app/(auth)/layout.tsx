@@ -14,7 +14,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
     <div className="grid min-h-dvh place-items-center bg-gradient-to-br from-primary-50 to-white px-4 py-12">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center">
-          <div className="grid size-14 place-items-center rounded-2xl bg-primary-600 shadow-brand">
+          <div className="grid size-14 place-items-center rounded-2xl bg-brand-solid shadow-brand">
             <span className="text-lg font-bold text-white">KM</span>
           </div>
           <h1 className="mt-4 text-xl font-semibold text-ink-1">Koolman Work</h1>
