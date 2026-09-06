@@ -559,5 +559,11 @@
     "pickerEmpty": "未找到在职员工",
     "pickerPlaceholder": "— 请选择员工 —",
     "pickerSearch": "搜索姓名或昵称…"
+  },
+  "theme": {
+    "label": "配色主题",
+    "light": "浅色",
+    "dark": "深色",
+    "system": "跟随系统"
   }
 }

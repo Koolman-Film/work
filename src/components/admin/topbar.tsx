@@ -4,6 +4,7 @@ import { ChevronDown, LogOut, Menu, Search, Sparkles, UserCog } from 'lucide-rea
 import Link from 'next/link';
 import { useState } from 'react';
 import { useProductUpdates } from '@/lib/product-updates/store';
+import { ThemeToggle } from '@/components/theme/theme-toggle';
 import { cn } from '@/lib/utils';
 import { NotificationBell } from './notification-bell';
 import { useMobileNav } from './use-mobile-nav';
@@ -65,6 +66,7 @@ export function Topbar({ userLabel, userId }: Props) {
 
       {/* Right cluster */}
       <div className="flex items-center gap-2">
+        <ThemeToggle />
         <span data-tour="topbar-bell">
           <NotificationBell userId={userId} />
         </span>

@@ -18,6 +18,7 @@
 
 import { LanguageSwitcher } from '@/components/liff/language-switcher';
 import { LiffLocaleGate } from '@/components/liff/liff-locale-gate';
+import { ThemeToggle } from '@/components/theme/theme-toggle';
 
 export default function LiffLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -25,7 +26,8 @@ export default function LiffLayout({ children }: { children: React.ReactNode }) 
       {/* Slim utility bar instead of a floating button: several LIFF pages
           already put their own action buttons in the top-right corner, so a
           fixed overlay would collide. In-flow keeps it collision-free. */}
-      <div className="mx-auto flex max-w-md justify-end px-4 pt-3">
+      <div className="mx-auto flex max-w-md items-center justify-end gap-2 px-4 pt-3">
+        <ThemeToggle />
         <LanguageSwitcher />
       </div>
       {children}
