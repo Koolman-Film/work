@@ -431,6 +431,26 @@ body {
 .u-collapse-wrap { display: grid; grid-template-rows: 1fr; transition: grid-template-rows var(--duration-base) var(--ease-out-soft), opacity var(--duration-base) var(--ease-out-soft); }
 .u-collapse-wrap > * { overflow: hidden; }
 .u-collapse-wrap[data-exiting='true'] { grid-template-rows: 0fr; opacity: 0; }
+/* Row exit inside a real <table>: a FADE, not a height collapse.
+ *
+ * Two collapse approaches were built and measured, and both lost:
+ *   - `display: grid` on the <tr> (what `.u-collapse-wrap` does) takes the row
+ *     out of table layout — at 1280px it shrank 990px → 240px and every cell
+ *     became equal width, so columns no longer lined up with the rows above.
+ *   - Collapsing a wrapper inside each <td> does keep the columns aligned, but
+ *     no transition ever fired in the live page, and the `overflow: hidden`
+ *     the technique requires also clips horizontally — table cells inherit
+ *     `white-space: nowrap`, so any column narrower than its text truncated
+ *     mid-character with no ellipsis.
+ *
+ * Opacity is something a <tr> animates natively. No wrapper, no extra DOM in
+ * every cell of every table, and nothing to clip. The row fades over one
+ * `--duration-base` and is then removed by the exit controller, which is the
+ * behaviour that actually matters: the list does not jump under the cursor.
+ */
+tr[data-exiting] { transition: opacity var(--duration-base) var(--ease-out-soft); }
+tr[data-exiting='true'] { opacity: 0; }
+
 /* Shimmer loading sweep. */
 .u-shimmer { background-image: linear-gradient(90deg, transparent 0%, rgb(0 0 0 / 0.04) 50%, transparent 100%); background-size: 200% 100%; animation: shimmer 1.1s linear infinite; }
 
