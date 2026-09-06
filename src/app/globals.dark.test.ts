@@ -105,3 +105,49 @@ describe('dark surfaces respect the ink-4 ceiling', () => {
     }
   });
 });
+
+/**
+ * The scrim is the seventh instance of the inversion trap: a token used as a
+ * FILL cannot be defined in terms of the ink ramp, because the ramp inverts
+ * between themes. `bg-ink-1/40` dimmed correctly in light and washed the page
+ * pale in dark, where ink-1 is near-white.
+ *
+ * The contrast e2e suite structurally cannot catch this — it walks pages at
+ * rest, and a scrim only exists while a dialog is open. So the invariant is
+ * pinned here instead: scrim is declared once, and never per theme.
+ */
+describe('the scrim cannot invert', () => {
+  const media = varsAfter('/* DARK:media */');
+  const attr = varsAfter('/* DARK:attr */');
+
+  it('is declared exactly once in the whole stylesheet', () => {
+    const declarations = css.match(/--color-scrim\s*:/g) ?? [];
+    expect(declarations).toHaveLength(1);
+  });
+
+  it('is not redefined by either dark block', () => {
+    expect(media['--color-scrim']).toBeUndefined();
+    expect(attr['--color-scrim']).toBeUndefined();
+  });
+
+  it('is dark enough to actually dim the page it covers', () => {
+    const scrim = css.match(/--color-scrim\s*:\s*(#([0-9a-f]{6}))/i)?.[2];
+    expect(scrim, '--color-scrim must be a hex literal').toBeDefined();
+    // A dimming scrim has to sit near the dark end in BOTH themes. Checking the
+    // channels directly keeps this independent of which surface it covers —
+    // the seed, ink-1's light value #0f172a, peaks at 0x2a.
+    const channels = [0, 2, 4].map((i) => Number.parseInt((scrim as string).slice(i, i + 2), 16));
+    expect(Math.max(...channels), `--color-scrim #${scrim} is too pale to dim`).toBeLessThan(0x40);
+  });
+});
+
+describe('no fill uses an ink token as a backdrop', () => {
+  it('bg-ink-*/<alpha> never reappears in components', async () => {
+    const { execSync } = await import('node:child_process');
+    const hits = execSync(
+      'grep -rln "bg-ink-[0-9]/" src --include=*.tsx --include=*.ts | grep -v "\\.test\\.ts$" || true',
+      { encoding: 'utf8' },
+    ).trim();
+    expect(hits, `translucent ink fills invert in dark mode:\n${hits}`).toBe('');
+  });
+});

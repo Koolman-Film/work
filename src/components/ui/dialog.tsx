@@ -112,7 +112,7 @@ export function Dialog({ open, onClose, title, children, dismissable = true, cla
     <div
       data-open={entered ? 'true' : 'false'}
       className={cn(
-        'fixed inset-0 z-50 flex items-end justify-center bg-ink-1/40 p-0 sm:items-center sm:p-4',
+        'fixed inset-0 z-50 flex items-end justify-center bg-scrim/40 p-0 sm:items-center sm:p-4',
         'opacity-0 transition-opacity duration-[var(--duration-base)] ease-[var(--ease-out-soft)]',
         'data-[open=true]:opacity-100',
       )}

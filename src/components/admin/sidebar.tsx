@@ -254,7 +254,7 @@ export function Sidebar({
         aria-hidden="true"
         onClick={close}
         className={cn(
-          'fixed inset-0 z-30 bg-ink-1/40 transition-opacity duration-200 lg:hidden',
+          'fixed inset-0 z-30 bg-scrim/40 transition-opacity duration-200 lg:hidden',
           open ? 'opacity-100' : 'pointer-events-none opacity-0',
         )}
       />
