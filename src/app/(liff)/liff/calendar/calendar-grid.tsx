@@ -305,7 +305,10 @@ export function CalendarGrid({
               >
                 <span
                   className={cn(
-                    'text-[11px] font-medium leading-none',
+                    // `self-start` keeps this a pill. As a flex-col child it would
+                    // otherwise stretch to the cell's full width, turning today's
+                    // highlight into a bar that the top-right cake sits on top of.
+                    'self-start text-[11px] font-medium leading-none',
                     cell.inMonth && isSunday && 'text-red-600',
                     cell.inMonth && !isSunday && 'text-ink-1',
                     isToday && cell.inMonth && 'rounded-full bg-brand-solid px-1 text-white',
@@ -364,7 +367,7 @@ export function CalendarGrid({
                     birthday reads at a glance, independent of the name chip and
                     the ≤2 marker budget. */}
                 {dayBirthdays.length > 0 && cell.inMonth && (
-                  <span aria-hidden="true" className="absolute right-1 top-1 text-2xl leading-none">
+                  <span aria-hidden="true" className="absolute right-1 top-1 text-xl leading-none">
                     🎂
                   </span>
                 )}
