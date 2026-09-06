@@ -440,6 +440,14 @@ body {
     --color-success-fill-deep:  #006d41;  /* white 6.43 */
     --color-danger-fill:        #bb3f3c;  /* white 5.40 */
     --color-warning-fill:       #9e5a00;  /* white 5.36 */
+    /* red/amber 500-600 are TEXT and border tones here: their solid-fill uses
+     * were re-pointed to the danger-/warning-solid tokens, so nothing depends
+     * on them staying saturated. Missing these left Sunday dates on the LIFF
+     * calendar at 3.22:1.                                                  */
+    --color-red-500:     #e3877f;
+    --color-red-600:     #ed978f;
+    --color-amber-500:   #d0954b;
+    --color-amber-600:   #daa462;
   }
 }
 :root[data-theme='dark'] {
@@ -567,4 +575,12 @@ body {
     --color-success-fill-deep:  #006d41;  /* white 6.43 */
     --color-danger-fill:        #bb3f3c;  /* white 5.40 */
     --color-warning-fill:       #9e5a00;  /* white 5.36 */
+    /* red/amber 500-600 are TEXT and border tones here: their solid-fill uses
+     * were re-pointed to the danger-/warning-solid tokens, so nothing depends
+     * on them staying saturated. Missing these left Sunday dates on the LIFF
+     * calendar at 3.22:1.                                                  */
+    --color-red-500:     #e3877f;
+    --color-red-600:     #ed978f;
+    --color-amber-500:   #d0954b;
+    --color-amber-600:   #daa462;
 }
