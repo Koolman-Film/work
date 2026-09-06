@@ -303,6 +303,51 @@ export default async function EmployeeListPage({ searchParams }: { searchParams:
         rows={employees}
         rowKey={(e) => e.id}
         actions={(e) => <RowAction href={`/admin/employees/${e.id}/edit`} />}
+        // Mobile is a directory of PEOPLE, not a transposed table. The default
+        // stacking made the name the value of a "ชื่อ" field — right-aligned,
+        // with the avatar stranded mid-card — and repeated five labels per
+        // record. Here the name is the heading, the labels are gone, and the
+        // whole row is the tap target, so a person costs ~68px instead of 227.
+        renderMobileRow={(e) => {
+          const url = e.photoKey ? photoUrls.get(e.photoKey) : undefined;
+          return (
+            <Link
+              href={`/admin/employees/${e.id}/edit`}
+              className="flex items-center gap-3 px-3 py-2.5 transition hover:bg-surface-hover"
+            >
+              <Avatar name={e.nickname ?? e.firstName} src={url ?? null} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-ink-1">
+                  {e.firstName} {e.lastName}
+                  {e.nickname && <span className="font-normal text-ink-4"> ({e.nickname})</span>}
+                </p>
+                <p className="truncate text-xs text-ink-3">
+                  {e.branch.name}
+                  {e.department?.name ? ` · ${e.department.name}` : ''}
+                </p>
+                {showMissingScheduleBadge && missingIds.has(e.id) && (
+                  <p className="text-[11px] font-medium text-amber-800">ไม่มีตารางงาน</p>
+                )}
+              </div>
+              {/* Salary + status stay a chip rather than coloured text:
+                  STATUS_COLORS is the single source of truth for status colour
+                  and its pairs are light-mode literals, so re-tinting the label
+                  here would either duplicate that map or go unreadable on a
+                  dark surface. A chip also survives colour-blindness. */}
+              <div className="flex flex-none flex-col items-end gap-1">
+                <span className="tabular text-xs text-ink-1">
+                  {fmtMoney(e.baseSalary)}
+                  <span className="ml-0.5 text-[11px] text-ink-4">
+                    /{SALARY_TYPE_TH[e.salaryType] ?? e.salaryType.toLowerCase()}
+                  </span>
+                </span>
+                <StatusBadge status={STATUS_KIND[e.status] ?? 'neutral'}>
+                  {STATUS_LABEL[e.status] ?? e.status}
+                </StatusBadge>
+              </div>
+            </Link>
+          );
+        }}
         empty={
           <div className="surface">
             <EmptyState
