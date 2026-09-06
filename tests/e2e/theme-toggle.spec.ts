@@ -1,6 +1,6 @@
 import { expect, type Page, test } from '@playwright/test';
-import { loginAsAdmin } from './helpers/auth';
 import { THEME_COOKIE_NAME } from '../../src/lib/theme/config';
+import { loginAsAdmin } from './helpers/auth';
 
 /**
  * The toggle's whole reason to live on the server: the choice must be applied
@@ -22,13 +22,13 @@ const pick = (value: 'light' | 'dark' | 'system') => `[data-theme-option="${valu
  * The buttons are present in the SSR HTML before hydration attaches their
  * onClick, and Playwright clicks as soon as an element is visible and
  * enabled — so an early click lands on inert markup and is silently lost.
- * Retrying until `aria-checked` flips proves the handler ran, rather than
+ * Retrying until `aria-pressed` flips proves the handler ran, rather than
  * assuming it did.
  */
 async function choose(page: Page, value: 'light' | 'dark' | 'system') {
   await expect(async () => {
     await page.click(pick(value));
-    await expect(page.locator(pick(value))).toHaveAttribute('aria-checked', 'true');
+    await expect(page.locator(pick(value))).toHaveAttribute('aria-pressed', 'true');
   }).toPass({ timeout: 15_000 });
 
   // Then wait for the SERVER to catch up. The click only updates optimistic

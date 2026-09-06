@@ -343,7 +343,7 @@ function StatusPill({ status }: { status: Status }) {
   }
   return (
     <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-800">
-      <span className="size-1.5 rounded-full bg-warning-fill-solid" aria-hidden="true" />
+      <span className="size-1.5 rounded-full bg-warning-solid" aria-hidden="true" />
       อัปเดตทุก 30 วินาที
     </span>
   );

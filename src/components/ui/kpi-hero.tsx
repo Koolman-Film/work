@@ -35,7 +35,8 @@ export function KpiHero({
     <div
       className="relative flex h-full flex-col overflow-hidden rounded-2xl p-5 text-white shadow-hero"
       style={{
-        background: 'linear-gradient(135deg, var(--color-brand-grad-from), var(--color-brand-grad-to))',
+        background:
+          'linear-gradient(135deg, var(--color-brand-grad-from), var(--color-brand-grad-to))',
       }}
     >
       <div className="flex items-center justify-between">

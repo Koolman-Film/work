@@ -16,7 +16,8 @@ const variantClasses: Record<Variant, string> = {
     'bg-brand-solid text-white shadow-sm hover:bg-brand-solid-hover focus-visible:ring-primary-500/50',
   secondary:
     'border border-line-strong bg-surface text-ink-2 hover:bg-surface-hover focus-visible:ring-primary-500/30',
-  destructive: 'bg-danger-solid text-white shadow-sm hover:bg-danger-solid-hover focus-visible:ring-red-500/50',
+  destructive:
+    'bg-danger-solid text-white shadow-sm hover:bg-danger-solid-hover focus-visible:ring-red-500/50',
   ghost: 'text-ink-2 hover:bg-surface-hover-strong focus-visible:ring-primary-500/30',
   // Approve = positive/confirming action (green gradient CTA, per mockups).
   approve:
@@ -27,7 +28,7 @@ const variantClasses: Record<Variant, string> = {
   // Attention = "action needed now" (amber CTA). Used when state is stale and a
   // recompute is required — matches the amber stale-warning banner's language.
   attention:
-    'bg-warning-fill-solid text-ink-1 shadow-sm ring-2 ring-amber-300 ring-offset-1 hover:bg-warning-fill-solid-hover focus-visible:ring-amber-500/60',
+    'bg-warning-solid text-ink-1 shadow-sm ring-2 ring-amber-300 ring-offset-1 hover:bg-warning-solid-hover focus-visible:ring-amber-500/60',
 };
 
 const sizeClasses: Record<Size, string> = {

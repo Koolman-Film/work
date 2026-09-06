@@ -4,7 +4,7 @@ import { Monitor, Moon, Sun } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useEffect, useState, useTransition } from 'react';
 import { setTheme } from '@/lib/theme/actions';
-import { isTheme, type Theme, THEME_COOKIE_NAME } from '@/lib/theme/config';
+import { isTheme, THEME_COOKIE_NAME, type Theme } from '@/lib/theme/config';
 
 const OPTIONS = [
   { value: 'light', Icon: Sun, key: 'light' },
@@ -44,23 +44,22 @@ export function ThemeToggle() {
   }, []);
 
   return (
-    <div
-      role="radiogroup"
-      aria-label={t('label')}
-      className="inline-flex items-center gap-0.5 rounded-full border border-line bg-surface p-0.5"
-    >
+    // <fieldset> rather than role="group": same semantics, native element,
+    // and it is what a screen reader announces the set by. min-w-0 undoes the
+    // UA's implicit min-inline-size so the pill hugs its three buttons.
+    <fieldset className="inline-flex min-w-0 items-center gap-0.5 rounded-full border border-line bg-surface p-0.5">
+      <legend className="sr-only">{t('label')}</legend>
       {OPTIONS.map(({ value, Icon, key }) => {
         const active = current === value;
         return (
           <button
             key={value}
             type="button"
-            role="radio"
             // Stable hook for tests: the accessible name is translated into
             // six locales, so selecting on it makes a test depend on which
             // language the session happens to be in.
             data-theme-option={value}
-            aria-checked={active}
+            aria-pressed={active}
             aria-label={t(key)}
             title={t(key)}
             disabled={pending}
@@ -82,6 +81,6 @@ export function ThemeToggle() {
           </button>
         );
       })}
-    </div>
+    </fieldset>
   );
 }

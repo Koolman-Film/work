@@ -57,7 +57,10 @@ export function LinePairingCard({ paired }: { paired: boolean }) {
         {paired ? (
           <>
             <div className="flex items-center gap-2">
-              <span className="inline-flex h-2.5 w-2.5 rounded-full bg-success-fill-deep" aria-hidden />
+              <span
+                className="inline-flex h-2.5 w-2.5 rounded-full bg-success-fill-deep"
+                aria-hidden
+              />
               <p className="text-sm font-medium text-ink-1">เชื่อมต่อแล้ว</p>
             </div>
             <p className="text-sm text-ink-3">

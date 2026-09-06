@@ -3,8 +3,8 @@
 import { ChevronDown, LogOut, Menu, Search, Sparkles, UserCog } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
-import { useProductUpdates } from '@/lib/product-updates/store';
 import { ThemeToggle } from '@/components/theme/theme-toggle';
+import { useProductUpdates } from '@/lib/product-updates/store';
 import { cn } from '@/lib/utils';
 import { NotificationBell } from './notification-bell';
 import { useMobileNav } from './use-mobile-nav';
