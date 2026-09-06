@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronDown, LogOut, Menu, Search, Sparkles, UserCog } from 'lucide-react';
+import { ChevronDown, LogOut, Menu, Sparkles, UserCog } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 import { ThemeToggle } from '@/components/theme/theme-toggle';
@@ -12,12 +12,22 @@ import { useMobileNav } from './use-mobile-nav';
 /**
  * Admin topbar (Sapphire Editorial) — sticky 56px header.
  *
- * Layout: [hamburger (mobile)] [⌘K search] ............ [bell] [avatar ▾]
+ * Layout: [hamburger (mobile)] ............ [theme] [bell] [avatar ▾]
  *
- * The breadcrumb now lives in each page's <PageHeader>, so the topbar no longer
- * renders one (no double breadcrumb). The ⌘K search is a visual placeholder for
- * now — the command palette is a later enhancement. Bell + user menu (profile /
- * language / sign-out) are unchanged.
+ * The breadcrumb lives in each page's <PageHeader>, so the topbar does not
+ * render one (no double breadcrumb).
+ *
+ * There is deliberately NO search box here. One used to sit in this slot: a
+ * button with no onClick, no ⌘K handler anywhere in the codebase, and its own
+ * tooltip reading "ค้นหา (เร็วๆ นี้)". It rendered a keyboard-shortcut hint for
+ * a shortcut that did not exist, which is worse than an empty slot — a hint
+ * that specific reads as a promise, so people try it, nothing happens, and
+ * they conclude the app is broken rather than the feature unbuilt.
+ *
+ * A command palette is worth building for an app with 59 admin pages, and the
+ * per-page `?q=` search already works on 7 of them. When it is built it needs
+ * permission scoping (getPermittedBranches) so results cannot leak rows across
+ * branches — which is why it is a feature, not a slot filler.
  */
 
 type Props = {
@@ -65,25 +75,6 @@ export function Topbar({ userLabel, userId }: Props) {
           className="grid size-9 place-items-center rounded-md text-ink-3 transition hover:bg-surface-hover-strong hover:text-ink-1 lg:hidden"
         >
           <Menu size={18} strokeWidth={2} aria-hidden="true" />
-        </button>
-
-        {/* ⌘K search — visual placeholder (command palette is a later enhancement). */}
-        <button
-          type="button"
-          title="ค้นหา (เร็วๆ นี้)"
-          aria-label="ค้นหา"
-          className="flex items-center gap-2 rounded-lg border border-[var(--border-color)] bg-surface-muted px-3 py-1.5 text-xs text-ink-4 transition hover:bg-surface-hover-strong sm:min-w-[210px]"
-        >
-          <Search size={14} strokeWidth={2} aria-hidden="true" />
-          <span className="hidden flex-1 text-left sm:inline">ค้นหา…</span>
-          <span className="ml-auto hidden gap-1 sm:flex">
-            <kbd className="rounded border border-[var(--border-color)] bg-surface px-1.5 font-display text-[10px] font-semibold text-ink-3">
-              ⌘
-            </kbd>
-            <kbd className="rounded border border-[var(--border-color)] bg-surface px-1.5 font-display text-[10px] font-semibold text-ink-3">
-              K
-            </kbd>
-          </span>
         </button>
       </div>
 
