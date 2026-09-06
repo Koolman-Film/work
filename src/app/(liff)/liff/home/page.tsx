@@ -65,7 +65,7 @@ export default async function LiffHomePage() {
           <div className="grid grid-cols-3 gap-2.5">
             <a href="/liff/admin/inbox" className={`${tileCls} relative`}>
               {pending > 0 && (
-                <span className="absolute right-2 top-2 rounded-full bg-red-600 px-1.5 py-0.5 text-[10px] font-medium text-white">
+                <span className="absolute right-2 top-2 rounded-full bg-danger-solid px-1.5 py-0.5 text-[10px] font-medium text-white">
                   {pending}
                 </span>
               )}

@@ -91,7 +91,7 @@ export function LeaveReviewActions({
           type="button"
           disabled={isPending || approveBlocked}
           onClick={() => fire('approve')}
-          className="rounded-lg bg-green-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-green-700 disabled:opacity-50"
+          className="rounded-lg bg-success-solid px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-success-solid-hover disabled:opacity-50"
         >
           {isPending && firing === 'approve'
             ? t('saving')
@@ -103,7 +103,7 @@ export function LeaveReviewActions({
           type="button"
           disabled={isPending}
           onClick={() => fire('reject')}
-          className="rounded-lg bg-red-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-red-700 disabled:opacity-50"
+          className="rounded-lg bg-danger-solid px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-danger-solid-hover disabled:opacity-50"
         >
           {isPending && firing === 'reject'
             ? t('saving')

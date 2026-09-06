@@ -111,6 +111,27 @@
   --color-surface-hover:        oklch(98.5% 0.002 247.839); /* == surface-muted  */
   --color-surface-hover-strong: oklch(96.7% 0.003 264.542); /* == surface-sunken */
 
+  /* ── Solid CTA fills ───────────────────────────────────────────────────
+   * These need their own names because the SAME palette step serves two
+   * irreconcilable jobs. `text-red-700` is error text (77 uses) and must
+   * become LIGHT in dark mode; `bg-red-700` is the destructive button's HOVER
+   * fill (6 uses) and must stay a saturated red carrying white text. One
+   * variable cannot do both — every Reject button would turn pale pink with
+   * white text on it, and only on hover.
+   *
+   * Those are the Approve/Reject buttons an admin taps in LINE to decide
+   * someone's leave and cash advance, so "illegible" is not cosmetic.
+   *
+   * Seeded verbatim from tailwindcss/theme.css, so light mode is unchanged.
+   */
+  --color-danger-solid:         oklch(57.7% 0.245 27.325);  /* == red-600   */
+  --color-danger-solid-hover:   oklch(50.5% 0.213 27.518);  /* == red-700   */
+  --color-danger-accent:        oklch(63.7% 0.237 25.331);  /* == red-500   */
+  --color-success-solid:        oklch(62.7% 0.194 149.214); /* == green-600 */
+  --color-success-solid-hover:  oklch(52.7% 0.154 150.069); /* == green-700 */
+  --color-warning-solid:        oklch(76.9% 0.188 70.08);   /* == amber-500 */
+  --color-warning-solid-hover:  oklch(66.6% 0.179 58.318);  /* == amber-600 */
+
   /* Radii */
   --radius-sm: 5px;
   --radius:    8px;
@@ -149,7 +170,8 @@
   --border-strong: rgb(15 23 42 / 0.14);
   --brand-glow:  rgb(57 85 232 / 0.32);
   --accent-glow: rgb(251 191 36 / 0.5);
-  color-scheme: light; /* lock light — dark mode out of scope */
+  /* color-scheme is set per-visitor on <html> by the root layout — see
+     src/lib/theme/config.ts. It must NOT be locked here. */
 }
 
 /* ─── Base ─── */
@@ -251,4 +273,205 @@ body {
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* ─── Dark theme ───────────────────────────────────────────────────────────
+ * Declared TWICE with identical bodies. A CSS rule cannot span a media query,
+ * so a visitor who has not chosen (media query) and one who has (data-theme)
+ * need separate rules. src/app/globals.dark.test.ts asserts they never drift.
+ *
+ * `:not([data-theme='light'])` is what lets an explicit Light choice win on a
+ * dark OS. Without it the override only works in one direction.
+ *
+ * Values come from scripts/derive-theme-tokens.mjs. Do not hand-edit.
+ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    /* DARK:media */
+    /* ── Surfaces. Elevation is LIGHTNESS, not shadow: a surface gets lighter
+     * as it comes forward. Steps are ΔL 2.5–4.5, all perceptible.
+     *
+     * HARD CEILING: no surface above OKLCH L 32.95. That is where ink-4 still
+     * reaches 4.5:1, and globals.dark.test.ts enforces it. A draft at L 36
+     * silently dropped ink-4 to 3.99.
+     *
+     * Note surface-hover goes LIGHTER than surface here, the opposite of
+     * light mode. That inversion is why hover needed its own tokens.       */
+    --color-surface-sunken:       #0b0d12;  /* L 16.0 */
+    --color-canvas:               #101317;  /* L 18.5 */
+    --color-surface-muted:        #1a1d22;  /* L 23.0 */
+    --color-surface:              #22252a;  /* L 26.5 */
+    --color-surface-hover:        #292d32;  /* L 29.5 */
+    --color-surface-hover-strong: #313439;  /* L 32.5 */
+    --color-line-soft:            #2d3135;
+    --color-line:                 #3a3d42;
+    --color-line-strong:          #52565b;
+    /* Ink, checked against the LIGHTEST surface (the worst case for light
+     * text): 10.89 / 7.88 / 5.53 / 4.57. */
+    --color-ink-1:                #e9f0f9;
+    --color-ink-2:                #c7ced7;
+    --color-ink-3:                #a7adb5;
+    --color-ink-4:                #979da5;
+    --color-ink-5:                #6e7277;  /* non-text */
+    --border-color:               rgb(255 255 255 / 0.10);
+    --border-strong:              rgb(255 255 255 / 0.18);
+
+    /* ── Status ramps. Soft tints (50/100/200) sit ABOVE both canvas and
+     * surface so an alert still reads as a block; at equal lightness it goes
+     * flat, and for colour-blind readers it vanishes entirely. Text tones
+     * (700/800/900) invert to light. All 14 alert pairs this app renders
+     * pass, lowest 6.43.                                                   */
+    --color-red-50:      #482d2b;
+    --color-red-100:     #55322f;
+    --color-red-200:     #663935;
+    --color-red-300:     #904d48;
+    --color-red-400:     #c25d57;
+    --color-red-700:     #ffb1a9;
+    --color-red-800:     #ffc2bb;
+    --color-red-900:     #ffd0ca;
+    --color-amber-50:    #43321e;
+    --color-amber-100:   #4f381d;
+    --color-amber-200:   #5e411d;
+    --color-amber-300:   #845922;
+    --color-amber-400:   #b17000;
+    --color-amber-700:   #f5bf81;
+    --color-amber-800:   #fcce9a;
+    --color-amber-900:   #ffdaaf;
+    --color-green-50:    #283b29;
+    --color-green-100:   #2b442c;
+    --color-green-200:   #305132;
+    --color-green-300:   #3f7142;
+    --color-green-700:   #a1dca3;
+    --color-green-800:   #b5e7b6;
+    --color-green-900:   #c5eec5;
+    --color-emerald-50:  #213c2f;
+    --color-emerald-400: #039869;
+    --color-emerald-500: #008550;
+    --color-emerald-700: #8cdfb7;
+    --color-blue-50:     #29364a;
+    --color-blue-100:    #2d3d58;
+    --color-blue-500:    #3972ce;
+    --color-blue-700:    #a4ccff;
+    --color-blue-800:    #b7d9ff;
+    --color-purple-50:   #3a3046;
+    --color-purple-100:  #433653;
+    --color-purple-700:  #d8bbff;
+    --color-purple-800:  #e3caff;
+    --color-rose-100:    #553234;
+    --color-rose-700:    #ffb0b4;
+    --color-rose-800:    #ffc1c4;
+    --color-violet-50:   #363148;
+    --color-violet-700:  #cdbeff;
+    --color-yellow-100:  #493b1b;
+    --color-yellow-800:  #f1d496;
+    /* 2 leftover raw greys from the earlier token migration — pointed at real
+     * tokens rather than re-derived. */
+    --color-gray-100:    #2d3135;
+    --color-gray-700:    #c7ced7;
+
+    /* ── Solid CTA fills, solved so WHITE text clears AA on each. Note the
+     * direction: in LIGHT a button hover goes DARKER; in DARK it must go
+     * LIGHTER, exactly like surface-hover. Same inversion, second place.   */
+    --color-danger-solid:         #b9423a;  /* white 5.38 */
+    --color-danger-solid-hover:   #c64e45;  /* white 4.59 */
+    --color-danger-accent:        #c44d43;  /* white 4.68 */
+    --color-success-solid:        #007b2d;  /* white 5.42 */
+    --color-success-solid-hover:  #008738;  /* white 4.64 */
+    --color-warning-solid:        #ac4f00;  /* white 5.42 */
+    --color-warning-solid-hover:  #b95b00;  /* white 4.61 */
+  }
+}
+:root[data-theme='dark'] {
+  /* DARK:attr */
+    /* ── Surfaces. Elevation is LIGHTNESS, not shadow: a surface gets lighter
+     * as it comes forward. Steps are ΔL 2.5–4.5, all perceptible.
+     *
+     * HARD CEILING: no surface above OKLCH L 32.95. That is where ink-4 still
+     * reaches 4.5:1, and globals.dark.test.ts enforces it. A draft at L 36
+     * silently dropped ink-4 to 3.99.
+     *
+     * Note surface-hover goes LIGHTER than surface here, the opposite of
+     * light mode. That inversion is why hover needed its own tokens.       */
+    --color-surface-sunken:       #0b0d12;  /* L 16.0 */
+    --color-canvas:               #101317;  /* L 18.5 */
+    --color-surface-muted:        #1a1d22;  /* L 23.0 */
+    --color-surface:              #22252a;  /* L 26.5 */
+    --color-surface-hover:        #292d32;  /* L 29.5 */
+    --color-surface-hover-strong: #313439;  /* L 32.5 */
+    --color-line-soft:            #2d3135;
+    --color-line:                 #3a3d42;
+    --color-line-strong:          #52565b;
+    /* Ink, checked against the LIGHTEST surface (the worst case for light
+     * text): 10.89 / 7.88 / 5.53 / 4.57. */
+    --color-ink-1:                #e9f0f9;
+    --color-ink-2:                #c7ced7;
+    --color-ink-3:                #a7adb5;
+    --color-ink-4:                #979da5;
+    --color-ink-5:                #6e7277;  /* non-text */
+    --border-color:               rgb(255 255 255 / 0.10);
+    --border-strong:              rgb(255 255 255 / 0.18);
+
+    /* ── Status ramps. Soft tints (50/100/200) sit ABOVE both canvas and
+     * surface so an alert still reads as a block; at equal lightness it goes
+     * flat, and for colour-blind readers it vanishes entirely. Text tones
+     * (700/800/900) invert to light. All 14 alert pairs this app renders
+     * pass, lowest 6.43.                                                   */
+    --color-red-50:      #482d2b;
+    --color-red-100:     #55322f;
+    --color-red-200:     #663935;
+    --color-red-300:     #904d48;
+    --color-red-400:     #c25d57;
+    --color-red-700:     #ffb1a9;
+    --color-red-800:     #ffc2bb;
+    --color-red-900:     #ffd0ca;
+    --color-amber-50:    #43321e;
+    --color-amber-100:   #4f381d;
+    --color-amber-200:   #5e411d;
+    --color-amber-300:   #845922;
+    --color-amber-400:   #b17000;
+    --color-amber-700:   #f5bf81;
+    --color-amber-800:   #fcce9a;
+    --color-amber-900:   #ffdaaf;
+    --color-green-50:    #283b29;
+    --color-green-100:   #2b442c;
+    --color-green-200:   #305132;
+    --color-green-300:   #3f7142;
+    --color-green-700:   #a1dca3;
+    --color-green-800:   #b5e7b6;
+    --color-green-900:   #c5eec5;
+    --color-emerald-50:  #213c2f;
+    --color-emerald-400: #039869;
+    --color-emerald-500: #008550;
+    --color-emerald-700: #8cdfb7;
+    --color-blue-50:     #29364a;
+    --color-blue-100:    #2d3d58;
+    --color-blue-500:    #3972ce;
+    --color-blue-700:    #a4ccff;
+    --color-blue-800:    #b7d9ff;
+    --color-purple-50:   #3a3046;
+    --color-purple-100:  #433653;
+    --color-purple-700:  #d8bbff;
+    --color-purple-800:  #e3caff;
+    --color-rose-100:    #553234;
+    --color-rose-700:    #ffb0b4;
+    --color-rose-800:    #ffc1c4;
+    --color-violet-50:   #363148;
+    --color-violet-700:  #cdbeff;
+    --color-yellow-100:  #493b1b;
+    --color-yellow-800:  #f1d496;
+    /* 2 leftover raw greys from the earlier token migration — pointed at real
+     * tokens rather than re-derived. */
+    --color-gray-100:    #2d3135;
+    --color-gray-700:    #c7ced7;
+
+    /* ── Solid CTA fills, solved so WHITE text clears AA on each. Note the
+     * direction: in LIGHT a button hover goes DARKER; in DARK it must go
+     * LIGHTER, exactly like surface-hover. Same inversion, second place.   */
+    --color-danger-solid:         #b9423a;  /* white 5.38 */
+    --color-danger-solid-hover:   #c64e45;  /* white 4.59 */
+    --color-danger-accent:        #c44d43;  /* white 4.68 */
+    --color-success-solid:        #007b2d;  /* white 5.42 */
+    --color-success-solid-hover:  #008738;  /* white 4.64 */
+    --color-warning-solid:        #ac4f00;  /* white 5.42 */
+    --color-warning-solid-hover:  #b95b00;  /* white 4.61 */
 }

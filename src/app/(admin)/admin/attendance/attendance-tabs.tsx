@@ -39,7 +39,7 @@ export function AttendanceTabs({
           >
             {t.label}
             {t.key === 'disputed' && disputedCount ? (
-              <span className="inline-flex min-w-[18px] items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-semibold text-ink-1">
+              <span className="inline-flex min-w-[18px] items-center justify-center rounded-full bg-warning-solid px-1 text-[10px] font-semibold text-ink-1">
                 {disputedCount}
               </span>
             ) : null}

@@ -375,7 +375,7 @@ export function CalendarGrid({
                 {holiday && cell.inMonth && dayBirthdays.length === 0 && (
                   <span
                     aria-hidden="true"
-                    className="absolute right-1 top-1 size-1.5 rounded-full bg-red-500"
+                    className="absolute right-1 top-1 size-1.5 rounded-full bg-danger-accent"
                   />
                 )}
               </button>

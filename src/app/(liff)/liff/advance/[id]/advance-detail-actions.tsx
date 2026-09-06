@@ -61,7 +61,7 @@ export function AdvanceDetailActions({ cashAdvanceId }: { cashAdvanceId: string 
           type="button"
           onClick={onCancel}
           disabled={pending}
-          className="flex-1 rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-red-700 disabled:opacity-60"
+          className="flex-1 rounded-lg bg-danger-solid px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-danger-solid-hover disabled:opacity-60"
         >
           {pending ? '...' : t('actions.confirmCancel')}
         </button>
