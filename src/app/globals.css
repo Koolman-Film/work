@@ -494,18 +494,102 @@ tr[data-exiting='true'] { opacity: 0; }
  * Input with IDENTICAL padding, border, radius and font-size. Side by side in
  * a filter bar, that mismatch is the first thing you notice.
  *
- * Only the height is set. `appearance: none` would also drop the UA chevron,
- * which would then have to be redrawn as a background-image with a hardcoded
- * colour — a replaced element cannot host a ::after, so currentColor is not
- * available. This codebase has been bitten repeatedly by colours that cannot
- * follow the theme; the UA chevron already follows it for free.
- *
  * Element-level on purpose. There are 40 raw <select>s across 20 files, and a
  * new shared component would only fix the call sites someone remembers to
  * migrate — the next hand-written select would be wrong again.
  */
 select:not([multiple]):not([size]) {
   height: 38px;
+}
+
+/* ── …and its popup, styled as one of our own dropdowns ──────────────────
+ *
+ * `appearance: base-select` opts the select out of native rendering and
+ * exposes its popup as a real box via ::picker(select). It stays a genuine
+ * <select>: form participation, keyboard behaviour and screen-reader
+ * semantics are the browser's, unchanged. 35 of our 40 selects live inside a
+ * <form> that posts FormData to a server action, so that guarantee is the
+ * whole reason this is preferable to a div-based listbox.
+ *
+ * @supports is load-bearing, not decoration. Where this is unimplemented the
+ * block never applies and the native popup renders exactly as it does today,
+ * so the failure mode is the current control rather than a broken one. Do not
+ * hoist these declarations out of it.
+ *
+ * Values below are not invented — they are the MonthPicker/Combobox panel
+ * (rounded-xl border-line bg-surface p-1.5 shadow-lg) and the Combobox option
+ * row, restated in CSS because a pseudo-element cannot carry a class.
+ */
+@supports (appearance: base-select) {
+  select:not([multiple]):not([size]),
+  ::picker(select) {
+    appearance: base-select;
+  }
+
+  /* base-select stops the UA painting the trigger, so the call site's own
+     classes are all that is left — they already match Input. Only the
+     internals need restating: the value and the icon are now real boxes. */
+  select:not([multiple]):not([size]) {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  /* The UA glyph is kept rather than replaced by an SVG. A ::picker-icon can
+     be recoloured with a token; a background-image chevron would need a
+     hardcoded fill, because a replaced element cannot host a ::after and so
+     has no currentColor to mask against. */
+  select::picker-icon {
+    color: var(--color-ink-4);
+    font-size: 0.7em;
+    transition: rotate var(--duration-fast) var(--ease-out-soft);
+  }
+  select:open::picker-icon {
+    rotate: 180deg;
+  }
+
+  ::picker(select) {
+    /* Without this the popup sizes to its content and sits narrower than the
+       control it belongs to — which is exactly how it looks wrong. */
+    min-width: anchor-size(width);
+    margin-top: 0.25rem;
+    max-height: 18rem;
+    overflow-y: auto;
+    padding: 0.375rem;
+    border: 1px solid var(--color-line);
+    border-radius: 0.75rem;
+    background: var(--color-surface);
+    box-shadow: var(--shadow-lg);
+  }
+
+  select option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.375rem 0.625rem;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    color: var(--color-ink-2);
+    cursor: pointer;
+  }
+  select option:hover,
+  select option:focus {
+    background: var(--color-primary-50);
+    color: var(--color-primary-700);
+    outline: none;
+  }
+  select option:checked {
+    font-weight: 600;
+  }
+
+  /* Tick on the RIGHT, as in Combobox — the UA puts it on the left, where it
+     indents every label and misaligns the column of text. */
+  select option::checkmark {
+    order: 1;
+    margin-left: auto;
+    color: var(--color-primary-600);
+  }
 }
 
 /* ── Reduced-motion: degrade everything to instant ─────────────────────── */
