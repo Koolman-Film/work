@@ -290,6 +290,13 @@ enum JournalLineKind {
   DebtRecovery
   OtherDeduction
   NetPayable
+  /// Withholding tax owed to the Revenue Department. Credited whoever bears
+  /// the tax — the liability is the company's either way.
+  WhtPayable
+  /// Withholding tax the company pays on an employee's behalf
+  /// (นายจ้างออกภาษีให้). Debited only in that case; when the employee bears
+  /// the tax it comes out of their pay and is not an extra expense.
+  WhtExpense
 }
 
 /// Chart-of-accounts mapping for the payroll journal export, per branch —
@@ -362,6 +369,10 @@ model Branch {
   /// NOT the same as `ssoAccountNo`. The สปส.1-10 upload template requires the
   /// worksheet to be NAMED for this value, so the export refuses without it.
   ssoBranchNo       String?
+  /// 13-digit employer tax ID (เลขประจำตัวผู้เสียภาษี). Nullable until entered.
+  taxId             String?
+  /// 5-digit RD branch number; "00000" is head office. Nullable until entered.
+  taxBranchNo       String?
   accountMappings   AccountMapping[]
   address           String?
   // Null lat/lng = no geofence enforcement on LIFF check-in.
@@ -497,6 +508,10 @@ model Employee {
   /// Payroll row at calc time, so published slips never change retroactively.
   /// Default false: admin explicitly ticks enrolled employees.
   hasSso               Boolean     @default(false)
+  /// นายจ้างออกภาษีให้ — the company pays this person's PIT rather than
+  /// withholding it. The tax is still reported and still reaches the ledger;
+  /// only take-home is unaffected.
+  taxBorneByEmployer   Boolean     @default(false)
 
   /// Nameable recurring extra pay. "เงินประจำตำแหน่ง" is the first use, but the
   /// label is the admin's to set — the request was "เพิ่มเงินพิเศษ (ที่กำหนดชื่อได้)",
@@ -768,6 +783,10 @@ model RecurringDeduction {
 enum AdjustmentKind {
   Income
   Deduction
+  /// ภาษีหัก ณ ที่จ่าย. Its own kind rather than a Deduction with a special
+  /// reason: ภ.ง.ด.1 has to ask what tax was withheld from one person in one
+  /// month and get a number that is only tax. Free text cannot answer that.
+  Tax
 }
 
 /// One-off or recurring earnings/deductions (เงินเพิ่ม/เงินลด) entered by
@@ -825,6 +844,10 @@ model Payroll {
   /// Sum of Deduction-kind PayrollAdjustments for the month (เงินลด).
   /// Income-kind adjustments land in incomeOther.
   deductOther      Decimal @default(0) @db.Decimal(12, 2)
+  /// Tax remitted to the Revenue Department for this employee-month,
+  /// regardless of who bears it. `netPay` subtracts it only when the employee
+  /// bears it — see Employee.taxBorneByEmployer.
+  deductTax        Decimal @default(0) @db.Decimal(12, 2)
 
   netPay Decimal @db.Decimal(12, 2)
 
@@ -943,6 +966,10 @@ model PayrollConfig {
   ssoSalaryCap          Decimal @db.Decimal(12, 2)
   /// Cap on the monthly SSO deduction itself. See ssoSalaryCap above.
   ssoAmountCap          Decimal @db.Decimal(12, 2)
+  /// Master switch for withholding tax. False = `deductTax` is always 0 and
+  /// Tax adjustments are ignored, so shipping the feature changes nothing
+  /// until an admin turns it on.
+  whtEnabled            Boolean @default(false)
   /// Overtime multiplier (1.5 = OT pays 1.5× regular).
   otMultiplier          Decimal @db.Decimal(3, 2)
   /// Days/month used to derive an hourly wage from a monthly salary for OT
