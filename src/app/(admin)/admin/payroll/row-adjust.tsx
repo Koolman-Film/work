@@ -22,7 +22,7 @@ import { MonthPicker } from '@/components/ui/month-picker';
 
 export type RowAdjustment = {
   id: string;
-  kind: 'Income' | 'Deduction';
+  kind: 'Income' | 'Deduction' | 'Tax';
   reason: string;
   /** Pre-formatted "฿1,500.00" — Decimal never crosses to the client. */
   amountLabel: string;

@@ -109,6 +109,7 @@ async function gatherAndCalc(db: Tx | typeof prisma, month: string, employeeId?:
       salaryType: true,
       baseSalary: true,
       hasSso: true,
+      taxBorneByEmployer: true,
       allowanceAmount: true,
       // For derived absence: never before they were hired, and never for an
       // employee with no schedule (assuming Mon-Sat would charge a day's pay for
@@ -389,6 +390,7 @@ async function gatherAndCalc(db: Tx | typeof prisma, month: string, employeeId?:
           salaryType: emp.salaryType,
           baseSalary: emp.baseSalary.toString(),
           hasSso: emp.hasSso,
+          taxBorneByEmployer: emp.taxBorneByEmployer,
           allowanceAmount: emp.allowanceAmount.toString(),
         },
         attendances: (attByEmp.get(emp.id) ?? []).map(
@@ -413,6 +415,7 @@ async function gatherAndCalc(db: Tx | typeof prisma, month: string, employeeId?:
           ssoRate: config.ssoRate.toString(),
           ssoSalaryCap: config.ssoSalaryCap.toString(),
           ssoAmountCap: config.ssoAmountCap.toString(),
+          whtEnabled: config.whtEnabled,
           absentDeductionPerDay: config.absentDeductionPerDay.toString(),
           lateDeduction: config.lateDeduction.toString(),
           earlyLeaveDeduction: config.earlyLeaveDeduction.toString(),

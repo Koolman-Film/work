@@ -13,6 +13,10 @@ import type { ReasonSuggestions } from './_reason-options';
 /** Common starter reasons, by kind. Merged with previously-used reasons from
  *  the DB to populate the รายการ combobox — admins pick one or type a new one. */
 const PRESET_REASONS: ReasonSuggestions = {
+  // Empty until M2 gives the form a Tax option. One preset, not a list:
+  // a tax line is the same line every month, and offering variants would
+  // invite free-text drift in the one field ภ.ง.ด.1 has to group by.
+  Tax: [],
   Income: ['ค่าคอมมิชชั่น', 'โบนัส', 'ค่าตำแหน่ง', 'เบี้ยขยัน', 'ค่าน้ำมัน', 'ค่าเดินทาง', 'เงินช่วยเหลือ'],
   Deduction: [
     'หักค่าชุดฟอร์ม',
@@ -37,7 +41,7 @@ export type EmployeeOption = { id: string; label: string };
 
 export type AdjustmentInitial = {
   employeeId: string;
-  kind: 'Income' | 'Deduction';
+  kind: 'Income' | 'Deduction' | 'Tax';
   reason: string;
   /** Decimal as plain string ("1500.50"). */
   amount: string;
@@ -81,7 +85,7 @@ export function AdjustmentForm({
   );
   // `kind` is controlled so the รายการ suggestions can swap between income and
   // deduction presets as the radio changes.
-  const [kind, setKind] = useState<'Income' | 'Deduction'>(initial?.kind ?? 'Income');
+  const [kind, setKind] = useState<'Income' | 'Deduction' | 'Tax'>(initial?.kind ?? 'Income');
 
   // Presets + previously-used reasons for the current kind, deduped, preserving
   // preset order first.

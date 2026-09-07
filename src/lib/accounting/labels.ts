@@ -15,6 +15,8 @@ export const JOURNAL_LINE_LABEL: Record<JournalLineKind, string> = {
   DebtRecovery: 'หักชำระหนี้อื่น',
   OtherDeduction: 'เงินหักอื่น',
   NetPayable: 'เงินเดือนค้างจ่าย (ยอดสุทธิ)',
+  WhtPayable: 'ภาษีหัก ณ ที่จ่ายค้างนำส่ง',
+  WhtExpense: 'ภาษีหัก ณ ที่จ่าย – นายจ้างออกให้',
 };
 
 /** Debit kinds first, matching posting order on the preview and the sheet. */
@@ -23,7 +25,9 @@ export const JOURNAL_LINE_ORDER: JournalLineKind[] = [
   'AllowanceExpense',
   'OtherIncomeExpense',
   'SsoEmployerExpense',
+  'WhtExpense',
   'SsoPayable',
+  'WhtPayable',
   'AdvanceRecovery',
   'AttendancePenalty',
   'LeaveDeduction',

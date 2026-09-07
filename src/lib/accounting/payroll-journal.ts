@@ -102,6 +102,11 @@ const SIDE: Record<JournalLineKind, 1 | -1> = {
   DebtRecovery: -1,
   OtherDeduction: -1,
   NetPayable: -1,
+  // A liability to the Revenue Department, owed whoever bears the tax.
+  WhtPayable: -1,
+  // Only when the company bears it (นายจ้างออกภาษีให้); when the employee
+  // bears it the money comes out of their pay and is not an extra expense.
+  WhtExpense: 1,
 };
 
 export function buildPayrollJournal(args: {

@@ -85,6 +85,17 @@ export type EmployeeForPayroll = {
    */
   hasSso: boolean;
   /**
+   * นายจ้างออกภาษีให้ — the company bears this person's withholding tax
+   * rather than deducting it from their pay.
+   *
+   * REQUIRED, not optional-with-default, for the same reason as `hasSso` and
+   * `allowanceAmount`. A missed call site here silently OVERPAYS the employee
+   * and under-reports to the Revenue Department — two failures that surface
+   * months apart, at filing time. There is exactly one non-test caller
+   * (run.ts), so requiring it costs one line and buys a compile error.
+   */
+  taxBorneByEmployer: boolean;
+  /**
    * Nameable recurring allowance (Employee.allowanceAmount) — "เงินประจำตำแหน่ง"
    * and anything like it. Paid as its own income line.
    *
@@ -103,10 +114,15 @@ export type EmployeeForPayroll = {
 /**
  * An admin-entered earning/deduction (PayrollAdjustment) already filtered
  * to this pay-period month by the caller (see adjustments.ts). Income kinds
- * sum into incomeOther; Deduction kinds into deductOther.
+ * sum into incomeOther; Deduction kinds into deductOther; Tax kinds into
+ * deductTax.
+ *
+ * Tax is its own kind rather than a Deduction with a special reason because
+ * ภ.ง.ด.1 has to be able to ask "what tax was withheld from this person this
+ * month" and get an exact number. A free-text reason cannot answer that.
  */
 export type AdjustmentForPayroll = {
-  kind: 'Income' | 'Deduction';
+  kind: 'Income' | 'Deduction' | 'Tax';
   amount: string | number | Decimal;
 };
 
@@ -138,6 +154,15 @@ export type ConfigForPayroll = {
   ssoRate: string | number | Decimal;
   ssoSalaryCap: string | number | Decimal;
   ssoAmountCap: string | number | Decimal;
+  /**
+   * `PayrollConfig.whtEnabled`. When false, `deductTax` is 0 and Tax-kind
+   * adjustments are ignored entirely.
+   *
+   * Required rather than defaulting to false: a default would make "tax
+   * silently not applied" the behaviour of a forgotten call site, which is
+   * indistinguishable from "this employee owes no tax".
+   */
+  whtEnabled: boolean;
   absentDeductionPerDay: string | number | Decimal;
   lateDeduction: string | number | Decimal;
   earlyLeaveDeduction: string | number | Decimal;
@@ -259,6 +284,8 @@ export type PayrollDraft = {
   deductLeave: Decimal;
   /** Sum of Deduction-kind adjustments (เงินลด). */
   deductOther: Decimal;
+  /** Tax remitted to the RD (ภาษีหัก ณ ที่จ่าย), whoever bears it. */
+  deductTax: Decimal;
 
   netPay: Decimal;
 
@@ -581,6 +608,11 @@ export function calcPayroll(input: CalcInput): PayrollDraft {
     deductDebt,
     deductLeave,
     deductOther,
+    // Placeholder so this commit compiles; the bucket lands in the next
+    // one. Kept explicit rather than folded in early so that the commit
+    // which starts recording tax is also the first that can change a
+    // figure — this one provably cannot.
+    deductTax: new Decimal(0),
     netPay,
     breakdown,
   };
