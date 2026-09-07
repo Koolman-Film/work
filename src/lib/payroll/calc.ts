@@ -552,6 +552,12 @@ export function calcPayroll(input: CalcInput): PayrollDraft {
   // employee somehow owes the company more than their salary), but
   // surface it as an error case the caller can choose to handle —
   // typically by capping at zero AND alerting the admin.
+  // Whoever bears the tax, `deductTax` records what was remitted to the RD.
+  // Only the employee-borne case comes off take-home; when the company bears
+  // it (นายจ้างออกภาษีให้) the amount is still reported on ภ.ง.ด.1 and still
+  // reaches the ledger, as an expense rather than a deduction.
+  const taxWithheldFromPay = input.employee.taxBorneByEmployer ? new Decimal(0) : deductTax;
+
   const netPay = incomeBase
     .plus(incomeAllowance)
     .plus(incomeOther)
@@ -561,6 +567,7 @@ export function calcPayroll(input: CalcInput): PayrollDraft {
     .minus(deductDebt)
     .minus(deductLeave)
     .minus(deductOther)
+    .minus(taxWithheldFromPay)
     .toDecimalPlaces(2);
 
   const breakdown: CalcBreakdown = {

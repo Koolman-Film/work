@@ -110,3 +110,56 @@ describe('withholding tax — bucketing', () => {
     expect(d.incomeOther.toString()).toBe('500');
   });
 });
+
+describe('withholding tax — who bears it', () => {
+  it('reduces netPay when the employee bears the tax', () => {
+    const d = calcPayroll(
+      input({ taxBorneByEmployer: false, adjustments: [{ kind: 'Tax', amount: '1250' }] }),
+    );
+    expect(d.netPay.toString()).toBe('28750'); // 30000 − 1250
+  });
+
+  it('leaves netPay alone when the company bears the tax', () => {
+    const d = calcPayroll(
+      input({ taxBorneByEmployer: true, adjustments: [{ kind: 'Tax', amount: '1250' }] }),
+    );
+    expect(d.netPay.toString()).toBe('30000');
+  });
+
+  it('records the same deductTax either way', () => {
+    const withheld = calcPayroll(
+      input({ taxBorneByEmployer: false, adjustments: [{ kind: 'Tax', amount: '1250' }] }),
+    );
+    const borne = calcPayroll(
+      input({ taxBorneByEmployer: true, adjustments: [{ kind: 'Tax', amount: '1250' }] }),
+    );
+    // deductTax is what was remitted to the RD, not what came off the payslip.
+    // ภ.ง.ด.1 reports it in both cases; only take-home differs.
+    expect(withheld.deductTax.toString()).toBe('1250');
+    expect(borne.deductTax.toString()).toBe('1250');
+    expect(withheld.netPay.toString()).not.toBe(borne.netPay.toString());
+  });
+
+  it('does not touch netPay when whtEnabled is false, whoever bears it', () => {
+    const d = calcPayroll(
+      input({
+        whtEnabled: false,
+        taxBorneByEmployer: false,
+        adjustments: [{ kind: 'Tax', amount: '1250' }],
+      }),
+    );
+    expect(d.netPay.toString()).toBe('30000');
+  });
+
+  it('stacks with other deductions rather than replacing them', () => {
+    const d = calcPayroll(
+      input({
+        adjustments: [
+          { kind: 'Tax', amount: '1250' },
+          { kind: 'Deduction', amount: '300' },
+        ],
+      }),
+    );
+    expect(d.netPay.toString()).toBe('28450'); // 30000 − 1250 − 300
+  });
+});
