@@ -35,7 +35,7 @@ export default async function AccountingPage({ searchParams }: { searchParams: S
     <div className="p-4">
       <PageHeader
         breadcrumb="บัญชี"
-        title="สมุดรายวันเงินเดือน"
+        title="ส่งออกบัญชีเงินเดือน"
         subtitle="สรุปรายการบัญชีของเงินเดือนที่ประกาศแล้ว เพื่อนำเข้าโปรแกรมบัญชี"
         actions={
           canMap ? (
@@ -48,7 +48,7 @@ export default async function AccountingPage({ searchParams }: { searchParams: S
 
       {!branchId && (
         <div className="surface mt-4">
-          <EmptyState title="เลือกสาขาเพื่อดูสมุดรายวัน" hint="แต่ละสาขามีผังบัญชีของตัวเอง" />
+          <EmptyState title="เลือกสาขาเพื่อดูรายการบัญชี" hint="แต่ละสาขามีผังบัญชีของตัวเอง" />
         </div>
       )}
 
@@ -59,7 +59,7 @@ export default async function AccountingPage({ searchParams }: { searchParams: S
         >
           {result.reason === 'no-payrolls' && (
             <p>
-              ไม่มีเงินเดือนที่ประกาศแล้วในเดือน {monthLabelTh(month)} — สมุดรายวันจะสร้างจากรอบที่
+              ไม่มีเงินเดือนที่ประกาศแล้วในเดือน {monthLabelTh(month)} — รายการบัญชีจะสร้างจากรอบที่
               <span className="font-medium"> ประกาศแล้ว </span>เท่านั้น
             </p>
           )}

@@ -105,7 +105,7 @@ export const PERMISSIONS = {
   // other. `accounting.map` is the riskier of the two — a wrong account code
   // silently misposts every future month.
   'accounting.read': 'ดูหน้าบัญชี',
-  'accounting.export': 'ดาวน์โหลดสมุดรายวันเงินเดือน',
+  'accounting.export': 'ส่งออกบัญชีเงินเดือน',
   'accounting.map': 'ตั้งค่าผังบัญชี',
 
   // ─── LIFF (employee-facing actions) ──────────────────────────────────

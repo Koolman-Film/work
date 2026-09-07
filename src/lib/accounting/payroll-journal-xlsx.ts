@@ -6,7 +6,12 @@ import type { JournalEntry } from './payroll-journal';
 const FONT = 'IBM Plex Sans Thai';
 
 /**
- * The payroll journal as a spreadsheet.
+ * บัญชีเงินเดือน — the payroll journal as a spreadsheet.
+ *
+ * The worksheet is named บัญชีเงินเดือน to match the page, rather than the
+ * conventional accounting book name สมุดรายวันทั่วไป. A worksheet label naming
+ * an ACTION ("ส่งออก…") would read as an instruction rather than content, so
+ * the verb is dropped and the noun kept.
  *
  * XLSX rather than CSV on purpose: it sidesteps every Thai encoding problem at
  * once (no BOM question, no TIS-620 vs UTF-8), and it is the format Thai
@@ -46,7 +51,7 @@ function postingDate(month: string): string {
 
 export async function buildPayrollJournalXlsx(entry: JournalEntry): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
-  const ws = wb.addWorksheet('สมุดรายวันทั่วไป');
+  const ws = wb.addWorksheet('บัญชีเงินเดือน');
 
   const docNo = `PAY-${entry.month}`;
   const date = postingDate(entry.month);

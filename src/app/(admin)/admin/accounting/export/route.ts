@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
   }
 
   const buf = await buildPayrollJournalXlsx(result.entry);
-  const filename = `สมุดรายวันเงินเดือน_${result.entry.branchName}_${month}.xlsx`;
+  const filename = `บัญชีเงินเดือน_${result.entry.branchName}_${month}.xlsx`;
   return new NextResponse(new Uint8Array(buf), {
     headers: {
       'Content-Type': XLSX,

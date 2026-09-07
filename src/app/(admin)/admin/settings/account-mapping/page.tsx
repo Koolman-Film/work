@@ -32,7 +32,7 @@ export default async function AccountMappingPage({ searchParams }: { searchParam
       <PageHeader
         breadcrumb="ตั้งค่า"
         title="ผังบัญชีเงินเดือน"
-        subtitle="ผูกรายการเงินเดือนแต่ละประเภทเข้ากับรหัสบัญชีของสาขา — ใช้ตอนสร้างสมุดรายวัน"
+        subtitle="ผูกรายการเงินเดือนแต่ละประเภทเข้ากับรหัสบัญชีของสาขา — ใช้ตอนส่งออกบัญชีเงินเดือน"
       />
 
       {/* Branch-scoped because the branches are separate registered companies
