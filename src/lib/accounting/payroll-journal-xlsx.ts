@@ -41,7 +41,17 @@ const baht = (satang: number) => satang / 100;
 
 /** Last calendar day of the payroll month — when payroll is booked. Built from
  *  the `YYYY-MM` string rather than a Date, so a server in any timezone
- *  produces the same document date. */
+ *  produces the same document date.
+ *
+ *  DELIBERATELY GREGORIAN, while the memo beside it is Buddhist (`มิถุนายน
+ *  2569` for the same month). The two are read by different things: this
+ *  column is parsed by whatever imports the file, where an unmarked พ.ศ. year
+ *  is not a labelling choice but a date 543 years in the future; the memo is
+ *  read by a person, for whom ค.ศ. is the odd one. Splitting them is the only
+ *  way to be right for both readers.
+ *
+ *  Pinned by payroll-journal-xlsx.test.ts, because "make these consistent"
+ *  is exactly the tidy-up a future reader would make on sight. */
 function postingDate(month: string): string {
   const [y, m] = month.split('-').map(Number);
   if (!y || !m) return month;
