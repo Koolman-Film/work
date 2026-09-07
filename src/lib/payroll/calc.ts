@@ -452,6 +452,18 @@ export function calcPayroll(input: CalcInput): PayrollDraft {
     adjustments.filter((a) => a.kind === 'Deduction').map((a) => ({ value: a.amount })),
   ).toDecimalPlaces(2);
 
+  // Tax-kind adjustments (ภาษีหัก ณ ที่จ่าย) get their own bucket, never
+  // folded into deductOther: ภ.ง.ด.1 asks what tax was withheld from this
+  // person this month and has to get a number that is only tax.
+  //
+  // The switch is checked HERE rather than at the call site so that turning
+  // withholding off cannot leave a half-applied figure anywhere downstream.
+  const deductTax = input.config.whtEnabled
+    ? sumDec(
+        adjustments.filter((a) => a.kind === 'Tax').map((a) => ({ value: a.amount })),
+      ).toDecimalPlaces(2)
+    : new Decimal(0);
+
   // SSO deduction — compute parts once, use `.applied` as the bucket.
   const ssoParts = input.employee.hasSso
     ? calcSsoParts(baseSalary, input.config)
@@ -608,11 +620,7 @@ export function calcPayroll(input: CalcInput): PayrollDraft {
     deductDebt,
     deductLeave,
     deductOther,
-    // Placeholder so this commit compiles; the bucket lands in the next
-    // one. Kept explicit rather than folded in early so that the commit
-    // which starts recording tax is also the first that can change a
-    // figure — this one provably cannot.
-    deductTax: new Decimal(0),
+    deductTax,
     netPay,
     breakdown,
   };
