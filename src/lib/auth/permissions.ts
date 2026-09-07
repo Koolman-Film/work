@@ -98,6 +98,16 @@ export const PERMISSIONS = {
   'filing.read': 'ดูหน้ายื่นแบบ (ประกันสังคม/ภาษี)',
   'filing.export': 'ดาวน์โหลดไฟล์ยื่นแบบ',
 
+  // ─── Accounting ──────────────────────────────────────────────────────
+  // Separate from filing.* because the audiences differ: a statutory filing
+  // goes to a government portal, a journal goes to the company's own books,
+  // and the person trusted with one is not automatically trusted with the
+  // other. `accounting.map` is the riskier of the two — a wrong account code
+  // silently misposts every future month.
+  'accounting.read': 'ดูหน้าบัญชี',
+  'accounting.export': 'ดาวน์โหลดสมุดรายวันเงินเดือน',
+  'accounting.map': 'ตั้งค่าผังบัญชี',
+
   // ─── LIFF (employee-facing actions) ──────────────────────────────────
   'liff.check-in': 'เช็คอิน/เช็คเอาท์',
   'liff.leave-submit': 'ยื่นคำขอลา',
@@ -229,6 +239,11 @@ export const PERMISSION_GROUPS: ReadonlyArray<{
     key: 'filing',
     label: 'ยื่นแบบ',
     permissions: ['filing.read', 'filing.export'],
+  },
+  {
+    key: 'accounting',
+    label: 'บัญชี',
+    permissions: ['accounting.read', 'accounting.export', 'accounting.map'],
   },
   {
     key: 'misc',

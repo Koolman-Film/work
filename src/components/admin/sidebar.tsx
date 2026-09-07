@@ -157,7 +157,13 @@ const SECTIONS: ReadonlyArray<{ label: string; items: ReadonlyArray<NavItem> }> 
         enabled: true,
         permission: 'filing.read',
       },
-      { href: '/admin/accounting', label: 'บัญชี', Icon: Calculator }, // disabled — "coming soon" placeholder
+      {
+        href: '/admin/accounting',
+        label: 'บัญชี',
+        Icon: Calculator,
+        enabled: true,
+        permission: 'accounting.read',
+      },
     ],
   },
   {
