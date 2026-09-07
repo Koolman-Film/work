@@ -501,6 +501,7 @@ function draftValues(draft: PayrollDraft) {
     deductLeave: new Prisma.Decimal(draft.deductLeave.toFixed(2)),
     deductDebt: new Prisma.Decimal(draft.deductDebt.toFixed(2)),
     deductOther: new Prisma.Decimal(draft.deductOther.toFixed(2)),
+    deductTax: new Prisma.Decimal(draft.deductTax.toFixed(2)),
     netPay: new Prisma.Decimal(draft.netPay.toFixed(2)),
   };
 }

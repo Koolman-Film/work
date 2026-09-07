@@ -163,3 +163,21 @@ describe('withholding tax — who bears it', () => {
     expect(d.netPay.toString()).toBe('28450'); // 30000 − 1250 − 300
   });
 });
+
+describe('withholding tax — recalculation', () => {
+  it('is idempotent: recalculating a month yields the same figures', () => {
+    // The property the whole adjustment-as-input design exists to protect.
+    // If tax ever moves onto the Payroll row, this is the test that breaks.
+    const args = input({ adjustments: [{ kind: 'Tax', amount: '1250' }] });
+    const first = calcPayroll(args);
+    const second = calcPayroll(args);
+    expect(second.deductTax.toString()).toBe(first.deductTax.toString());
+    expect(second.netPay.toString()).toBe(first.netPay.toString());
+  });
+
+  it('rounds a fractional tax figure to satang, once', () => {
+    const d = calcPayroll(input({ adjustments: [{ kind: 'Tax', amount: '1250.555' }] }));
+    expect(d.deductTax.toString()).toBe('1250.56');
+    expect(d.netPay.toString()).toBe('28749.44'); // 30000 − 1250.56
+  });
+});

@@ -202,6 +202,13 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
           r.deductLeave.toFixed(2) !== f.deductLeave.toFixed(2) ||
           r.deductDebt.toFixed(2) !== f.deductDebt.toFixed(2) ||
           r.deductOther.toFixed(2) !== f.deductOther.toFixed(2) ||
+          // deductTax must be compared EXPLICITLY — the netPay backstop below
+          // cannot cover it. Every other bucket feeds netPay, which is why that
+          // backstop works; deductTax is the first that does not. Under
+          // นายจ้างออกภาษีให้ the company bears the tax, so the figure can change
+          // while netPay stays identical, and an edited tax amount would leave
+          // the draft reading as fresh and never be recalculated.
+          r.deductTax.toFixed(2) !== f.deductTax.toFixed(2) ||
           // Backstop: netPay is the sum of every bucket, so comparing it flags
           // drift in a component nobody remembered to add to the list above.
           // incomeAllowance was exactly that gap — a row whose allowance had
