@@ -62,8 +62,17 @@ export function Topbar({ userLabel, userId }: Props) {
         // clipped, above the bar. This paints the canvas colour across that
         // strip so content disappears BEHIND the shell instead of above it.
         // Scoped to lg: the mobile bar is flush and has no gap to cover.
+        //
+        // `bottom-[calc(100%+1px)]`, NOT `bottom-full`. An absolutely
+        // positioned child is laid out against its containing block's PADDING
+        // box, so `bottom: 100%` lands the strip's lower edge at the top of
+        // the padding box — one pixel INSIDE the border box, i.e. directly on
+        // top of the 1px top border, painting canvas colour over it. The bar
+        // then reads as if its top edge had been cropped off, while the
+        // sidebar beside it (which has no such strip) keeps a crisp border.
+        // The +1px is that border width; it must track `lg:border` above.
         'lg:before:pointer-events-none lg:before:absolute lg:before:inset-x-0',
-        'lg:before:bottom-full lg:before:h-4 lg:before:bg-canvas',
+        'lg:before:bottom-[calc(100%+1px)] lg:before:h-4 lg:before:bg-canvas',
       )}
     >
       <div className="flex min-w-0 items-center gap-2">
