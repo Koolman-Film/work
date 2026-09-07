@@ -16,6 +16,10 @@ import { Prisma, PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 type Sample = {
+  /// คำนำหน้าชื่อ. Seeded because the สปส.1-10 export refuses to emit a file
+  /// while any included employee is missing one — without it a fresh local
+  /// stack hits a 422 that looks like a bug rather than missing data.
+  titlePrefix: 'Mr' | 'Mrs' | 'Miss';
   firstName: string;
   lastName: string;
   nickname?: string;
@@ -27,6 +31,7 @@ type Sample = {
 
 const SAMPLES: Sample[] = [
   {
+    titlePrefix: 'Mr',
     firstName: 'สมชาย',
     lastName: 'ใจดี',
     nickname: 'ชาย',
@@ -36,6 +41,7 @@ const SAMPLES: Sample[] = [
     hiredAt: '2024-03-01',
   },
   {
+    titlePrefix: 'Mrs',
     firstName: 'สมหญิง',
     lastName: 'รักงาน',
     nickname: 'หญิง',
@@ -45,6 +51,7 @@ const SAMPLES: Sample[] = [
     hiredAt: '2024-06-15',
   },
   {
+    titlePrefix: 'Mr',
     firstName: 'ปิติ',
     lastName: 'มั่นคง',
     nickname: 'ติ',
@@ -54,6 +61,7 @@ const SAMPLES: Sample[] = [
     hiredAt: '2026-05-01',
   },
   {
+    titlePrefix: 'Mrs',
     firstName: 'มาลี',
     lastName: 'สวยงาม',
     nickname: 'ลี',
@@ -63,6 +71,7 @@ const SAMPLES: Sample[] = [
     hiredAt: '2023-11-20',
   },
   {
+    titlePrefix: 'Mr',
     firstName: 'วีระ',
     lastName: 'กล้าหาญ',
     nickname: 'รา',
@@ -72,6 +81,7 @@ const SAMPLES: Sample[] = [
     hiredAt: '2025-01-10',
   },
   {
+    titlePrefix: 'Miss',
     firstName: 'นภา',
     lastName: 'ฟ้าใส',
     nickname: 'ปุย',
@@ -81,6 +91,7 @@ const SAMPLES: Sample[] = [
     hiredAt: '2026-04-15',
   },
   {
+    titlePrefix: 'Mr',
     firstName: 'ธนา',
     lastName: 'ทรัพย์ดี',
     nickname: 'โน้ต',
@@ -90,6 +101,7 @@ const SAMPLES: Sample[] = [
     hiredAt: '2022-08-05',
   },
   {
+    titlePrefix: 'Mr',
     firstName: 'กานต์',
     lastName: 'ดีงาม',
     salaryType: 'Daily',
@@ -98,6 +110,7 @@ const SAMPLES: Sample[] = [
     hiredAt: '2024-09-30',
   },
   {
+    titlePrefix: 'Miss',
     firstName: 'ศิริพร',
     lastName: 'มงคล',
     nickname: 'ศิ',
@@ -107,6 +120,7 @@ const SAMPLES: Sample[] = [
     hiredAt: '2025-02-18',
   },
   {
+    titlePrefix: 'Miss',
     firstName: 'อนงค์',
     lastName: 'พรหมมา',
     nickname: 'นงค์',
@@ -163,6 +177,7 @@ async function main() {
       const u = await tx.user.create({ data: {} });
       await tx.employee.create({
         data: {
+          titlePrefix: s.titlePrefix,
           userId: u.id,
           firstName: s.firstName,
           lastName: s.lastName,

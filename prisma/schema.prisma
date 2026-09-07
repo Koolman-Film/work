@@ -66,6 +66,16 @@ enum CheckInStatus {
   Rejected
 }
 
+/// คำนำหน้าชื่อ. A closed set because it lands in statutory files: สปส.1-10's
+/// upload template wants the Thai WORD (นาย / นาง / นางสาว) while ภ.ง.ด.1 wants
+/// the same concept as a 3-digit code, and only a closed set maps to both.
+/// Rare titles (ว่าที่ร้อยตรี, ดร.) are out of scope by design.
+enum TitlePrefix {
+  Mr
+  Mrs
+  Miss
+}
+
 enum SalaryType {
   Monthly
   Daily
@@ -308,6 +318,10 @@ model Branch {
   /// SSO employer account number (เลขที่บัญชีนายจ้าง) for this branch's
   /// สปส.1-10 filing. Nullable — required before this branch can export.
   ssoAccountNo      String?
+  /// SSO-assigned branch SEQUENCE number, e.g. "000000" for a head office.
+  /// NOT the same as `ssoAccountNo`. The สปส.1-10 upload template requires the
+  /// worksheet to be NAMED for this value, so the export refuses without it.
+  ssoBranchNo       String?
   address           String?
   // Null lat/lng = no geofence enforcement on LIFF check-in.
   latitude          Decimal?  @db.Decimal(10, 7)
@@ -385,9 +399,13 @@ model Employee {
   userId String @unique @db.Uuid
   user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
 
-  firstName String
-  lastName  String
-  nickname  String?
+  /// คำนำหน้าชื่อ. Nullable because it did not exist before migration 0048;
+  /// the สปส.1-10 export refuses to emit a file while any included employee is
+  /// missing it, rather than filing a blank into a statutory column.
+  titlePrefix TitlePrefix?
+  firstName   String
+  lastName    String
+  nickname    String?
 
   /// 13-digit Thai national ID (เลขประจำตัวประชาชน). Nullable — backfilled by
   /// admins; required before an employee appears in a สปส.1-10 export.

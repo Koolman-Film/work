@@ -22,6 +22,9 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': resolve(__dirname, './src'),
+      // `server-only` throws on import by design. Stub it so server modules —
+      // notably the statutory export builders — can be unit-tested at all.
+      'server-only': resolve(__dirname, './src/test/server-only-stub.ts'),
     },
   },
   test: {

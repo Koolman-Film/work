@@ -105,6 +105,14 @@ const BranchSchema = z
       .max(30)
       .optional()
       .transform((s) => (s ? s : null)),
+    // Kept as text, not an int: leading zeros are significant ("000000" is a
+    // head office) and this value becomes a worksheet NAME verbatim.
+    ssoBranchNo: z
+      .string()
+      .trim()
+      .max(10)
+      .optional()
+      .transform((s) => (s ? s : null)),
   })
   .refine((d) => (d.latitude == null) === (d.longitude == null), {
     message: 'ต้องระบุพิกัดทั้ง lat และ lng หรือทั้งคู่ว่าง',
@@ -133,6 +141,7 @@ function readForm(formData: FormData) {
     payslipNameNative: get('payslipNameNative'),
     payslipLogoKey: get('payslipLogoKey'),
     ssoAccountNo: get('ssoAccountNo'),
+    ssoBranchNo: get('ssoBranchNo'),
   });
 }
 

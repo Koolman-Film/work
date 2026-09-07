@@ -1,9 +1,30 @@
 import 'server-only';
+import type { TitlePrefix } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
+
+/** The Thai word สปส.1-10's Excel template expects in `คำนำหน้าชื่อ`.
+ *  ภ.ง.ด.1 will want the same concept as a 3-digit code — a second map off the
+ *  same enum, not a second column. */
+const TITLE_TH: Record<TitlePrefix, string> = {
+  Mr: 'นาย',
+  Mrs: 'นาง',
+  Miss: 'นางสาว',
+};
+
+function titlePrefixTh(p: TitlePrefix | null): string | null {
+  return p ? TITLE_TH[p] : null;
+}
 
 export type SsoFilingRow = {
   employeeId: string;
   nationalId: string | null;
+  /// คำนำหน้าชื่อ as the Thai WORD the upload template wants (นาย / นาง /
+  /// นางสาว), null when the employee has none recorded.
+  titlePrefixTh: string | null;
+  firstName: string;
+  lastName: string;
+  /** Combined, for the on-screen table only. The upload template wants the
+   *  parts in separate columns. */
   name: string;
   wages: number;
   employeeContribution: number;
@@ -12,18 +33,23 @@ export type SsoFilingRow = {
 
 export type SsoFiling = {
   month: string;
-  branch: { id: string; name: string; ssoAccountNo: string | null };
+  branch: { id: string; name: string; ssoAccountNo: string | null; ssoBranchNo: string | null };
   rows: SsoFilingRow[];
   totals: { wages: number; employee: number; employer: number; grand: number; count: number };
   ratePercent: number;
-  problems: { missingNationalIds: number; missingBranchSso: boolean };
+  problems: {
+    missingNationalIds: number;
+    missingTitlePrefixes: number;
+    missingBranchSso: boolean;
+    missingBranchSsoNo: boolean;
+  };
 };
 
 export async function loadSsoFiling(month: string, branchId: string): Promise<SsoFiling | null> {
   const [branch, config, payrolls] = await Promise.all([
     prisma.branch.findUnique({
       where: { id: branchId },
-      select: { id: true, name: true, ssoAccountNo: true },
+      select: { id: true, name: true, ssoAccountNo: true, ssoBranchNo: true },
     }),
     prisma.payrollConfig.findFirst({ select: { ssoRate: true } }),
     prisma.payroll.findMany({
@@ -35,7 +61,15 @@ export async function loadSsoFiling(month: string, branchId: string): Promise<Ss
       select: {
         incomeBase: true,
         deductSso: true,
-        employee: { select: { id: true, firstName: true, lastName: true, nationalId: true } },
+        employee: {
+          select: {
+            id: true,
+            titlePrefix: true,
+            firstName: true,
+            lastName: true,
+            nationalId: true,
+          },
+        },
       },
     }),
   ]);
@@ -47,6 +81,9 @@ export async function loadSsoFiling(month: string, branchId: string): Promise<Ss
     return {
       employeeId: p.employee.id,
       nationalId: p.employee.nationalId,
+      titlePrefixTh: titlePrefixTh(p.employee.titlePrefix),
+      firstName: p.employee.firstName,
+      lastName: p.employee.lastName,
       name: `${p.employee.firstName} ${p.employee.lastName}`,
       // NOTE: wages = incomeBase, contribution = deductSso (computed on Employee.baseSalary).
       // Consistent only while incomeBase == baseSalary (V1, no proration in calc.ts).
@@ -81,7 +118,9 @@ export async function loadSsoFiling(month: string, branchId: string): Promise<Ss
     ratePercent,
     problems: {
       missingNationalIds: rows.filter((r) => !r.nationalId).length,
+      missingTitlePrefixes: rows.filter((r) => !r.titlePrefixTh).length,
       missingBranchSso: !branch.ssoAccountNo,
+      missingBranchSsoNo: !branch.ssoBranchNo,
     },
   };
 }
