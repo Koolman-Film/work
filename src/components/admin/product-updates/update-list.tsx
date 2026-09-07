@@ -1,7 +1,9 @@
 'use client';
 
+import { Sparkles } from 'lucide-react';
 import { useLocale } from 'next-intl';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { ActionLink } from '@/components/ui/action-link';
 import type { Locale } from '@/lib/i18n/config';
 import { type Inline, parseBody } from '@/lib/product-updates/rich-text';
 import { pickText } from '@/lib/product-updates/selectors';
@@ -82,13 +84,13 @@ export function UpdateList({ items, onStartTour, maxHeightClassName = 'max-h-[60
             </p>
             <Body source={pickText(item.body, locale)} />
             {item.tour && (
-              <button
-                type="button"
-                onClick={() => onStartTour(item.tour as string)}
-                className="mt-2 text-sm font-medium text-primary-700 transition hover:text-primary-800"
-              >
-                {pickText(UI.takeTheTourArrow, locale)}
-              </button>
+              <div className="mt-2">
+                <ActionLink
+                  onClick={() => onStartTour(item.tour as string)}
+                  label={pickText(UI.takeTheTour, locale)}
+                  icon={Sparkles}
+                />
+              </div>
             )}
           </li>
         ))}

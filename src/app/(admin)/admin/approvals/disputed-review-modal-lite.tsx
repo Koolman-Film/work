@@ -1,6 +1,7 @@
 'use client';
 
-import Link from 'next/link';
+import { MapPin } from 'lucide-react';
+import { ActionLink } from '@/components/ui/action-link';
 import { ReviewModal } from '@/components/ui/review-modal';
 import { approveDisputed, rejectDisputed } from '@/lib/attendance/admin-review';
 import type { DisputedReviewVM } from './disputed-review';
@@ -40,12 +41,13 @@ export function DisputedReviewModalLite({
             // biome-ignore lint/performance/noImgElement: signed-URL preview
             <img src={row.selfieUrl} alt="selfie" className="mt-2 max-h-48 rounded-lg" />
           )}
-          <Link
-            href="/admin/attendance/disputed"
-            className="inline-block pt-1 text-primary-700 hover:text-primary-800"
-          >
-            ดูแผนที่ / ดูรายละเอียดเต็ม →
-          </Link>
+          <div className="pt-2">
+            <ActionLink
+              href="/admin/attendance/disputed"
+              label="ดูแผนที่และรายละเอียดเต็ม"
+              icon={MapPin}
+            />
+          </div>
         </div>
       )}
     </ReviewModal>

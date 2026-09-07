@@ -12,8 +12,10 @@
  * into the action they need to take.
  */
 
+import { ArrowRight, ChevronRight, Users } from 'lucide-react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { ActionLink } from '@/components/ui/action-link';
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { KpiHero } from '@/components/ui/kpi-hero';
@@ -267,16 +269,16 @@ export default async function AdminHomePage() {
       {missingSchedule.length > 0 && (
         <p
           role="status"
-          className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900"
+          className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900"
         >
-          <span className="font-medium">{missingSchedule.length} คน</span> ยังไม่ได้ตั้งตารางงาน
-          อาจทำให้ตัวเลข "ยังไม่มา" คลาดเคลื่อน{' '}
-          <Link
-            href="/admin/employees"
-            className="font-medium underline decoration-amber-400 underline-offset-2 hover:text-amber-950"
-          >
-            ดูรายชื่อ →
-          </Link>
+          <span>
+            <span className="font-medium">{missingSchedule.length} คน</span> ยังไม่ได้ตั้งตารางงาน
+            อาจทำให้ตัวเลข "ยังไม่มา" คลาดเคลื่อน
+          </span>
+          {/* Lifted out of the sentence rather than left inline: a bordered
+              button mid-paragraph breaks the line it sits in, and the reader
+              has to finish the sentence before the action makes sense. */}
+          <ActionLink href="/admin/employees" label="ดูรายชื่อ" icon={Users} className="shrink-0" />
         </p>
       )}
 
@@ -302,7 +304,17 @@ export default async function AdminHomePage() {
             <StatCard
               label="คำขอลา รออนุมัติ"
               value={pendingLeaveCount}
-              hint={<span className="font-medium text-primary-700">ไปจัดการ →</span>}
+              // NOT an ActionLink: the whole StatCard is already wrapped in a
+              // <Link>, and a button or anchor inside an anchor is invalid and
+              // gives a screen reader two nested targets for one destination.
+              // It gets the icon so it still reads as an affordance, and stays
+              // inert markup so the card keeps being the single hit area.
+              hint={
+                <span className="inline-flex items-center gap-1 font-medium text-primary-700">
+                  ไปจัดการ
+                  <ChevronRight size={13} aria-hidden={true} />
+                </span>
+              }
             />
           </Link>
           <Link
@@ -312,7 +324,17 @@ export default async function AdminHomePage() {
             <StatCard
               label="คำขอเบิก รออนุมัติ"
               value={pendingAdvanceCount}
-              hint={<span className="font-medium text-primary-700">ไปจัดการ →</span>}
+              // NOT an ActionLink: the whole StatCard is already wrapped in a
+              // <Link>, and a button or anchor inside an anchor is invalid and
+              // gives a screen reader two nested targets for one destination.
+              // It gets the icon so it still reads as an affordance, and stays
+              // inert markup so the card keeps being the single hit area.
+              hint={
+                <span className="inline-flex items-center gap-1 font-medium text-primary-700">
+                  ไปจัดการ
+                  <ChevronRight size={13} aria-hidden={true} />
+                </span>
+              }
             />
           </Link>
         </div>
@@ -324,12 +346,7 @@ export default async function AdminHomePage() {
           <CardHeader className="flex items-center justify-between">
             <CardTitle>คำขอที่รอดำเนินการ</CardTitle>
             {pendingLeaveCount + pendingAdvanceCount > pendingRows.length && (
-              <Link
-                href="/admin/leave"
-                className="text-xs font-medium text-primary-700 hover:text-primary-800"
-              >
-                ดูทั้งหมด →
-              </Link>
+              <ActionLink href="/admin/leave" label="ดูทั้งหมด" icon={ArrowRight} />
             )}
           </CardHeader>
           <CardBody className="!p-0">

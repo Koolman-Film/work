@@ -30,13 +30,17 @@ export const UI = {
     'zh-CN': '新功能',
     km: 'អ្វីថ្មី',
   },
-  takeTheTourArrow: {
-    th: 'ดูทัวร์แนะนำ →',
-    en: 'Take the tour →',
-    my: 'လမ်းညွှန်ကြည့်ရန် →',
-    lo: 'ເບິ່ງທົວແນະນຳ →',
-    'zh-CN': '开始导览 →',
-    km: 'មើលដំណើរកម្សាន្ត →',
+  /** No trailing arrow: the control is a bordered button with a leading icon
+   *  now, and a typographic arrow inside it reads as a second, competing
+   *  affordance. Baking punctuation into six translations also made the arrow
+   *  a translator's problem rather than the layout's. */
+  takeTheTour: {
+    th: 'ดูทัวร์แนะนำ',
+    en: 'Take the tour',
+    my: 'လမ်းညွှန်ကြည့်ရန်',
+    lo: 'ເບິ່ງທົວແນະນຳ',
+    'zh-CN': '开始导览',
+    km: 'មើលដំណើរកម្សាន្ត',
   },
   tourNext: {
     th: 'ถัดไป',

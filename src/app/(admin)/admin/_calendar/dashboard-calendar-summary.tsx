@@ -6,7 +6,8 @@
  * /admin/calendar page. Pure server component — no interactivity, no client JS.
  */
 
-import Link from 'next/link';
+import { ArrowRight } from 'lucide-react';
+import { ActionLink } from '@/components/ui/action-link';
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
 import { Pill } from '@/components/ui/pill';
 import type { TeamCalendarData } from '@/lib/leave/team-calendar-shape';
@@ -74,12 +75,7 @@ export function DashboardCalendarSummary({
     <Card>
       <CardHeader className="flex items-center justify-between">
         <CardTitle>ปฏิทินงาน</CardTitle>
-        <Link
-          href="/admin/calendar"
-          className="text-xs font-medium text-primary-700 hover:text-primary-800"
-        >
-          ดูทั้งหมด →
-        </Link>
+        <ActionLink href="/admin/calendar" label="ดูทั้งหมด" icon={ArrowRight} />
       </CardHeader>
       <CardBody className="!p-0">
         {items.length === 0 ? (
