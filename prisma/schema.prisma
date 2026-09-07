@@ -929,9 +929,19 @@ model PayrollConfig {
   id                    String  @id @default(uuid()) @db.Uuid
   /// Social Security rate, e.g. 0.0500 = 5%.
   ssoRate               Decimal @db.Decimal(5, 4)
-  /// Cap on the base-salary value used for SSO calculation (₿15,000 per Thai law).
+  /// Cap on the base-salary value used for SSO calculation.
+  ///
+  /// These two comments used to read "₿15,000 per Thai law" and "₿750 per
+  /// Thai law". Both were wrong about what this system does: prod has run
+  /// 17,500 / 875 (at ssoRate 0.05, which is self-consistent) since seed, and
+  /// the ceiling is admin-editable at /admin/settings/payroll — so a schema
+  /// comment is the wrong place to assert it at all. Left as a bare
+  /// description on purpose: a reader who trusted the old number and
+  /// "corrected" the config back to 15,000 would silently under-deduct every
+  /// payslip. The current legal ceiling is a question for the gazette, and the
+  /// answer belongs in the PayrollConfig row, not here.
   ssoSalaryCap          Decimal @db.Decimal(12, 2)
-  /// Cap on the monthly SSO deduction itself (₿750 per Thai law).
+  /// Cap on the monthly SSO deduction itself. See ssoSalaryCap above.
   ssoAmountCap          Decimal @db.Decimal(12, 2)
   /// Overtime multiplier (1.5 = OT pays 1.5× regular).
   otMultiplier          Decimal @db.Decimal(3, 2)
