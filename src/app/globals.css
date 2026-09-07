@@ -487,6 +487,27 @@ tr[data-exiting='true'] { opacity: 0; }
   }
 }
 
+/* ── Native <select>, normalised to the other form controls ──────────────
+ *
+ * A select carries a UA-imposed intrinsic height that padding alone does not
+ * override: measured at 1280px, selects rendered 43px against the 38px of an
+ * Input with IDENTICAL padding, border, radius and font-size. Side by side in
+ * a filter bar, that mismatch is the first thing you notice.
+ *
+ * Only the height is set. `appearance: none` would also drop the UA chevron,
+ * which would then have to be redrawn as a background-image with a hardcoded
+ * colour — a replaced element cannot host a ::after, so currentColor is not
+ * available. This codebase has been bitten repeatedly by colours that cannot
+ * follow the theme; the UA chevron already follows it for free.
+ *
+ * Element-level on purpose. There are 40 raw <select>s across 20 files, and a
+ * new shared component would only fix the call sites someone remembers to
+ * migrate — the next hand-written select would be wrong again.
+ */
+select:not([multiple]):not([size]) {
+  height: 38px;
+}
+
 /* ── Reduced-motion: degrade everything to instant ─────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

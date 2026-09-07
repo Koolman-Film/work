@@ -85,7 +85,7 @@ export function MonthPicker({ id, name, defaultValue, min, max, className }: Pro
         }}
         aria-haspopup="dialog"
         aria-expanded={open}
-        className="flex w-full items-center justify-between gap-2 rounded-lg border border-line-strong bg-surface px-3 py-2 text-left text-sm text-ink-1 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+        className="flex min-h-[38px] w-full items-center justify-between gap-2 rounded-lg border border-line-strong bg-surface px-3 py-2 text-left text-sm text-ink-1 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
       >
         <span>{monthLabelTh(value)}</span>
         <svg

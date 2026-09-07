@@ -32,7 +32,11 @@ const variantClasses: Record<Variant, string> = {
 
 const sizeClasses: Record<Size, string> = {
   sm: 'px-2.5 py-1.5 text-xs',
-  md: 'px-4 py-2 text-sm',
+  // `min-h-[38px]` matches Input, the normalised <select> and MonthPicker.
+  // Same padding as Input already, but without an explicit floor a button
+  // lands at 36px and sits 2px proud of the fields beside it in a filter bar.
+  // sm and lg are deliberate scale steps and keep their intrinsic heights.
+  md: 'min-h-[38px] px-4 py-2 text-sm',
   lg: 'px-5 py-2.5 text-base',
 };
 
