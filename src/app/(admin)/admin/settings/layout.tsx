@@ -8,11 +8,11 @@ import { SettingsNav } from './settings-nav';
  * PageHeader + content padding.
  */
 export default async function SettingsLayout({ children }: { children: React.ReactNode }) {
-  const { permissions } = await requireAdminArea();
+  const { permissions, tier } = await requireAdminArea();
   return (
     <div className="lg:grid lg:grid-cols-[232px_1fr]">
       <aside className="border-b border-line-soft px-4 py-4 sm:px-6 lg:sticky lg:top-4 lg:self-start lg:border-b-0 lg:px-4 lg:py-6">
-        <SettingsNav allowedPermissions={[...permissions]} />
+        <SettingsNav allowedPermissions={[...permissions]} tier={tier} />
       </aside>
       <div className="min-w-0">
         <SectionFade>{children}</SectionFade>

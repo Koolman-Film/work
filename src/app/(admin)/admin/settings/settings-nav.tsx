@@ -1,5 +1,6 @@
 'use client';
 
+import type { Role } from '@prisma/client';
 import type { LucideIcon } from 'lucide-react';
 import {
   AlarmClock,
@@ -20,8 +21,16 @@ import { usePathname } from 'next/navigation';
 import { ADMIN_LINE_LINK_ENABLED } from '@/lib/auth/admin-line-feature';
 import type { Permission } from '@/lib/auth/permissions';
 import { cn } from '@/lib/utils';
+import { canSeeSettingsItem } from './settings-nav-visibility';
 
-type Item = { href: string; label: string; desc: string; Icon: LucideIcon; permission: Permission };
+/** `permission: null` = self-service entry, gated on Admin tier — see canSeeSettingsItem. */
+type Item = {
+  href: string;
+  label: string;
+  desc: string;
+  Icon: LucideIcon;
+  permission: Permission | null;
+};
 
 const ITEMS: Item[] = [
   {
@@ -102,6 +111,11 @@ const ITEMS: Item[] = [
     permission: 'role.read',
   },
   // Admin LINE link temporarily disabled — see ADMIN_LINE_LINK_ENABLED.
+  // Self-service: the page gates on Admin tier, so the link must too. It used
+  // to require `team.read`, which the `admin` role deliberately does NOT carry
+  // (admins are intentionally kept out of team management) — so the entry was
+  // invisible to every non-superadmin admin. Don't re-gate this on a team.*
+  // permission; grant nothing, gate on tier.
   ...(ADMIN_LINE_LINK_ENABLED
     ? [
         {
@@ -109,7 +123,7 @@ const ITEMS: Item[] = [
           label: 'LINE',
           desc: 'เชื่อมบัญชีแอดมิน',
           Icon: MessageCircle,
-          permission: 'team.read' as Permission,
+          permission: null,
         },
       ]
     : []),
@@ -120,9 +134,15 @@ const ITEMS: Item[] = [
  * with a section header and active accent bar), collapsing to a horizontally-
  * scrollable pill strip below lg so it stays usable on phones.
  */
-export function SettingsNav({ allowedPermissions }: { allowedPermissions: Permission[] }) {
+export function SettingsNav({
+  allowedPermissions,
+  tier,
+}: {
+  allowedPermissions: Permission[];
+  tier: Role | null;
+}) {
   const allowed = new Set(allowedPermissions);
-  const visible = ITEMS.filter((i) => allowed.has(i.permission));
+  const visible = ITEMS.filter((i) => canSeeSettingsItem(i, allowed, tier));
   const pathname = usePathname();
   return (
     <nav
