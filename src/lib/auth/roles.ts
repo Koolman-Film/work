@@ -121,6 +121,10 @@ export const SYSTEM_ROLES: Record<
       // Statutory filings (สปส.1-10 etc.) — backfilled to existing installs by migration 0038
       'filing.read',
       'filing.export',
+      // Accounting (payroll journal export) — backfilled by migration 0050
+      'accounting.read',
+      'accounting.export',
+      'accounting.map',
       // LIFF admin pages (LINE) — backfilled to existing installs by migration 0029
       'liff.admin',
     ],

@@ -66,6 +66,16 @@ enum CheckInStatus {
   Rejected
 }
 
+/// คำนำหน้าชื่อ. A closed set because it lands in statutory files: สปส.1-10's
+/// upload template wants the Thai WORD (นาย / นาง / นางสาว) while ภ.ง.ด.1 wants
+/// the same concept as a 3-digit code, and only a closed set maps to both.
+/// Rare titles (ว่าที่ร้อยตรี, ดร.) are out of scope by design.
+enum TitlePrefix {
+  Mr
+  Mrs
+  Miss
+}
+
 enum SalaryType {
   Monthly
   Daily
@@ -262,6 +272,53 @@ model Department {
 /// "แยกพนักงาน 2 กลุ่ม เพื่อการลงบัญชี" per requirement.docx —
 /// company-expense group vs paid-on-behalf/refundable group. PEAK CSV export
 /// in Phase 3 splits by this.
+/// One line of a payroll journal entry. Which SIDE each lands on is intrinsic
+/// — salary is always an expense, net pay is always a payable — so the mapping
+/// stores one account per kind rather than a debit/credit pair, and there is no
+/// configuration that can produce an unbalanced entry.
+enum JournalLineKind {
+  // Debits
+  SalaryExpense
+  AllowanceExpense
+  OtherIncomeExpense
+  SsoEmployerExpense
+  // Credits
+  SsoPayable
+  AdvanceRecovery
+  AttendancePenalty
+  LeaveDeduction
+  DebtRecovery
+  OtherDeduction
+  NetPayable
+  /// Withholding tax owed to the Revenue Department. Credited whoever bears
+  /// the tax — the liability is the company's either way.
+  WhtPayable
+  /// Withholding tax the company pays on an employee's behalf
+  /// (นายจ้างออกภาษีให้). Debited only in that case; when the employee bears
+  /// the tax it comes out of their pay and is not an extra expense.
+  WhtExpense
+}
+
+/// Chart-of-accounts mapping for the payroll journal export, per branch —
+/// the branches are separate registered companies with separate charts.
+model AccountMapping {
+  id          String          @id @default(uuid()) @db.Uuid
+  branchId    String          @db.Uuid
+  branch      Branch          @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  lineKind    JournalLineKind
+  /// Deliberately opaque TEXT. PEAK assigns its own 6-digit codes, FlowAccount
+  /// wants an internal numeric id, QuickBooks wants the account NAME — calling
+  /// this "the account code" would bake one vendor's model into the schema.
+  accountCode String
+  /// Optional human label, for the preview table and the exported memo column.
+  accountName String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([branchId, lineKind])
+}
+
 model AccountingGroup {
   id          String     @id @default(uuid()) @db.Uuid
   name        String     @unique
@@ -296,8 +353,8 @@ model Bank {
 }
 
 model Branch {
-  id                String    @id @default(uuid()) @db.Uuid
-  name              String    @unique
+  id                String           @id @default(uuid()) @db.Uuid
+  name              String           @unique
   /// English variant of the branch's own location name (e.g. "Chiang Mai").
   /// Null → fall back to `name`. Shown to non-Thai employees.
   nameEn            String?
@@ -308,19 +365,28 @@ model Branch {
   /// SSO employer account number (เลขที่บัญชีนายจ้าง) for this branch's
   /// สปส.1-10 filing. Nullable — required before this branch can export.
   ssoAccountNo      String?
+  /// SSO-assigned branch SEQUENCE number, e.g. "000000" for a head office.
+  /// NOT the same as `ssoAccountNo`. The สปส.1-10 upload template requires the
+  /// worksheet to be NAMED for this value, so the export refuses without it.
+  ssoBranchNo       String?
+  /// 13-digit employer tax ID (เลขประจำตัวผู้เสียภาษี). Nullable until entered.
+  taxId             String?
+  /// 5-digit RD branch number; "00000" is head office. Nullable until entered.
+  taxBranchNo       String?
+  accountMappings   AccountMapping[]
   address           String?
   // Null lat/lng = no geofence enforcement on LIFF check-in.
-  latitude          Decimal?  @db.Decimal(10, 7)
-  longitude         Decimal?  @db.Decimal(10, 7)
-  radiusMeters      Int       @default(150)
-  requireSelfie     Boolean   @default(false)
+  latitude          Decimal?         @db.Decimal(10, 7)
+  longitude         Decimal?         @db.Decimal(10, 7)
+  radiusMeters      Int              @default(150)
+  requireSelfie     Boolean          @default(false)
   /// When true, LIFF check-ins outside the geofence (or with bad GPS
   /// accuracy / impossible-travel) are marked `Disputed`. When false,
   /// the geofence is informational only — GPS is still recorded for
   /// the admin live board but doesn't gate the check-in.
   /// Default false: a fresh branch is GPS-optional until admin opts in.
   /// Existing branches are also set to false by migration 0005.
-  requireGps        Boolean   @default(false)
+  requireGps        Boolean          @default(false)
   /// When true, the LIFF widget prompts employees to tap "เช็คเอาท์" after
   /// their work day; when false, the check-in flow finishes at "เสร็จสิ้น"
   /// and the prompt disappears (employees can still tap an optional
@@ -328,11 +394,11 @@ model Branch {
   /// the `attendance-force-checkout-eod` cron, which still auto-closes any
   /// row without clockOutAt at 22:00 BKK regardless of branch policy.
   /// Default false; existing branches set to false by migration 0006.
-  requireCheckOut   Boolean   @default(false)
-  attendanceSource  AttSource @default(Liff)
+  requireCheckOut   Boolean          @default(false)
+  attendanceSource  AttSource        @default(Liff)
   archivedAt        DateTime?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
 
   employees          Employee[]           @relation("HomeBranch")
   attendanceCheckIns Attendance[]         @relation("CheckInBranch")
@@ -385,9 +451,13 @@ model Employee {
   userId String @unique @db.Uuid
   user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
 
-  firstName String
-  lastName  String
-  nickname  String?
+  /// คำนำหน้าชื่อ. Nullable because it did not exist before migration 0048;
+  /// the สปส.1-10 export refuses to emit a file while any included employee is
+  /// missing it, rather than filing a blank into a statutory column.
+  titlePrefix TitlePrefix?
+  firstName   String
+  lastName    String
+  nickname    String?
 
   /// 13-digit Thai national ID (เลขประจำตัวประชาชน). Nullable — backfilled by
   /// admins; required before an employee appears in a สปส.1-10 export.
@@ -438,6 +508,10 @@ model Employee {
   /// Payroll row at calc time, so published slips never change retroactively.
   /// Default false: admin explicitly ticks enrolled employees.
   hasSso               Boolean     @default(false)
+  /// นายจ้างออกภาษีให้ — the company pays this person's PIT rather than
+  /// withholding it. The tax is still reported and still reaches the ledger;
+  /// only take-home is unaffected.
+  taxBorneByEmployer   Boolean     @default(false)
 
   /// Nameable recurring extra pay. "เงินประจำตำแหน่ง" is the first use, but the
   /// label is the admin's to set — the request was "เพิ่มเงินพิเศษ (ที่กำหนดชื่อได้)",
@@ -709,6 +783,10 @@ model RecurringDeduction {
 enum AdjustmentKind {
   Income
   Deduction
+  /// ภาษีหัก ณ ที่จ่าย. Its own kind rather than a Deduction with a special
+  /// reason: ภ.ง.ด.1 has to ask what tax was withheld from one person in one
+  /// month and get a number that is only tax. Free text cannot answer that.
+  Tax
 }
 
 /// One-off or recurring earnings/deductions (เงินเพิ่ม/เงินลด) entered by
@@ -766,6 +844,10 @@ model Payroll {
   /// Sum of Deduction-kind PayrollAdjustments for the month (เงินลด).
   /// Income-kind adjustments land in incomeOther.
   deductOther      Decimal @default(0) @db.Decimal(12, 2)
+  /// Tax remitted to the Revenue Department for this employee-month,
+  /// regardless of who bears it. `netPay` subtracts it only when the employee
+  /// bears it — see Employee.taxBorneByEmployer.
+  deductTax        Decimal @default(0) @db.Decimal(12, 2)
 
   netPay Decimal @db.Decimal(12, 2)
 
@@ -870,10 +952,24 @@ model PayrollConfig {
   id                    String  @id @default(uuid()) @db.Uuid
   /// Social Security rate, e.g. 0.0500 = 5%.
   ssoRate               Decimal @db.Decimal(5, 4)
-  /// Cap on the base-salary value used for SSO calculation (₿15,000 per Thai law).
+  /// Cap on the base-salary value used for SSO calculation.
+  ///
+  /// These two comments used to read "₿15,000 per Thai law" and "₿750 per
+  /// Thai law". Both were wrong about what this system does: prod has run
+  /// 17,500 / 875 (at ssoRate 0.05, which is self-consistent) since seed, and
+  /// the ceiling is admin-editable at /admin/settings/payroll — so a schema
+  /// comment is the wrong place to assert it at all. Left as a bare
+  /// description on purpose: a reader who trusted the old number and
+  /// "corrected" the config back to 15,000 would silently under-deduct every
+  /// payslip. The current legal ceiling is a question for the gazette, and the
+  /// answer belongs in the PayrollConfig row, not here.
   ssoSalaryCap          Decimal @db.Decimal(12, 2)
-  /// Cap on the monthly SSO deduction itself (₿750 per Thai law).
+  /// Cap on the monthly SSO deduction itself. See ssoSalaryCap above.
   ssoAmountCap          Decimal @db.Decimal(12, 2)
+  /// Master switch for withholding tax. False = `deductTax` is always 0 and
+  /// Tax adjustments are ignored, so shipping the feature changes nothing
+  /// until an admin turns it on.
+  whtEnabled            Boolean @default(false)
   /// Overtime multiplier (1.5 = OT pays 1.5× regular).
   otMultiplier          Decimal @db.Decimal(3, 2)
   /// Days/month used to derive an hourly wage from a monthly salary for OT

@@ -15,6 +15,14 @@ import { isValidThaiNationalId } from '@/lib/tax/national-id';
 
 export const EmployeeSchema = z
   .object({
+    // Optional: it did not exist before migration 0048, so every existing
+    // employee starts without one. The statutory exports refuse rather than
+    // file a blank, which surfaces the gap without blocking ordinary edits.
+    titlePrefix: z
+      .enum(['Mr', 'Mrs', 'Miss'])
+      .nullable()
+      .catch(null)
+      .or(z.literal('').transform(() => null)),
     firstName: z.string().trim().min(1, 'กรุณากรอกชื่อจริง').max(80),
     lastName: z.string().trim().min(1, 'กรุณากรอกนามสกุล').max(80),
     nickname: z
@@ -196,6 +204,7 @@ export function readForm(formData: FormData) {
   // Multi-value field: getAll returns all entries with the same name.
   const assignedBranchIds = formData.getAll('assignedBranchIds').map(String).filter(Boolean);
   return EmployeeSchema.safeParse({
+    titlePrefix: str(formData, 'titlePrefix'),
     firstName: str(formData, 'firstName'),
     lastName: str(formData, 'lastName'),
     nickname: str(formData, 'nickname'),

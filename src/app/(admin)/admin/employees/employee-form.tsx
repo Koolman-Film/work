@@ -17,6 +17,7 @@ export type EmployeeFormOptions = {
 };
 
 type Initial = {
+  titlePrefix: string | null;
   firstName: string;
   lastName: string;
   nickname: string | null;
@@ -140,6 +141,23 @@ export function EmployeeForm({
                     initialKey={initial?.photoKey ?? null}
                     initialUrl={initial?.photoUrl ?? null}
                   />
+                </FormField>
+                <FormField
+                  label="คำนำหน้าชื่อ"
+                  htmlFor="titlePrefix"
+                  hint="ใช้ในไฟล์ยื่น สปส.1-10 และ ภ.ง.ด.1 — ต้องกรอกก่อนจึงจะดาวน์โหลดไฟล์ยื่นได้"
+                >
+                  <select
+                    id="titlePrefix"
+                    name="titlePrefix"
+                    defaultValue={initial?.titlePrefix ?? ''}
+                    className={cn(selectClasses, 'max-w-xs')}
+                  >
+                    <option value="">— ยังไม่ระบุ —</option>
+                    <option value="Mr">นาย</option>
+                    <option value="Mrs">นาง</option>
+                    <option value="Miss">นางสาว</option>
+                  </select>
                 </FormField>
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                   <FormField label="ชื่อจริง" htmlFor="firstName" required>

@@ -22,6 +22,7 @@ type Initial = {
   payslipLogoKey: string | null;
   payslipLogoUrl: string | null;
   ssoAccountNo: string | null;
+  ssoBranchNo: string | null;
 };
 
 type Mode =
@@ -196,18 +197,33 @@ export function BranchForm({ mode, action, initial, error, extraActions }: Props
               </FormField>
             </div>
 
-            <FormField
-              label="เลขที่บัญชีนายจ้าง (ประกันสังคม)"
-              htmlFor="ssoAccountNo"
-              hint="สำหรับยื่น สปส.1-10 ของสาขานี้"
-            >
-              <Input
-                id="ssoAccountNo"
-                name="ssoAccountNo"
-                maxLength={30}
-                defaultValue={initial?.ssoAccountNo ?? ''}
-              />
-            </FormField>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <FormField
+                label="เลขที่บัญชีนายจ้าง (ประกันสังคม)"
+                htmlFor="ssoAccountNo"
+                hint="สำหรับยื่น สปส.1-10 ของสาขานี้"
+              >
+                <Input
+                  id="ssoAccountNo"
+                  name="ssoAccountNo"
+                  maxLength={30}
+                  defaultValue={initial?.ssoAccountNo ?? ''}
+                />
+              </FormField>
+              <FormField
+                label="ลำดับที่สาขา (ประกันสังคม)"
+                htmlFor="ssoBranchNo"
+                hint="ตามที่ประกันสังคมกำหนด เช่น 000000 — ใช้เป็นชื่อชีตในไฟล์อัปโหลด"
+              >
+                <Input
+                  id="ssoBranchNo"
+                  name="ssoBranchNo"
+                  maxLength={10}
+                  placeholder="000000"
+                  defaultValue={initial?.ssoBranchNo ?? ''}
+                />
+              </FormField>
+            </div>
           </CardBody>
           <CardFooter className="flex items-center justify-between">
             <Link href="/admin/settings/branches">

@@ -29,9 +29,25 @@ export async function GET(req: NextRequest) {
 
   const filing = await loadSsoFiling(month, branchId);
   if (!filing) return NextResponse.json({ error: 'ไม่พบสาขา' }, { status: 404 });
-  if (filing.problems.missingNationalIds > 0 || filing.problems.missingBranchSso) {
+  // Refuse rather than emit a statutory file with holes in it. Every one of
+  // these is a MANDATORY column of the official upload template, and a blank
+  // in any of them is a file the portal can reject — or worse, accept wrongly.
+  const { missingNationalIds, missingTitlePrefixes, missingBranchSso, missingBranchSsoNo } =
+    filing.problems;
+  if (
+    missingNationalIds > 0 ||
+    missingTitlePrefixes > 0 ||
+    missingBranchSso ||
+    missingBranchSsoNo
+  ) {
+    const missing = [
+      missingNationalIds > 0 && `เลขประจำตัวประชาชน ${missingNationalIds} คน`,
+      missingTitlePrefixes > 0 && `คำนำหน้าชื่อ ${missingTitlePrefixes} คน`,
+      missingBranchSso && 'เลขที่บัญชีนายจ้าง',
+      missingBranchSsoNo && 'ลำดับที่สาขา (ประกันสังคม)',
+    ].filter(Boolean);
     return NextResponse.json(
-      { error: 'ข้อมูลไม่ครบ — กรุณากรอกเลขประจำตัวประชาชน/เลขที่บัญชีนายจ้างให้ครบก่อนดาวน์โหลด' },
+      { error: `ข้อมูลไม่ครบ — กรุณากรอก${missing.join(', ')} ให้ครบก่อนดาวน์โหลด` },
       { status: 422 },
     );
   }

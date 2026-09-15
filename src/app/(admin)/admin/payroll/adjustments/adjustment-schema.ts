@@ -52,7 +52,10 @@ const Schema = z
 
 export type AdjustmentFormData = {
   employeeId: string;
-  kind: 'Income' | 'Deduction';
+  // Read side: a row loaded from the database can already be any kind.
+  // The zod submit schema above stays narrow on purpose — nothing should be
+  // able to CREATE a Tax adjustment until M2 builds the UI for it.
+  kind: 'Income' | 'Deduction' | 'Tax';
   reason: string;
   amount: string;
   startMonth: string;

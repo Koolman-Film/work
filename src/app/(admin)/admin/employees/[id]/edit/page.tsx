@@ -39,6 +39,7 @@ export default async function EditEmployeePage({
       where: { id },
       select: {
         id: true,
+        titlePrefix: true,
         firstName: true,
         lastName: true,
         nickname: true,
@@ -129,6 +130,7 @@ export default async function EditEmployeePage({
         branchReadOnly={branchReadOnly}
         defaultWorkScheduleId={null}
         initial={{
+          titlePrefix: emp.titlePrefix,
           firstName: emp.firstName,
           lastName: emp.lastName,
           nickname: emp.nickname,
