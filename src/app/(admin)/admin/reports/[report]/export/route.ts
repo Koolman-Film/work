@@ -16,7 +16,7 @@ import { toXlsx } from '@/lib/export/xlsx';
 import { getLeaveConfig } from '@/lib/leave/leave-config';
 import { resolveReportPeriod } from '@/lib/reports/period';
 import { advanceReport, attendanceReport, leaveReport } from '@/lib/reports/queries';
-import { asUuid, loadPayrollCutoffDay } from '../../_load-filter-options';
+import { asUuid, loadReportCutoff } from '../../_load-filter-options';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -47,7 +47,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ repo
       to: sp.get('to') ?? undefined,
     },
     todayYmd,
-    await loadPayrollCutoffDay(),
+    await loadReportCutoff(asUuid(sp.get('branchId') ?? undefined)),
   );
   const filter = {
     q: sp.get('q') ?? undefined,

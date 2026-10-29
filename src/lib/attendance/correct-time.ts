@@ -7,13 +7,12 @@ import { canActOnEmployeeBranches, getPermittedBranches } from '@/lib/auth/branc
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma, prismaRaw } from '@/lib/db/prisma';
 import { getLeaveConfig } from '@/lib/leave/leave-config';
+import { loadCutoffForEmployee } from '@/lib/payroll/cutoff-load';
 import { lateMinutesForCheckIn, latePolicyFrom, resolveLatePolicy } from './late-policy';
 import { buildLateContext } from './leave-late-context';
 import { bangkokDateTime } from './manual-preview';
 
 export type CorrectTimeResult = { ok: true } | { ok: false; message: string };
-
-const DEFAULT_CUTOFF_DAY = 25;
 
 async function reqMeta() {
   const h = await headers();
@@ -92,8 +91,8 @@ export async function correctAttendanceTime(input: {
   }
 
   const payrollCfg = await prisma.payrollConfig.findFirst();
-  const cutoffDay = payrollCfg?.cutoffDay ?? DEFAULT_CUTOFF_DAY;
-  const month = payrollPeriodFor(ymd, cutoffDay).end.slice(0, 7);
+  // The employee's home-branch window decides which payslip this day is on.
+  const month = payrollPeriodFor(ymd, await loadCutoffForEmployee(row.employeeId)).end.slice(0, 7);
   const closed = await prisma.payroll.findFirst({
     where: { employeeId: row.employeeId, month, status: { not: 'Draft' } },
     select: { id: true },

@@ -8,7 +8,7 @@ import { getLeaveConfig } from '@/lib/leave/leave-config';
 import { formatDaysHours } from '@/lib/leave/units';
 import { resolveReportPeriod } from '@/lib/reports/period';
 import { leaveDetail, leaveReport } from '@/lib/reports/queries';
-import { asUuid, loadPayrollCutoffDay, loadReportFilterOptions } from '../_load-filter-options';
+import { asUuid, loadReportCutoff, loadReportFilterOptions } from '../_load-filter-options';
 import { ExpandableReportRows } from '../expandable-report-rows';
 import { ExportButtons } from '../export-buttons';
 import { PeriodPicker } from '../period-picker';
@@ -30,9 +30,9 @@ export default async function LeaveReportPage({
   const { user } = await requirePermission('report.read');
   const permitted = await getPermittedBranches(user, 'report.read');
   const todayYmd = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
-  const period = resolveReportPeriod(params, todayYmd, await loadPayrollCutoffDay());
-  const year = Number((period.month ?? period.from).slice(0, 4));
   const branchId = asUuid(params.branchId);
+  const period = resolveReportPeriod(params, todayYmd, await loadReportCutoff(branchId));
+  const year = Number((period.month ?? period.from).slice(0, 4));
   const departmentId = asUuid(params.departmentId);
   const filter = { q: params.q, branchId, departmentId };
   const [{ types, rows }, detail, cfg, options] = await Promise.all([

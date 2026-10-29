@@ -5,7 +5,7 @@ import { getPermittedBranches } from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { resolveReportPeriod } from '@/lib/reports/period';
 import { attendanceReport } from '@/lib/reports/queries';
-import { asUuid, loadPayrollCutoffDay, loadReportFilterOptions } from '../_load-filter-options';
+import { asUuid, loadReportCutoff, loadReportFilterOptions } from '../_load-filter-options';
 import { ExportButtons } from '../export-buttons';
 import { PeriodPicker } from '../period-picker';
 import { ReportFilters } from '../report-filters';
@@ -26,8 +26,8 @@ export default async function AttendanceReportPage({
   const { user } = await requirePermission('report.read');
   const permitted = await getPermittedBranches(user, 'report.read');
   const todayYmd = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
-  const period = resolveReportPeriod(params, todayYmd, await loadPayrollCutoffDay());
   const branchId = asUuid(params.branchId);
+  const period = resolveReportPeriod(params, todayYmd, await loadReportCutoff(branchId));
   const departmentId = asUuid(params.departmentId);
   const [rows, options] = await Promise.all([
     attendanceReport(period, { q: params.q, branchId, departmentId }, permitted),

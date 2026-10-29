@@ -19,6 +19,7 @@ import { getPermittedBranches } from '@/lib/auth/branch-scope';
 import { canDo } from '@/lib/auth/check-permission';
 import { requireLiffAdmin } from '@/lib/auth/require-liff-admin';
 import { prisma } from '@/lib/db/prisma';
+import { loadCutoffRules } from '@/lib/payroll/cutoff-load';
 import { resolveReportPeriod } from '@/lib/reports/period';
 import { advanceReport, attendanceReport } from '@/lib/reports/queries';
 
@@ -33,8 +34,13 @@ export default async function LiffAdminReportsPage() {
 
   const permitted = await getPermittedBranches(user, 'report.read');
   const todayYmd = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
-  const cfg = await prisma.payrollConfig.findFirst({ select: { cutoffDay: true } });
-  const period = resolveReportPeriod({}, todayYmd, cfg?.cutoffDay ?? undefined);
+  // Company window — this view is org-wide, with no branch filter.
+  const cfg = await prisma.payrollConfig.findFirst({ select: { id: true } });
+  const period = resolveReportPeriod(
+    {},
+    todayYmd,
+    cfg ? (await loadCutoffRules()).globalCutoffDay : undefined,
+  );
 
   const [attRows, advRows] = await Promise.all([
     attendanceReport(period, {}, permitted),
