@@ -1,7 +1,11 @@
 import { Prisma } from '@prisma/client';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { prisma } from '@/lib/db/prisma';
-import { addBranchCutoff, removeBranchCutoff } from '@/lib/payroll/branch-cutoff-admin';
+import {
+  addBranchCutoff,
+  branchMoveBlockedByPaidMonth,
+  removeBranchCutoff,
+} from '@/lib/payroll/branch-cutoff-admin';
 import { END_OF_MONTH } from '@/lib/payroll/cutoff-rule';
 import { runPayrollDraft } from '@/lib/payroll/run';
 
@@ -182,5 +186,37 @@ describe('per-branch payroll cut-off', () => {
         data: { branchId: central.branch.id, fromMonth: '2026-10', cutoffDay: 30 },
       }),
     ).rejects.toThrow();
+  });
+
+  it('refuses moving a paid employee between branches whose cut-offs differ', async () => {
+    const central = await makeEmployee('Central Audio');
+    const cm = await makeEmployee('เชียงใหม่');
+    const lp = await makeEmployee('ลำปาง');
+    await addBranchCutoff({
+      branchId: central.branch.id,
+      fromMonth: '2026-10',
+      cutoffDay: END_OF_MONTH,
+      actorId: central.user.id,
+    });
+
+    // Nothing paid yet → moving is fine; the drafts are recalculated.
+    expect(
+      await branchMoveBlockedByPaidMonth(central.emp.id, central.branch.id, cm.branch.id),
+    ).toBe(null);
+
+    await runPayrollDraft('2026-10');
+    await prisma.payroll.updateMany({
+      where: { month: '2026-10' },
+      data: { status: 'Published', publishedAt: new Date() },
+    });
+
+    expect(
+      await branchMoveBlockedByPaidMonth(central.emp.id, central.branch.id, cm.branch.id),
+    ).toBe('2026-10');
+    expect(await branchMoveBlockedByPaidMonth(cm.emp.id, cm.branch.id, central.branch.id)).toBe(
+      '2026-10',
+    );
+    // Two company-day branches give identical windows — no reason to block.
+    expect(await branchMoveBlockedByPaidMonth(cm.emp.id, cm.branch.id, lp.branch.id)).toBe(null);
   });
 });

@@ -84,6 +84,7 @@ const BRANCH_CUTOFF_ERRORS: Record<string, string> = {
   'branch-not-found': 'ไม่พบสาขา',
   duplicate: 'สาขานี้มีการตั้งค่าที่เริ่มเดือนนี้อยู่แล้ว — ลบอันเดิมก่อน',
   'not-found': 'ไม่พบการตั้งค่านี้',
+  busy: 'มีแอดมินอีกคนกำลังคำนวณหรือเผยแพร่เงินเดือนอยู่ กรุณาลองใหม่อีกครั้ง',
 };
 
 function branchCutoffError(r: { reason: string; frozenMonth?: string }): string {

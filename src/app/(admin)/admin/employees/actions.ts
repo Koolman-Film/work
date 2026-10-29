@@ -14,6 +14,7 @@ import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { maskBankAccountNumber } from '@/lib/employee/bank';
 import { syncRichMenuForUser, unlinkAdminRichMenu } from '@/lib/line/rich-menu';
+import { branchMoveBlockedByPaidMonth } from '@/lib/payroll/branch-cutoff-admin';
 import { getSupabaseAdminClient } from '@/lib/supabase/admin';
 import { maskNationalId } from '@/lib/tax/national-id';
 import { readForm, validateWorkScheduleRequiredForCreate } from './employee-schema';
@@ -205,6 +206,18 @@ export async function updateEmployee(id: string, formData: FormData) {
   // existing branch membership regardless of what the form submitted.
   const nextBranchId = permitted === 'all' ? data.branchId : before.branchId;
   const nextAssignedBranchIds = permitted === 'all' ? assignedBranchIds : before.assignedBranchIds;
+
+  // The payroll window follows the CURRENT home branch. Moving a paid employee
+  // between branches with different cut-offs (Central Audio cuts at month-end)
+  // would re-window their paid payslips — refuse rather than double-charge.
+  const blockedBy = await branchMoveBlockedByPaidMonth(id, before.branchId, nextBranchId);
+  if (blockedBy) {
+    redirect(
+      `/admin/employees/${id}/edit?error=${encodeURIComponent(
+        `ย้ายสาขาหลักไม่ได้ — สาขาใหม่ตัดรอบเงินเดือนคนละวันกับสาขาเดิม และพนักงานมีสลิปที่เผยแพร่แล้วตั้งแต่เดือน ${blockedBy} (ติดต่อผู้ดูแลระบบเพื่อวางแผนรอบรอยต่อ)`,
+      )}`,
+    );
+  }
 
   try {
     await prisma.employee.update({

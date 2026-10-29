@@ -47,6 +47,8 @@ const transactionFn = vi.fn();
 
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
+    // branchMoveBlockedByPaidMonth: no paid payslip → a branch move is allowed.
+    payroll: { findFirst: () => Promise.resolve(null) },
     employee: {
       create: (...a: unknown[]) => employeeCreate(...a),
       findUnique: (...a: unknown[]) => employeeFindUnique(...a),

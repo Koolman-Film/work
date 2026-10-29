@@ -7,6 +7,7 @@ import {
   isValidBranchCutoffDay,
   periodContaining,
   periodWindowYmd,
+  rulesAgreeFrom,
   toRule,
 } from './cutoff-rule';
 
@@ -136,5 +137,23 @@ describe('validation', () => {
   it('describes a cut-off day in Thai', () => {
     expect(describeCutoffDay(END_OF_MONTH)).toBe('สิ้นเดือน');
     expect(describeCutoffDay(26)).toBe('วันที่ 26');
+  });
+});
+
+describe('rulesAgreeFrom', () => {
+  it('company vs Central differ once October is involved', () => {
+    expect(rulesAgreeFrom('2026-09', 26, central)).toBe(false);
+    expect(rulesAgreeFrom('2026-11', 26, central)).toBe(false);
+  });
+
+  it('agree when the override only touches months before the range', () => {
+    // Every month up to 2026-08 is identical (Central's override starts 2026-10,
+    // and 2026-09's window depends only on 2026-08 and 2026-09).
+    const past = { globalCutoffDay: 26, overrides: [{ cutoffDay: 26, fromMonth: '2026-10' }] };
+    expect(rulesAgreeFrom('2026-01', 26, past)).toBe(true);
+  });
+
+  it('same rule always agrees', () => {
+    expect(rulesAgreeFrom('2026-01', central, central)).toBe(true);
   });
 });

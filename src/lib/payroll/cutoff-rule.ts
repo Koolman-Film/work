@@ -116,6 +116,25 @@ export function periodContaining(
   return { start: from, end: to, month };
 }
 
+/**
+ * Do two rules give identical windows for every month from `month` on? Used to
+ * refuse moving an employee between branches whose cut-offs differ once they
+ * have been paid: the window follows the CURRENT home branch, so a move would
+ * re-window their paid payslips and put days on two payslips or on none.
+ */
+export function rulesAgreeFrom(month: string, a: Cutoff, b: Cutoff): boolean {
+  const ra = toRule(a);
+  const rb = toRule(b);
+  // A month's window also depends on the previous month's end. After the last
+  // override in either rule both are constant, so checking up to it suffices.
+  let last = month;
+  for (const o of [...ra.overrides, ...rb.overrides]) if (o.fromMonth > last) last = o.fromMonth;
+  for (let m = shiftMonth(month, -1); m <= last; m = shiftMonth(m, 1)) {
+    if (ruleDay(m, ra) !== ruleDay(m, rb)) return false;
+  }
+  return true;
+}
+
 /** Thai label for a cut-off value, e.g. "วันที่ 26" or "สิ้นเดือน". */
 export function describeCutoffDay(n: number): string {
   return n === END_OF_MONTH ? 'สิ้นเดือน' : `วันที่ ${n}`;
