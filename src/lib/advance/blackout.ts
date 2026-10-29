@@ -1,3 +1,5 @@
+import { type Cutoff, periodContaining } from '@/lib/payroll/cutoff-rule';
+
 /**
  * Is `todayYmd` inside the cash-advance request blackout?
  *
@@ -22,16 +24,27 @@
  */
 export function isInAdvanceBlackout(
   todayYmd: string,
-  cutoffDay: number,
+  cutoff: Cutoff,
   blackoutDays: number,
 ): boolean {
   if (!Number.isInteger(blackoutDays) || blackoutDays <= 0) return false;
-  if (!Number.isInteger(cutoffDay) || cutoffDay < 1 || cutoffDay > 28) return false;
+  if (typeof cutoff === 'number' && (!Number.isInteger(cutoff) || cutoff < 1 || cutoff > 28))
+    return false;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(todayYmd)) return false;
 
   const day = Number(todayYmd.slice(8, 10));
   if (!Number.isInteger(day) || day < 1 || day > 31) return false;
 
-  const from = Math.max(1, cutoffDay - blackoutDays + 1);
-  return day >= from && day <= cutoffDay;
+  // The window ends on the end day of the period containing today — for a
+  // month-end branch that is the 28th–31st, not a fixed number.
+  let end: string;
+  try {
+    end = periodContaining(todayYmd, cutoff).end;
+  } catch {
+    return false;
+  }
+  if (end.slice(0, 7) !== todayYmd.slice(0, 7)) return false;
+  const endDay = Number(end.slice(8, 10));
+  const from = Math.max(1, endDay - blackoutDays + 1);
+  return day >= from && day <= endDay;
 }

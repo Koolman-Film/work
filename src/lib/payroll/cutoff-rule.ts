@@ -46,8 +46,7 @@ export function toRule(c: Cutoff): CutoffRule {
   for (const o of rule.overrides) {
     if (!isValidBranchCutoffDay(o.cutoffDay))
       throw new Error(`cutoff rule: branch cutoffDay must be 1–28 or 31, got ${o.cutoffDay}`);
-    if (!YM.test(o.fromMonth))
-      throw new Error(`cutoff rule: invalid fromMonth '${o.fromMonth}'`);
+    if (!YM.test(o.fromMonth)) throw new Error(`cutoff rule: invalid fromMonth '${o.fromMonth}'`);
   }
   return rule;
 }
