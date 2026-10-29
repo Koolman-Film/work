@@ -400,9 +400,29 @@ model Branch {
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
 
-  employees          Employee[]           @relation("HomeBranch")
-  attendanceCheckIns Attendance[]         @relation("CheckInBranch")
+  employees          Employee[]            @relation("HomeBranch")
+  attendanceCheckIns Attendance[]          @relation("CheckInBranch")
   roleAssignments    UserRoleAssignment[]
+  payrollCutoffs     BranchPayrollCutoff[]
+}
+
+/// "From payroll month `fromMonth` on, this branch cuts on `cutoffDay`" —
+/// overrides PayrollConfig.cutoffDay for employees whose HOME branch it is.
+/// A history, never edited in place: a month uses the latest row whose
+/// fromMonth is on or before it, so adding a row only changes months from its
+/// own fromMonth forward. See src/lib/payroll/cutoff-rule.ts.
+model BranchPayrollCutoff {
+  id          String   @id @default(uuid()) @db.Uuid
+  branchId    String   @db.Uuid
+  branch      Branch   @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  /// "YYYY-MM" — the first payroll month this rule applies to.
+  fromMonth   String
+  /// 1–28, or 31 = the last day of the month (CHECK in migration 0052).
+  cutoffDay   Int
+  createdById String?  @db.Uuid
+  createdAt   DateTime @default(now())
+
+  @@unique([branchId, fromMonth])
 }
 
 /// A named work-schedule template — different employees / roles can be

@@ -68,6 +68,8 @@ export type AuditAction =
   | 'branch.create'
   | 'branch.update'
   | 'branch.archive'
+  | 'branchPayrollCutoff.create'
+  | 'branchPayrollCutoff.delete'
   | 'department.create'
   | 'department.update'
   | 'department.archive'
@@ -144,6 +146,7 @@ export type AuditEntityType =
   // legacy Role enum value (which was renamed to 'Staff' in 0009).
   | 'Employee'
   | 'Branch'
+  | 'BranchPayrollCutoff'
   | 'RoleDefinition'
   | 'UserRoleAssignment'
   | 'Department'

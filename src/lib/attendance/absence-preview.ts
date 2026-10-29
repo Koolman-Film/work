@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db/prisma';
 import { standardDayMinutes } from '@/lib/leave/units';
 import { expandHolidaysWithSubstitutes } from '@/lib/leave/working-days';
 import { isPayrollChargeableSalaryType } from '@/lib/payroll/calc';
+import { loadCutoffRules } from '@/lib/payroll/cutoff-load';
 import { payrollMonthWindowYmd } from '@/lib/payroll/period';
 import { type BreakWindow, deriveAbsentMinutes, scheduledWorkMinutes } from './derive-absence';
 import { isScheduledWorkday } from './schedule';
@@ -45,11 +46,10 @@ const ymd = (d: Date) => d.toISOString().slice(0, 10);
  * that gets inspected before a single baht moves.
  */
 export async function previewAbsences(month: string): Promise<AbsencePreview> {
-  const [payCfg, leaveCfg] = await Promise.all([
-    prisma.payrollConfig.findFirstOrThrow({
-      select: { cutoffDay: true, absentDeductionPerDay: true },
-    }),
+  const [payCfg, leaveCfg, rules] = await Promise.all([
+    prisma.payrollConfig.findFirstOrThrow({ select: { absentDeductionPerDay: true } }),
     prisma.leaveConfig.findFirst(),
+    loadCutoffRules(),
   ]);
   const cfg = leaveCfg ?? {
     morningStart: '09:00',
@@ -63,7 +63,13 @@ export async function previewAbsences(month: string): Promise<AbsencePreview> {
   // full day of leave leaves a phantom absence — see scheduledWorkMinutes.
   const brk: BreakWindow | null =
     cfg.afternoonStart > cfg.morningEnd ? { start: cfg.morningEnd, end: cfg.afternoonStart } : null;
-  const { from, to } = payrollMonthWindowYmd(month, payCfg.cutoffDay);
+  // Each employee is examined over their OWN branch's window (Central Audio
+  // cuts at month-end); the queries span the union of every branch's window.
+  const windowFor = (branchId: string | null) =>
+    payrollMonthWindowYmd(month, rules.forBranch(branchId));
+  const allWindows = [null, ...rules.overridesByBranch.keys()].map(windowFor);
+  const from = allWindows.reduce((m, w) => (w.from < m ? w.from : m), allWindows[0]!.from);
+  const to = allWindows.reduce((m, w) => (w.to > m ? w.to : m), allWindows[0]!.to);
   // Never derive a date that has not happened yet. The CURRENT month's window
   // runs to its cutoff, which for most of the month is in the future — and a
   // future workday has no check-in for the obvious reason, so iterating the
@@ -86,6 +92,7 @@ export async function previewAbsences(month: string): Promise<AbsencePreview> {
       where: { status: { in: ['Active', 'Probation'] } },
       select: {
         id: true,
+        branchId: true,
         firstName: true,
         lastName: true,
         nickname: true,
@@ -198,10 +205,13 @@ export async function previewAbsences(month: string): Promise<AbsencePreview> {
     // employment, and for one of them that exceeded his entire ฿12,000 salary.
     // There is no termination date on Employee; leavers are excluded by the
     // status filter above instead.
-    const from = new Date(Math.max(start.getTime(), emp.hiredAt.getTime()));
+    const own = windowFor(emp.branchId);
+    const ownStart = new Date(`${own.from}T00:00:00.000Z`);
+    const ownEnd = new Date(`${own.to < effectiveTo ? own.to : effectiveTo}T00:00:00.000Z`);
+    const from = new Date(Math.max(ownStart.getTime(), emp.hiredAt.getTime()));
 
     const days: AbsencePreviewDay[] = [];
-    for (let t = from.getTime(); t <= end.getTime(); t += 86_400_000) {
+    for (let t = from.getTime(); t <= ownEnd.getTime(); t += 86_400_000) {
       const d = new Date(t);
       const date = ymd(d);
       const dow = d.getUTCDay();

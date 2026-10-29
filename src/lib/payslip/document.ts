@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db/prisma';
 import { perMinuteRate } from '@/lib/leave/over-quota';
 import { standardDayMinutes } from '@/lib/leave/units';
 import { adjustmentAppliesToMonth } from '@/lib/payroll/adjustments';
+import { loadCutoffForEmployee } from '@/lib/payroll/cutoff-load';
 import {
   EMPTY_SETTLEMENT,
   type PenaltyKindKey,
@@ -362,7 +363,8 @@ export async function getPayslipDocument(
   // isn't simply count × rate); this only describes the attendance.
   let attendance = { absent: 0, late: 0 };
   if (n(payroll.deductAttendance) !== 0) {
-    const { start, end } = payrollMonthWindow(month, config.cutoffDay);
+    // The employee's own branch window — Central Audio cuts at month-end.
+    const { start, end } = payrollMonthWindow(month, await loadCutoffForEmployee(employeeId));
     const [absent, late] = await Promise.all([
       prisma.attendance.count({
         where: { employeeId, type: 'Absent', date: { gte: start, lte: end }, deletedAt: null },
