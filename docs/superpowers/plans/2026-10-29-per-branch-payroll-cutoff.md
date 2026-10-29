@@ -12,10 +12,11 @@
 
 ## Global Constraints
 
-- Deploying the migration must change no money: both new columns nullable; NULL = inherit `PayrollConfig.cutoffDay`.
+- Deploying the migration must change no money: a new, empty history table; no rows = inherit `PayrollConfig.cutoffDay`.
 - Hand-author migration `prisma/migrations/0052_branch_payroll_cutoff/migration.sql` (do NOT use `migrate dev --create-only`, it emits spurious DROP DEFAULTs).
 - Branch cut-off value: integer 1–28, or `31` = "last day of month" (`END_OF_MONTH`). 29/30 rejected.
-- Effective-from is a `YYYY-MM` string; both columns set or both NULL (DB CHECK).
+- Overrides are a HISTORY (`BranchPayrollCutoff`: branchId, fromMonth `YYYY-MM`, cutoffDay), never edited in place — a single column would re-window already-paid months on the next edit. A month uses the latest row with fromMonth ≤ it. Add/remove refused while the branch has a Published/Locked payslip for any month ≥ fromMonth.
+- Overrides are managed on /admin/settings/attendance (next to the company day, permission `settings.attendance.manage`), not the branch form.
 - Existing callers passing a plain number must behave byte-identically (all existing period tests stay green unchanged).
 - Thai UI copy: label `รอบตัดเงินเดือน`, options `ตามค่าบริษัท (วันที่ N)`, `วันที่ 1`…`วันที่ 28`, `สิ้นเดือน`; effective field `มีผลตั้งแต่รอบเดือน`.
 - Branch edits that touch cut-off must write an AuditLog with before/after.
@@ -39,7 +40,7 @@
 ```ts
 export const END_OF_MONTH = 31;
 export type BranchCutoff = { cutoffDay: number; fromMonth: string }; // 1–28 | 31
-export type CutoffRule = { globalCutoffDay: number; branch: BranchCutoff | null };
+export type CutoffRule = { globalCutoffDay: number; overrides: readonly BranchCutoff[] };
 export type Cutoff = number | CutoffRule;          // number = uniform (legacy callers)
 export function toRule(c: Cutoff): CutoffRule;      // throws on invalid global/branch values
 export function cutoffDayForMonth(month: string, c: Cutoff): number;
@@ -64,16 +65,16 @@ Month end = `min(cutoffDayForMonth, daysInMonth)`; `from` = previous month's end
 
 ### Task 3: Schema, loader, branch settings
 
-**Files:** `prisma/schema.prisma` (Branch), `prisma/migrations/0052_branch_payroll_cutoff/migration.sql`, Create `src/lib/payroll/cutoff-load.ts`, Modify `src/app/(admin)/admin/settings/branches/{actions.ts,branch-form.tsx,[id]/page.tsx}`.
+**Files:** `prisma/schema.prisma` (new `BranchPayrollCutoff`), `prisma/migrations/0052_branch_payroll_cutoff/migration.sql`, Create `src/lib/payroll/cutoff-load.ts`, `src/lib/payroll/branch-cutoff-admin.ts`, Modify `src/app/(admin)/admin/settings/attendance/{actions.ts,page.tsx}`.
 
-- Columns: `payrollCutoffDay Int?`, `payrollCutoffFrom String?` + CHECK `(both null) or (day in 1..28 or day = 31) and from ~ '^\d{4}-(0[1-9]|1[0-2])$'`.
+- Table with CHECKs `cutoffDay BETWEEN 1 AND 28 OR = 31`, `fromMonth ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'`, unique (branchId, fromMonth), FK RESTRICT.
 - Loader:
 ```ts
 export const DEFAULT_CUTOFF_DAY = 25;
 export async function loadCutoffRules(db?): Promise<{ globalCutoffDay: number; forBranch(branchId: string | null | undefined): CutoffRule }>;
 export async function loadCutoffForEmployee(employeeId: string, db?): Promise<CutoffRule>;
 ```
-- Form: select + month input; action validates with zod (`isValidBranchCutoffDay`, YM regex), both-or-neither, audit before/after.
+- `addBranchCutoff` / `removeBranchCutoff` (transaction + `auditLogTx`) return `{ ok } | { ok: false, reason: 'invalid'|'branch-not-found'|'duplicate'|'not-found'|'frozen', frozenMonth? }`.
 - [ ] Apply migration locally, `pnpm prisma generate`, typecheck. Commit.
 
 ### Task 4: Payroll run + payslip document per employee
