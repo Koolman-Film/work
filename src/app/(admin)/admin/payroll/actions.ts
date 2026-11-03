@@ -9,9 +9,10 @@ import type { ActionResult } from '@/components/ui/confirm-dialog';
 import { auditLog, auditLogMany } from '@/lib/audit/log';
 import { requireGlobalPermission } from '@/lib/auth/require-global-permission';
 import { prisma } from '@/lib/db/prisma';
-import { formatTHB } from '@/lib/format';
+import { formatTHB, formatThaiDate } from '@/lib/format';
 import { sendNotification } from '@/lib/inngest/events';
 import {
+  type BlockedPeriodOpen,
   lockPayroll,
   type PayrollRowDetail,
   type PublishResult,
@@ -128,6 +129,20 @@ function readMonth(formData: FormData): string {
  * employees held back) or an outright failure, where the green treatment
  * would read as "everything is fine" to a skimming admin when it isn't.
  */
+/** "A, B — รอบยังไม่จบ (ถึง 30 พ.ย. 2569) เผยแพร่ได้ตั้งแต่ 1 ธ.ค. 2569", one per end day. */
+function periodOpenNotes(list: BlockedPeriodOpen[]): string[] {
+  const byEnd = new Map<string, string[]>();
+  for (const b of list) byEnd.set(b.periodEnd, [...(byEnd.get(b.periodEnd) ?? []), b.name]);
+  return [...byEnd].map(([end, names]) => {
+    const endDate = new Date(`${end}T00:00:00.000Z`);
+    const next = new Date(endDate.getTime() + 86_400_000);
+    return (
+      `${names.join(', ')} — รอบเงินเดือนยังไม่จบ (ถึง ${formatThaiDate(endDate)}) ` +
+      `เผยแพร่ได้ตั้งแต่ ${formatThaiDate(next)}`
+    );
+  });
+}
+
 function back(month: string, msg: string, severity: 'success' | 'alert' = 'success'): never {
   revalidatePath('/admin/payroll');
   const sevQs = severity === 'alert' ? '&sev=alert' : '';
@@ -266,12 +281,13 @@ export async function publishPayrollAction(formData: FormData) {
   // `blocked` on `PublishResult`). The named employees stay in Draft: clear
   // or adjust the settlement on the reconcile page, then publish again
   // (the whole month, or just that row) to pick them up.
+  // Every hold-back reason goes into ONE message: `back` redirects, so a
+  // separate call per reason would show only the first and hide the rest.
+  const held: string[] = [];
   if (result.blocked.length > 0) {
     const names = [...new Set(result.blocked.map((b) => b.name))].join(', ');
-    back(
-      month,
-      `เผยแพร่สลิป ${result.published.length} คนแล้ว — ยกเว้น ${names} ที่มีการหักสิทธิวันลาเกินโทษจริง ไปแก้ไขหรือยกเลิกการหักสิทธิที่หน้ากระทบยอดก่อน แล้วเผยแพร่ใหม่อีกครั้ง`,
-      'alert',
+    held.push(
+      `${names} ที่มีการหักสิทธิวันลาเกินโทษจริง ไปแก้ไขหรือยกเลิกการหักสิทธิที่หน้ากระทบยอดก่อน แล้วเผยแพร่ใหม่อีกครั้ง`,
     );
   }
 
@@ -284,13 +300,21 @@ export async function publishPayrollAction(formData: FormData) {
     const who = result.blockedNegativeNet
       .map((b) => `${b.name} (${formatTHB(Number(b.netPay))})`)
       .join(', ');
-    back(
-      month,
-      `เผยแพร่สลิป ${result.published.length} คนแล้ว — ยกเว้น ${who} ที่ยอดสุทธิติดลบ ` +
+    held.push(
+      `${who} ที่ยอดสุทธิติดลบ ` +
         `มักเกิดจากการหักวันลาเกินสิทธิที่ค้างสะสมจากเดือนก่อน ๆ มารวมในเดือนเดียว ` +
         `ตรวจรายการลาของพนักงานก่อน แล้วเผยแพร่ใหม่อีกครั้ง`,
-      'alert',
     );
+  }
+
+  // Window still open (run.ts `BlockedPeriodOpen`) — a month-end branch such
+  // as Central Audio on the usual 29th–30th publish. Nothing is wrong with the
+  // rows; they just can't be final yet. Grouped by end day so a whole branch
+  // reads as one line.
+  held.push(...periodOpenNotes(result.blockedPeriodOpen));
+
+  if (held.length > 0) {
+    back(month, `เผยแพร่สลิป ${result.published.length} คนแล้ว — ยกเว้น ${held.join(' · ')}`, 'alert');
   }
 
   back(month, `เผยแพร่สลิป ${result.published.length} คนแล้ว`);
@@ -590,6 +614,10 @@ export async function publishOnePayrollAction(
         `มักเกิดจากการหักวันลาเกินสิทธิที่ค้างสะสมจากเดือนก่อน ๆ มารวมในเดือนเดียว ` +
         `ตรวจรายการลาของพนักงานก่อนเผยแพร่`,
     };
+  }
+  const open = periodOpenNotes(result.blockedPeriodOpen)[0];
+  if (open) {
+    return { ok: false, message: `เผยแพร่ไม่สำเร็จ: ${open}` };
   }
   if (result.published.length === 0) {
     return { ok: false, message: 'ไม่มีสลิปฉบับร่างให้เผยแพร่ (อาจเผยแพร่ไปแล้ว)' };

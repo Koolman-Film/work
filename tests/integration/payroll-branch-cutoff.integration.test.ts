@@ -7,7 +7,7 @@ import {
   removeBranchCutoff,
 } from '@/lib/payroll/branch-cutoff-admin';
 import { END_OF_MONTH } from '@/lib/payroll/cutoff-rule';
-import { runPayrollDraft } from '@/lib/payroll/run';
+import { publishPayroll, runPayrollDraft } from '@/lib/payroll/run';
 
 /**
  * Central Audio cuts at month-end from the 2026-10 payroll month; every other
@@ -186,6 +186,49 @@ describe('per-branch payroll cut-off', () => {
         data: { branchId: central.branch.id, fromMonth: '2026-10', cutoffDay: 30 },
       }),
     ).rejects.toThrow();
+  });
+
+  it('publish holds back an employee whose own window has not ended yet', async () => {
+    const central = await makeEmployee('Central Audio');
+    const cm = await makeEmployee('เชียงใหม่');
+    await addBranchCutoff({
+      branchId: central.branch.id,
+      fromMonth: '2026-11',
+      cutoffDay: END_OF_MONTH,
+      actorId: central.user.id,
+    });
+    await runPayrollDraft('2026-11');
+    const status = async (empId: string) => (await payrollFor(empId, '2026-11')).status;
+
+    // The company day itself is not over yet — nobody publishes.
+    const onCutoff = await publishPayroll('2026-11', { today: '2026-11-26' });
+    expect(onCutoff.published).toEqual([]);
+    expect(onCutoff.blockedPeriodOpen.map((b) => b.periodEnd).sort()).toEqual([
+      '2026-11-26',
+      '2026-11-30',
+    ]);
+
+    // The usual 29th publish: เชียงใหม่ goes out, Central stays in Draft.
+    const usual = await publishPayroll('2026-11', { today: '2026-11-29' });
+    expect(usual.published.map((p) => p.employeeId)).toEqual([cm.emp.id]);
+    expect(usual.blockedPeriodOpen).toEqual([
+      { employeeId: central.emp.id, name: 'Central Audio Test', periodEnd: '2026-11-30' },
+    ]);
+    expect(await status(cm.emp.id)).toBe('Published');
+    expect(await status(central.emp.id)).toBe('Draft');
+
+    // A late on Central's last day still lands on its November slip.
+    await late(central.emp.id, '2026-11-30', central.user.id);
+    expect(
+      (await publishPayroll('2026-11', { today: '2026-11-30', employeeId: central.emp.id }))
+        .blockedPeriodOpen,
+    ).toHaveLength(1);
+    const final = await publishPayroll('2026-11', { today: '2026-12-01' });
+    expect(final.published.map((p) => p.employeeId)).toEqual([central.emp.id]);
+    expect(final.blockedPeriodOpen).toEqual([]);
+    const c = await payrollFor(central.emp.id, '2026-11');
+    expect(c.status).toBe('Published');
+    expect(Number(c.deductAttendance)).toBe(100);
   });
 
   it('refuses moving a paid employee between branches whose cut-offs differ', async () => {

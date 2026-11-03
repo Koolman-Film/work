@@ -143,6 +143,7 @@ describe('runPayrollDraft / publishPayroll — surface `busy` under contention (
       skipped: [],
       blocked: [],
       blockedNegativeNet: [],
+      blockedPeriodOpen: [],
       busy: true,
     });
     // Same reasoning as the runPayrollDraft case above (Defect 3): assert

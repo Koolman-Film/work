@@ -399,6 +399,8 @@ async function gatherAndCalc(db: Tx | typeof prisma, month: string, employeeId?:
     }>;
     appliedRecurring: Array<{ id: string; monthsRemaining: number }>;
     settlement: MonthSettlement | undefined;
+    /** Inclusive last day (YYYY-MM-DD) of this employee's own window. */
+    periodEnd: string;
   }> = [];
   const skipped: SkippedEmployee[] = [];
 
@@ -466,6 +468,7 @@ async function gatherAndCalc(db: Tx | typeof prisma, month: string, employeeId?:
           monthsRemaining: r.monthsRemaining,
         })),
         settlement: settlements.get(emp.id),
+        periodEnd: windowOf(emp.id).end.toISOString().slice(0, 10),
       });
     } catch (err) {
       if (err instanceof PayrollCalcError) {
@@ -740,6 +743,29 @@ export type BlockedNegativeNet = {
   netPay: string;
 };
 
+/**
+ * One employee whose payroll window has not ended yet on the day of publish.
+ *
+ * Publishing freezes the slip, and the next month's window starts the day
+ * after this one ends — so anything recorded between publish and the window's
+ * last day (a late, an absence, a derived absence for a day not over yet) is
+ * charged to NEITHER slip. While every branch cut on the company day this
+ * never bit: the habit is to publish on the 29th–31st, after the 26th. A
+ * month-end branch (Central Audio from 2026-11) ends on the last day, so the
+ * same habit would silently drop its last day or two every month.
+ *
+ * Held back per-employee like the guards above: the row stays in Draft and
+ * publishes normally from the day after `periodEnd`. Advances and over-quota
+ * leave would have rolled forward anyway (their sweeps are cumulative); this
+ * protects attendance, which is windowed exactly.
+ */
+export type BlockedPeriodOpen = {
+  employeeId: string;
+  name: string;
+  /** Inclusive last day of the employee's window, YYYY-MM-DD. */
+  periodEnd: string;
+};
+
 export type PublishResult = {
   published: PublishedSlip[];
   skipped: SkippedEmployee[];
@@ -760,6 +786,9 @@ export type PublishResult = {
    *  then names every construction site rather than letting one default to
    *  empty and quietly publish a negative row. */
   blockedNegativeNet: BlockedNegativeNet[];
+  /** Employees held back because their window is still open (see
+   *  `BlockedPeriodOpen`). Required for the same reason as `blockedNegativeNet`. */
+  blockedPeriodOpen: BlockedPeriodOpen[];
   /** Same `busy` outcome as `RunResult` (see above, run.ts) — the month's
    *  advisory lock was held by another transaction right now, so this call
    *  did nothing (`published`/`blocked` are both empty). Additive rather
@@ -785,8 +814,15 @@ export type PublishResult = {
  */
 export async function publishPayroll(
   month: string,
-  opts?: { employeeId?: string },
+  opts?: {
+    employeeId?: string;
+    /** Bangkok calendar day of the publish, YYYY-MM-DD. Defaults to today;
+     *  tests pass it to exercise the open-window guard. */
+    today?: string;
+  },
 ): Promise<PublishResult> {
+  const todayYmd =
+    opts?.today ?? new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
   // Wrapped in a couple of short retries (withMonthLockRetry, month-lock.ts):
   // unlike `runPayrollDraft`, this transaction's own work is often just as
   // quick as a settlement's (the common case — `opts.employeeId` set, the
@@ -852,6 +888,7 @@ export async function publishPayroll(
               skipped: [],
               blocked: [],
               blockedNegativeNet: [],
+              blockedPeriodOpen: [],
               busy: true as const,
             };
 
@@ -893,8 +930,9 @@ export async function publishPayroll(
           // partially published.
           const blocked: BlockedSettlement[] = [];
           const blockedNegativeNet: BlockedNegativeNet[] = [];
+          const blockedPeriodOpen: BlockedPeriodOpen[] = [];
           const blockedEmployeeIds = new Set<string>();
-          for (const { draft, employee } of drafts) {
+          for (const { draft, employee, periodEnd } of drafts) {
             const row = existingByEmp.get(employee.id);
             if (row && row.status !== 'Draft') continue; // not writable by this call — not assessed
 
@@ -922,6 +960,18 @@ export async function publishPayroll(
                 employeeId: employee.id,
                 name: `${employee.firstName} ${employee.lastName}`,
                 netPay: draft.netPay.toFixed(2),
+              });
+              blockedEmployeeIds.add(employee.id);
+            }
+
+            // The window's last day must be OVER (`<=`, not `<`), the same rule
+            // derived absence uses: on the last day itself a late or an absence
+            // can still be recorded. See `BlockedPeriodOpen`.
+            if (todayYmd <= periodEnd) {
+              blockedPeriodOpen.push({
+                employeeId: employee.id,
+                name: `${employee.firstName} ${employee.lastName}`,
+                periodEnd,
               });
               blockedEmployeeIds.add(employee.id);
             }
@@ -1008,7 +1058,7 @@ export async function publishPayroll(
             });
           }
 
-          return { published, skipped, blocked, blockedNegativeNet };
+          return { published, skipped, blocked, blockedNegativeNet, blockedPeriodOpen };
         },
         // Explicit budget, larger than `runPayrollDraft`'s (see that function's
         // "Transaction timeout" note): `lockPayrollMonth` is non-blocking now, so
