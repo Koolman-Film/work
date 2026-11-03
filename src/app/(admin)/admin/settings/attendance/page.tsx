@@ -7,10 +7,18 @@ import { DEFAULT_LATE_GRACE_MIN, DEFAULT_WORK_START } from '@/lib/attendance/lat
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { formatThaiDate } from '@/lib/format';
+import { DEFAULT_CUTOFF_DAY } from '@/lib/payroll/cutoff-load';
+import { describeCutoffDay, END_OF_MONTH } from '@/lib/payroll/cutoff-rule';
 import { payrollMonthWindowYmd } from '@/lib/payroll/period';
-import { updateAttendanceConfig } from './actions';
+import { addBranchCutoffAction, removeBranchCutoffAction, updateAttendanceConfig } from './actions';
 
-const DEFAULT_CUTOFF_DAY = 25;
+const SELECT_CLASS =
+  'w-full rounded-md border border-line-strong bg-surface px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500/30';
+
+function thaiRange(win: { from: string; to: string }): string {
+  const d = (ymd: string) => formatThaiDate(new Date(`${ymd}T00:00:00.000Z`));
+  return `${d(win.from)} – ${d(win.to)}`;
+}
 
 export default async function AttendanceSettingsPage({
   searchParams,
@@ -29,6 +37,17 @@ export default async function AttendanceSettingsPage({
       severeLateThresholdMin: true,
     },
   });
+  const [branches, branchCutoffs] = await Promise.all([
+    prisma.branch.findMany({
+      where: { archivedAt: null },
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true },
+    }),
+    prisma.branchPayrollCutoff.findMany({
+      orderBy: [{ branchId: 'asc' }, { fromMonth: 'asc' }],
+      select: { id: true, branchId: true, fromMonth: true, cutoffDay: true },
+    }),
+  ]);
   const sp = await searchParams;
 
   const workStartTime = cfg?.workStartTime ?? DEFAULT_WORK_START;
@@ -42,6 +61,18 @@ export default async function AttendanceSettingsPage({
   // Show the resulting window for the current Bangkok month as a live example.
   const nowYm = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' }).slice(0, 7);
   const win = payrollMonthWindowYmd(nowYm, cutoffDay);
+  const branchName = new Map(branches.map((b) => [b.id, b.name]));
+  const overrideRows = branchCutoffs.map((c) => {
+    const rule = {
+      globalCutoffDay: cutoffDay,
+      overrides: branchCutoffs.filter((o) => o.branchId === c.branchId),
+    };
+    return {
+      ...c,
+      branchName: branchName.get(c.branchId) ?? '(สาขาที่ปิดแล้ว)',
+      firstWindow: thaiRange(payrollMonthWindowYmd(c.fromMonth, rule)),
+    };
+  });
   const winFrom = formatThaiDate(new Date(`${win.from}T00:00:00.000Z`));
   const winTo = formatThaiDate(new Date(`${win.to}T00:00:00.000Z`));
 
@@ -209,6 +240,93 @@ export default async function AttendanceSettingsPage({
           <Button type="submit">บันทึก</Button>
         </div>
       </form>
+
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>รอบตัดเงินเดือนแยกตามสาขา</CardTitle>
+        </CardHeader>
+        <CardBody className="space-y-5">
+          <p className="text-sm text-ink-3">
+            สาขาที่ไม่ได้ตั้งค่าที่นี่ใช้วันตัดรอบของบริษัท ({describeCutoffDay(cutoffDay)}) — ใช้กับพนักงานตาม
+            <strong className="text-ink-1">สาขาหลัก</strong>ของพนักงาน
+            เดือนแรกที่เปลี่ยนจะเริ่มต่อจากรอบเดิมเสมอ จึงอาจยาวหรือสั้นกว่าปกติหนึ่งครั้ง
+          </p>
+
+          {overrideRows.length > 0 ? (
+            <ul className="divide-y divide-line rounded-lg border border-line">
+              {overrideRows.map((r) => (
+                <li
+                  key={r.id}
+                  className="flex items-center justify-between gap-3 px-4 py-3 text-sm"
+                >
+                  <div>
+                    <div className="font-medium text-ink-1">
+                      {r.branchName} · {describeCutoffDay(r.cutoffDay)}
+                    </div>
+                    <div className="text-ink-3">
+                      มีผลตั้งแต่รอบเดือน {r.fromMonth} (รอบแรก: {r.firstWindow})
+                    </div>
+                  </div>
+                  <form action={removeBranchCutoffAction.bind(null, r.id)}>
+                    <Button type="submit" variant="secondary" size="sm">
+                      ลบ
+                    </Button>
+                  </form>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-ink-4">ยังไม่มีสาขาที่ตั้งค่าแยก</p>
+          )}
+
+          <form action={addBranchCutoffAction} className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+            <FormField label="สาขา" htmlFor="branchId">
+              <select
+                id="branchId"
+                name="branchId"
+                required
+                defaultValue=""
+                className={SELECT_CLASS}
+              >
+                <option value="" disabled>
+                  เลือกสาขา...
+                </option>
+                {branches.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name}
+                  </option>
+                ))}
+              </select>
+            </FormField>
+            <FormField label="รอบตัดเงินเดือน" htmlFor="branchCutoffDay">
+              <select
+                id="branchCutoffDay"
+                name="branchCutoffDay"
+                required
+                defaultValue={END_OF_MONTH}
+                className={SELECT_CLASS}
+              >
+                <option value={END_OF_MONTH}>{describeCutoffDay(END_OF_MONTH)}</option>
+                {Array.from({ length: 28 }, (_, i) => i + 1).map((d) => (
+                  <option key={d} value={d}>
+                    {describeCutoffDay(d)}
+                  </option>
+                ))}
+              </select>
+            </FormField>
+            <FormField
+              label="มีผลตั้งแต่รอบเดือน"
+              htmlFor="fromMonth"
+              hint="เปลี่ยนได้เฉพาะเดือนที่ยังไม่เผยแพร่สลิป"
+            >
+              <Input id="fromMonth" name="fromMonth" type="month" defaultValue={nowYm} required />
+            </FormField>
+            <div className="flex items-end">
+              <Button type="submit">เพิ่ม</Button>
+            </div>
+          </form>
+        </CardBody>
+      </Card>
     </div>
   );
 }

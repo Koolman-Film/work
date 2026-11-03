@@ -14,6 +14,7 @@ import { getLeaveConfig } from '@/lib/leave/leave-config';
 import { localizedLeaveTypeName } from '@/lib/leave/localized-name';
 import { penaltyMinutes } from '@/lib/leave/penalty-minutes';
 import { formatDurationParts, splitDaysHours } from '@/lib/leave/units';
+import { loadCutoffForEmployee } from '@/lib/payroll/cutoff-load';
 import { adjacentMonths, resolveReportPeriod } from '@/lib/reports/period';
 import { isWholeCalendarMonth } from './cutoff-range';
 import { PeriodPicker } from './period-picker';
@@ -52,12 +53,12 @@ export default async function LiffSummaryPage({
   // otherwise "3 ครั้ง" here and the lateness on the slip disagree, which is
   // exactly the "จำนวนนับ ไม่ครงกัน" report. Awaited before resolveReportPeriod
   // because every query underneath is windowed by the result; same shape as
-  // /liff/admin/reports. No PayrollConfig row → undefined → calendar month.
-  const payrollCfg = await prisma.payrollConfig.findFirst({ select: { cutoffDay: true } });
+  // /liff/admin/reports. The window is the worker's own home-branch one
+  // (Central Audio cuts at month-end), the same rule their payslip uses.
   const period = resolveReportPeriod(
     { m: params.m, from: params.from, to: params.to },
     todayYmd,
-    payrollCfg?.cutoffDay ?? undefined,
+    await loadCutoffForEmployee(employee.id),
   );
   // The month/year actually being *viewed* — never a "today" fallback. In
   // custom-range mode `period.month` is null, so `viewedMonth` anchors on

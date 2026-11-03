@@ -8,6 +8,7 @@ import { canActOnEmployeeBranches, getPermittedBranches } from '@/lib/auth/branc
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma, prismaRaw } from '@/lib/db/prisma';
 import { monthLabelTh } from '@/lib/format';
+import { loadCutoffForEmployee } from '@/lib/payroll/cutoff-load';
 
 export type VoidResult =
   | { ok: true }
@@ -22,15 +23,6 @@ export type VoidResult =
         | 'error';
       message: string;
     };
-
-/** Matches `PayrollConfig.cutoffDay`'s schema default — same fallback the
- *  attendance settings page and the manual-attendance form use when the
- *  singleton config row is missing. Without this fallback, the stranded-
- *  settlement guard below silently no-ops whenever no PayrollConfig row
- *  exists yet, even though the manual attendance form (which can create a
- *  settlement before any config row is saved) already treats 25 as the
- *  effective cutoff — see manual/page.tsx's own DEFAULT_CUTOFF_DAY. */
-const DEFAULT_CUTOFF_DAY = 25;
 
 async function reqMeta() {
   const h = await headers();
@@ -93,12 +85,14 @@ export async function voidAttendance(id: string, reason: string): Promise<VoidRe
   // publishPayroll's own stranded-settlement guard (run.ts) catches it
   // before the month is ever frozen.
   // No `if (payrollCfg)` gate: the manual attendance form can settle a
-  // penalty before any PayrollConfig row exists (DEFAULT_CUTOFF_DAY above),
-  // so this guard must fall back the same way rather than silently no-op.
-  const payrollCfg = await prisma.payrollConfig.findFirst({ select: { cutoffDay: true } });
-  const cutoffDay = payrollCfg?.cutoffDay ?? DEFAULT_CUTOFF_DAY;
+  // penalty before any PayrollConfig row exists, so this guard falls back to
+  // DEFAULT_CUTOFF_DAY (inside loadCutoffForEmployee) rather than silently
+  // no-op. The window is the employee's home-branch one.
   const dateYmd = row.date.toISOString().slice(0, 10);
-  const month = payrollPeriodFor(dateYmd, cutoffDay).end.slice(0, 7);
+  const month = payrollPeriodFor(dateYmd, await loadCutoffForEmployee(row.employeeId)).end.slice(
+    0,
+    7,
+  );
 
   const liveSettlement = await prisma.attendancePenaltySettlement.findFirst({
     where: { employeeId: row.employeeId, month, deletedAt: null },

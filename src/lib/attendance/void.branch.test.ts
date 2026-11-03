@@ -64,6 +64,10 @@ vi.mock('@/lib/db/prisma', () => ({
     payrollConfig: {
       findFirst: (...a: unknown[]) => payrollConfigFindFirst(...a),
     },
+    // The cut-off loader (payroll/cutoff-load.ts): no branch overrides, and
+    // the home-branch lookup finds nothing → company day.
+    branchPayrollCutoff: { findMany: () => Promise.resolve([]) },
+    employee: { findUnique: () => Promise.resolve(null) },
     attendancePenaltySettlement: {
       findFirst: (...a: unknown[]) => attendancePenaltySettlementFindFirst(...a),
     },

@@ -9,14 +9,26 @@ import { canDo } from '@/lib/auth/check-permission';
 import { requireGlobalPermission } from '@/lib/auth/require-global-permission';
 import { prisma } from '@/lib/db/prisma';
 import { formatTHB, formatTHB2, monthLabelTh } from '@/lib/format';
+import { loadCutoffRules } from '@/lib/payroll/cutoff-load';
+import type { Cutoff } from '@/lib/payroll/cutoff-rule';
 import { deductionBreakdown, deductionBreakdownLabel } from '@/lib/payroll/deduction-breakdown';
 import { payrollPeriodLabel } from '@/lib/payroll/period';
+
+/** Degrades to no label on a bad config instead of throwing on render. */
+function safePeriodLabel(month: string, cutoff: Cutoff): string | null {
+  try {
+    return payrollPeriodLabel(month, cutoff);
+  } catch {
+    return null;
+  }
+}
+
 import { INCOME_COMPONENTS } from '@/lib/payroll/reconcile';
 import { previewPayrollDrafts } from '@/lib/payroll/run';
 import {
   asUuid,
   loadAccountingGroupOptions,
-  loadPayrollCutoffDay,
+  loadReportCutoff,
   loadReportFilterOptions,
 } from '../reports/_load-filter-options';
 import { ReportFilters } from '../reports/report-filters';
@@ -144,26 +156,38 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
       )
     : rows;
 
-  const [activeEmployees, options, cutoffDay, accountingGroups] = await Promise.all([
+  const [activeEmployees, options, cutoff, accountingGroups, cutoffRules] = await Promise.all([
     prisma.employee.count({ where: { status: { not: 'Archived' } } }),
     // Payroll's branch filter is out of scope for B5 (no `permitted` here) —
     // pass 'all' to preserve current unfiltered behavior.
     loadReportFilterOptions('all'),
     // Same cutoff the reports pages resolve their period from, so the range
     // shown here is provably the identical window (C8).
-    loadPayrollCutoffDay(),
+    loadReportCutoff(branchId),
     // Account groups (ค่าใช้จ่ายบริษัท / จ่ายแทน-รับคืน) for the group filter —
     // payroll-only, so the option list is loaded here, not in ReportFilters.
     loadAccountingGroupOptions(),
+    loadCutoffRules(),
   ]);
   // The concrete cutoff window this "month" covers (e.g. 27 พ.ค. – 26 มิ.ย.),
   // surfaced so it visibly matches the report period. Same in-range guard as
   // resolveReportPeriod (reports/period.ts) so an out-of-range/absent cutoff
   // degrades to no label instead of throwing on render — never a 500.
-  const periodLabel =
-    cutoffDay != null && cutoffDay >= 1 && cutoffDay <= 28
-      ? payrollPeriodLabel(month, cutoffDay)
-      : null;
+  const periodLabel = cutoff != null ? safePeriodLabel(month, cutoff) : null;
+  // Unfiltered, the month holds several windows: list each branch whose own
+  // window differs from the company one, so "เดือน" never hides that Central
+  // Audio's October runs to the 31st.
+  const branchPeriodLabels =
+    !branchId && periodLabel
+      ? [...cutoffRules.overridesByBranch.keys()]
+          .map((id) => ({
+            name: options.branches.find((b) => b.id === id)?.name,
+            label: safePeriodLabel(month, cutoffRules.forBranch(id)),
+          }))
+          .filter((b): b is { name: string; label: string } =>
+            Boolean(b.name && b.label && b.label !== periodLabel),
+          )
+      : [];
 
   // Frozen buckets straight off the persisted row — NO engine call.
   const frozenOf = (r: (typeof rows)[number]): FrozenSlipVM => ({
@@ -436,6 +460,12 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
         {periodLabel && (
           <span className="text-xs text-ink-3">
             รอบจ่าย <span className="font-medium text-ink-2">{periodLabel}</span>
+            {branchPeriodLabels.map((b) => (
+              <span key={b.name}>
+                {' · '}
+                {b.name} <span className="font-medium text-ink-2">{b.label}</span>
+              </span>
+            ))}
           </span>
         )}
         <ReportFilters

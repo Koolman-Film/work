@@ -6,6 +6,8 @@
 import type { Prisma } from '@prisma/client';
 import type { PermittedBranches } from '@/lib/auth/branch-scope';
 import { prisma } from '@/lib/db/prisma';
+import { loadCutoffRules } from '@/lib/payroll/cutoff-load';
+import type { Cutoff } from '@/lib/payroll/cutoff-rule';
 
 export type FilterOption = { id: string; name: string };
 
@@ -31,13 +33,18 @@ export async function loadReportFilterOptions(permitted: PermittedBranches): Pro
 }
 
 /**
- * The payroll cutoff day for report period alignment (C8). Reports resolve a
+ * The payroll cut-off for report period alignment (C8). Reports resolve a
  * month to the same cutoff window as payroll so their counts tie out with
- * payroll deductions. Returns undefined when no config exists → calendar month.
+ * payroll deductions. With a branch filter it is THAT branch's rule (Central
+ * Audio cuts at month-end); unfiltered it is the company day, so an unfiltered
+ * month view counts Central staff over the company window, not their own.
+ * Returns undefined when no config exists → calendar month.
  */
-export async function loadPayrollCutoffDay(): Promise<number | undefined> {
-  const cfg = await prisma.payrollConfig.findFirst({ select: { cutoffDay: true } });
-  return cfg?.cutoffDay;
+export async function loadReportCutoff(branchId?: string): Promise<Cutoff | undefined> {
+  const cfg = await prisma.payrollConfig.findFirst({ select: { id: true } });
+  if (!cfg) return undefined;
+  const rules = await loadCutoffRules();
+  return branchId ? rules.forBranch(branchId) : rules.globalCutoffDay;
 }
 
 /**

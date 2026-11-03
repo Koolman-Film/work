@@ -49,3 +49,17 @@ describe('isInAdvanceBlackout', () => {
     expect(isInAdvanceBlackout('not-a-date', 25, 3)).toBe(false);
   });
 });
+
+describe('isInAdvanceBlackout — branch month-end override', () => {
+  const central = {
+    globalCutoffDay: 26,
+    overrides: [{ cutoffDay: 31, fromMonth: '2026-10' }],
+  };
+  it('counts back from the last day of the month', () => {
+    expect(isInAdvanceBlackout('2026-10-29', central, 3)).toBe(true);
+    expect(isInAdvanceBlackout('2026-10-31', central, 3)).toBe(true);
+    expect(isInAdvanceBlackout('2026-10-26', central, 3)).toBe(false);
+    expect(isInAdvanceBlackout('2026-11-28', central, 3)).toBe(true);
+    expect(isInAdvanceBlackout('2026-11-27', central, 3)).toBe(false);
+  });
+});

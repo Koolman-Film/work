@@ -2,6 +2,7 @@
  *  month) or ?from=YYYY-MM-DD&to=YYYY-MM-DD (custom range, month=null).
  *  Pure — callers pass today's Bangkok YYYY-MM-DD. */
 
+import type { Cutoff } from '@/lib/payroll/cutoff-rule';
 import { payrollMonthWindowYmd } from '@/lib/payroll/period';
 
 const YMD = /^\d{4}-\d{2}-\d{2}$/;
@@ -34,13 +35,20 @@ function monthBounds(ym: string): { from: string; to: string } {
   return { from: `${ym}-01`, to: `${ym}-${String(last).padStart(2, '0')}` };
 }
 
+function isUsableCutoff(c: Cutoff | undefined): c is Cutoff {
+  if (c == null) return false;
+  const day = typeof c === 'number' ? c : c.globalCutoffDay;
+  return Number.isInteger(day) && day >= 1 && day <= 28;
+}
+
 export function resolveReportPeriod(
   params: { m?: string; from?: string; to?: string },
   todayYmd: string,
   /** Payroll cutoff day — when provided, month mode aligns to the payroll
    *  cutoff window (C8) so report counts tie out with payroll deductions.
-   *  Omitted → plain calendar month (1st→last). Custom from/to ignores it. */
-  cutoffDay?: number,
+   *  Omitted → plain calendar month (1st→last). Custom from/to ignores it.
+   *  A CutoffRule aligns to that branch's own windows. */
+  cutoff?: Cutoff,
 ): ReportPeriod {
   const { from, to, m } = params;
   if (
@@ -55,10 +63,7 @@ export function resolveReportPeriod(
     return { from, to, month: null };
   }
   const ym = m && YM.test(m) && isValidYm(m) ? m : todayYmd.slice(0, 7);
-  const bounds =
-    cutoffDay != null && cutoffDay >= 1 && cutoffDay <= 28
-      ? payrollMonthWindowYmd(ym, cutoffDay)
-      : monthBounds(ym);
+  const bounds = isUsableCutoff(cutoff) ? payrollMonthWindowYmd(ym, cutoff) : monthBounds(ym);
   return { ...bounds, month: ym };
 }
 

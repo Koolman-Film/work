@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { auditLog } from '@/lib/audit/log';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
+import { addBranchCutoff, removeBranchCutoff } from '@/lib/payroll/branch-cutoff-admin';
 
 const Schema = z.object({
   workStartTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'รูปแบบเวลาไม่ถูกต้อง (HH:MM)'),
@@ -68,6 +69,55 @@ export async function updateAttendanceConfig(formData: FormData) {
     metadata: { source: 'admin-ui', section: 'attendance-late-policy' },
   });
 
+  revalidatePath('/admin/settings/attendance');
+  redirect('/admin/settings/attendance?ok=1');
+}
+
+const BranchCutoffSchema = z.object({
+  branchId: z.string().uuid('กรุณาเลือกสาขา'),
+  fromMonth: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'กรุณาเลือกเดือนที่เริ่มมีผล'),
+  cutoffDay: z.coerce.number().int(),
+});
+
+const BRANCH_CUTOFF_ERRORS: Record<string, string> = {
+  invalid: 'วันตัดรอบต้องเป็นวันที่ 1–28 หรือสิ้นเดือน',
+  'branch-not-found': 'ไม่พบสาขา',
+  duplicate: 'สาขานี้มีการตั้งค่าที่เริ่มเดือนนี้อยู่แล้ว — ลบอันเดิมก่อน',
+  'not-found': 'ไม่พบการตั้งค่านี้',
+  busy: 'มีแอดมินอีกคนกำลังคำนวณหรือเผยแพร่เงินเดือนอยู่ กรุณาลองใหม่อีกครั้ง',
+};
+
+function branchCutoffError(r: { reason: string; frozenMonth?: string }): string {
+  if (r.reason === 'frozen') {
+    return `เปลี่ยนไม่ได้ — สาขานี้เผยแพร่สลิปเดือน ${r.frozenMonth} แล้ว ซึ่งอยู่ในช่วงที่จะได้รับผล (เลือกเดือนที่เริ่มหลังจากนั้น)`;
+  }
+  return BRANCH_CUTOFF_ERRORS[r.reason] ?? 'ข้อมูลไม่ถูกต้อง';
+}
+
+export async function addBranchCutoffAction(formData: FormData) {
+  const { user } = await requirePermission('settings.attendance.manage');
+  const parsed = BranchCutoffSchema.safeParse({
+    branchId: formData.get('branchId'),
+    fromMonth: formData.get('fromMonth'),
+    cutoffDay: formData.get('branchCutoffDay'),
+  });
+  if (!parsed.success) {
+    redirect(
+      `/admin/settings/attendance?error=${encodeURIComponent(parsed.error.issues[0]?.message ?? 'ข้อมูลไม่ถูกต้อง')}`,
+    );
+  }
+  const r = await addBranchCutoff({ ...parsed.data, actorId: user.id });
+  if (!r.ok)
+    redirect(`/admin/settings/attendance?error=${encodeURIComponent(branchCutoffError(r))}`);
+  revalidatePath('/admin/settings/attendance');
+  redirect('/admin/settings/attendance?ok=1');
+}
+
+export async function removeBranchCutoffAction(id: string) {
+  const { user } = await requirePermission('settings.attendance.manage');
+  const r = await removeBranchCutoff({ id, actorId: user.id });
+  if (!r.ok)
+    redirect(`/admin/settings/attendance?error=${encodeURIComponent(branchCutoffError(r))}`);
   revalidatePath('/admin/settings/attendance');
   redirect('/admin/settings/attendance?ok=1');
 }

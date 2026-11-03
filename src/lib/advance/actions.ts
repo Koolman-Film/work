@@ -26,6 +26,7 @@ import { auditLog } from '@/lib/audit/log';
 import { requireEmployee } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
 import { notifyAdminsInApp } from '@/lib/notifications/in-app-bell';
+import { loadCutoffForEmployee } from '@/lib/payroll/cutoff-load';
 import { advanceBalanceFor } from './available';
 import { isOverCap } from './balance';
 import { isInAdvanceBlackout } from './blackout';
@@ -129,12 +130,13 @@ export async function submitCashAdvance(input: SubmitInput): Promise<SubmitAdvan
   //
   // Blocks REQUESTING only. Admin approval is untouched, or requests already in
   // flight would strand for the length of the window.
-  const blackoutCfg = await prisma.payrollConfig.findFirst({
-    select: { cutoffDay: true, advanceBlackoutDays: true },
-  });
+  const [blackoutCfg, cutoff] = await Promise.all([
+    prisma.payrollConfig.findFirst({ select: { advanceBlackoutDays: true } }),
+    loadCutoffForEmployee(employee.id),
+  ]);
   if (blackoutCfg) {
     const todayYmd = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
-    if (isInAdvanceBlackout(todayYmd, blackoutCfg.cutoffDay, blackoutCfg.advanceBlackoutDays)) {
+    if (isInAdvanceBlackout(todayYmd, cutoff, blackoutCfg.advanceBlackoutDays)) {
       return {
         ok: false,
         code: 'blackout',

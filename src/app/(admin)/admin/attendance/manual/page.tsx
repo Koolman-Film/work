@@ -19,6 +19,7 @@ import { bangkokDateUtcMidnight } from '@/lib/attendance/date';
 import { employeeBranchScope, getPermittedBranches } from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
+import { loadCutoffRules } from '@/lib/payroll/cutoff-load';
 import { AttendanceTabs } from '../attendance-tabs';
 import { ManualAttendanceForm } from './manual-form';
 
@@ -33,10 +34,6 @@ import { ManualAttendanceForm } from './manual-form';
  * already use) as admin/payroll/layout.tsx.
  */
 export const maxDuration = 60;
-
-/** Matches `PayrollConfig.cutoffDay`'s schema default — same fallback the
- *  attendance settings page uses when the singleton config row is missing. */
-const DEFAULT_CUTOFF_DAY = 25;
 
 /** Today's Bangkok calendar date, at UTC midnight (matches @db.Date). */
 function holidayWindowEnd(): Date {
@@ -59,7 +56,7 @@ export default async function ManualAttendancePage() {
   const { user } = await requirePermission('attendance.manual-create');
   const permitted = await getPermittedBranches(user, 'attendance.manual-create');
 
-  const [employees, payrollCfg, holidays, canSettle] = await Promise.all([
+  const [employees, payrollCfg, holidays, canSettle, cutoffRules] = await Promise.all([
     prisma.employee.findMany({
       where: {
         archivedAt: null,
@@ -74,6 +71,7 @@ export default async function ManualAttendancePage() {
         nickname: true,
         salaryType: true,
         baseSalary: true,
+        branchId: true,
         branch: { select: { name: true } },
         workSchedule: {
           select: {
@@ -91,7 +89,6 @@ export default async function ManualAttendancePage() {
         earlyLeaveDeduction: true,
         otThresholdMinutes: true,
         workingDaysPerMonth: true,
-        cutoffDay: true,
       },
     }),
     // This form only ever accepts today or an earlier date, so a lookback
@@ -113,6 +110,7 @@ export default async function ManualAttendancePage() {
     // branch-scoped system Admin role) and render a control the server
     // then refuses with `notFound()`.
     getPermittedBranches(user, 'payroll.run').then((permitted) => permitted === 'all'),
+    loadCutoffRules(),
   ]);
 
   // Eligible leave types. Skipped entirely when the admin can't settle — no
@@ -154,6 +152,10 @@ export default async function ManualAttendancePage() {
                 salaryType: e.salaryType,
                 baseSalary: e.baseSalary.toString(),
                 lateToleranceMin: e.workSchedule?.lateToleranceMin ?? null,
+                // Needed client-side to resolve which pay-period month a
+                // settlement's date is on — per employee, since Central Audio
+                // cuts at month-end.
+                cutoff: cutoffRules.forBranch(e.branchId),
                 scheduleDays:
                   e.workSchedule?.days.map((d) => ({
                     dayOfWeek: d.dayOfWeek,
@@ -175,10 +177,6 @@ export default async function ManualAttendancePage() {
               otThresholdMinutes={payrollCfg?.otThresholdMinutes ?? 30}
               // Same fallback dailyRateFor uses when the divisor is missing/invalid.
               workingDaysPerMonth={payrollCfg?.workingDaysPerMonth ?? 30}
-              // Same fallback the attendance settings page uses when the
-              // PayrollConfig row is missing; needed client-side to resolve
-              // which pay-period month a settlement's absence date belongs to.
-              cutoffDay={payrollCfg?.cutoffDay ?? DEFAULT_CUTOFF_DAY}
               canSettle={canSettle}
               penaltyLeaveTypes={penaltyLeaveTypes}
             />

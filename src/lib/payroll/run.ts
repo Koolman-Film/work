@@ -39,6 +39,7 @@ import {
   PayrollCalcError,
   type PayrollDraft,
 } from './calc';
+import { loadCutoffRules } from './cutoff-load';
 import { lockPayrollMonth, withMonthLockRetry } from './month-lock';
 import type { PenaltyKindKey, SettlementDays } from './penalty-settlement';
 import { loadSettlementsForMonth, type MonthSettlement } from './penalty-settlement-load';
@@ -95,14 +96,11 @@ async function gatherAndCalc(db: Tx | typeof prisma, month: string, employeeId?:
   const config = await db.payrollConfig.findFirst();
   if (!config) throw new Error('PayrollConfig missing — run the seed first.');
 
-  // Payroll period = the cutoff window ending on this month's cutoff day
-  // (PDF C8). `end` is inclusive of the cutoff day — queries use lte.
-  const { start, end } = payrollMonthWindow(month, config.cutoffDay);
-
   const employees = await db.employee.findMany({
     where: { status: { not: 'Archived' }, ...(employeeId ? { id: employeeId } : {}) },
     select: {
       id: true,
+      branchId: true,
       userId: true,
       firstName: true,
       lastName: true,
@@ -122,6 +120,35 @@ async function gatherAndCalc(db: Tx | typeof prisma, month: string, employeeId?:
     },
   });
   const empIds = employees.map((e) => e.id);
+
+  // Payroll period = the cutoff window ending on this month's cutoff day
+  // (PDF C8), resolved PER EMPLOYEE from their home branch: Central Audio cuts
+  // at month-end while the rest cut on the company day, so one month label is
+  // several windows. `end` is inclusive of the cutoff day — queries use lte.
+  // The DB fetches below span the union of every window; each use of a row is
+  // then filtered to its own employee's window (`windowOf`). An unfiltered use
+  // would charge a Central late from 30 Oct to a เชียงใหม่ employee's October.
+  const rules = await loadCutoffRules(db);
+  const windowByEmp = new Map(
+    employees.map((e) => [e.id, payrollMonthWindow(month, rules.forBranch(e.branchId))]),
+  );
+  const windowOf = (empId: string) => {
+    const w = windowByEmp.get(empId);
+    if (!w) throw new Error(`gatherAndCalc: no payroll window for employee ${empId}`);
+    return w;
+  };
+  const inWindow = (empId: string, d: Date) => {
+    const w = windowOf(empId);
+    return d.getTime() >= w.start.getTime() && d.getTime() <= w.end.getTime();
+  };
+  const windows = [...windowByEmp.values()];
+  const fallback = payrollMonthWindow(month, rules.globalCutoffDay);
+  const start = windows.length
+    ? new Date(Math.min(...windows.map((w) => w.start.getTime())))
+    : fallback.start;
+  const end = windows.length
+    ? new Date(Math.max(...windows.map((w) => w.end.getTime())))
+    : fallback.end;
 
   const [attendances, advances, recurring, leaveRanges, adjustments, holidays] = await Promise.all([
     db.attendance.findMany({
@@ -189,10 +216,10 @@ async function gatherAndCalc(db: Tx | typeof prisma, month: string, employeeId?:
   // it to its Bangkok calendar date before comparing to `end` (UTC-midnight of
   // the cutoff day) — mirrors how leave windows its live charges by startDate.
   const sweepableAdvances = advances.filter(
-    (a) => bangkokDateUtcMidnight(a.requestedAt).getTime() <= end.getTime(),
+    (a) => bangkokDateUtcMidnight(a.requestedAt).getTime() <= windowOf(a.employeeId).end.getTime(),
   );
 
-  const attByEmp = byEmp(attendances);
+  const attByEmp = byEmp(attendances.filter((a) => inWindow(a.employeeId, a.date)));
   const advByEmp = byEmp(sweepableAdvances);
   const recByEmp = byEmp(recurring);
   const adjByEmp = byEmp(adjustments);
@@ -207,7 +234,7 @@ async function gatherAndCalc(db: Tx | typeof prisma, month: string, employeeId?:
   >();
   for (const c of await computeLiveLeaveCharges(empIds)) {
     if (c.swept) continue; // already paid in a published payroll — never re-sweep
-    if (c.startDate.getTime() > end.getTime()) continue;
+    if (c.startDate.getTime() > windowOf(c.employeeId).end.getTime()) continue;
     if (c.deductAmount == null || c.deductAmount <= 0) continue;
     // What is still OWED, not the whole charge: a previous month may have
     // collected part of it under the cap.
@@ -258,8 +285,9 @@ async function gatherAndCalc(db: Tx | typeof prisma, month: string, employeeId?:
       set = new Set<string>();
       leaveDatesByEmp.set(r.employeeId, set);
     }
-    const from = Math.max(r.startDate.getTime(), start.getTime());
-    const to = Math.min(r.endDate.getTime(), end.getTime());
+    const w = windowOf(r.employeeId);
+    const from = Math.max(r.startDate.getTime(), w.start.getTime());
+    const to = Math.min(r.endDate.getTime(), w.end.getTime());
     for (let t = from; t <= to; t += 86_400_000) {
       set.add(new Date(t).toISOString().slice(0, 10));
     }
@@ -324,7 +352,8 @@ async function gatherAndCalc(db: Tx | typeof prisma, month: string, employeeId?:
 
       const hiredYmd = emp.hiredAt.toISOString().slice(0, 10);
       let days = 0;
-      for (let t = start.getTime(); t <= end.getTime(); t += 86_400_000) {
+      const w = windowOf(emp.id);
+      for (let t = w.start.getTime(); t <= w.end.getTime(); t += 86_400_000) {
         const d = new Date(t);
         const ymdD = d.toISOString().slice(0, 10);
         // `>=` today, not `>`: a day is only assessable once it is OVER. Until

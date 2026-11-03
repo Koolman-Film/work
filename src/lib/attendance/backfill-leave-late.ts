@@ -41,12 +41,12 @@ import { payrollPeriodFor } from '@/lib/advance/period-earnings';
 import { auditLogTx } from '@/lib/audit/log';
 import { prisma } from '@/lib/db/prisma';
 import { getLeaveConfig } from '@/lib/leave/leave-config';
+import { loadCutoffRules } from '@/lib/payroll/cutoff-load';
 import { isClosedDay } from './date';
 import { lateMinutesForCheckIn, latePolicyFrom, resolveLatePolicy } from './late-policy';
 import { buildLateContext } from './leave-late-context';
 
 /** Same fallback as void.ts / manual/page.tsx when PayrollConfig has no row. */
-const DEFAULT_CUTOFF_DAY = 25;
 
 /** One planned/applied change to a Late row. */
 export type BackfillChange = {
@@ -89,13 +89,13 @@ export async function backfillLeaveLateRows(
   const since = opts.since ?? null;
   const actorId = opts.actorId ?? null;
 
-  const [payrollCfg, leaveCfg] = await Promise.all([
+  const [payrollCfg, leaveCfg, cutoffRules] = await Promise.all([
     prisma.payrollConfig.findFirst({
-      select: { workStartTime: true, lateGraceMinutes: true, cutoffDay: true },
+      select: { workStartTime: true, lateGraceMinutes: true },
     }),
     getLeaveConfig(),
+    loadCutoffRules(),
   ]);
-  const cutoffDay = payrollCfg?.cutoffDay ?? DEFAULT_CUTOFF_DAY;
 
   // Candidate days: every approved OnLeave attendance row. Its (employee, date)
   // is the only place the bug could have fired.
@@ -121,6 +121,7 @@ export async function backfillLeaveLateRows(
     where: { id: { in: empIds } },
     select: {
       id: true,
+      branchId: true,
       workSchedule: {
         select: { lateToleranceMin: true, days: { select: { dayOfWeek: true, startTime: true } } },
       },
@@ -207,7 +208,11 @@ export async function backfillLeaveLateRows(
     // month's period) — same mapping void.ts uses for this identical check.
     // A naive calendar-month here would look up the wrong Payroll row for
     // every late-month date and could modify an already-Published period.
-    const payrollMonth = payrollPeriodFor(iso(g.date), cutoffDay).end.slice(0, 7);
+    // Per employee: the window follows their home branch.
+    const payrollMonth = payrollPeriodFor(
+      iso(g.date),
+      cutoffRules.forBranch(empById.get(g.employeeId)?.branchId),
+    ).end.slice(0, 7);
     const finalized = await prisma.payroll.findFirst({
       where: {
         employeeId: g.employeeId,

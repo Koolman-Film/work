@@ -13,23 +13,22 @@
  * never overflows a short month (Feb 28) into the next via Date.UTC rollover.
  */
 import { formatThaiDate } from '@/lib/format';
+import { type Cutoff, periodWindowYmd } from './cutoff-rule';
 
-export function payrollMonthWindow(month: string, cutoffDay: number): { start: Date; end: Date } {
+/** `cutoff` is the company day, or a CutoffRule carrying the employee's
+ *  branch overrides (see cutoff-rule.ts) — the window math lives there. */
+export function payrollMonthWindow(month: string, cutoff: Cutoff): { start: Date; end: Date } {
   const [y, m] = month.split('-').map(Number);
   if (!y || !m || m < 1 || m > 12) throw new Error(`payrollMonthWindow: invalid month '${month}'`);
-  if (!Number.isInteger(cutoffDay) || cutoffDay < 1 || cutoffDay > 28)
-    throw new Error(`payrollMonthWindow: cutoffDay must be 1–28, got ${cutoffDay}`);
-  const end = new Date(Date.UTC(y, m - 1, cutoffDay));
-  const start = new Date(Date.UTC(y, m - 2, cutoffDay + 1));
-  return { start, end };
+  if (typeof cutoff === 'number' && (!Number.isInteger(cutoff) || cutoff < 1 || cutoff > 28))
+    throw new Error(`payrollMonthWindow: cutoffDay must be 1–28, got ${cutoff}`);
+  const { from, to } = periodWindowYmd(month, cutoff);
+  return { start: new Date(`${from}T00:00:00.000Z`), end: new Date(`${to}T00:00:00.000Z`) };
 }
 
 /** YMD-string form (inclusive) for the report period resolver + UI labels. */
-export function payrollMonthWindowYmd(
-  month: string,
-  cutoffDay: number,
-): { from: string; to: string } {
-  const { start, end } = payrollMonthWindow(month, cutoffDay);
+export function payrollMonthWindowYmd(month: string, cutoff: Cutoff): { from: string; to: string } {
+  const { start, end } = payrollMonthWindow(month, cutoff);
   return { from: start.toISOString().slice(0, 10), to: end.toISOString().slice(0, 10) };
 }
 
@@ -40,8 +39,8 @@ export function payrollMonthWindowYmd(
  * (both consume PayrollConfig.cutoffDay). Uses the shared formatThaiDate so the
  * era/spacing match the rest of the admin UI.
  */
-export function payrollPeriodLabel(month: string, cutoffDay: number): string {
-  const { from, to } = payrollMonthWindowYmd(month, cutoffDay);
+export function payrollPeriodLabel(month: string, cutoff: Cutoff): string {
+  const { from, to } = payrollMonthWindowYmd(month, cutoff);
   const asDate = (ymd: string) => new Date(`${ymd}T00:00:00.000Z`);
   return `${formatThaiDate(asDate(from))} – ${formatThaiDate(asDate(to))}`;
 }

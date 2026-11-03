@@ -11,26 +11,18 @@
  */
 
 import Decimal from 'decimal.js';
+import { type Cutoff, periodContaining } from '@/lib/payroll/cutoff-rule';
 
 export type PayrollPeriod = { start: string; end: string }; // YYYY-MM-DD inclusive
 
-export function payrollPeriodFor(todayYmd: string, cutoffDay: number): PayrollPeriod {
+export function payrollPeriodFor(todayYmd: string, cutoff: Cutoff): PayrollPeriod {
   // Guard: Date.UTC silently rolls cutoff-31 periods into overlapping ranges —
-  // fail loud so misconfigured PayrollConfig.cutoffDay is caught early.
-  if (!Number.isInteger(cutoffDay) || cutoffDay < 1 || cutoffDay > 28)
-    throw new Error(`payrollPeriodFor: cutoffDay must be 1–28, got ${cutoffDay}`);
-
-  const parts = todayYmd.split('-').map(Number);
-  const y = parts[0]!;
-  const m = parts[1]!;
-  const d = parts[2]!;
-  // Use UTC date arithmetic on day-precision values; no wall-clock involved.
-  const afterCutoff = d > cutoffDay;
-  const endMonth = afterCutoff ? m + 1 : m;
-  const end = new Date(Date.UTC(y, endMonth - 1, cutoffDay));
-  const start = new Date(Date.UTC(y, endMonth - 2, cutoffDay + 1));
-  const ymd = (dt: Date) => dt.toISOString().slice(0, 10);
-  return { start: ymd(start), end: ymd(end) };
+  // fail loud so misconfigured PayrollConfig.cutoffDay is caught early. A
+  // branch's month-end override arrives as a CutoffRule, validated there.
+  if (typeof cutoff === 'number' && (!Number.isInteger(cutoff) || cutoff < 1 || cutoff > 28))
+    throw new Error(`payrollPeriodFor: cutoffDay must be 1–28, got ${cutoff}`);
+  const { start, end } = periodContaining(todayYmd, cutoff);
+  return { start, end };
 }
 
 export type WorkedRow = {

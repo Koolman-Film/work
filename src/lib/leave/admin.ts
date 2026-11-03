@@ -36,6 +36,7 @@ import { prisma } from '@/lib/db/prisma';
 import { monthLabelTh } from '@/lib/format';
 import { sendNotification } from '@/lib/inngest/events';
 import { notifyAdminsInApp } from '@/lib/notifications/in-app-bell';
+import { loadCutoffForEmployee } from '@/lib/payroll/cutoff-load';
 import { lockEntitlement, remainingMinutes, resolveGrantedMinutes, usedMinutes } from './balance';
 import { getLeaveConfig } from './leave-config';
 import { asNameByLocale } from './localized-name';
@@ -97,13 +98,6 @@ export type RejectResult =
     };
 
 const MIN_NOTE_LENGTH = 1; // approval note can be a single "ok"; rejection note we don't enforce more strictly here either
-
-/** Matches `PayrollConfig.cutoffDay`'s schema default — same fallback
- *  `voidAttendance` (attendance/void.ts) and the manual attendance form use
- *  when the singleton config row is missing, so the stranded-settlement
- *  guard below derives the SAME payroll month as those callers even before
- *  any config row has ever been saved. */
-const DEFAULT_CUTOFF_DAY = 25;
 
 type Input = {
   leaveRequestId: string;
@@ -330,12 +324,12 @@ export async function approveLeaveRequest(input: Input): Promise<ApproveResult> 
       // entitlement-lock race below (`lockEntitlement`) is unaffected by
       // this decision — it protects a different invariant (the balance
       // itself) and was already closed before this guard existed.
-      const payrollCfg = await tx.payrollConfig.findFirst({ select: { cutoffDay: true } });
-      const cutoffDay = payrollCfg?.cutoffDay ?? DEFAULT_CUTOFF_DAY;
+      // The employee's home-branch window (Central Audio cuts at month-end).
+      const cutoff = await loadCutoffForEmployee(req.employeeId, tx);
       const monthsCovered = [
         ...new Set(
           targetDates.map((d) =>
-            payrollPeriodFor(d.toISOString().slice(0, 10), cutoffDay).end.slice(0, 7),
+            payrollPeriodFor(d.toISOString().slice(0, 10), cutoff).end.slice(0, 7),
           ),
         ),
       ];

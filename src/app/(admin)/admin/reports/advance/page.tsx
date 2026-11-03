@@ -6,7 +6,7 @@ import { requirePermission } from '@/lib/auth/check-permission';
 import { formatTHB2, formatThaiDate } from '@/lib/format';
 import { resolveReportPeriod } from '@/lib/reports/period';
 import { advanceDetail, advanceReport } from '@/lib/reports/queries';
-import { asUuid, loadPayrollCutoffDay, loadReportFilterOptions } from '../_load-filter-options';
+import { asUuid, loadReportCutoff, loadReportFilterOptions } from '../_load-filter-options';
 import { ExpandableReportRows } from '../expandable-report-rows';
 import { ExportButtons } from '../export-buttons';
 import { PeriodPicker } from '../period-picker';
@@ -28,8 +28,8 @@ export default async function AdvanceReportPage({
   const { user } = await requirePermission('report.read');
   const permitted = await getPermittedBranches(user, 'report.read');
   const todayYmd = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
-  const period = resolveReportPeriod(params, todayYmd, await loadPayrollCutoffDay());
   const branchId = asUuid(params.branchId);
+  const period = resolveReportPeriod(params, todayYmd, await loadReportCutoff(branchId));
   const departmentId = asUuid(params.departmentId);
   const filter = { q: params.q, branchId, departmentId };
   const [rows, detail, options] = await Promise.all([

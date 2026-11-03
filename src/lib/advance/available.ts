@@ -4,6 +4,7 @@ import { outstandingLeaveInWindow } from '@/lib/leave/outstanding-in-window';
 import { computeLiveLeaveCharges } from '@/lib/leave/recompute';
 import { windowMinutes } from '@/lib/leave/units';
 import { calcSso } from '@/lib/payroll/calc';
+import { loadCutoffForEmployee } from '@/lib/payroll/cutoff-load';
 import { type AdvanceBalance, calculateAdvanceBalance } from './balance';
 import { payrollPeriodFor, periodEarnings } from './period-earnings';
 
@@ -42,7 +43,7 @@ export async function advanceBalanceFor(
   // Fetch employee first, then parallelize: reserved advances, the payroll
   // config (SSO rates always; cutoffDay for rate-based earnings), and the
   // active recurring deductions that reduce NET pay.
-  const [reservedRows, cfg, recurring] = await Promise.all([
+  const [reservedRows, cfg, recurring, cutoff] = await Promise.all([
     prisma.cashAdvance.findMany({
       where: {
         employeeId,
@@ -57,7 +58,6 @@ export async function advanceBalanceFor(
         ssoRate: true,
         ssoSalaryCap: true,
         ssoAmountCap: true,
-        cutoffDay: true,
         advanceMinRemaining: true,
       },
     }),
@@ -66,6 +66,8 @@ export async function advanceBalanceFor(
       where: { employeeId, endedAt: null, monthsRemaining: { gt: 0 } },
       select: { monthlyAmount: true },
     }),
+    // The employee's home-branch cut-off (Central Audio cuts at month-end).
+    loadCutoffForEmployee(employeeId),
   ]);
 
   // NET-pay cap basis: SSO + active recurring + this month's keyed
@@ -94,11 +96,11 @@ export async function advanceBalanceFor(
   // agree about which month an adjustment belongs to.
   //
   // Issued sequentially rather than inside the Promise.all above because the
-  // month depends on cfg.cutoffDay, which that batch is what fetches. One extra
+  // month depends on the cut-off rule, which that batch is what fetches. One extra
   // round-trip on a form/approval path is fine; report code must not loop this
   // helper (see the header).
   const todayYmd = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
-  const currentPeriod = payrollPeriodFor(todayYmd, cfg.cutoffDay);
+  const currentPeriod = payrollPeriodFor(todayYmd, cutoff);
   const currentMonth = currentPeriod.end.slice(0, 7);
   const adjustments = await prisma.payrollAdjustment.findMany({
     where: {
@@ -130,7 +132,7 @@ export async function advanceBalanceFor(
 
   let earnings: number | null = null;
   if (employee.salaryType !== 'Monthly') {
-    const period = payrollPeriodFor(todayYmd, cfg.cutoffDay);
+    const period = payrollPeriodFor(todayYmd, cutoff);
     const rows = await prisma.attendance.findMany({
       where: {
         employeeId,

@@ -2,6 +2,7 @@ import { advanceBalanceFor } from '@/lib/advance/available';
 import { isInAdvanceBlackout } from '@/lib/advance/blackout';
 import { requireEmployee } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
+import { loadCutoffForEmployee } from '@/lib/payroll/cutoff-load';
 import { AdvanceNewForm } from './advance-new-form';
 
 export default async function NewAdvancePage() {
@@ -17,13 +18,12 @@ export default async function NewAdvancePage() {
   // of letting someone type an amount and be refused. The real guard is in
   // submitCashAdvance — a disabled button is presentation, and a page held open
   // across midnight would walk straight past it.
-  const cfg = await prisma.payrollConfig.findFirst({
-    select: { cutoffDay: true, advanceBlackoutDays: true },
-  });
+  const [cfg, cutoff] = await Promise.all([
+    prisma.payrollConfig.findFirst({ select: { advanceBlackoutDays: true } }),
+    loadCutoffForEmployee(employee.id),
+  ]);
   const todayYmd = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
-  const blackout = cfg
-    ? isInAdvanceBlackout(todayYmd, cfg.cutoffDay, cfg.advanceBlackoutDays)
-    : false;
+  const blackout = cfg ? isInAdvanceBlackout(todayYmd, cutoff, cfg.advanceBlackoutDays) : false;
 
   return <AdvanceNewForm available={balance.available} blackout={blackout} />;
 }

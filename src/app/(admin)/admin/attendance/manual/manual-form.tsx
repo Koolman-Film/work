@@ -31,6 +31,7 @@ import { latePolicyFrom, resolveLatePolicy } from '@/lib/attendance/late-policy'
 import { type CreateManualResult, createManualAttendance } from '@/lib/attendance/manual';
 import { computeManualPreview } from '@/lib/attendance/manual-preview';
 import { isNotFoundError } from '@/lib/auth/is-not-found-error';
+import type { CutoffRule } from '@/lib/payroll/cutoff-rule';
 import { dailyRateFor } from '@/lib/payroll/day-rate';
 import {
   getPenaltyLeaveBalance,
@@ -44,8 +45,8 @@ import {
  * inclusive last day of the window, so that day's YYYY-MM prefix is exactly
  * the `month` `payrollMonthWindow` would build back from.
  */
-function payrollMonthFor(dateYmd: string, cutoffDay: number): string {
-  return payrollPeriodFor(dateYmd, cutoffDay).end.slice(0, 7);
+function payrollMonthFor(dateYmd: string, cutoff: CutoffRule): string {
+  return payrollPeriodFor(dateYmd, cutoff).end.slice(0, 7);
 }
 
 const SETTLEMENT_ERROR_TH: Record<string, string> = {
@@ -90,6 +91,9 @@ type EmployeeOption = {
   baseSalary: string;
   lateToleranceMin: number | null;
   scheduleDays: ScheduleDay[] | null;
+  /** This employee's home-branch cut-off rule (already defaulted by the
+   *  server) — resolves which pay-period month a settlement's date is on. */
+  cutoff: CutoffRule;
 };
 
 type PenaltyLeaveTypeOption = { id: string; name: string };
@@ -103,9 +107,6 @@ type Props = {
   otThresholdMinutes: number;
   /** `PayrollConfig.workingDaysPerMonth` (already defaulted by the server). */
   workingDaysPerMonth: number;
-  /** `PayrollConfig.cutoffDay` (already defaulted by the server) — resolves
-   *  which pay-period month a settlement's absence date belongs to. */
-  cutoffDay: number;
   /** Whether the signed-in admin holds `payroll.run`. When false, the
    *  money/leave choice must not render at all — no disabled control. */
   canSettle: boolean;
@@ -122,7 +123,6 @@ export function ManualAttendanceForm({
   holidayYmds,
   otThresholdMinutes,
   workingDaysPerMonth,
-  cutoffDay,
   canSettle,
   penaltyLeaveTypes,
 }: Props) {
@@ -149,6 +149,7 @@ export function ManualAttendanceForm({
   const [pending, startTransition] = useTransition();
 
   const employee = employees.find((e) => e.id === employeeId) ?? null;
+  const cutoff = employee?.cutoff ?? null;
 
   // Only meaningful when kind === 'absent' && canSettle — the other two
   // penalty kinds (LateThreeStrike, SevereLate) don't exist at manual-entry
@@ -173,12 +174,12 @@ export function ManualAttendanceForm({
   // Fetched lazily rather than baked into page props, since it depends on
   // the date the admin is about to pick.
   useEffect(() => {
-    if (!showSettleChoice || settleWith !== 'leave' || !employeeId) {
+    if (!showSettleChoice || settleWith !== 'leave' || !employeeId || !cutoff) {
       setEmployeeRemainingDays({});
       return;
     }
     let cancelled = false;
-    getPenaltyLeaveBalance({ employeeId, month: payrollMonthFor(date, cutoffDay) })
+    getPenaltyLeaveBalance({ employeeId, month: payrollMonthFor(date, cutoff) })
       .then((days) => {
         if (!cancelled) setEmployeeRemainingDays(days);
       })
@@ -194,21 +195,21 @@ export function ManualAttendanceForm({
     return () => {
       cancelled = true;
     };
-  }, [showSettleChoice, settleWith, employeeId, date, cutoffDay]);
+  }, [showSettleChoice, settleWith, employeeId, date, cutoff]);
 
   // setPenaltySettlement upserts on (employeeId, month, kind) — a second
   // "หักสิทธิ" pick for the same employee/month REPLACES the first rather
   // than adding to it. Warn before that happens rather than after, since the
   // save itself succeeds silently either way.
   useEffect(() => {
-    if (!showSettleChoice || settleWith !== 'leave' || !employeeId) {
+    if (!showSettleChoice || settleWith !== 'leave' || !employeeId || !cutoff) {
       setExistingSettlement(null);
       return;
     }
     let cancelled = false;
     getPenaltySettlement({
       employeeId,
-      month: payrollMonthFor(date, cutoffDay),
+      month: payrollMonthFor(date, cutoff),
       kind: 'Absent',
     })
       .then((result) => {
@@ -224,7 +225,7 @@ export function ManualAttendanceForm({
     return () => {
       cancelled = true;
     };
-  }, [showSettleChoice, settleWith, employeeId, date, cutoffDay]);
+  }, [showSettleChoice, settleWith, employeeId, date, cutoff]);
 
   // This employee's actual per-day deduction — same function, same inputs
   // `calcPayroll` uses, so the preview can never disagree with the charge.
@@ -295,7 +296,7 @@ export function ManualAttendanceForm({
     e.preventDefault();
     setError(null);
 
-    if (!employeeId) {
+    if (!employeeId || !cutoff) {
       setError('กรุณาเลือกพนักงาน');
       return;
     }
@@ -334,7 +335,7 @@ export function ManualAttendanceForm({
         try {
           const settled = await setManualAttendanceSettlement({
             employeeId,
-            month: payrollMonthFor(date, cutoffDay),
+            month: payrollMonthFor(date, cutoff),
             kind: 'Absent',
             leaveTypeId: settleLeaveTypeId,
             days: 1,
