@@ -1,5 +1,6 @@
 'use server';
 
+import type { Prisma } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
@@ -12,10 +13,6 @@ const Schema = z.object({
   workStartTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'รูปแบบเวลาไม่ถูกต้อง (HH:MM)'),
   // 0 = any minute past start counts as late; cap at 8h as a sanity bound.
   lateGraceMinutes: z.coerce.number().int().min(0).max(480),
-  // Payroll cutoff day. Bounded 1–28 (matches payrollMonthWindow) so the
-  // (cutoff+1) period start never overflows a short month. e.g. 26 → รอบ
-  // 27 ของเดือนก่อน ถึง 26 ของเดือนนี้.
-  cutoffDay: z.coerce.number().int().min(1).max(28),
   // Late-penalty policy (C9).
   lateThreeStrikeEnabled: z.boolean(),
   lateThreeStrikeCount: z.coerce.number().int().min(1).max(31),
@@ -23,13 +20,24 @@ const Schema = z.object({
   severeLateThresholdMin: z.coerce.number().int().min(0).max(480),
 });
 
+// PayrollConfig is a seeded singleton with many required fields, so we only
+// ever UPDATE it here (never create — that path belongs to the seed).
+async function loadConfigOrRedirect<S extends Prisma.PayrollConfigSelect>(select: S) {
+  const cfg = await prisma.payrollConfig.findFirst({ select: { ...select, id: true } });
+  if (!cfg) {
+    redirect(
+      `/admin/settings/attendance?error=${encodeURIComponent('ยังไม่มีการตั้งค่าระบบ (PayrollConfig) — รัน seed ก่อน')}`,
+    );
+  }
+  return cfg;
+}
+
 export async function updateAttendanceConfig(formData: FormData) {
   const { user } = await requirePermission('settings.attendance.manage');
 
   const parsed = Schema.safeParse({
     workStartTime: formData.get('workStartTime'),
     lateGraceMinutes: formData.get('lateGraceMinutes'),
-    cutoffDay: formData.get('cutoffDay'),
     // Unchecked checkboxes are absent from FormData → false.
     lateThreeStrikeEnabled: formData.get('lateThreeStrikeEnabled') === 'on',
     lateThreeStrikeCount: formData.get('lateThreeStrikeCount'),
@@ -42,33 +50,59 @@ export async function updateAttendanceConfig(formData: FormData) {
     );
   }
 
-  // PayrollConfig is a seeded singleton with many required fields, so we only
-  // ever UPDATE it here (never create — that path belongs to the seed).
-  const before = await prisma.payrollConfig.findFirst({
-    select: { id: true, workStartTime: true, lateGraceMinutes: true, cutoffDay: true },
+  const before = await loadConfigOrRedirect({
+    workStartTime: true,
+    lateGraceMinutes: true,
+    lateThreeStrikeEnabled: true,
+    lateThreeStrikeCount: true,
+    severeLateEnabled: true,
+    severeLateThresholdMin: true,
   });
-  if (!before) {
-    redirect(
-      `/admin/settings/attendance?error=${encodeURIComponent('ยังไม่มีการตั้งค่าระบบ (PayrollConfig) — รัน seed ก่อน')}`,
-    );
-  }
+  const { id, ...beforeFields } = before;
 
-  await prisma.payrollConfig.update({ where: { id: before.id }, data: parsed.data });
+  await prisma.payrollConfig.update({ where: { id }, data: parsed.data });
 
   auditLog({
     actorId: user.id,
     action: 'payrollConfig.update',
     entityType: 'PayrollConfig',
-    entityId: before.id,
-    before: {
-      workStartTime: before.workStartTime,
-      lateGraceMinutes: before.lateGraceMinutes,
-      cutoffDay: before.cutoffDay,
-    },
+    entityId: id,
+    before: beforeFields,
     after: parsed.data,
     metadata: { source: 'admin-ui', section: 'attendance-late-policy' },
   });
 
+  revalidatePath('/admin/settings/attendance');
+  redirect('/admin/settings/attendance?ok=1');
+}
+
+// Company payroll cut-off day — saved on its own so it sits with the branch
+// overrides it is the default for. Bounded 1–28 (matches payrollMonthWindow)
+// so the (cutoff+1) period start never overflows a short month. e.g. 26 →
+// รอบ 27 ของเดือนก่อน ถึง 26 ของเดือนนี้.
+const CutoffSchema = z.object({
+  cutoffDay: z.coerce.number().int().min(1).max(28, 'วันตัดรอบต้องเป็นวันที่ 1–28'),
+});
+
+export async function updatePayrollCutoff(formData: FormData) {
+  const { user } = await requirePermission('settings.attendance.manage');
+  const parsed = CutoffSchema.safeParse({ cutoffDay: formData.get('cutoffDay') });
+  if (!parsed.success) {
+    redirect(
+      `/admin/settings/attendance?error=${encodeURIComponent(parsed.error.issues[0]?.message ?? 'ข้อมูลไม่ถูกต้อง')}`,
+    );
+  }
+  const before = await loadConfigOrRedirect({ cutoffDay: true });
+  await prisma.payrollConfig.update({ where: { id: before.id }, data: parsed.data });
+  auditLog({
+    actorId: user.id,
+    action: 'payrollConfig.update',
+    entityType: 'PayrollConfig',
+    entityId: before.id,
+    before: { cutoffDay: before.cutoffDay },
+    after: parsed.data,
+    metadata: { source: 'admin-ui', section: 'payroll-cutoff' },
+  });
   revalidatePath('/admin/settings/attendance');
   redirect('/admin/settings/attendance?ok=1');
 }

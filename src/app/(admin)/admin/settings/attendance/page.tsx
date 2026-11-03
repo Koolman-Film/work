@@ -10,7 +10,12 @@ import { formatThaiDate } from '@/lib/format';
 import { DEFAULT_CUTOFF_DAY } from '@/lib/payroll/cutoff-load';
 import { describeCutoffDay, END_OF_MONTH } from '@/lib/payroll/cutoff-rule';
 import { payrollMonthWindowYmd } from '@/lib/payroll/period';
-import { addBranchCutoffAction, removeBranchCutoffAction, updateAttendanceConfig } from './actions';
+import {
+  addBranchCutoffAction,
+  removeBranchCutoffAction,
+  updateAttendanceConfig,
+  updatePayrollCutoff,
+} from './actions';
 
 const SELECT_CLASS =
   'w-full rounded-md border border-line-strong bg-surface px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500/30';
@@ -81,7 +86,7 @@ export default async function AttendanceSettingsPage({
       <PageHeader
         breadcrumb="ตั้งค่า"
         title="การมาสาย & รอบจ่ายเงินเดือน"
-        subtitle="เวลาเข้างานมาตรฐาน + ระยะผ่อนผัน และวันตัดรอบสำหรับคำนวณเงินเดือน"
+        subtitle="เวลาเข้างานมาตรฐาน + บทลงโทษการมาสาย และรอบตัดเงินเดือนของบริษัทและแต่ละสาขา"
       />
 
       {sp.error && (
@@ -138,38 +143,6 @@ export default async function AttendanceSettingsPage({
             </p>
             <p className="text-xs text-ink-4">
               ใช้กับทุกพนักงานที่ยังไม่ได้กำหนดตารางงานเฉพาะตัว — วันอาทิตย์และวันหยุดจะไม่นับ
-            </p>
-          </CardBody>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>รอบจ่ายเงินเดือน</CardTitle>
-          </CardHeader>
-          <CardBody className="space-y-5">
-            <FormField
-              label="วันตัดรอบ (1–28)"
-              htmlFor="cutoffDay"
-              hint="รอบเงินเดือนของเดือนหนึ่ง = วันถัดจากวันตัดรอบของเดือนก่อน ถึงวันตัดรอบของเดือนนี้ เช่น 26 = วันที่ 27 เดือนก่อน ถึงวันที่ 26 เดือนนี้"
-            >
-              <Input
-                id="cutoffDay"
-                name="cutoffDay"
-                type="number"
-                min={1}
-                max={28}
-                step={1}
-                defaultValue={cutoffDay}
-                required
-              />
-            </FormField>
-            <p className="text-sm text-ink-3">
-              รอบของเดือนนี้: <strong className="text-ink-1">{winFrom}</strong> ถึง{' '}
-              <strong className="text-ink-1">{winTo}</strong> — การมาสาย/ขาด/ลา
-              ในช่วงนี้จะถูกนำไปคำนวณในรอบเดียวกัน
-            </p>
-            <p className="text-xs text-ink-4">
-              มีผลกับการคำนวณเงินเดือนรอบใหม่เท่านั้น — รอบที่เผยแพร่/ล็อกแล้วจะไม่เปลี่ยน
             </p>
           </CardBody>
         </Card>
@@ -237,94 +210,130 @@ export default async function AttendanceSettingsPage({
         </Card>
 
         <div className="flex justify-end">
-          <Button type="submit">บันทึก</Button>
+          <Button type="submit">บันทึกการมาสาย</Button>
         </div>
       </form>
 
+      {/* The company day and its branch exceptions live in one card, each with
+          its own save, so they read as one setting. Separate forms because the
+          branch rows save immediately (and forms can't nest). */}
       <Card className="mt-6">
         <CardHeader>
-          <CardTitle>รอบตัดเงินเดือนแยกตามสาขา</CardTitle>
+          <CardTitle>รอบจ่ายเงินเดือน</CardTitle>
         </CardHeader>
-        <CardBody className="space-y-5">
-          <p className="text-sm text-ink-3">
-            สาขาที่ไม่ได้ตั้งค่าที่นี่ใช้วันตัดรอบของบริษัท ({describeCutoffDay(cutoffDay)}) — ใช้กับพนักงานตาม
-            <strong className="text-ink-1">สาขาหลัก</strong>ของพนักงาน
-            เดือนแรกที่เปลี่ยนจะเริ่มต่อจากรอบเดิมเสมอ จึงอาจยาวหรือสั้นกว่าปกติหนึ่งครั้ง
-          </p>
-
-          {overrideRows.length > 0 ? (
-            <ul className="divide-y divide-line rounded-lg border border-line">
-              {overrideRows.map((r) => (
-                <li
-                  key={r.id}
-                  className="flex items-center justify-between gap-3 px-4 py-3 text-sm"
-                >
-                  <div>
-                    <div className="font-medium text-ink-1">
-                      {r.branchName} · {describeCutoffDay(r.cutoffDay)}
-                    </div>
-                    <div className="text-ink-3">
-                      มีผลตั้งแต่รอบเดือน {r.fromMonth} (รอบแรก: {r.firstWindow})
-                    </div>
-                  </div>
-                  <form action={removeBranchCutoffAction.bind(null, r.id)}>
-                    <Button type="submit" variant="secondary" size="sm">
-                      ลบ
-                    </Button>
-                  </form>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-ink-4">ยังไม่มีสาขาที่ตั้งค่าแยก</p>
-          )}
-
-          <form action={addBranchCutoffAction} className="grid grid-cols-1 gap-4 sm:grid-cols-4">
-            <FormField label="สาขา" htmlFor="branchId">
-              <select
-                id="branchId"
-                name="branchId"
-                required
-                defaultValue=""
-                className={SELECT_CLASS}
-              >
-                <option value="" disabled>
-                  เลือกสาขา...
-                </option>
-                {branches.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name}
-                  </option>
-                ))}
-              </select>
-            </FormField>
-            <FormField label="รอบตัดเงินเดือน" htmlFor="branchCutoffDay">
-              <select
-                id="branchCutoffDay"
-                name="branchCutoffDay"
-                required
-                defaultValue={END_OF_MONTH}
-                className={SELECT_CLASS}
-              >
-                <option value={END_OF_MONTH}>{describeCutoffDay(END_OF_MONTH)}</option>
-                {Array.from({ length: 28 }, (_, i) => i + 1).map((d) => (
-                  <option key={d} value={d}>
-                    {describeCutoffDay(d)}
-                  </option>
-                ))}
-              </select>
-            </FormField>
-            <FormField
-              label="มีผลตั้งแต่รอบเดือน"
-              htmlFor="fromMonth"
-              hint="เปลี่ยนได้เฉพาะเดือนที่ยังไม่เผยแพร่สลิป"
-            >
-              <Input id="fromMonth" name="fromMonth" type="month" defaultValue={nowYm} required />
-            </FormField>
-            <div className="flex items-end">
-              <Button type="submit">เพิ่ม</Button>
+        <CardBody className="space-y-6">
+          <form action={updatePayrollCutoff} className="space-y-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+              <div className="sm:w-60">
+                <FormField label="วันตัดรอบของบริษัท (1–28)" htmlFor="cutoffDay">
+                  <Input
+                    id="cutoffDay"
+                    name="cutoffDay"
+                    type="number"
+                    min={1}
+                    max={28}
+                    step={1}
+                    defaultValue={cutoffDay}
+                    required
+                  />
+                </FormField>
+              </div>
+              <Button type="submit">บันทึกวันตัดรอบ</Button>
             </div>
+            <p className="text-sm text-ink-3">
+              รอบเงินเดือนของเดือนหนึ่ง = วันถัดจากวันตัดรอบของเดือนก่อน ถึงวันตัดรอบของเดือนนี้ — รอบของเดือนนี้:{' '}
+              <strong className="text-ink-1">{winFrom}</strong> ถึง{' '}
+              <strong className="text-ink-1">{winTo}</strong>
+            </p>
+            <p className="text-xs text-ink-4">
+              มีผลกับการคำนวณเงินเดือนรอบใหม่เท่านั้น — รอบที่เผยแพร่/ล็อกแล้วจะไม่เปลี่ยน
+            </p>
           </form>
+
+          <div className="space-y-4 border-t border-line pt-5">
+            <div>
+              <h3 className="text-sm font-semibold text-ink-1">ข้อยกเว้นรายสาขา</h3>
+              <p className="mt-1 text-sm text-ink-3">
+                สาขาที่ไม่อยู่ในรายการใช้วันตัดรอบของบริษัท ({describeCutoffDay(cutoffDay)}) — ใช้กับพนักงานตาม
+                <strong className="text-ink-1">สาขาหลัก</strong>ของพนักงาน
+                เดือนแรกที่เปลี่ยนจะเริ่มต่อจากรอบเดิมเสมอ จึงอาจยาวหรือสั้นกว่าปกติหนึ่งครั้ง เพิ่ม/ลบแล้วมีผลทันที
+              </p>
+            </div>
+
+            {overrideRows.length > 0 ? (
+              <ul className="divide-y divide-line rounded-lg border border-line">
+                {overrideRows.map((r) => (
+                  <li
+                    key={r.id}
+                    className="flex items-center justify-between gap-3 px-4 py-3 text-sm"
+                  >
+                    <div>
+                      <div className="font-medium text-ink-1">
+                        {r.branchName} · {describeCutoffDay(r.cutoffDay)}
+                      </div>
+                      <div className="text-ink-3">
+                        มีผลตั้งแต่รอบเดือน {r.fromMonth} (รอบแรก: {r.firstWindow})
+                      </div>
+                    </div>
+                    <form action={removeBranchCutoffAction.bind(null, r.id)}>
+                      <Button type="submit" variant="secondary" size="sm">
+                        ลบ
+                      </Button>
+                    </form>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-ink-4">ยังไม่มีสาขาที่ตั้งค่าแยก</p>
+            )}
+
+            <form action={addBranchCutoffAction} className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+              <FormField label="สาขา" htmlFor="branchId">
+                <select
+                  id="branchId"
+                  name="branchId"
+                  required
+                  defaultValue=""
+                  className={SELECT_CLASS}
+                >
+                  <option value="" disabled>
+                    เลือกสาขา...
+                  </option>
+                  {branches.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name}
+                    </option>
+                  ))}
+                </select>
+              </FormField>
+              <FormField label="รอบตัดเงินเดือน" htmlFor="branchCutoffDay">
+                <select
+                  id="branchCutoffDay"
+                  name="branchCutoffDay"
+                  required
+                  defaultValue={END_OF_MONTH}
+                  className={SELECT_CLASS}
+                >
+                  <option value={END_OF_MONTH}>{describeCutoffDay(END_OF_MONTH)}</option>
+                  {Array.from({ length: 28 }, (_, i) => i + 1).map((d) => (
+                    <option key={d} value={d}>
+                      {describeCutoffDay(d)}
+                    </option>
+                  ))}
+                </select>
+              </FormField>
+              <FormField
+                label="มีผลตั้งแต่รอบเดือน"
+                htmlFor="fromMonth"
+                hint="เปลี่ยนได้เฉพาะเดือนที่ยังไม่เผยแพร่สลิป"
+              >
+                <Input id="fromMonth" name="fromMonth" type="month" defaultValue={nowYm} required />
+              </FormField>
+              <div className="flex items-end">
+                <Button type="submit">เพิ่มข้อยกเว้น</Button>
+              </div>
+            </form>
+          </div>
         </CardBody>
       </Card>
     </div>
