@@ -22,10 +22,11 @@ import { StatusBadge, type StatusKey } from '@/components/ui/status-badge';
 import { getPermittedBranches } from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
+import { HOLIDAY_SCOPE_SELECT, holidayDatesForBranch } from '@/lib/leave/holiday-scope';
 import { getLeaveConfig } from '@/lib/leave/leave-config';
 import { leaveDurationLabel } from '@/lib/leave/units';
 import { restoreLeaveRequest } from '@/lib/leave/void';
-import { expandHolidaysWithSubstitutes, workingDaysIn } from '@/lib/leave/working-days';
+import { workingDaysIn } from '@/lib/leave/working-days';
 import { buildPageMeta, pageArgs, parsePageParam } from '@/lib/pagination';
 import { signAttendancePhotoUrls } from '@/lib/storage/signed-urls';
 import { loadLeaveInbox } from './_load-inbox';
@@ -73,7 +74,7 @@ export default async function AdminLeaveInboxPage({
     loadLeaveInbox({ permitted, status, q, isTrash, skip, take }),
     prisma.holiday.findMany({
       where: { archivedAt: null },
-      select: { date: true, name: true },
+      select: HOLIDAY_SCOPE_SELECT,
     }),
     getLeaveConfig(),
     prisma.leaveType.findMany({
@@ -122,7 +123,8 @@ export default async function AdminLeaveInboxPage({
 
   // View-model for the interactive (non-trash) list. The client LeaveInbox
   // renders each row as a button that opens the review modal.
-  const expandedHolidays = expandHolidaysWithSubstitutes(holidays.map((h) => h.date));
+  // Per row: company holidays + that employee's home-branch closures.
+  const holidaysFor = (branchId: string) => holidayDatesForBranch(holidays, branchId);
   const vm: LeaveRowVM[] = isTrash
     ? []
     : await Promise.all(
@@ -130,7 +132,7 @@ export default async function AdminLeaveInboxPage({
           const workingDays = workingDaysIn({
             startDate: r.startDate,
             endDate: r.endDate,
-            holidays: expandedHolidays,
+            holidays: holidaysFor(r.employee.branchId),
           }).length;
           return buildLeaveRowVM(r, {
             attachmentUrl: resolveAttachment(r.attachmentUrl),
@@ -236,7 +238,7 @@ export default async function AdminLeaveInboxPage({
                 const wd = workingDaysIn({
                   startDate: r.startDate,
                   endDate: r.endDate,
-                  holidays: expandedHolidays,
+                  holidays: holidaysFor(r.employee.branchId),
                 });
                 const attachment = resolveAttachment(r.attachmentUrl);
                 return (

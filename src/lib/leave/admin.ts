@@ -38,6 +38,7 @@ import { sendNotification } from '@/lib/inngest/events';
 import { notifyAdminsInApp } from '@/lib/notifications/in-app-bell';
 import { loadCutoffForEmployee } from '@/lib/payroll/cutoff-load';
 import { lockEntitlement, remainingMinutes, resolveGrantedMinutes, usedMinutes } from './balance';
+import { HOLIDAY_SCOPE_SELECT, holidayDatesForBranch } from './holiday-scope';
 import { getLeaveConfig } from './leave-config';
 import { asNameByLocale } from './localized-name';
 import { deductionForOverQuota, overQuotaMinutesFor, perMinuteRate } from './over-quota';
@@ -51,7 +52,7 @@ import {
   splitDaysHours,
   standardDayMinutes,
 } from './units';
-import { expandHolidaysWithSubstitutes, parseInputDate, workingDaysIn } from './working-days';
+import { parseInputDate, workingDaysIn } from './working-days';
 
 /** Bell display name — prefer nickname. Mirrors leave/actions.ts. */
 function employeeBellName(e: {
@@ -203,12 +204,13 @@ export async function approveLeaveRequest(input: Input): Promise<ApproveResult> 
           archivedAt: null,
           date: { gte: dayBeforeStart, lte: req.endDate },
         },
-        select: { date: true },
+        select: HOLIDAY_SCOPE_SELECT,
       });
 
-      // Auto-add Monday-after-Sunday substitutes per Thai labor law
-      // ("วันหยุดชดเชย"). Dedups against admin-entered substitute rows.
-      const expandedHolidays = expandHolidaysWithSubstitutes(holidays.map((h) => h.date));
+      // Company holidays plus the employee's home-branch closures; company
+      // holidays get their Monday-after-Sunday substitutes per Thai labor law
+      // ("วันหยุดชดเชย"), deduped against admin-entered rows (holiday-scope.ts).
+      const expandedHolidays = holidayDatesForBranch(holidays, req.employee.branchId);
 
       const workingDays = workingDaysIn({
         startDate: req.startDate,

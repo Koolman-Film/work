@@ -37,6 +37,7 @@ import { requireEmployee } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
 import { notifyAdminsInApp } from '@/lib/notifications/in-app-bell';
 import { remainingByTypeForEmployee } from './balance';
+import { HOLIDAY_SCOPE_SELECT, holidayDatesForBranch } from './holiday-scope';
 import { getLeaveConfig } from './leave-config';
 import { overQuotaMinutesFor } from './over-quota';
 import { type LeaveUnit, segmentFor, segmentsOverlap, standardDayMinutes } from './units';
@@ -225,15 +226,31 @@ export async function submitLeaveRequest(input: SubmitInput): Promise<SubmitLeav
   // Reject up-front instead of letting an over-quota request sit Pending only
   // to be blocked at approval. DeductPay types fall through — they're allowed
   // to exceed and the over-quota becomes a salary deduction frozen at approval.
-  // chargedMinutes mirrors the worker form's preview (holidays resolved
-  // authoritatively at approval); remaining comes from the same source the form
-  // shows, so the server verdict matches what the worker saw.
+  // chargedMinutes counts working days exactly as approval will — company
+  // holidays plus this employee's home-branch closures (holiday-scope.ts) —
+  // and the worker form previews the same set, so the verdict matches what the
+  // worker saw. Ignoring holidays here would refuse a valid request that spans
+  // one.
   if (lt.overQuotaPolicy === 'Block') {
     const year = start.getUTCFullYear();
+    const holidays =
+      unit === 'FullDay'
+        ? await prisma.holiday.findMany({
+            where: {
+              archivedAt: null,
+              // A day earlier so a Sunday holiday's Monday substitute counts.
+              date: { gte: new Date(start.getTime() - 86_400_000), lte: end },
+            },
+            select: HOLIDAY_SCOPE_SELECT,
+          })
+        : [];
     const chargedMinutes =
       unit === 'FullDay'
-        ? workingDaysIn({ startDate: start, endDate: end, holidays: [] }).length *
-          standardDayMinutes(cfg)
+        ? workingDaysIn({
+            startDate: start,
+            endDate: end,
+            holidays: holidayDatesForBranch(holidays, employee.branchId),
+          }).length * standardDayMinutes(cfg)
         : segment.minutes;
     const remaining = (await remainingByTypeForEmployee(employee.id, year))[lt.id] ?? null;
     if (overQuotaMinutesFor(chargedMinutes, remaining) > 0) {

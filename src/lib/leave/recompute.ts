@@ -17,10 +17,11 @@
  */
 
 import { prisma } from '@/lib/db/prisma';
+import { HOLIDAY_SCOPE_SELECT, holidayDatesForBranch } from './holiday-scope';
 import { perMinuteRate, replayOverQuota } from './over-quota';
 import { penaltyMinutesBy } from './penalty-minutes';
 import { segmentFor, standardDayMinutes } from './units';
-import { expandHolidaysWithSubstitutes, workingDaysIn } from './working-days';
+import { workingDaysIn } from './working-days';
 
 export type LiveLeaveCharge = {
   leaveRequestId: string;
@@ -67,9 +68,10 @@ export async function computeLiveLeaveCharges(
   const payCfg = await prisma.payrollConfig.findFirstOrThrow({
     select: { workingDaysPerMonth: true },
   });
-  const allHolidays = (
-    await prisma.holiday.findMany({ where: { archivedAt: null }, select: { date: true } })
-  ).map((h) => h.date);
+  const allHolidays = await prisma.holiday.findMany({
+    where: { archivedAt: null },
+    select: HOLIDAY_SCOPE_SELECT,
+  });
 
   const rows = await prisma.leaveRequest.findMany({
     where: {
@@ -95,7 +97,15 @@ export async function computeLiveLeaveCharges(
       createdAt: true,
       deductedInPayrollId: true,
       deductedAmountToDate: true,
-      employee: { select: { salaryType: true, baseSalary: true, nickname: true, firstName: true } },
+      employee: {
+        select: {
+          branchId: true,
+          salaryType: true,
+          baseSalary: true,
+          nickname: true,
+          firstName: true,
+        },
+      },
       leaveType: { select: { name: true, annualQuota: true } },
     },
   });
@@ -114,7 +124,8 @@ export async function computeLiveLeaveCharges(
     }
     const dayBeforeStart = new Date(r.startDate.getTime() - 86_400_000);
     const inWindow = allHolidays.filter(
-      (d) => d.getTime() >= dayBeforeStart.getTime() && d.getTime() <= r.endDate.getTime(),
+      (h) =>
+        h.date.getTime() >= dayBeforeStart.getTime() && h.date.getTime() <= r.endDate.getTime(),
     );
     charged.set(
       r.id,
@@ -122,7 +133,8 @@ export async function computeLiveLeaveCharges(
         workingDaysIn({
           startDate: r.startDate,
           endDate: r.endDate,
-          holidays: expandHolidaysWithSubstitutes(inWindow),
+          // Same as approval: company + home-branch holidays (holiday-scope.ts).
+          holidays: holidayDatesForBranch(inWindow, r.employee.branchId),
         }).length,
     );
   }

@@ -456,7 +456,7 @@ describe('createManualAttendance — late-policy / off-day resolution glue', () 
 
   it('produces no Late row on a holiday, even when the employee is scheduled that day', async () => {
     payrollConfigFindFirst.mockResolvedValue(null);
-    holidayFindFirst.mockResolvedValue({ id: 'holiday-1' }); // WEDNESDAY is a holiday
+    holidayFindFirst.mockResolvedValue({ date: new Date(WEDNESDAY), branchIds: [] }); // company holiday
     employeeFindUnique.mockResolvedValue({
       ...baseEmployee,
       // Scheduled Mon–Fri, so Wednesday (dow=3) IS a scheduled day.
@@ -468,6 +468,46 @@ describe('createManualAttendance — late-policy / off-day resolution glue', () 
       date: WEDNESDAY,
       kind: 'worked',
       clockIn: '10:00', // well past 09:00 + 10min grace — would be late if not for the holiday
+    });
+
+    expect(result.ok).toBe(true);
+    expect(attendanceCreate).toHaveBeenCalledOnce();
+    expect(attendanceCreate.mock.calls[0]?.[0].data.type).toBe('CheckIn');
+  });
+
+  it("still records Late when the holiday is another branch's closure", async () => {
+    payrollConfigFindFirst.mockResolvedValue(null);
+    // Only branch-B is closed; the employee's home branch is branch-A.
+    holidayFindFirst.mockResolvedValue({ date: new Date(WEDNESDAY), branchIds: ['branch-B'] });
+    employeeFindUnique.mockResolvedValue({
+      ...baseEmployee,
+      workSchedule: scheduleFor([1, 2, 3, 4, 5]),
+    });
+
+    const result = await createManualAttendance({
+      employeeId: 'emp-1',
+      date: WEDNESDAY,
+      kind: 'worked',
+      clockIn: '10:00',
+    });
+
+    expect(result.ok).toBe(true);
+    expect(attendanceCreate.mock.calls.map((c) => c[0].data.type)).toContain('Late');
+  });
+
+  it("records no Late on a closure of the employee's own home branch", async () => {
+    payrollConfigFindFirst.mockResolvedValue(null);
+    holidayFindFirst.mockResolvedValue({ date: new Date(WEDNESDAY), branchIds: ['branch-A'] });
+    employeeFindUnique.mockResolvedValue({
+      ...baseEmployee,
+      workSchedule: scheduleFor([1, 2, 3, 4, 5]),
+    });
+
+    const result = await createManualAttendance({
+      employeeId: 'emp-1',
+      date: WEDNESDAY,
+      kind: 'worked',
+      clockIn: '10:00',
     });
 
     expect(result.ok).toBe(true);

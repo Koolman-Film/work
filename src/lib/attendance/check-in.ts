@@ -38,6 +38,7 @@ import { getTranslations } from 'next-intl/server';
 import { auditLogTx } from '@/lib/audit/log';
 import { requireCheckInPermission, requireEmployee } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
+import { HOLIDAY_SCOPE_SELECT, holidayAppliesToBranch } from '@/lib/leave/holiday-scope';
 import { getLeaveConfig } from '@/lib/leave/leave-config';
 import { notifyAdminsInApp } from '@/lib/notifications/in-app-bell';
 import { bangkokDateUtcMidnight, isClosedDay } from './date';
@@ -242,6 +243,7 @@ export async function submitCheckIn(input: SubmitCheckInInput): Promise<SubmitCh
     prisma.employee.findUnique({
       where: { id: employee.id },
       select: {
+        branchId: true,
         workSchedule: {
           select: {
             lateToleranceMin: true,
@@ -274,11 +276,14 @@ export async function submitCheckIn(input: SubmitCheckInInput): Promise<SubmitCh
     onLeaveRows.length > 0 ? buildLateContext(onLeaveRows, await getLeaveConfig()) : undefined;
   let lateMinutes = policy ? lateMinutesForCheckIn(now, policy, lateCtx) : 0;
   if (lateMinutes > 0) {
+    // Only a holiday for this employee's home branch cancels lateness — a
+    // branch-only closure must not excuse the branches open that day.
+    const holiday = await prisma.holiday.findFirst({
+      where: { date: today, archivedAt: null },
+      select: HOLIDAY_SCOPE_SELECT,
+    });
     const hasHoliday =
-      (await prisma.holiday.findFirst({
-        where: { date: today, archivedAt: null },
-        select: { id: true },
-      })) != null;
+      !!holiday && !!schedEmp && holidayAppliesToBranch(holiday, schedEmp.branchId);
     // With a schedule, working days are already defined by it — only holidays
     // cancel lateness. Without one, fall back to company closed days (Sun + holiday).
     const off = hasSchedule ? hasHoliday : isClosedDay(today, hasHoliday);

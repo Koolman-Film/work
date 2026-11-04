@@ -271,6 +271,43 @@ describe('computeLiveLeaveCharges', () => {
     expect(c.chargedMinutes).toBe(6 * STD); // 2520, not 2940
   });
 
+  it("counts a branch closure as a day off only for that branch's staff", async () => {
+    const closed = await makeEmployee();
+    const open = await makeEmployee();
+    const lt = await deductType();
+    await grant(closed.id, lt.id, YEAR, 0);
+    await grant(open.id, lt.id, YEAR, 0);
+    // Wed 10 closed for `closed`'s home branch only; Sun 7 closure gives no Monday.
+    await prisma.holiday.create({
+      data: { date: day(10), name: 'ปิดสาขา', branchIds: [closed.branchId] },
+    });
+    await prisma.holiday.create({
+      data: { date: day(7), name: 'ปิดสาขาวันอาทิตย์', branchIds: [closed.branchId] },
+    });
+    const leave = (employeeId: string) =>
+      prisma.leaveRequest.create({
+        data: {
+          employeeId,
+          leaveTypeId: lt.id,
+          startDate: day(6), // Sat
+          endDate: day(13), // next Sat
+          unit: 'FullDay',
+          reason: 'week',
+          status: 'Approved',
+          chargedMinutes: null,
+          reviewedAt: new Date('2026-06-06T01:00:00Z'),
+        },
+      });
+    const rc = await leave(closed.id);
+    const ro = await leave(open.id);
+
+    const cs = await computeLiveLeaveCharges([closed.id, open.id]);
+    // Sat6 Mon8 Tue9 Thu11 Fri12 Sat13 = 6 (Wed10 closed; Mon8 still a workday).
+    expect(charge(cs, rc.id).chargedMinutes).toBe(6 * STD);
+    // The open branch works Wed10: Sat6 Mon8 Tue9 Wed10 Thu11 Fri12 Sat13 = 7.
+    expect(charge(cs, ro.id).chargedMinutes).toBe(7 * STD);
+  });
+
   it('isolates over-quota PER YEAR — 2025 usage does not consume the 2026 quota', async () => {
     const emp = await makeEmployee();
     const lt = await deductType();

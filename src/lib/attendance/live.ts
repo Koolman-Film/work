@@ -19,6 +19,11 @@ import {
 } from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
+import {
+  HOLIDAY_SCOPE_SELECT,
+  holidayAppliesToBranch,
+  isCompanyHoliday,
+} from '@/lib/leave/holiday-scope';
 import { signAttendancePhotoUrls } from '@/lib/storage/signed-urls';
 import { bangkokDateUtcMidnight, isClosedDay } from './date';
 import {
@@ -79,6 +84,7 @@ export async function getTodayAttendance(): Promise<LiveBoardData> {
         lastName: true,
         nickname: true,
         photoKey: true,
+        branchId: true,
         branch: { select: { name: true } },
         workScheduleId: true,
         workSchedule: { select: { days: { select: { dayOfWeek: true } } } },
@@ -113,10 +119,16 @@ export async function getTodayAttendance(): Promise<LiveBoardData> {
         },
       },
     }),
-    prisma.holiday.findFirst({ where: { date: today, archivedAt: null }, select: { id: true } }),
+    prisma.holiday.findFirst({
+      where: { date: today, archivedAt: null },
+      select: HOLIDAY_SCOPE_SELECT,
+    }),
   ]);
 
-  const closed = isClosedDay(today, holiday !== null);
+  // The whole board is "closed" only on a company holiday (or Sunday). A
+  // branch-only closure takes just that branch's staff off the expected list
+  // below, via `scheduledToday`.
+  const closed = isClosedDay(today, !!holiday && isCompanyHoliday(holiday));
 
   // One batched signing call for every photo on the board. Because this runs
   // on every fetch — including the client's 30s poll — URLs are re-signed
@@ -131,7 +143,6 @@ export async function getTodayAttendance(): Promise<LiveBoardData> {
   const photoUrl = (key: string | null) => (key ? (photoUrls.get(key) ?? null) : null);
 
   const todayDow = today.getUTCDay(); // 0=Sun..6=Sat (Bangkok weekday)
-  const hasHoliday = holiday !== null;
   const roster: RosterEmployee[] = rosterRows.map((e) => ({
     id: e.id,
     employeeName: `${e.firstName} ${e.lastName}`,
@@ -141,7 +152,7 @@ export async function getTodayAttendance(): Promise<LiveBoardData> {
     scheduledToday: isScheduledWorkday(
       e.workSchedule?.days.map((d) => d.dayOfWeek),
       todayDow,
-      hasHoliday,
+      !!holiday && holidayAppliesToBranch(holiday, e.branchId),
     ),
     // Same fact as the canonical `employeesWithoutSchedule` query
     // (src/lib/employee/no-schedule.ts): missing-schedule is defined by

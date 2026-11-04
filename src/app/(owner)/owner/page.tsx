@@ -75,7 +75,7 @@ export default async function SuperadminHomePage() {
   const [
     activeEmployeeCount,
     checkedInTodayCount,
-    todayHoliday,
+    companyHoliday,
     leaveRequestsThisMonth,
     approvedAdvancesThisMonth,
     onLeaveToday,
@@ -85,8 +85,10 @@ export default async function SuperadminHomePage() {
       where: { archivedAt: null, status: { not: 'Archived' } },
     }),
     prisma.attendance.count({ where: { type: 'CheckIn', date: today } }),
+    // Company holidays only: this strip speaks for everyone ("วันหยุดทุกคน"),
+    // which a branch-only closure is not.
     prisma.holiday.findFirst({
-      where: { date: today, archivedAt: null },
+      where: { date: today, archivedAt: null, branchIds: { isEmpty: true } },
       select: { name: true },
     }),
     prisma.leaveRequest.count({
@@ -156,7 +158,7 @@ export default async function SuperadminHomePage() {
   );
 
   const todayIsSunday = today.getUTCDay() === 0;
-  const isClosedDay = todayIsSunday || todayHoliday !== null;
+  const isClosedDay = todayIsSunday || companyHoliday !== null;
 
   return (
     <div className="p-4">
@@ -174,7 +176,7 @@ export default async function SuperadminHomePage() {
           label="เช็คอินวันนี้"
           value={checkedInTodayCount}
           hint={
-            todayHoliday ? `วันหยุด: ${todayHoliday.name}` : todayIsSunday ? 'วันอาทิตย์' : undefined
+            companyHoliday ? `วันหยุด: ${companyHoliday.name}` : todayIsSunday ? 'วันอาทิตย์' : undefined
           }
         />
         <StatCard label="คำขอลาเดือนนี้" value={leaveRequestsThisMonth} />
@@ -195,8 +197,8 @@ export default async function SuperadminHomePage() {
                 title="ไม่มีพนักงานลาวันนี้"
                 hint={
                   isClosedDay
-                    ? todayHoliday
-                      ? `${todayHoliday.name} — วันหยุดทุกคน`
+                    ? companyHoliday
+                      ? `${companyHoliday.name} — วันหยุดทุกคน`
                       : 'วันอาทิตย์ — วันหยุดประจำสัปดาห์'
                     : 'พนักงานทุกคนพร้อมทำงาน'
                 }

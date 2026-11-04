@@ -21,6 +21,7 @@
 import { PrismaClient } from '@prisma/client';
 import { isClosedDay } from '../src/lib/attendance/date';
 import { lateMinutesForCheckIn, latePolicyFrom } from '../src/lib/attendance/late-policy';
+import { HOLIDAY_SCOPE_SELECT, holidayAppliesToBranch } from '../src/lib/leave/holiday-scope';
 
 const prisma = new PrismaClient();
 
@@ -39,12 +40,18 @@ async function main() {
   const [checkIns, holidayRows] = await Promise.all([
     prisma.attendance.findMany({
       where: { type: 'CheckIn', deletedAt: null, clockInAt: { not: null } },
-      select: { employeeId: true, date: true, clockInAt: true, createdById: true },
+      select: {
+        employeeId: true,
+        date: true,
+        clockInAt: true,
+        createdById: true,
+        employee: { select: { branchId: true } },
+      },
       orderBy: { date: 'asc' },
     }),
-    prisma.holiday.findMany({ where: { archivedAt: null }, select: { date: true } }),
+    prisma.holiday.findMany({ where: { archivedAt: null }, select: HOLIDAY_SCOPE_SELECT }),
   ]);
-  const holidaySet = new Set(holidayRows.map((h) => ymd(h.date)));
+  const holidayByDate = new Map(holidayRows.map((h) => [ymd(h.date), h]));
 
   let created = 0;
   let skippedExisting = 0;
@@ -53,7 +60,9 @@ async function main() {
 
   for (const ci of checkIns) {
     if (!ci.clockInAt) continue;
-    const hasHoliday = holidaySet.has(ymd(ci.date));
+    // Home-branch scoped, as check-in.ts resolves it (holiday-scope.ts).
+    const h = holidayByDate.get(ymd(ci.date));
+    const hasHoliday = !!h && holidayAppliesToBranch(h, ci.employee.branchId);
     if (isClosedDay(ci.date, hasHoliday)) {
       closedDay++;
       continue;

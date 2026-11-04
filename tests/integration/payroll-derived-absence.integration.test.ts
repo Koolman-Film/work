@@ -245,3 +245,44 @@ describe('derived absence — the switch is on', () => {
     expect(row.deductAttendance.toString()).toBe('10000');
   });
 });
+
+describe('derived absence — branch-only holidays', () => {
+  beforeEach(() => reset(CUTOFF_ON));
+
+  it("a branch closure excuses that branch's staff and charges the open branch as usual", async () => {
+    const closed = await makeScheduledEmployee();
+    const open = await makeScheduledEmployee();
+    // Both miss Tue 2 Jun; only `closed`'s home branch is shut that day.
+    await checkInEveryDayExcept(closed.id, ['2026-06-02']);
+    await checkInEveryDayExcept(open.id, ['2026-06-02']);
+    await prisma.holiday.create({
+      data: {
+        date: new Date('2026-06-02T00:00:00.000Z'),
+        name: 'ปิดสาขา',
+        branchIds: [closed.branchId],
+      },
+    });
+
+    await runPayrollDraft(MONTH);
+    const deduct = async (id: string) =>
+      (await prisma.payroll.findFirstOrThrow({ where: { employeeId: id } })).deductAttendance;
+    expect((await deduct(closed.id)).toString()).toBe('0');
+    expect((await deduct(open.id)).toString()).toBe('1000');
+  });
+
+  it('a company holiday (no branches) still excuses everyone', async () => {
+    const a = await makeScheduledEmployee();
+    const b = await makeScheduledEmployee();
+    await checkInEveryDayExcept(a.id, ['2026-06-02']);
+    await checkInEveryDayExcept(b.id, ['2026-06-02']);
+    await prisma.holiday.create({
+      data: { date: new Date('2026-06-02T00:00:00.000Z'), name: 'วันหยุดบริษัท' },
+    });
+
+    await runPayrollDraft(MONTH);
+    for (const id of [a.id, b.id]) {
+      const row = await prisma.payroll.findFirstOrThrow({ where: { employeeId: id } });
+      expect(row.deductAttendance.toString()).toBe('0');
+    }
+  });
+});

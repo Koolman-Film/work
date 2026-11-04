@@ -40,6 +40,7 @@
 import { payrollPeriodFor } from '@/lib/advance/period-earnings';
 import { auditLogTx } from '@/lib/audit/log';
 import { prisma } from '@/lib/db/prisma';
+import { HOLIDAY_SCOPE_SELECT, holidayAppliesToBranch } from '@/lib/leave/holiday-scope';
 import { getLeaveConfig } from '@/lib/leave/leave-config';
 import { loadCutoffRules } from '@/lib/payroll/cutoff-load';
 import { isClosedDay } from './date';
@@ -132,9 +133,9 @@ export async function backfillLeaveLateRows(
   const dateSet = [...new Set(onLeave.map((r) => iso(r.date)))];
   const holidays = await prisma.holiday.findMany({
     where: { date: { in: dateSet.map((d) => new Date(`${d}T00:00:00.000Z`)) }, archivedAt: null },
-    select: { date: true },
+    select: HOLIDAY_SCOPE_SELECT,
   });
-  const holidaySet = new Set(holidays.map((h) => iso(h.date)));
+  const holidayByDate = new Map(holidays.map((h) => [iso(h.date), h]));
 
   const report: BackfillReport = {
     changes: [],
@@ -192,7 +193,10 @@ export async function backfillLeaveLateRows(
     const ctx = buildLateContext(g.rows, leaveCfg);
     let recomputed = policy ? lateMinutesForCheckIn(checkIn.clockInAt, policy, ctx) : 0;
     if (recomputed > 0) {
-      const hasHoliday = holidaySet.has(iso(g.date));
+      // Only a holiday for this employee's home branch excuses it — the same
+      // rule check-in.ts applies live (holiday-scope.ts).
+      const h = holidayByDate.get(iso(g.date));
+      const hasHoliday = !!h && holidayAppliesToBranch(h, emp.branchId);
       const off = hasSchedule ? hasHoliday : isClosedDay(g.date, hasHoliday);
       if (off) recomputed = 0;
     }

@@ -1,8 +1,8 @@
 import 'server-only';
 
 import { prisma } from '@/lib/db/prisma';
+import { HOLIDAY_SCOPE_SELECT, holidayYmdLookup } from '@/lib/leave/holiday-scope';
 import { standardDayMinutes } from '@/lib/leave/units';
-import { expandHolidaysWithSubstitutes } from '@/lib/leave/working-days';
 import { isPayrollChargeableSalaryType } from '@/lib/payroll/calc';
 import { loadCutoffRules } from '@/lib/payroll/cutoff-load';
 import { payrollMonthWindowYmd } from '@/lib/payroll/period';
@@ -109,7 +109,7 @@ export async function previewAbsences(month: string): Promise<AbsencePreview> {
       where: { date: { gte: start, lte: end }, deletedAt: null },
       select: { employeeId: true, date: true, type: true, durationMinutes: true },
     }),
-    prisma.holiday.findMany({ where: { archivedAt: null }, select: { date: true } }),
+    prisma.holiday.findMany({ where: { archivedAt: null }, select: HOLIDAY_SCOPE_SELECT }),
     // Leave comes from approved LeaveRequest RANGES — the same source
     // payroll's run.ts uses — not from OnLeave attendance rows. The two are not
     // interchangeable: production has 33 dates with an approved request and no
@@ -129,7 +129,8 @@ export async function previewAbsences(month: string): Promise<AbsencePreview> {
     }),
   ]);
 
-  const holidaySet = new Set(expandHolidaysWithSubstitutes(holidays.map((h) => h.date)).map(ymd));
+  // Per home branch, exactly as run.ts resolves it (holiday-scope.ts).
+  const holidaysFor = holidayYmdLookup(holidays);
 
   // Per employee, per date: what happened. Mirrors run.ts exactly — a check-in,
   // an admin-keyed Absent, or any approved leave. Durations are not needed:
@@ -222,7 +223,7 @@ export async function previewAbsences(month: string): Promise<AbsencePreview> {
         leaveMinutes: leaveDatesByEmp.get(emp.id)?.has(date) ? 1 : 0,
         hasCheckIn: f?.checkIn ?? false,
         hasManualAbsent: f?.manualAbsent ?? false,
-        isWorkday: isScheduledWorkday(dows, dow, holidaySet.has(date)),
+        isWorkday: isScheduledWorkday(dows, dow, holidaysFor(emp.branchId).has(date)),
       });
       if (minutes > 0) days.push({ date, minutes });
     }

@@ -13,10 +13,11 @@
 import { getPermittedBranches, viaEmployeeBranchScope } from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
+import { HOLIDAY_SCOPE_SELECT, holidayDatesForBranch } from '@/lib/leave/holiday-scope';
 import { getLeaveConfig } from '@/lib/leave/leave-config';
 import { getOrgCalendarData } from '@/lib/leave/team-calendar';
 import { currentMonthYM, parseMonth, type TeamCalendarData } from '@/lib/leave/team-calendar-shape';
-import { expandHolidaysWithSubstitutes, workingDaysIn } from '@/lib/leave/working-days';
+import { workingDaysIn } from '@/lib/leave/working-days';
 import { resolveStoredImageUrl } from '@/lib/storage/signed-urls';
 import type { AdvanceRowVM } from '../advance/advance-review-modal';
 import { ADVANCE_SELECT, advanceGuardVM, buildAdvanceRowVM } from '../advance/advance-row-vm';
@@ -56,12 +57,12 @@ export async function getLeaveReviewRow(leaveRequestId: string): Promise<LeaveRo
       where: { id: leaveRequestId, ...viaEmployeeBranchScope(permitted) },
       select: LEAVE_SELECT,
     }),
-    prisma.holiday.findMany({ where: { archivedAt: null }, select: { date: true } }),
+    prisma.holiday.findMany({ where: { archivedAt: null }, select: HOLIDAY_SCOPE_SELECT }),
     getLeaveConfig(),
   ]);
   if (!row) return null;
 
-  const expandedHolidays = expandHolidaysWithSubstitutes(holidays.map((h) => h.date));
+  const expandedHolidays = holidayDatesForBranch(holidays, row.employee.branchId);
   const workingDays = workingDaysIn({
     startDate: row.startDate,
     endDate: row.endDate,

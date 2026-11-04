@@ -1076,6 +1076,11 @@ model Holiday {
   /// True if this is a substitute day (Thai cabinet decree, or auto-shifted
   /// because the original Mon-holiday fell on Koolman's closed day).
   isSubstitute Boolean   @default(false)
+  /// Branches the holiday applies to, matched on the employee's HOME branch
+  /// (Employee.branchId). Empty = every branch — a company holiday. One row
+  /// per date (`date` stays unique), so two branches closed on the same day
+  /// share a row. See src/lib/leave/holiday-scope.ts.
+  branchIds    String[]  @default([])
   archivedAt   DateTime?
 }
 

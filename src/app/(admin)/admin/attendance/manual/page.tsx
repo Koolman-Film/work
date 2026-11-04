@@ -97,7 +97,7 @@ export default async function ManualAttendancePage() {
     // holidays accumulate across years.
     prisma.holiday.findMany({
       where: { archivedAt: null, date: { gte: holidayWindowStart(), lte: holidayWindowEnd() } },
-      select: { date: true },
+      select: { date: true, branchIds: true },
     }),
     // Settling a penalty with leave needs `payroll.run`, separate from the
     // `attendance.manual-create` permission that gates this whole page — an
@@ -147,6 +147,7 @@ export default async function ManualAttendancePage() {
             <ManualAttendanceForm
               employees={employees.map((e) => ({
                 id: e.id,
+                branchId: e.branchId,
                 label:
                   `${e.firstName} ${e.lastName}${e.nickname ? ` (${e.nickname})` : ''} — ${e.branch.name}`.trim(),
                 salaryType: e.salaryType,
@@ -171,7 +172,10 @@ export default async function ManualAttendancePage() {
                 absentPerDay: payrollCfg?.absentDeductionPerDay?.toString() ?? '0',
                 earlyLeave: payrollCfg?.earlyLeaveDeduction?.toString() ?? '0',
               }}
-              holidayYmds={holidays.map((h) => h.date.toISOString().slice(0, 10))}
+              holidays={holidays.map((h) => ({
+                date: h.date.toISOString().slice(0, 10),
+                branchIds: h.branchIds,
+              }))}
               // Same fallback as getOtCandidates (src/lib/overtime/candidates.ts)
               // when the PayrollConfig row is missing.
               otThresholdMinutes={payrollCfg?.otThresholdMinutes ?? 30}

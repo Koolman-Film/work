@@ -17,8 +17,9 @@
 // biome-ignore-all lint/suspicious/noConsole: one-off CLI script — console is the output channel
 
 import { PrismaClient } from '@prisma/client';
+import { HOLIDAY_SCOPE_SELECT, holidayDatesForBranch } from '../src/lib/leave/holiday-scope';
 import { segmentFor } from '../src/lib/leave/units';
-import { expandHolidaysWithSubstitutes, workingDaysIn } from '../src/lib/leave/working-days';
+import { workingDaysIn } from '../src/lib/leave/working-days';
 
 const prisma = new PrismaClient();
 
@@ -47,12 +48,12 @@ async function main() {
         unit: true,
         startTime: true,
         endTime: true,
+        employee: { select: { branchId: true } },
       },
       orderBy: { startDate: 'asc' },
     }),
-    prisma.holiday.findMany({ where: { archivedAt: null }, select: { date: true } }),
+    prisma.holiday.findMany({ where: { archivedAt: null }, select: HOLIDAY_SCOPE_SELECT }),
   ]);
-  const allHolidays = holidayRows.map((h) => h.date);
 
   let updated = 0;
   let badSegment = 0;
@@ -66,10 +67,12 @@ async function main() {
     // Match approval's holiday window: [startDate − 1 day, endDate], so a
     // Sunday holiday just before the range still yields its Monday substitute.
     const dayBeforeStart = new Date(r.startDate.getTime() - 86_400_000);
-    const inWindow = allHolidays.filter(
-      (d) => d.getTime() >= dayBeforeStart.getTime() && d.getTime() <= r.endDate.getTime(),
+    const inWindow = holidayRows.filter(
+      (h) =>
+        h.date.getTime() >= dayBeforeStart.getTime() && h.date.getTime() <= r.endDate.getTime(),
     );
-    const expanded = expandHolidaysWithSubstitutes(inWindow);
+    // Company + home-branch holidays, exactly as approval counts them.
+    const expanded = holidayDatesForBranch(inWindow, r.employee.branchId);
     const workingDays = workingDaysIn({
       startDate: r.startDate,
       endDate: r.endDate,

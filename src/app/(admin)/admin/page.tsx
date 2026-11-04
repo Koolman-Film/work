@@ -31,6 +31,7 @@ import { permittedBranchesFromAssignments } from '@/lib/auth/branch-scope';
 import { canDo, getUserAssignments } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { employeesWithoutSchedule } from '@/lib/employee/no-schedule';
+import { holidayAppliesToBranch, isCompanyHoliday } from '@/lib/leave/holiday-scope';
 import { getOrgCalendarData } from '@/lib/leave/team-calendar';
 import { currentMonthYM, parseMonth } from '@/lib/leave/team-calendar-shape';
 import { partialUnitSuffixTh } from '@/lib/leave/units';
@@ -123,7 +124,7 @@ export default async function AdminHomePage() {
     }),
     prisma.holiday.findFirst({
       where: { date: today, archivedAt: null },
-      select: { name: true },
+      select: { name: true, branchIds: true },
     }),
     getOrgCalendarData({
       monthStart: calMonth.start,
@@ -162,20 +163,22 @@ export default async function AdminHomePage() {
     ...checkedInTodayRows.map((r) => r.employeeId),
     ...onLeaveTodayRows.map((r) => r.employeeId),
   ]);
-  const closedToday = isClosedDay(today, todayHoliday !== null);
+  // Closed for everyone only on a company holiday (or Sunday). A branch-only
+  // closure takes that branch's staff out of "expected today" below instead.
+  const companyHoliday = todayHoliday && isCompanyHoliday(todayHoliday) ? todayHoliday : null;
+  const closedToday = isClosedDay(today, companyHoliday !== null);
 
   // Schedule-aware "expected today" set: employees whose WorkSchedule (or the
   // company default) makes today a working day — so a Mon/Wed/Fri worker isn't
   // counted on a Saturday.
   const todayDow = today.getUTCDay();
-  const hasHoliday = todayHoliday !== null;
   const scheduledTodayIds = new Set(
     activeEmployees
       .filter((e) =>
         isScheduledWorkday(
           e.workSchedule?.days.map((d) => d.dayOfWeek),
           todayDow,
-          hasHoliday,
+          !!todayHoliday && holidayAppliesToBranch(todayHoliday, e.branchId),
         ),
       )
       .map((e) => e.id),
@@ -250,7 +253,7 @@ export default async function AdminHomePage() {
         actions={
           closedToday ? (
             <Pill variant="neutral">
-              {todayHoliday ? `วันหยุด: ${todayHoliday.name}` : 'วันอาทิตย์'}
+              {companyHoliday ? `วันหยุด: ${companyHoliday.name}` : 'วันอาทิตย์'}
             </Pill>
           ) : (
             <Pill variant="approved">● ระบบปกติ</Pill>
@@ -390,7 +393,7 @@ export default async function AdminHomePage() {
             {onLeaveToday.length === 0 ? (
               <p className="px-5 py-6 text-sm text-ink-3">
                 ไม่มีพนักงานลาวันนี้
-                {closedToday ? (todayHoliday ? ` — ${todayHoliday.name}` : ' — วันอาทิตย์') : ''}
+                {closedToday ? (companyHoliday ? ` — ${companyHoliday.name}` : ' — วันอาทิตย์') : ''}
               </p>
             ) : (
               <ul className="divide-y divide-line-soft">

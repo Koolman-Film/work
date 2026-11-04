@@ -60,6 +60,7 @@ export async function loadDashboardStats(args: {
       },
       select: {
         id: true,
+        branchId: true,
         workSchedule: { select: { days: { select: { dayOfWeek: true } } } },
       },
     }),

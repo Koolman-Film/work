@@ -42,11 +42,15 @@ export default async function HolidayListPage({ searchParams }: { searchParams: 
   const { error } = await searchParams;
 
   // Only non-archived; chronological.
-  const rows = await prisma.holiday.findMany({
-    where: { archivedAt: null },
-    orderBy: { date: 'asc' },
-    select: { id: true, date: true, name: true, isSubstitute: true },
-  });
+  const [rows, branches] = await Promise.all([
+    prisma.holiday.findMany({
+      where: { archivedAt: null },
+      orderBy: { date: 'asc' },
+      select: { id: true, date: true, name: true, isSubstitute: true, branchIds: true },
+    }),
+    prisma.branch.findMany({ select: { id: true, name: true } }),
+  ]);
+  const branchName = new Map(branches.map((b) => [b.id, b.name]));
 
   const columns: Column<(typeof rows)[number]>[] = [
     {
@@ -63,6 +67,18 @@ export default async function HolidayListPage({ searchParams }: { searchParams: 
       key: 'name',
       header: 'ชื่อวันหยุด',
       cell: (h) => <span className="font-medium text-ink-1">{h.name}</span>,
+    },
+    {
+      key: 'scope',
+      header: 'ใช้กับ',
+      cell: (h) =>
+        h.branchIds.length === 0 ? (
+          <span className="text-xs text-ink-3">ทุกสาขา</span>
+        ) : (
+          <span className="rounded-full bg-primary-50 px-2 py-0.5 text-xs font-medium text-primary-700">
+            {h.branchIds.map((id) => branchName.get(id) ?? '?').join(', ')}
+          </span>
+        ),
     },
     {
       key: 'type',
@@ -83,7 +99,7 @@ export default async function HolidayListPage({ searchParams }: { searchParams: 
       <PageHeader
         breadcrumb="ตั้งค่า"
         title="วันหยุด"
-        subtitle="วันหยุดที่ไม่นับเป็นวันลา — ใช้กับการคำนวณวันทำงานในคำขอลา"
+        subtitle="วันหยุดไม่นับเป็นวันลา ไม่นับขาดงานหรือมาสาย — ตั้งเป็นทุกสาขา หรือเฉพาะบางสาขาได้"
         actions={
           <Link href="/admin/settings/holidays/new">
             <Button>+ เพิ่มวันหยุด</Button>

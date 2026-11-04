@@ -39,6 +39,8 @@ export const LEAVE_SELECT = {
       firstName: true,
       lastName: true,
       nickname: true,
+      // Home branch — which branch-only holidays count for this request.
+      branchId: true,
       branch: { select: { name: true } },
       department: { select: { name: true } },
     },

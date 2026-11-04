@@ -29,10 +29,11 @@
 // biome-ignore-all lint/suspicious/noConsole: one-off CLI script — console is the output channel
 
 import { PrismaClient } from '@prisma/client';
+import { HOLIDAY_SCOPE_SELECT, holidayDatesForBranch } from '../src/lib/leave/holiday-scope';
 import { perMinuteRate, replayOverQuota } from '../src/lib/leave/over-quota';
 import { penaltyMinutesBy } from '../src/lib/leave/penalty-minutes';
 import { segmentFor, standardDayMinutes } from '../src/lib/leave/units';
-import { expandHolidaysWithSubstitutes, workingDaysIn } from '../src/lib/leave/working-days';
+import { workingDaysIn } from '../src/lib/leave/working-days';
 
 const DRY_RUN = process.argv.includes('--dry-run');
 const prisma = new PrismaClient();
@@ -56,11 +57,10 @@ async function main() {
   const payCfg = await prisma.payrollConfig.findFirstOrThrow({
     select: { workingDaysPerMonth: true },
   });
-  const holidayRows = await prisma.holiday.findMany({
+  const allHolidays = await prisma.holiday.findMany({
     where: { archivedAt: null },
-    select: { date: true },
+    select: HOLIDAY_SCOPE_SELECT,
   });
-  const allHolidays = holidayRows.map((h) => h.date);
 
   // Approved DeductPay leave, ordered so we can group by (emp, type) and replay
   // in approval order within each group.
@@ -83,7 +83,13 @@ async function main() {
       createdAt: true,
       deductedInPayrollId: true,
       employee: {
-        select: { salaryType: true, baseSalary: true, nickname: true, firstName: true },
+        select: {
+          branchId: true,
+          salaryType: true,
+          baseSalary: true,
+          nickname: true,
+          firstName: true,
+        },
       },
       leaveType: { select: { name: true, annualQuota: true } },
     },
@@ -103,12 +109,14 @@ async function main() {
     }
     const dayBeforeStart = new Date(r.startDate.getTime() - 86_400_000);
     const inWindow = allHolidays.filter(
-      (d) => d.getTime() >= dayBeforeStart.getTime() && d.getTime() <= r.endDate.getTime(),
+      (h) =>
+        h.date.getTime() >= dayBeforeStart.getTime() && h.date.getTime() <= r.endDate.getTime(),
     );
     const workingDays = workingDaysIn({
       startDate: r.startDate,
       endDate: r.endDate,
-      holidays: expandHolidaysWithSubstitutes(inWindow),
+      // Company + home-branch holidays, exactly as approval counts them.
+      holidays: holidayDatesForBranch(inWindow, r.employee.branchId),
     });
     charged.set(r.id, segment.minutes * workingDays.length);
   }

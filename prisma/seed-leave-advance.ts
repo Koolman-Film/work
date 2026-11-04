@@ -22,8 +22,9 @@
 // biome-ignore-all lint/suspicious/noConsole: seed scripts are CLI tools — console is the output channel
 
 import { Prisma, PrismaClient } from '@prisma/client';
+import { HOLIDAY_SCOPE_SELECT, holidayDatesForBranch } from '../src/lib/leave/holiday-scope';
 import { segmentFor } from '../src/lib/leave/units';
-import { expandHolidaysWithSubstitutes, workingDaysIn } from '../src/lib/leave/working-days';
+import { workingDaysIn } from '../src/lib/leave/working-days';
 
 const prisma = new PrismaClient();
 
@@ -241,7 +242,7 @@ async function main() {
 
   const employees = await prisma.employee.findMany({
     orderBy: { firstName: 'asc' },
-    select: { id: true, firstName: true, lastName: true },
+    select: { id: true, firstName: true, lastName: true, branchId: true },
   });
   if (employees.length === 0) {
     throw new Error('No employees found — run `npm run db:seed:employees` first.');
@@ -264,9 +265,10 @@ async function main() {
   // For Approved seeds we freeze chargedMinutes the same way approval does, so
   // the leave report / balance count them (a null snapshot reads as 0 used).
   const cfg = (await prisma.leaveConfig.findFirst()) ?? CFG_FALLBACK;
-  const allHolidays = (
-    await prisma.holiday.findMany({ where: { archivedAt: null }, select: { date: true } })
-  ).map((h) => h.date);
+  const allHolidays = await prisma.holiday.findMany({
+    where: { archivedAt: null },
+    select: HOLIDAY_SCOPE_SELECT,
+  });
 
   let leaveCreated = 0;
   let leaveSkipped = 0;
@@ -292,12 +294,14 @@ async function main() {
     let chargedMinutes: number | null = null;
     if (s.status === 'Approved') {
       const inWindow = allHolidays.filter(
-        (h) => h.getTime() >= startDate.getTime() - 86_400_000 && h.getTime() <= endDate.getTime(),
+        (h) =>
+          h.date.getTime() >= startDate.getTime() - 86_400_000 &&
+          h.date.getTime() <= endDate.getTime(),
       );
       const workingDays = workingDaysIn({
         startDate,
         endDate,
-        holidays: expandHolidaysWithSubstitutes(inWindow),
+        holidays: holidayDatesForBranch(inWindow, emp.branchId),
       });
       const segment = segmentFor('FullDay', cfg);
       chargedMinutes = (segment?.minutes ?? 0) * workingDays.length;

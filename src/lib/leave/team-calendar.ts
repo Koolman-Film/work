@@ -26,6 +26,7 @@ import type { Prisma } from '@prisma/client';
 import { employeeBranchScope, type PermittedBranches } from '@/lib/auth/branch-scope';
 import { prisma } from '@/lib/db/prisma';
 import type { Locale } from '@/lib/i18n/config';
+import { isCompanyHoliday } from './holiday-scope';
 import { localizedLeaveTypeName } from './localized-name';
 import {
   bangkokDayStart,
@@ -33,6 +34,7 @@ import {
   type TeamCalendarBirthday,
   type TeamCalendarData,
   type TeamCalendarEntry,
+  type TeamCalendarHoliday,
   ymd,
 } from './team-calendar-shape';
 
@@ -61,20 +63,18 @@ async function loadEntriesAndHolidays(args: {
   /** Resolve LeaveType names for this locale; omit for the canonical (Thai)
    *  name — the admin views are intentionally untranslated. */
   locale?: Locale;
+  /** Whose branch-only closures to show next to the company holidays. */
+  holidayBranches: PermittedBranches;
 }): Promise<TeamCalendarData> {
-  const { employees, monthStart, monthEnd, viewerEmployeeId, locale } = args;
+  const { employees, monthStart, monthEnd, viewerEmployeeId, locale, holidayBranches } = args;
 
-  const holidaysPromise = prisma.holiday.findMany({
-    where: { archivedAt: null, date: { gte: monthStart, lte: monthEnd } },
-    select: { date: true, name: true },
-    orderBy: { date: 'asc' },
-  });
+  const holidaysPromise = loadCalendarHolidays(monthStart, monthEnd, holidayBranches);
 
   if (employees.length === 0) {
     const holidays = await holidaysPromise;
     return {
       entries: [],
-      holidays: holidays.map((h) => ({ date: ymd(h.date), name: h.name })),
+      holidays,
       advances: [],
       birthdays: [],
     };
@@ -134,10 +134,51 @@ async function loadEntriesAndHolidays(args: {
 
   return {
     entries,
-    holidays: holidays.map((h) => ({ date: ymd(h.date), name: h.name })),
+    holidays,
     advances: [],
     birthdays: [],
   };
+}
+
+/**
+ * The month's holidays for the grid: every company holiday, plus branch-only
+ * closures for `branches`. A closure is labelled with its branch names
+ * ("ปิดร้าน · ลำปาง") so a mixed view never reads it as a day off for all.
+ */
+async function loadCalendarHolidays(
+  monthStart: Date,
+  monthEnd: Date,
+  branches: PermittedBranches,
+): Promise<TeamCalendarHoliday[]> {
+  const rows = await prisma.holiday.findMany({
+    where: { archivedAt: null, date: { gte: monthStart, lte: monthEnd } },
+    select: { date: true, name: true, branchIds: true },
+    orderBy: { date: 'asc' },
+  });
+  // The closure's branches this view may see; [] for a company holiday.
+  const visible = (h: (typeof rows)[number]) =>
+    branches === 'all' ? h.branchIds : h.branchIds.filter((id) => branches.includes(id));
+  const shown = rows.filter((h) => isCompanyHoliday(h) || visible(h).length > 0);
+
+  const closureIds = [...new Set(shown.flatMap(visible))];
+  const names = new Map(
+    closureIds.length === 0
+      ? []
+      : (
+          await prisma.branch.findMany({
+            where: { id: { in: closureIds } },
+            select: { id: true, name: true },
+          })
+        ).map((b) => [b.id, b.name]),
+  );
+  return shown.map((h) => ({
+    date: ymd(h.date),
+    name: isCompanyHoliday(h)
+      ? h.name
+      : `${h.name} · ${visible(h)
+          .map((id) => names.get(id) ?? '?')
+          .join(', ')}`,
+  }));
 }
 
 /**
@@ -179,6 +220,9 @@ export async function getTeamCalendarData(args: {
     monthEnd,
     viewerEmployeeId,
     locale,
+    // The viewer's own days off: a closure of a teammate's other branch is
+    // not one, even though their leave shows on this grid.
+    holidayBranches: [me.branchId],
   });
 }
 
@@ -217,6 +261,7 @@ export async function getOrgCalendarData(args: {
     monthStart,
     monthEnd,
     viewerEmployeeId: null,
+    holidayBranches: branchId ? [branchId] : permitted,
   });
   if (employees.length === 0) return base; // base.advances + base.birthdays already []
 

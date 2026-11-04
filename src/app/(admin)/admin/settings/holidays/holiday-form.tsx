@@ -10,12 +10,17 @@ type Initial = {
   date: string;
   name: string;
   isSubstitute: boolean;
+  /** Empty = every branch. */
+  branchIds: string[];
 };
+
+type BranchOption = { id: string; name: string };
 
 type Props =
   | {
       mode: 'create';
       action: (fd: FormData) => Promise<void>;
+      branches: BranchOption[];
       initial?: undefined;
       error?: string | null;
       extraActions?: React.ReactNode;
@@ -23,12 +28,14 @@ type Props =
   | {
       mode: 'edit';
       action: (fd: FormData) => Promise<void>;
+      branches: BranchOption[];
       initial: Initial;
       error?: string | null;
       extraActions?: React.ReactNode;
     };
 
-export function HolidayForm({ mode, action, initial, error, extraActions }: Props) {
+export function HolidayForm({ mode, action, branches, initial, error, extraActions }: Props) {
+  const scoped = (initial?.branchIds.length ?? 0) > 0;
   return (
     <>
       <form action={action}>
@@ -68,6 +75,50 @@ export function HolidayForm({ mode, action, initial, error, extraActions }: Prop
                 autoFocus={mode === 'edit'}
               />
             </FormField>
+
+            {/* A radio group, so a fieldset + legend rather than FormField's
+                single-input <label htmlFor>. */}
+            <fieldset className="space-y-3">
+              <legend className="text-sm font-medium text-ink-2">ใช้กับ</legend>
+              <label className="flex items-center gap-2 text-sm text-ink-1">
+                <input
+                  type="radio"
+                  name="scope"
+                  value="all"
+                  defaultChecked={!scoped}
+                  className="h-4 w-4 border-line-strong text-primary-600 focus:ring-primary-500"
+                />
+                <span>ทุกสาขา (วันหยุดบริษัท)</span>
+              </label>
+              <label className="flex items-center gap-2 text-sm text-ink-1">
+                <input
+                  type="radio"
+                  name="scope"
+                  value="branches"
+                  defaultChecked={scoped}
+                  className="h-4 w-4 border-line-strong text-primary-600 focus:ring-primary-500"
+                />
+                <span>เฉพาะสาขาที่เลือก</span>
+              </label>
+              <fieldset className="ml-6 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <legend className="sr-only">สาขาที่หยุด</legend>
+                {branches.map((b) => (
+                  <label key={b.id} className="flex items-center gap-2 text-sm text-ink-2">
+                    <input
+                      type="checkbox"
+                      name="branchIds"
+                      value={b.id}
+                      defaultChecked={initial?.branchIds.includes(b.id) ?? false}
+                      className="h-4 w-4 rounded border-line-strong text-primary-600 focus:ring-primary-500"
+                    />
+                    <span>{b.name}</span>
+                  </label>
+                ))}
+              </fieldset>
+              <p className="text-xs text-ink-3">
+                นับตามสาขาหลักของพนักงาน — สาขาที่ไม่ได้เลือกยังทำงานตามปกติ (นับมาสาย/ขาดงาน)
+              </p>
+            </fieldset>
 
             <FormField label="วันหยุดชดเชย" htmlFor="isSubstitute">
               <label className="flex items-start gap-3">

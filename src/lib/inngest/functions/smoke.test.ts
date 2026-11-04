@@ -287,7 +287,7 @@ describe('attendance-late-check', () => {
   it('skips when today is a holiday', async () => {
     // Friday in BKK so we get past the Sunday check.
     vi.setSystemTime(new Date('2026-03-06T05:00:00Z'));
-    mockedPrisma.holiday.findFirst.mockResolvedValue({ name: 'วันมาฆบูชา' });
+    mockedPrisma.holiday.findFirst.mockResolvedValue({ name: 'วันมาฆบูชา', branchIds: [] });
 
     const result = await runHandler();
 
@@ -296,6 +296,23 @@ describe('attendance-late-check', () => {
       reason: 'holiday',
       holidayName: 'วันมาฆบูชา',
     });
+  });
+
+  it("a branch-only closure doesn't skip the run — it drops just that branch's staff", async () => {
+    vi.setSystemTime(new Date('2026-03-06T05:00:00Z'));
+    mockedPrisma.holiday.findFirst.mockResolvedValue({ name: 'ปิดสาขา', branchIds: ['b-closed'] });
+    mockedPrisma.employee.findMany
+      .mockResolvedValueOnce([
+        { id: 'e1', firstName: 'Open', lastName: 'A', nickname: null, branchId: 'b-open' },
+        { id: 'e2', firstName: 'Closed', lastName: 'B', nickname: null, branchId: 'b-closed' },
+      ])
+      .mockResolvedValueOnce([]); // employeesWithoutSchedule
+    mockedPrisma.attendance.findMany.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+
+    const result = (await runHandler()) as { notified: boolean; countNotCheckedIn: number };
+
+    expect(result.notified).toBe(true);
+    expect(result.countNotCheckedIn).toBe(1);
   });
 
   it('skips when everyone has checked in or is on leave', async () => {

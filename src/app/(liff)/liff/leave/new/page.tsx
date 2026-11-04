@@ -12,6 +12,7 @@ import { requireEmployee } from '@/lib/auth/require-role';
 import { prisma } from '@/lib/db/prisma';
 import type { Locale } from '@/lib/i18n/config';
 import { remainingByTypeForEmployee } from '@/lib/leave/balance';
+import { HOLIDAY_SCOPE_SELECT, holidayDatesForBranch } from '@/lib/leave/holiday-scope';
 import { getLeaveConfig } from '@/lib/leave/leave-config';
 import { localizedLeaveTypeName } from '@/lib/leave/localized-name';
 import { perMinuteRate } from '@/lib/leave/over-quota';
@@ -83,6 +84,17 @@ export default async function NewLeavePage() {
     ? await remainingByTypeForEmployee(employee.id, currentYear)
     : {};
 
+  // This employee's days off from the earliest pickable date onward (a day
+  // earlier, for a Sunday holiday's Monday substitute), so the form previews
+  // the same working-day count the server charges.
+  const holidayYmds = holidayDatesForBranch(
+    await prisma.holiday.findMany({
+      where: { archivedAt: null, date: { gte: new Date(minDate.getTime() - 86_400_000) } },
+      select: HOLIDAY_SCOPE_SELECT,
+    }),
+    employee.branchId,
+  ).map((d) => d.toISOString().slice(0, 10));
+
   return (
     <LeaveNewForm
       leaveTypes={leaveTypes}
@@ -91,6 +103,7 @@ export default async function NewLeavePage() {
       leaveConfig={leaveConfig}
       remainingByType={remainingByType}
       ratePerMinute={ratePerMinute}
+      holidayYmds={holidayYmds}
     />
   );
 }

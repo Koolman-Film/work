@@ -23,8 +23,9 @@ import {
 import { getPermittedBranches } from '@/lib/auth/branch-scope';
 import { requireLiffAdmin } from '@/lib/auth/require-liff-admin';
 import { prisma } from '@/lib/db/prisma';
+import { HOLIDAY_SCOPE_SELECT, holidayDatesForBranch } from '@/lib/leave/holiday-scope';
 import { getLeaveConfig } from '@/lib/leave/leave-config';
-import { expandHolidaysWithSubstitutes, workingDaysIn } from '@/lib/leave/working-days';
+import { workingDaysIn } from '@/lib/leave/working-days';
 import { resolveStoredImageUrl } from '@/lib/storage/signed-urls';
 import { loadLiffLeaveDetail } from './_load';
 import { LeaveReviewActions } from './leave-review-actions';
@@ -47,7 +48,7 @@ export default async function LiffAdminLeaveDetailPage({ params }: { params: Par
   // testable — an out-of-branch id returns null → notFound).
   const [row, holidays, leaveCfg] = await Promise.all([
     loadLiffLeaveDetail(id, permitted),
-    prisma.holiday.findMany({ where: { archivedAt: null }, select: { date: true } }),
+    prisma.holiday.findMany({ where: { archivedAt: null }, select: HOLIDAY_SCOPE_SELECT }),
     getLeaveConfig(),
   ]);
   if (!row) notFound();
@@ -55,7 +56,7 @@ export default async function LiffAdminLeaveDetailPage({ params }: { params: Par
   const workingDays = workingDaysIn({
     startDate: row.startDate,
     endDate: row.endDate,
-    holidays: expandHolidaysWithSubstitutes(holidays.map((h) => h.date)),
+    holidays: holidayDatesForBranch(holidays, row.employee.branchId),
   }).length;
 
   const vm = buildLeaveRowVM(row, {

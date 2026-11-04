@@ -28,8 +28,8 @@ import { deriveAbsentMinutes, scheduledWorkMinutes } from '@/lib/attendance/deri
 import { isScheduledWorkday } from '@/lib/attendance/schedule';
 import { prisma } from '@/lib/db/prisma';
 import { capLeaveCollection, monthlyLeaveCap } from '@/lib/leave/collection-cap';
+import { HOLIDAY_SCOPE_SELECT, holidayYmdLookup } from '@/lib/leave/holiday-scope';
 import { computeLiveLeaveCharges } from '@/lib/leave/recompute';
-import { expandHolidaysWithSubstitutes } from '@/lib/leave/working-days';
 import { invalidatePayslipPdf } from '@/lib/payslip/storage';
 import { adjustmentAppliesToMonth } from './adjustments';
 import {
@@ -197,7 +197,7 @@ async function gatherAndCalc(db: Tx | typeof prisma, month: string, employeeId?:
         endMonth: true,
       },
     }),
-    db.holiday.findMany({ where: { archivedAt: null }, select: { date: true } }),
+    db.holiday.findMany({ where: { archivedAt: null }, select: HOLIDAY_SCOPE_SELECT }),
   ]);
 
   const byEmp = <T extends { employeeId: string }>(rows: T[]) => {
@@ -301,11 +301,9 @@ async function gatherAndCalc(db: Tx | typeof prisma, month: string, employeeId?:
   // no-op for every existing installation.
   const derivedAbsentByEmp = new Map<string, number>();
   if (config.absenceDerivedFrom) {
-    const holidaySet = new Set(
-      expandHolidaysWithSubstitutes(holidays.map((h) => h.date)).map((d) =>
-        d.toISOString().slice(0, 10),
-      ),
-    );
+    // Per home branch: a branch-only closure excuses that branch's staff and
+    // nobody else (holiday-scope.ts).
+    const holidaysFor = holidayYmdLookup(holidays);
     const leaveCfg = (await db.leaveConfig.findFirst()) ?? {
       morningStart: '09:00',
       morningEnd: '12:00',
@@ -371,7 +369,7 @@ async function gatherAndCalc(db: Tx | typeof prisma, month: string, employeeId?:
           // Absent row, which wins outright.
           hasCheckIn: checked.has(ymdD),
           hasManualAbsent: keyed.has(ymdD),
-          isWorkday: isScheduledWorkday(dows, d.getUTCDay(), holidaySet.has(ymdD)),
+          isWorkday: isScheduledWorkday(dows, d.getUTCDay(), holidaysFor(emp.branchId).has(ymdD)),
         });
         if (minutes > 0) days++;
       }

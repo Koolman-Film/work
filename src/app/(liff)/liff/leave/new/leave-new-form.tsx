@@ -53,6 +53,9 @@ type Props = {
   remainingByType: Record<string, number | null>;
   /** Per-minute deduction rate (Baht) derived from employee salary on the server. */
   ratePerMinute: number;
+  /** YYYY-MM-DD days off for THIS employee (company holidays + substitutes +
+   *  their home-branch closures) — the same set the server counts. */
+  holidayYmds: string[];
 };
 
 export function LeaveNewForm({
@@ -62,6 +65,7 @@ export function LeaveNewForm({
   leaveConfig,
   remainingByType,
   ratePerMinute,
+  holidayYmds,
 }: Props) {
   const router = useRouter();
   const t = useTranslations('leave');
@@ -128,19 +132,24 @@ export function LeaveNewForm({
   }, [allowedUnits, unit]);
 
   // Client preview of the charged amount, shown as days+hours. For full-day
-  // leave this is working-days × standard day (Sundays excluded; the server
-  // re-computes holidays at approval). For partial leave it's the segment.
+  // leave this is working-days × standard day, excluding Sundays and this
+  // employee's holidays exactly as submit/approval count them. For partial
+  // leave it's the segment.
   const chargePreview = useMemo(() => {
     if (unit === 'FullDay') {
       const s = parseInputDate(startDate);
       const e = parseInputDate(endDate);
       if (!s || !e || e.getTime() < s.getTime()) return null;
-      const days = workingDaysIn({ startDate: s, endDate: e, holidays: [] }).length;
+      const days = workingDaysIn({
+        startDate: s,
+        endDate: e,
+        holidays: holidayYmds.map((d) => new Date(`${d}T00:00:00.000Z`)),
+      }).length;
       return days * standardDayMinutes(leaveConfig);
     }
     const seg = segmentFor(unit, leaveConfig, startTime, endTime);
     return seg ? seg.minutes : null;
-  }, [unit, startDate, endDate, startTime, endTime, leaveConfig]);
+  }, [unit, startDate, endDate, startTime, endTime, leaveConfig, holidayYmds]);
 
   // Remaining balance for the selected type this year (null = unlimited).
   // Soft-warn only — never blocks submission (admin decides at approval).

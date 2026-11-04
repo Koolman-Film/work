@@ -31,6 +31,7 @@ import { latePolicyFrom, resolveLatePolicy } from '@/lib/attendance/late-policy'
 import { type CreateManualResult, createManualAttendance } from '@/lib/attendance/manual';
 import { computeManualPreview } from '@/lib/attendance/manual-preview';
 import { isNotFoundError } from '@/lib/auth/is-not-found-error';
+import { holidayAppliesToBranch } from '@/lib/leave/holiday-scope';
 import type { CutoffRule } from '@/lib/payroll/cutoff-rule';
 import { dailyRateFor } from '@/lib/payroll/day-rate';
 import {
@@ -87,6 +88,8 @@ type ScheduleDay = { dayOfWeek: number; startTime: string; endTime: string };
 type EmployeeOption = {
   id: string;
   label: string;
+  /** Home branch — decides which branch-only holidays apply. */
+  branchId: string;
   salaryType: 'Monthly' | 'Daily' | 'Hourly';
   baseSalary: string;
   lateToleranceMin: number | null;
@@ -102,7 +105,8 @@ type Props = {
   employees: EmployeeOption[];
   companyPolicy: { workStartTime: string | null; lateGraceMinutes: number | null };
   rates: { absentPerDay: string; earlyLeave: string };
-  holidayYmds: string[];
+  /** Holidays in the form's date range; `branchIds` empty = company-wide. */
+  holidays: { date: string; branchIds: string[] }[];
   /** `PayrollConfig.otThresholdMinutes` (already defaulted by the server). */
   otThresholdMinutes: number;
   /** `PayrollConfig.workingDaysPerMonth` (already defaulted by the server). */
@@ -120,7 +124,7 @@ export function ManualAttendanceForm({
   employees,
   companyPolicy,
   rates,
-  holidayYmds,
+  holidays,
   otThresholdMinutes,
   workingDaysPerMonth,
   canSettle,
@@ -252,7 +256,10 @@ export function ManualAttendanceForm({
     const dow = dateObj.getUTCDay();
     const scheduleDays = employee?.scheduleDays ?? null;
     const hasSchedule = !!scheduleDays && scheduleDays.length > 0;
-    const hasHoliday = holidayYmds.includes(date);
+    // Home-branch scoped, as the server resolves it (holiday-scope.ts).
+    const hasHoliday =
+      !!employee &&
+      holidays.some((h) => h.date === date && holidayAppliesToBranch(h, employee.branchId));
     const latePolicy = resolveLatePolicy(
       scheduleDays,
       employee?.lateToleranceMin ?? null,
@@ -283,7 +290,7 @@ export function ManualAttendanceForm({
     clockOut,
     employee,
     companyPolicy,
-    holidayYmds,
+    holidays,
     exemptLate,
     recordEarlyLeave,
     otThresholdMinutes,

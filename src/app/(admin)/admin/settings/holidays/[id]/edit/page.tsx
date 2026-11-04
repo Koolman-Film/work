@@ -18,10 +18,26 @@ export default async function EditHolidayPage({
   const { id } = await params;
   const { error } = await searchParams;
 
-  const row = await prisma.holiday.findUnique({
-    where: { id },
-    select: { id: true, date: true, name: true, isSubstitute: true, archivedAt: true },
-  });
+  const [row, branches] = await Promise.all([
+    prisma.holiday.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        date: true,
+        name: true,
+        isSubstitute: true,
+        branchIds: true,
+        archivedAt: true,
+      },
+    }),
+    // Active branches only: an archived branch has no home employees left
+    // (archiveBranch refuses otherwise), so dropping it on save changes nothing.
+    prisma.branch.findMany({
+      where: { archivedAt: null },
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true },
+    }),
+  ]);
   if (!row || row.archivedAt) notFound();
 
   // Bind id to update action so the form can pass FormData directly.
@@ -40,6 +56,7 @@ export default async function EditHolidayPage({
       <div>
         <HolidayForm
           mode="edit"
+          branches={branches}
           action={update}
           initial={{
             // Pre-format as YYYY-MM-DD so the date input doesn't re-shift the
@@ -47,6 +64,7 @@ export default async function EditHolidayPage({
             date: row.date.toISOString().slice(0, 10),
             name: row.name,
             isSubstitute: row.isSubstitute,
+            branchIds: row.branchIds,
           }}
           error={error ? decodeURIComponent(error) : null}
           extraActions={

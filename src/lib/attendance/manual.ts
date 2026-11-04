@@ -31,6 +31,7 @@ import { auditLog } from '@/lib/audit/log';
 import { canActOnEmployeeBranches, getPermittedBranches } from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
+import { HOLIDAY_SCOPE_SELECT, holidayAppliesToBranch } from '@/lib/leave/holiday-scope';
 import { getLeaveConfig } from '@/lib/leave/leave-config';
 import { isClosedDay } from './date';
 import { latePolicyFrom, resolveLatePolicy } from './late-policy';
@@ -172,7 +173,7 @@ export async function createManualAttendance(
     prisma.payrollConfig.findFirst({
       select: { workStartTime: true, lateGraceMinutes: true, otThresholdMinutes: true },
     }),
-    prisma.holiday.findFirst({ where: { date, archivedAt: null }, select: { id: true } }),
+    prisma.holiday.findFirst({ where: { date, archivedAt: null }, select: HOLIDAY_SCOPE_SELECT }),
     // Approved leave already on the books for this date — a morning half-day
     // leave means an afternoon manual entry isn't late, exactly as the LIFF
     // check-in path now resolves it. Same context, one helper, no drift.
@@ -181,7 +182,8 @@ export async function createManualAttendance(
       select: { clockInAt: true, clockOutAt: true },
     }),
   ]);
-  const hasHoliday = holiday != null;
+  // Home-branch scoped, as check-in.ts resolves it (holiday-scope.ts).
+  const hasHoliday = !!holiday && holidayAppliesToBranch(holiday, emp.branchId);
 
   const latePolicy = resolveLatePolicy(
     scheduleDays,

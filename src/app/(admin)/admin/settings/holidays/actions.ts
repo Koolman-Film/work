@@ -13,8 +13,10 @@ import { parseInputDate } from '@/lib/leave/working-days';
  *
  * Authorization (Phase 3.2 — first migrated route):
  *   - Gated by `requirePermission('settings.holiday.manage')`. No
- *     branchId is passed because Holiday is a GLOBAL config entity
- *     (not branch-scoped) — every Holiday applies to every branch.
+ *     branchId is passed: Holiday is a GLOBAL config entity. A row can
+ *     still apply to listed branches only (`branchIds`, matched on the
+ *     employee's home branch — see lib/leave/holiday-scope.ts); empty =
+ *     every branch.
  *   - The page-level admin layout still enforces "you're an admin
  *     SOMEWHERE" via requireRole. This action enforces the finer
  *     "you can manage holidays" permission. Both layers are intentional
@@ -39,6 +41,8 @@ const Schema = z.object({
     .literal('on')
     .optional()
     .transform((v) => v === 'on'),
+  scope: z.enum(['all', 'branches']),
+  branchIds: z.array(z.string().uuid()),
 });
 
 function readForm(formData: FormData) {
@@ -46,6 +50,8 @@ function readForm(formData: FormData) {
     date: formData.get('date'),
     name: formData.get('name'),
     isSubstitute: formData.get('isSubstitute') ?? undefined,
+    scope: formData.get('scope') ?? 'all',
+    branchIds: formData.getAll('branchIds').map(String),
   });
 }
 
@@ -58,13 +64,32 @@ function isUniqueViolation(err: unknown): boolean {
   );
 }
 
-type ParsedData = { date: Date; name: string; isSubstitute: boolean };
+type ParsedData = { date: Date; name: string; isSubstitute: boolean; branchIds: string[] };
 
-function normalize(parsed: z.infer<typeof Schema>): ParsedData | { error: string } {
+async function normalize(parsed: z.infer<typeof Schema>): Promise<ParsedData | { error: string }> {
   const date = parseInputDate(parsed.date);
   if (!date) return { error: 'รูปแบบวันที่ไม่ถูกต้อง' };
-  return { date, name: parsed.name, isSubstitute: parsed.isSubstitute ?? false };
+  let branchIds: string[] = [];
+  if (parsed.scope === 'branches') {
+    branchIds = [...new Set(parsed.branchIds)].sort();
+    if (branchIds.length === 0) return { error: 'กรุณาเลือกอย่างน้อยหนึ่งสาขา' };
+    const found = await prisma.branch.count({ where: { id: { in: branchIds }, archivedAt: null } });
+    if (found !== branchIds.length) return { error: 'ไม่พบสาขาที่เลือก' };
+  }
+  return { date, name: parsed.name, isSubstitute: parsed.isSubstitute ?? false, branchIds };
 }
+
+/** Audit shape — one place so create/update/archive record the same fields. */
+function auditShape(h: { date: Date; name: string; isSubstitute: boolean; branchIds: string[] }) {
+  return {
+    date: h.date.toISOString().slice(0, 10),
+    name: h.name,
+    isSubstitute: h.isSubstitute,
+    branchIds: h.branchIds,
+  };
+}
+
+const DATE_TAKEN = 'มีวันหยุดในวันที่นี้อยู่แล้ว — ถ้าต้องการให้สาขาอื่นหยุดวันเดียวกัน ให้แก้ไขวันหยุดเดิมแล้วเลือกเพิ่มสาขา';
 
 export async function createHoliday(formData: FormData) {
   const { user } = await requirePermission('settings.holiday.manage');
@@ -77,28 +102,37 @@ export async function createHoliday(formData: FormData) {
       )}`,
     );
   }
-  const data = normalize(parsed.data);
+  const data = await normalize(parsed.data);
   if ('error' in data) {
     redirect(`/admin/settings/holidays/new?error=${encodeURIComponent(data.error)}`);
   }
 
   try {
-    const created = await prisma.holiday.create({ data });
+    // `date` is unique across archived rows too, so a holiday that was archived
+    // still owns its date and a plain create would fail with nothing the admin
+    // can open (archived rows are hidden). Revive that row with the new data.
+    const sameDate = await prisma.holiday.findUnique({
+      where: { date: data.date },
+      select: { id: true, archivedAt: true },
+    });
+    const archived = sameDate?.archivedAt ? sameDate : null;
+    const created = archived
+      ? await prisma.holiday.update({
+          where: { id: archived.id },
+          data: { ...data, archivedAt: null },
+        })
+      : await prisma.holiday.create({ data });
     auditLog({
       actorId: user.id,
       action: 'holiday.create',
       entityType: 'Holiday',
       entityId: created.id,
-      after: {
-        date: data.date.toISOString().slice(0, 10),
-        name: data.name,
-        isSubstitute: data.isSubstitute,
-      },
-      metadata: { source: 'admin-ui' },
+      after: auditShape(data),
+      metadata: { source: 'admin-ui', ...(archived ? { revivedArchivedRow: true } : {}) },
     });
   } catch (err: unknown) {
     if (isUniqueViolation(err)) {
-      redirect(`/admin/settings/holidays/new?error=${encodeURIComponent('มีวันหยุดในวันที่นี้อยู่แล้ว')}`);
+      redirect(`/admin/settings/holidays/new?error=${encodeURIComponent(DATE_TAKEN)}`);
     }
     throw err;
   }
@@ -118,7 +152,7 @@ export async function updateHoliday(id: string, formData: FormData) {
       )}`,
     );
   }
-  const data = normalize(parsed.data);
+  const data = await normalize(parsed.data);
   if ('error' in data) {
     redirect(`/admin/settings/holidays/${id}/edit?error=${encodeURIComponent(data.error)}`);
   }
@@ -133,23 +167,13 @@ export async function updateHoliday(id: string, formData: FormData) {
       action: 'holiday.update',
       entityType: 'Holiday',
       entityId: id,
-      before: {
-        date: before.date.toISOString().slice(0, 10),
-        name: before.name,
-        isSubstitute: before.isSubstitute,
-      },
-      after: {
-        date: data.date.toISOString().slice(0, 10),
-        name: data.name,
-        isSubstitute: data.isSubstitute,
-      },
+      before: auditShape(before),
+      after: auditShape(data),
       metadata: { source: 'admin-ui' },
     });
   } catch (err: unknown) {
     if (isUniqueViolation(err)) {
-      redirect(
-        `/admin/settings/holidays/${id}/edit?error=${encodeURIComponent('มีวันหยุดในวันที่นี้อยู่แล้ว')}`,
-      );
+      redirect(`/admin/settings/holidays/${id}/edit?error=${encodeURIComponent(DATE_TAKEN)}`);
     }
     throw err;
   }
@@ -177,11 +201,7 @@ export async function archiveHoliday(id: string) {
     action: 'holiday.archive',
     entityType: 'Holiday',
     entityId: id,
-    before: {
-      date: before.date.toISOString().slice(0, 10),
-      name: before.name,
-      isSubstitute: before.isSubstitute,
-    },
+    before: auditShape(before),
     metadata: { source: 'admin-ui' },
   });
 

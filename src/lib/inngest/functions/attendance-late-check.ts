@@ -20,6 +20,7 @@
 import { isScheduledWorkday } from '@/lib/attendance/schedule';
 import { prisma } from '@/lib/db/prisma';
 import { employeesWithoutSchedule } from '@/lib/employee/no-schedule';
+import { holidayAppliesToBranch, isCompanyHoliday } from '@/lib/leave/holiday-scope';
 import { notifyAdminsInApp } from '@/lib/notifications/in-app-bell';
 import { inngest } from '../client';
 
@@ -49,16 +50,16 @@ export const attendanceLateCheck = inngest.createFunction(
       return { skipped: true, reason: 'sunday' };
     }
 
-    // Skip holidays (any non-archived Holiday row for today).
-    const isHoliday = await step.run('check-holiday', async () => {
-      const h = await prisma.holiday.findFirst({
+    // Skip company holidays outright. A branch-only closure doesn't skip the
+    // run — it only drops that branch's staff from the list below.
+    const holiday = await step.run('check-holiday', async () =>
+      prisma.holiday.findFirst({
         where: { date: today, archivedAt: null },
-        select: { name: true },
-      });
-      return h?.name ?? null;
-    });
-    if (isHoliday) {
-      return { skipped: true, reason: 'holiday', holidayName: isHoliday };
+        select: { name: true, branchIds: true },
+      }),
+    );
+    if (holiday && isCompanyHoliday(holiday)) {
+      return { skipped: true, reason: 'holiday', holidayName: holiday.name };
     }
 
     // Find active employees + today's check-ins + today's approved leave.
@@ -75,6 +76,7 @@ export const attendanceLateCheck = inngest.createFunction(
             firstName: true,
             lastName: true,
             nickname: true,
+            branchId: true,
             workSchedule: { select: { days: { select: { dayOfWeek: true } } } },
           },
         }),
@@ -97,7 +99,8 @@ export const attendanceLateCheck = inngest.createFunction(
     const onLeaveSet = new Set(onLeave.map((c) => c.employeeId));
 
     // Only employees scheduled to work today count as "ยังไม่เช็คอิน". Sundays +
-    // holidays already returned above, so pass hasHoliday=false here; the
+    // company holidays already returned above; a branch closure is per
+    // employee (home branch). The
     // per-employee WorkSchedule excludes their own days off (e.g. a Mon/Wed/Fri
     // worker on a Saturday).
     const notCheckedIn = activeEmployees.filter(
@@ -107,7 +110,7 @@ export const attendanceLateCheck = inngest.createFunction(
         isScheduledWorkday(
           e.workSchedule?.days.map((d) => d.dayOfWeek),
           todayDow,
-          false,
+          !!holiday && holidayAppliesToBranch(holiday, e.branchId),
         ),
     );
 
