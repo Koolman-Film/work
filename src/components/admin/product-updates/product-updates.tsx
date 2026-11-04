@@ -9,7 +9,6 @@ import { nextAnnounce, tourById } from '@/lib/product-updates/selectors';
 import { useProductUpdates } from '@/lib/product-updates/store';
 import { TOURS } from '@/lib/product-updates/tours';
 import { AnnouncementModal } from './announcement-modal';
-import { WhatsNewPanel } from './whats-new-panel';
 
 /** Marker id (kept in the seen-set) recording that the first-run welcome
  *  tour has already auto-started, so it fires exactly once per browser. */
@@ -20,7 +19,7 @@ const FIRST_RUN_KEY = 'first-run.welcome';
  *   - store hydration from the server-provided `initialSeen`,
  *   - first-run auto-start of the welcome tour (once),
  *   - running the active tour via driver.js,
- *   - rendering the announcement modal + what's-new panel.
+ *   - rendering the announcement modal (the full notes are /admin/whats-new).
  */
 export function ProductUpdates({ initialSeen }: { initialSeen: string[] }) {
   const locale = useLocale() as Locale;
@@ -71,7 +70,6 @@ export function ProductUpdates({ initialSeen }: { initialSeen: string[] }) {
   return (
     <>
       <AnnouncementModal />
-      <WhatsNewPanel />
     </>
   );
 }

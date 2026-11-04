@@ -43,3 +43,11 @@ describe('tour buttons', () => {
     expect(th).not.toBe(en);
   });
 });
+
+describe('more-changes template', () => {
+  it.each(LOCALES)('%s keeps the {n} placeholder', (locale) => {
+    const text = (UI.moreChanges as Record<string, string | undefined>)[locale];
+    expect(text, `${locale} is missing`).toBeDefined();
+    expect(text).toContain('{n}');
+  });
+});

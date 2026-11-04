@@ -1,22 +1,20 @@
 'use server';
 
 /**
- * Persist product-updates "seen" ids for the current admin user. Add-only
- * union: ids are never removed, so concurrent tabs can't lose a dismissal
- * and the worst-case race is a harmless re-show. No-op when nothing is new.
+ * Persist product-updates "seen" ids for the current admin user. Add-only:
+ * ids are never removed, and the union is done atomically in the database
+ * (seen-store.ts), so concurrent saves cannot erase each other. No-op when the
+ * session's copy already holds every id.
  */
 
 import { requireAdminArea } from '@/lib/auth/admin-area';
-import { prisma } from '@/lib/db/prisma';
 import { parseSeen } from './seen-json';
+import { addSeenIds } from './seen-store';
 
 export async function markProductUpdatesSeen(ids: string[]): Promise<void> {
   const { user } = await requireAdminArea();
-  const current = parseSeen(user.productUpdatesSeen);
-  const next = [...new Set([...current, ...ids])];
-  if (next.length === current.length) return; // nothing new → skip the write
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { productUpdatesSeen: next },
-  });
+  const current = new Set(parseSeen(user.productUpdatesSeen));
+  const fresh = [...new Set(ids)].filter((id) => !current.has(id));
+  if (fresh.length === 0) return; // nothing new → skip the write
+  await addSeenIds(user.id, fresh);
 }

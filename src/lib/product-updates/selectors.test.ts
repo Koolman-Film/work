@@ -10,9 +10,23 @@ import {
 import type { LocalizedText, UpdateItem } from './types';
 
 const items: UpdateItem[] = [
-  { id: 'a', date: '2026-01-01', title: { th: 'A' }, body: { th: 'a' } },
-  { id: 'b', date: '2026-03-01', title: { th: 'B' }, body: { th: 'b' }, announce: true },
-  { id: 'c', date: '2026-02-01', title: { th: 'C' }, body: { th: 'c' }, announce: true },
+  { id: 'a', version: '2026.01.1', date: '2026-01-01', title: { th: 'A' }, summary: { th: 'a' } },
+  {
+    id: 'b',
+    version: '2026.03.1',
+    date: '2026-03-01',
+    title: { th: 'B' },
+    summary: { th: 'b' },
+    announce: true,
+  },
+  {
+    id: 'c',
+    version: '2026.02.1',
+    date: '2026-02-01',
+    title: { th: 'C' },
+    summary: { th: 'c' },
+    announce: true,
+  },
 ];
 
 describe('pickText', () => {

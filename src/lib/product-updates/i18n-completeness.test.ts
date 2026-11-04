@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { LOCALES } from '@/lib/i18n/config';
 import { UPDATES } from './registry';
 import { TOURS } from './tours';
-import type { LocalizedText } from './types';
+import type { LocalizedText, UpdateItem } from './types';
 import { UI } from './ui-text';
 
 /**
@@ -20,14 +20,36 @@ function allStrings(): Array<[string, LocalizedText]> {
       out.push([`tour ${tour.id}/${step.anchor} body`, step.body]);
     }
   }
-  for (const item of UPDATES) {
-    out.push([`update ${item.id} title`, item.title]);
-    out.push([`update ${item.id} body`, item.body]);
-  }
+  for (const item of UPDATES) collectLocalized(item, `update ${item.id}`, out);
   for (const [key, value] of Object.entries(UI)) {
     out.push([`ui ${key}`, value]);
   }
   return out;
+}
+
+/**
+ * Every LocalizedText anywhere inside an entry — title, summary, action,
+ * figure labels and captions, items, links. Walked rather than listed so a new
+ * field cannot slip past: anything shaped `{ th: string, … }` is checked.
+ */
+function collectLocalized(
+  node: UpdateItem | unknown,
+  path: string,
+  out: Array<[string, LocalizedText]>,
+): void {
+  if (Array.isArray(node)) {
+    node.forEach((child, i) => {
+      collectLocalized(child, `${path}[${i}]`, out);
+    });
+    return;
+  }
+  if (node === null || typeof node !== 'object') return;
+  const record = node as Record<string, unknown>;
+  if (typeof record.th === 'string') {
+    out.push([path, record as LocalizedText]);
+    return;
+  }
+  for (const [key, value] of Object.entries(record)) collectLocalized(value, `${path}.${key}`, out);
 }
 
 describe('product-updates i18n completeness', () => {

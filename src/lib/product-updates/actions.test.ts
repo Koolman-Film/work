@@ -4,17 +4,16 @@ vi.mock('@/lib/auth/admin-area', () => ({
   requireAdminArea: vi.fn(),
 }));
 
-vi.mock('@/lib/db/prisma', () => ({
-  prisma: { user: { update: vi.fn() } },
+vi.mock('./seen-store', () => ({
+  addSeenIds: vi.fn(),
 }));
 
 import { requireAdminArea } from '@/lib/auth/admin-area';
-import { prisma } from '@/lib/db/prisma';
 import { markProductUpdatesSeen } from './actions';
+import { addSeenIds } from './seen-store';
 
 const mockedRequireAdminArea = vi.mocked(requireAdminArea);
-// biome-ignore lint/suspicious/noExplicitAny: partial prisma mock surface
-const update = prisma.user.update as any;
+const update = vi.mocked(addSeenIds);
 
 function stubUser(id: string, seen: unknown) {
   // biome-ignore lint/suspicious/noExplicitAny: partial User shape for the gate
@@ -26,22 +25,16 @@ beforeEach(() => {
 });
 
 describe('markProductUpdatesSeen', () => {
-  it('unions new ids into the existing set (add-only)', async () => {
+  it('sends only the ids the session does not already hold (the DB does the union)', async () => {
     stubUser('u1', ['a']);
-    await markProductUpdatesSeen(['b', 'a']);
-    expect(update).toHaveBeenCalledWith({
-      where: { id: 'u1' },
-      data: { productUpdatesSeen: ['a', 'b'] },
-    });
+    await markProductUpdatesSeen(['b', 'a', 'b']);
+    expect(update).toHaveBeenCalledWith('u1', ['b']);
   });
 
   it('treats a null column as an empty set', async () => {
     stubUser('u1', null);
     await markProductUpdatesSeen(['first-run.welcome']);
-    expect(update).toHaveBeenCalledWith({
-      where: { id: 'u1' },
-      data: { productUpdatesSeen: ['first-run.welcome'] },
-    });
+    expect(update).toHaveBeenCalledWith('u1', ['first-run.welcome']);
   });
 
   it('skips the write when nothing new is added', async () => {

@@ -15,13 +15,10 @@ import { create } from 'zustand';
 import { markProductUpdatesSeen } from './actions';
 
 type ProductUpdatesState = {
-  panelOpen: boolean;
   activeTourId: string | null;
   seen: Set<string>;
   hydrated: boolean;
   hydrate: (initialSeen: string[]) => void;
-  openPanel: () => void;
-  closePanel: () => void;
   startTour: (id: string) => void;
   endTour: () => void;
   markSeen: (id: string) => void;
@@ -37,7 +34,6 @@ function persist(ids: string[]): void {
 }
 
 export const useProductUpdates = create<ProductUpdatesState>((set, get) => ({
-  panelOpen: false,
   activeTourId: null,
   seen: new Set(),
   hydrated: false,
@@ -45,8 +41,6 @@ export const useProductUpdates = create<ProductUpdatesState>((set, get) => ({
     if (get().hydrated) return;
     set({ seen: new Set(initialSeen), hydrated: true });
   },
-  openPanel: () => set({ panelOpen: true }),
-  closePanel: () => set({ panelOpen: false }),
   startTour: (id) => set({ activeTourId: id }),
   endTour: () => set({ activeTourId: null }),
   markSeen: (id) => {

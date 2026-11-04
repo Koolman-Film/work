@@ -2,6 +2,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { UPDATES } from './registry';
+import { latestRelease, sortReleasesDesc, versionProblems } from './release';
 import { parseBody } from './rich-text';
 import { nextAnnounce, sortByDateDesc, tourById, unseenCount, unseenItems } from './selectors';
 import { TOURS } from './tours';
@@ -30,6 +31,26 @@ describe('the shipped registry', () => {
     }
   });
 
+  it('keeps the YYYY.MM.N version rules (release.ts versionProblems)', () => {
+    expect(versionProblems(UPDATES)).toEqual([]);
+  });
+
+  it('no release carries more than three figures (lead + action + items)', () => {
+    for (const item of UPDATES) {
+      const figures =
+        (item.figure ? 1 : 0) +
+        (item.action?.figure ? 1 : 0) +
+        (item.items ?? []).filter((c) => c.figure).length;
+      expect(figures, item.id).toBeLessThanOrEqual(3);
+    }
+  });
+
+  it('every link is an in-app path', () => {
+    for (const item of UPDATES) {
+      for (const l of item.links ?? []) expect(l.href, item.id).toMatch(/^\/admin\//);
+    }
+  });
+
   it('every referenced tour exists', () => {
     for (const item of UPDATES) {
       if (!item.tour) continue;
@@ -47,11 +68,15 @@ describe('an admin who already dismissed a previous release', () => {
     expect(nextAnnounce(UPDATES, seen)).not.toBeNull();
   });
 
-  it('is shown BOTH new entries in one batch, not just the trigger', () => {
+  it('is shown EVERY newer entry in one batch, not just the trigger', () => {
     // The modal renders unseenItems, not nextAnnounce. This is the assertion
     // that would have caught the old single-item modal dropping an entry.
     const batch = unseenItems(UPDATES, seen).map((i) => i.id);
-    expect(batch).toEqual(['ui-refresh-2026-09', 'auto-absence-2026-09']);
+    expect(batch).toEqual([
+      'branch-settings-2026-11',
+      'ui-refresh-2026-09',
+      'auto-absence-2026-09',
+    ]);
   });
 
   it('does not meet the June greeting again', () => {
@@ -72,13 +97,7 @@ describe('a brand-new admin', () => {
 
   it('meets every entry at once, newest first', () => {
     const batch = unseenItems(UPDATES, seen).map((i) => i.id);
-    expect(batch).toEqual(
-      UPDATES.map((i) => i.id)
-        .sort()
-        .reverse().length
-        ? batch
-        : batch,
-    );
+    expect(batch).toEqual(sortReleasesDesc(UPDATES).map((i) => i.id));
     expect(batch).toHaveLength(UPDATES.length);
     expect(batch[batch.length - 1]).toBe('welcome-2026-06');
   });
@@ -108,10 +127,14 @@ describe('no announce entry can be stranded', () => {
   });
 });
 
-describe('panel ordering', () => {
-  it('lists newest first', () => {
-    const dates = sortByDateDesc(UPDATES).map((i) => i.date);
-    expect(dates).toEqual([...dates].sort().reverse());
+describe('page ordering', () => {
+  it('lists newest first, and version order agrees with date order', () => {
+    const byVersion = sortReleasesDesc(UPDATES).map((i) => i.id);
+    expect(byVersion).toEqual(sortByDateDesc(UPDATES).map((i) => i.id));
+  });
+
+  it('the sidebar footer shows the newest release', () => {
+    expect(latestRelease(UPDATES)?.version).toBe('2026.11.1');
   });
 });
 
@@ -143,9 +166,9 @@ describe('every tour anchor exists in the source', () => {
   });
 });
 
-describe('body markup in every shipped locale', () => {
+describe('summary markup in every shipped locale', () => {
   const bodies = UPDATES.flatMap((item) =>
-    Object.entries(item.body as Record<string, string>).map(
+    Object.entries(item.summary as Record<string, string>).map(
       ([locale, text]) => [`${item.id}/${locale}`, text] as const,
     ),
   );

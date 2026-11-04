@@ -23,10 +23,13 @@ import { usePathname } from 'next/navigation';
 import { useEffect } from 'react';
 import type { Permission } from '@/lib/auth/permissions';
 import { UPDATES } from '@/lib/product-updates/registry';
+import { latestRelease } from '@/lib/product-updates/release';
 import { unseenCount } from '@/lib/product-updates/selectors';
 import { useProductUpdates } from '@/lib/product-updates/store';
 import { cn } from '@/lib/utils';
 import { useMobileNav } from './use-mobile-nav';
+
+const LATEST_VERSION = latestRelease(UPDATES)?.version ?? '';
 
 /**
  * Admin sidebar nav (Sapphire Editorial).
@@ -208,7 +211,6 @@ export function Sidebar({
   const pathname = usePathname();
   const open = useMobileNav((s) => s.open);
   const close = useMobileNav((s) => s.close);
-  const openPanel = useProductUpdates((s) => s.openPanel);
   const hydrated = useProductUpdates((s) => s.hydrated);
   const seen = useProductUpdates((s) => s.seen);
   const unseen = hydrated ? unseenCount(UPDATES, seen) : 0;
@@ -392,13 +394,10 @@ export function Sidebar({
 
           {/* Footer: What's New entry + brand mark. */}
           <div className="border-t border-line-soft px-3 py-3">
-            <button
-              type="button"
+            <Link
+              href="/admin/whats-new"
               data-tour="whats-new-button"
-              onClick={() => {
-                openPanel();
-                close();
-              }}
+              onClick={close}
               className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-ink-2 transition hover:bg-surface-hover"
             >
               <span className="relative">
@@ -410,9 +409,11 @@ export function Sidebar({
                 )}
               </span>
               <span className="flex-1 text-left">มีอะไรใหม่</span>
-            </button>
+            </Link>
+            {/* The newest release's version — one source of truth with the
+                What's New page, instead of a hard-coded label. */}
             <p className="px-3 pt-2 font-display text-[11px] uppercase tracking-wider text-ink-4">
-              Koolman Work · V1
+              Koolman Work · {LATEST_VERSION}
             </p>
           </div>
         </div>
