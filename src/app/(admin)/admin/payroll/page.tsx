@@ -584,12 +584,14 @@ export default async function PayrollRunPage({ searchParams }: { searchParams: S
           <RunActionForm
             action={publishPayrollAction}
             month={month}
-            label={`เผยแพร่สลิป + แจ้งเตือน LINE (${statusCounts.Draft} คน)`}
-            pendingLabel="กำลังเผยแพร่สลิปและส่งแจ้งเตือน…"
+            label={`เผยแพร่สลิป (${statusCounts.Draft} คน)`}
+            pendingLabel="กำลังเผยแพร่สลิป…"
             variant="primary"
             confirm={{
               title: 'เผยแพร่สลิปทั้งงวด?',
-              description: `เผยแพร่สลิป ${statusCounts.Draft} คน และส่งแจ้งเตือน LINE ถึงทุกคนพร้อมกัน — ดำเนินการแล้วย้อนกลับไม่ได้`,
+              // Publishing sends no LINE message (dropped 2026-07-19, 87f9545d — quota):
+              // employees open the slip from the LINE menu. Say exactly that.
+              description: `เผยแพร่สลิป ${statusCounts.Draft} คน — พนักงานเปิดดูได้จากเมนูสลิปใน LINE ทันที ระบบไม่ส่งข้อความแจ้ง — ดำเนินการแล้วย้อนกลับไม่ได้`,
               confirmLabel: 'เผยแพร่ทั้งหมด',
             }}
           />

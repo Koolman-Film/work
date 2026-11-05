@@ -120,7 +120,7 @@ function SentStatusFooter({
   if (!lineLinked) {
     return (
       <div className="mt-5 border-t border-line-soft pt-4 text-xs text-amber-700">
-        ยังไม่ได้เชื่อมบัญชี LINE — ส่งสลิปไม่ได้
+        ยังไม่ได้เชื่อมบัญชี LINE — พนักงานยังเปิดสลิปใน LINE ไม่ได้
       </div>
     );
   }
@@ -128,22 +128,26 @@ function SentStatusFooter({
   return (
     <div className="mt-5 flex items-center justify-between gap-3 border-t border-line-soft pt-4">
       <div className="min-w-0 text-xs">
-        <p className="font-medium text-green-700">✓ ส่งสลิปทาง LINE แล้ว</p>
-        <p className="mt-0.5 text-ink-4">ระบบส่งแบบอัตโนมัติ อาจใช้เวลาสักครู่จึงจะถึงพนักงาน</p>
+        {/* Publishing pushes nothing (since 2026-07-19) — the slip is in the
+            employee's LINE menu, and sending it is the admin's choice. */}
+        <p className="font-medium text-green-700">✓ พนักงานเปิดสลิปนี้ได้จากเมนู LINE</p>
+        <p className="mt-0.5 text-ink-4">
+          ระบบไม่ส่งข้อความแจ้งเอง — กด “ส่งทาง LINE” ถ้าต้องการส่งสลิปให้คนนี้
+        </p>
         {justSent && (
-          <p className="mt-0.5 font-medium text-primary-700">ส่งอีกครั้งแล้ว · อาจใช้เวลาสักครู่</p>
+          <p className="mt-0.5 font-medium text-primary-700">ส่งแล้ว · อาจใช้เวลาสักครู่จึงจะถึงพนักงาน</p>
         )}
       </div>
       {canPublish && (
         <ConfirmDialog
           trigger={(openConfirm) => (
             <Button type="button" variant="secondary" size="sm" onClick={openConfirm}>
-              ส่งอีกครั้ง
+              ส่งทาง LINE
             </Button>
           )}
-          title="ส่งสลิปทาง LINE อีกครั้ง?"
-          description="พนักงานจะได้รับข้อความสลิปซ้ำอีกครั้ง — ใช้เมื่อการส่งครั้งก่อนอาจไม่สำเร็จ"
-          confirmLabel="ส่งอีกครั้ง"
+          title="ส่งสลิปทาง LINE?"
+          description="พนักงานจะได้รับข้อความพร้อมสลิปงวดนี้ทาง LINE"
+          confirmLabel="ส่ง"
           tone="primary"
           refreshOnSuccess={false}
           action={async () => {
@@ -419,12 +423,12 @@ export function RowDetail({
             <ConfirmDialog
               trigger={(openConfirm) => (
                 <Button type="button" onClick={openConfirm}>
-                  เผยแพร่ + ส่งสลิป
+                  เผยแพร่สลิป
                 </Button>
               )}
-              title="เผยแพร่สลิปและส่ง LINE?"
-              description={`เผยแพร่สลิปของ ${employeeName} งวด ${monthLabel} และส่งแจ้งเตือน LINE ถึงพนักงาน — ดำเนินการแล้วย้อนกลับไม่ได้`}
-              confirmLabel="เผยแพร่ + ส่ง LINE"
+              title="เผยแพร่สลิปนี้?"
+              description={`เผยแพร่สลิปของ ${employeeName} งวด ${monthLabel} — พนักงานเปิดดูได้จากเมนูสลิปใน LINE ระบบไม่ส่งข้อความแจ้ง — ดำเนินการแล้วย้อนกลับไม่ได้`}
+              confirmLabel="เผยแพร่"
               tone="primary"
               action={() => publishAction(employeeId, month)}
             />

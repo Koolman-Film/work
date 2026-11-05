@@ -469,8 +469,10 @@ export async function loadPayrollRowDetailAction(
 }
 
 /**
- * Resend the LINE rich message for an already-published slip — the safety net
- * when the original push failed. Re-queues with a fresh dedupeSuffix so the
+ * Send the LINE rich message for an already-published slip. Since 2026-07-19
+ * publishing pushes nothing (employees open slips from the LINE menu), so this
+ * is the only way a slip reaches someone as a message — the admin's choice,
+ * per person (row detail › "ส่งทาง LINE"). Re-queues with a fresh dedupeSuffix so the
  * 24h Inngest dedup window doesn't silently swallow it. Confirms only that the
  * push was QUEUED (delivery is async with retries), so the UI says "may take a
  * moment", not "delivered".
