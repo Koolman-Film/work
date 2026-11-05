@@ -31,7 +31,6 @@ export function BirthDateField({
         onChange={setValue}
         max={todayYmd}
         clearable
-        placeholder="เลือกหรือพิมพ์วันที่"
         className="min-w-0 flex-1 basis-56"
       />
       {age && (

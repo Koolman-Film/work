@@ -51,13 +51,7 @@ export function HolidayForm({ mode, action, branches, initial, error, extraActio
             )}
 
             <FormField label="วันที่" htmlFor="date" required>
-              <DateField
-                id="date"
-                name="date"
-                required
-                defaultValue={initial?.date || undefined}
-                placeholder="เลือกวันที่"
-              />
+              <DateField id="date" name="date" required defaultValue={initial?.date || undefined} />
             </FormField>
 
             <FormField

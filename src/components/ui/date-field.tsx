@@ -18,7 +18,7 @@
  */
 
 import { useLocale } from 'next-intl';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { CalendarMonth } from '@/components/ui/calendar-month';
 import {
   type DateOrder,
@@ -46,6 +46,8 @@ type Props = {
   disabled?: boolean;
   /** Show a "clear" affordance when a value is set. */
   clearable?: boolean;
+  /** Defaults to the typing pattern ("วว/ดด/ปปปป"), which also tells the
+   *  user they can type — override only with something equally useful. */
   placeholder?: string;
   id?: string;
   'aria-label'?: string;
@@ -99,7 +101,15 @@ export function DateField({
   // What the user is typing; null while not editing (the box then shows the
   // formatted value).
   const [draft, setDraft] = useState<string | null>(null);
-  const [invalid, setInvalid] = useState(false);
+  // Why the last typed text was refused: not a date at all, or a real date
+  // outside min/max. The two need different messages — telling someone their
+  // FORMAT is wrong when the date is merely too early sends them hunting for a
+  // typo that is not there.
+  const [refused, setRefused] = useState<null | 'format' | 'early' | 'late'>(null);
+  const invalid = refused !== null;
+  // Open the panel leftwards when it would run off the right edge — the
+  // second of two half-width fields on a phone is exactly that case.
+  const [alignRight, setAlignRight] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
   const todayIso = ymd(new Date());
@@ -116,6 +126,13 @@ export function DateField({
     from: min ? Number(min.slice(0, 4)) : thisYear - 100,
     to: max ? Number(max.slice(0, 4)) : thisYear + 10,
   };
+
+  // A value set from outside (a pick, a sibling field, a reset) supersedes
+  // whatever was refused before.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset on value change only
+  useEffect(() => {
+    setRefused(null);
+  }, [value]);
 
   // Close on outside click / Esc — same conventions as month-picker.tsx.
   useEffect(() => {
@@ -136,7 +153,7 @@ export function DateField({
 
   function commit(iso: string | null) {
     setDraft(null);
-    setInvalid(false);
+    setRefused(null);
     if (iso === value) return;
     if (!isControlled) setInternalValue(iso);
     onChange?.(iso);
@@ -160,7 +177,7 @@ export function DateField({
     if (text === '') {
       if (required) {
         setDraft(null);
-        setInvalid(false);
+        setRefused(null);
       } else {
         commit(null);
       }
@@ -169,7 +186,7 @@ export function DateField({
     const iso = parseTypedDate(text, order);
     if (!iso || isDisabled(iso, min, max)) {
       setDraft(null);
-      setInvalid(true);
+      setRefused(!iso ? 'format' : min && iso < min ? 'early' : 'late');
       return;
     }
     commit(iso);
@@ -184,13 +201,20 @@ export function DateField({
 
   function togglePopover() {
     if (disabled) return;
-    if (!open) syncViewToValue();
+    if (!open) {
+      syncViewToValue();
+      const rect = rootRef.current?.getBoundingClientRect();
+      // 256px = CalendarMonth's w-64; 8px keeps it off the very edge.
+      setAlignRight(
+        Boolean(rect && rect.left + 256 > window.innerWidth - 8 && rect.right - 256 >= 8),
+      );
+    }
     setOpen((o) => !o);
   }
 
   function onType(text: string) {
     setDraft(text);
-    setInvalid(false);
+    setRefused(null);
     // Follow a complete, valid date in the open calendar as it is typed.
     const iso = parseTypedDate(text, order);
     const p = iso ? parseISO(iso) : null;
@@ -200,7 +224,23 @@ export function DateField({
   const formatted =
     value && parseISO(value) ? formatShortDate(new Date(`${value}T12:00:00Z`), locale) : '';
   const typingHint = locale === 'th' ? 'วว/ดด/ปปปป' : TYPING_HINT[order];
-  const errorId = id ? `${id}-error` : undefined;
+  const errorId = `${useId()}-error`;
+  const boundLabel = (iso: string | undefined) =>
+    iso ? formatShortDate(new Date(`${iso}T12:00:00Z`), locale) : '';
+  const refusedText =
+    refused === 'format'
+      ? locale === 'th'
+        ? `วันที่ไม่ถูกต้อง — พิมพ์แบบ ${typingHint} เช่น 27/04/2537`
+        : `Not a valid date — type it as ${typingHint}`
+      : refused === 'early'
+        ? locale === 'th'
+          ? `เลือกได้ตั้งแต่ ${boundLabel(min)} เป็นต้นไป`
+          : `Must be on or after ${boundLabel(min)}`
+        : refused === 'late'
+          ? locale === 'th'
+            ? `เลือกได้ไม่เกิน ${boundLabel(max)}`
+            : `Must be on or before ${boundLabel(max)}`
+          : '';
 
   return (
     <div ref={rootRef} className={cn('relative', className)}>
@@ -221,7 +261,7 @@ export function DateField({
           inputMode="numeric"
           autoComplete="off"
           value={draft ?? formatted}
-          placeholder={placeholder ? `${placeholder} (${typingHint})` : typingHint}
+          placeholder={placeholder ?? typingHint}
           onChange={(e) => onType(e.target.value)}
           onClick={() => {
             if (!open) togglePopover();
@@ -233,14 +273,20 @@ export function DateField({
               e.preventDefault();
               commitDraft();
               setOpen(false);
+            } else if (e.key === 'ArrowDown' && !open) {
+              // The combobox convention: ArrowDown (or Alt+ArrowDown) opens
+              // the picker, so the calendar is reachable without a mouse.
+              e.preventDefault();
+              togglePopover();
             } else if (e.key === 'Escape') {
               setDraft(null);
-              setInvalid(false);
+              setRefused(null);
             }
           }}
           aria-label={ariaLabel}
           aria-invalid={invalid || undefined}
           aria-describedby={invalid ? errorId : undefined}
+          aria-required={required || undefined}
           disabled={disabled}
           className={cn(
             'w-full rounded-lg border border-line-strong bg-surface py-2 pl-3 pr-9 text-sm text-ink-1 tabular-nums placeholder:text-ink-4 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500',
@@ -255,7 +301,6 @@ export function DateField({
           aria-expanded={open}
           aria-label={locale === 'th' ? 'เปิดปฏิทิน' : 'Open calendar'}
           disabled={disabled}
-          tabIndex={-1}
           className="absolute inset-y-0 right-0 grid w-9 place-items-center rounded-r-lg text-ink-4 hover:text-ink-2 disabled:cursor-not-allowed"
         >
           <svg
@@ -273,41 +318,47 @@ export function DateField({
             <path d="M16 2v4M8 2v4M3 10h18" />
           </svg>
         </button>
+
+        {/* Anchored to the input's own box, not the root: the refusal message
+            below appears on blur — i.e. on the very mousedown that is
+            picking a day — and must not shove the calendar out from under
+            the pointer before mouseup, which would swallow the click. */}
+        {open && (
+          <div
+            role="dialog"
+            aria-label="เลือกวันที่"
+            className={cn('absolute top-full z-30 mt-1', alignRight ? 'right-0' : 'left-0')}
+          >
+            <CalendarMonth
+              viewYear={view.year}
+              viewMonth0={view.month0}
+              selected={value}
+              min={min}
+              max={max}
+              today={todayIso}
+              onPick={pick}
+              onNavMonth={(delta) => setView((v) => shiftMonth0(v.year, v.month0, delta))}
+              yearRange={yearRange}
+            />
+            {clearable && value && (
+              <div className="mt-1 flex justify-end">
+                <button
+                  type="button"
+                  onClick={clear}
+                  className="rounded-md px-2 py-1 text-xs font-medium text-ink-3 hover:bg-surface-hover-strong hover:text-ink-2"
+                >
+                  ล้าง
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {invalid && (
         <p id={errorId} role="alert" className="mt-1 text-xs text-red-600">
-          {locale === 'th'
-            ? `วันที่ไม่ถูกต้อง — พิมพ์แบบ ${typingHint} เช่น 27/04/2537`
-            : `Not a valid date — type it as ${typingHint}`}
+          {refusedText}
         </p>
-      )}
-
-      {open && (
-        <div role="dialog" aria-label="เลือกวันที่" className="absolute left-0 top-full z-30 mt-1">
-          <CalendarMonth
-            viewYear={view.year}
-            viewMonth0={view.month0}
-            selected={value}
-            min={min}
-            max={max}
-            today={todayIso}
-            onPick={pick}
-            onNavMonth={(delta) => setView((v) => shiftMonth0(v.year, v.month0, delta))}
-            yearRange={yearRange}
-          />
-          {clearable && value && (
-            <div className="mt-1 flex justify-end">
-              <button
-                type="button"
-                onClick={clear}
-                className="rounded-md px-2 py-1 text-xs font-medium text-ink-3 hover:bg-surface-hover-strong hover:text-ink-2"
-              >
-                ล้าง
-              </button>
-            </div>
-          )}
-        </div>
       )}
     </div>
   );

@@ -202,7 +202,7 @@ export default async function OvertimePage({
                 </option>
               ))}
             </select>
-            <DateField name="date" required placeholder="เลือกวันที่" />
+            <DateField name="date" required />
             <Input
               name="minutes"
               type="number"
