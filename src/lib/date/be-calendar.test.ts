@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { beYear, buildDayGrid, clampRange, isDisabled, parseISO, shiftMonth0 } from './be-calendar';
+import {
+  beYear,
+  buildDayGrid,
+  clampRange,
+  isDisabled,
+  parseISO,
+  parseTypedDate,
+  shiftMonth0,
+} from './be-calendar';
 
 describe('be-calendar', () => {
   it('beYear adds 543', () => {
@@ -49,5 +57,40 @@ describe('be-calendar', () => {
     expect(jul01).toMatchObject({ inMonth: true, disabled: true }); // before min
     const jun28 = grid.find((c) => c.iso === '2026-06-28'); // leading pad
     expect(jun28?.inMonth).toBe(false);
+  });
+});
+
+describe('parseTypedDate', () => {
+  it('reads a Thai day/month/BE-year date', () => {
+    expect(parseTypedDate('27/04/2537', 'dmy')).toBe('1994-04-27');
+    expect(parseTypedDate('4/11/2569', 'dmy')).toBe('2026-11-04');
+  });
+
+  it('accepts other separators, bare digits and Thai digits', () => {
+    expect(parseTypedDate('27-4-2537', 'dmy')).toBe('1994-04-27');
+    expect(parseTypedDate(' 27.04.2537 ', 'dmy')).toBe('1994-04-27');
+    expect(parseTypedDate('27042537', 'dmy')).toBe('1994-04-27');
+    expect(parseTypedDate('๒๗/๐๔/๒๕๓๗', 'dmy')).toBe('1994-04-27');
+  });
+
+  it('keeps a CE year as typed', () => {
+    expect(parseTypedDate('27/04/1994', 'dmy')).toBe('1994-04-27');
+  });
+
+  it('follows the locale order', () => {
+    expect(parseTypedDate('04/27/1994', 'mdy')).toBe('1994-04-27');
+    expect(parseTypedDate('1994/04/27', 'ymd')).toBe('1994-04-27');
+    expect(parseTypedDate('19940427', 'ymd')).toBe('1994-04-27');
+  });
+
+  it('refuses what is not a real date', () => {
+    expect(parseTypedDate('', 'dmy')).toBeNull();
+    expect(parseTypedDate('31/02/2569', 'dmy')).toBeNull();
+    expect(parseTypedDate('29/02/2568', 'dmy')).toBeNull(); // 2025: not a leap year
+    expect(parseTypedDate('29/02/2567', 'dmy')).toBe('2024-02-29');
+    expect(parseTypedDate('13/13/2569', 'dmy')).toBeNull();
+    expect(parseTypedDate('27/04/37', 'dmy')).toBeNull(); // two-digit year: never guessed
+    expect(parseTypedDate('27/04', 'dmy')).toBeNull();
+    expect(parseTypedDate('hello', 'dmy')).toBeNull();
   });
 });

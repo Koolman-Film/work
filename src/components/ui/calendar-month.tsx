@@ -16,7 +16,7 @@
 
 import { useLocale } from 'next-intl';
 import { useEffect, useState } from 'react';
-import { buildDayGrid, type ISODate, isDisabled, parseISO } from '@/lib/date/be-calendar';
+import { beYear, buildDayGrid, type ISODate, isDisabled, parseISO } from '@/lib/date/be-calendar';
 import type { Locale } from '@/lib/i18n/config';
 import { formatMonthYear, formatShortDate } from '@/lib/i18n/format';
 import { formatThaiMonthLabel } from '@/lib/leave/team-calendar-shape';
@@ -58,7 +58,23 @@ type Props = {
   onPick: (iso: ISODate) => void;
   onHover?: (iso: ISODate | null) => void;
   onNavMonth: (delta: number) => void;
+  /**
+   * Inclusive Gregorian year span for month/year dropdowns in the header.
+   * Without it the header is the plain label — fine for a range picker that
+   * lives near today, useless for a birth date thirty years back, which is
+   * 360 clicks of ‹ away.
+   */
+  yearRange?: { from: number; to: number };
 };
+
+/** Short month names for the header dropdown, in the reader's language. */
+function monthNames(locale: Locale): string[] {
+  const fmt = new Intl.DateTimeFormat(locale === 'th' ? 'th-TH' : locale, {
+    month: 'short',
+    timeZone: 'UTC',
+  });
+  return Array.from({ length: 12 }, (_, m) => fmt.format(new Date(Date.UTC(2024, m, 15))));
+}
 
 export function CalendarMonth({
   viewYear,
@@ -73,6 +89,7 @@ export function CalendarMonth({
   onPick,
   onHover,
   onNavMonth,
+  yearRange,
 }: Props) {
   const locale = useLocale() as Locale;
   const [focusedIso, setFocusedIso] = useState<ISODate>(selected ?? today);
@@ -170,7 +187,17 @@ export function CalendarMonth({
         >
           ‹
         </button>
-        <span className="font-display text-sm font-bold text-ink-1">{monthLabel}</span>
+        {yearRange ? (
+          <MonthYearSelects
+            locale={locale}
+            viewYear={viewYear}
+            viewMonth0={viewMonth0}
+            yearRange={yearRange}
+            onJump={(year, month0) => onNavMonth((year - viewYear) * 12 + (month0 - viewMonth0))}
+          />
+        ) : (
+          <span className="font-display text-sm font-bold text-ink-1">{monthLabel}</span>
+        )}
         <button
           type="button"
           onClick={() => onNavMonth(1)}
@@ -253,6 +280,65 @@ export function CalendarMonth({
           );
         })}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Month + year dropdowns for the header. They only ever ask the parent to
+ * move the view (through the same onNavMonth delta the ‹ › buttons use), so
+ * the parent keeps sole ownership of view state. Years list newest first —
+ * the common jump is backwards, to a birth year — and always include the
+ * year on show, even when it falls outside the span.
+ */
+function MonthYearSelects({
+  locale,
+  viewYear,
+  viewMonth0,
+  yearRange,
+  onJump,
+}: {
+  locale: Locale;
+  viewYear: number;
+  viewMonth0: number;
+  yearRange: { from: number; to: number };
+  onJump: (year: number, month0: number) => void;
+}) {
+  const from = Math.min(yearRange.from, viewYear);
+  const to = Math.max(yearRange.to, viewYear);
+  const years = Array.from({ length: to - from + 1 }, (_, i) => to - i);
+  const months = monthNames(locale);
+  // Height inline: the element-level select rule in globals.css (38px, to
+  // match Input) is unlayered and would beat a utility class.
+  const cls = 'rounded-md border border-line bg-surface px-2 text-sm font-semibold text-ink-1';
+  return (
+    <div className="flex items-center gap-1">
+      <select
+        aria-label={locale === 'th' ? 'เดือน' : 'Month'}
+        value={viewMonth0}
+        onChange={(e) => onJump(viewYear, Number(e.target.value))}
+        className={cls}
+        style={{ height: 30 }}
+      >
+        {months.map((m, i) => (
+          <option key={m} value={i}>
+            {m}
+          </option>
+        ))}
+      </select>
+      <select
+        aria-label={locale === 'th' ? 'ปี' : 'Year'}
+        value={viewYear}
+        onChange={(e) => onJump(Number(e.target.value), viewMonth0)}
+        className={cls}
+        style={{ height: 30 }}
+      >
+        {years.map((y) => (
+          <option key={y} value={y}>
+            {locale === 'th' ? beYear(y) : y}
+          </option>
+        ))}
+      </select>
     </div>
   );
 }

@@ -1,10 +1,10 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
-import { DateField } from '@/components/ui/date-field';
 import { FormField } from '@/components/ui/form-field';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import { BirthDateField } from './birth-date-field';
 import { HiredAtField } from './hired-at-field';
 import { PhotoField } from './photo-field';
 
@@ -190,13 +190,7 @@ export function EmployeeForm({
                   />
                 </FormField>
                 <FormField label="วันเกิด" htmlFor="dateOfBirth" hint="ไม่บังคับ — ใช้แจ้งเตือนวันเกิด">
-                  <DateField
-                    id="dateOfBirth"
-                    name="dateOfBirth"
-                    defaultValue={initial?.dateOfBirth || undefined}
-                    clearable
-                    placeholder="เลือกวันที่"
-                  />
+                  <BirthDateField initialValue={initial?.dateOfBirth || null} todayYmd={todayYmd} />
                 </FormField>
                 <FormField
                   label="เลขประจำตัวประชาชน"

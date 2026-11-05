@@ -62,3 +62,50 @@ export function buildDayGrid(
     disabled: isDisabled(g.date, opts?.min, opts?.max),
   }));
 }
+
+/** Order of day / month / year in a locale's short numeric date. */
+export type DateOrder = 'dmy' | 'mdy' | 'ymd';
+
+const THAI_DIGITS = '๐๑๒๓๔๕๖๗๘๙';
+
+/**
+ * Parse a date the user TYPED into a DateField, in the same field order the
+ * field displays (`order`). Returns ISO "YYYY-MM-DD", or null when the text is
+ * not a real calendar date.
+ *
+ * Accepts any non-digit separator ("27/04/2537", "27-4-2537", "27.04.2537")
+ * or a bare 8-digit run ("27042537"), and Thai digits. The year must be four
+ * digits — a two-digit year is refused rather than guessed, because a wrong
+ * century on a birth date is silent. A year of 2400 or more is a Buddhist-era
+ * year and is converted (−543): Thai admins type BE, the field shows BE, and
+ * no CE date this app handles is anywhere near 2400.
+ */
+export function parseTypedDate(text: string, order: DateOrder): ISODate | null {
+  const latin = text.trim().replace(/[๐-๙]/g, (c) => String(THAI_DIGITS.indexOf(c)));
+  if (latin === '') return null;
+
+  let parts: string[];
+  if (/^\d{8}$/.test(latin)) {
+    parts =
+      order === 'ymd'
+        ? [latin.slice(0, 4), latin.slice(4, 6), latin.slice(6, 8)]
+        : [latin.slice(0, 2), latin.slice(2, 4), latin.slice(4, 8)];
+  } else {
+    parts = latin.split(/\D+/).filter(Boolean);
+  }
+  if (parts.length !== 3) return null;
+
+  const [a, b, c] = parts as [string, string, string];
+  const [dStr, mStr, yStr] = order === 'dmy' ? [a, b, c] : order === 'mdy' ? [b, a, c] : [c, b, a];
+  if (!/^\d{4}$/.test(yStr) || dStr.length > 2 || mStr.length > 2) return null;
+
+  let year = Number(yStr);
+  if (year >= 2400) year -= 543;
+  const month1 = Number(mStr);
+  const day = Number(dStr);
+  if (month1 < 1 || month1 > 12 || day < 1) return null;
+  const daysInMonth = new Date(Date.UTC(year, month1, 0)).getUTCDate();
+  if (day > daysInMonth) return null;
+
+  return `${String(year).padStart(4, '0')}-${String(month1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}

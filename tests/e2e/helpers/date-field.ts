@@ -2,12 +2,12 @@
  * Driving `<DateField>` from Playwright.
  *
  * These forms used to render `<input type="date">`, so specs could just
- * `.fill('2000-05-20')`. They now render the Buddhist-era picker: a `<button>`
- * carrying the label, a popover grid, and a hidden `<input>` holding the ISO
- * value. `.fill()` on the labelled element throws "Element is not an <input>"
- * — an error that reads like a broken selector rather than a changed control.
+ * `.fill('2000-05-20')`. They now render the Buddhist-era picker: a text box
+ * carrying the label (it shows the FORMATTED date and accepts typed
+ * "27/04/2537"), a popover grid, and a hidden `<input>` holding the ISO value.
+ * `.fill('2000-05-20')` on the labelled box is refused as not-a-date.
  *
- * So: click the trigger, walk to the month, click the day — the real user path.
+ * So: click the box, walk to the month, click the day — the real user path.
  *
  * The day cells are labelled with `formatShortDate`, which we import from the
  * app rather than reproduce. If that format changes, these helpers follow it
@@ -107,7 +107,7 @@ export async function clearDate(page: Page, trigger: Locator): Promise<void> {
 
 /**
  * The hidden input a DateField submits, addressed by form field name.
- * The labelled element is the trigger button and has no value to assert on.
+ * The labelled box shows the formatted date, not the ISO value it submits.
  */
 export function dateValue(page: Page, name: string): Locator {
   return page.locator(`input[type="hidden"][name="${name}"]`);

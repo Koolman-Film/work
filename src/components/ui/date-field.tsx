@@ -1,23 +1,34 @@
 'use client';
 
 /**
- * DateField — a single-date picker field.
+ * DateField — a single-date field you can TYPE into or pick from a calendar.
  *
- * Trigger looks like an Input showing the formatted date (e.g. "12/07/2569"
- * in Thai locale); clicking opens a `CalendarMonth` popover (the shared
- * single-month grid also used by DateRangeField) to pick a day. The chosen
- * value posts through a hidden input as ISO "YYYY-MM-DD" when `name` is
- * given (form mode), or is reported via `onChange` when `value` is
- * controlled — mirrors `month-picker.tsx`'s open/outside-click/hidden-input
- * pattern so this reads as a sibling component.
+ * The box is a text input showing the formatted date (e.g. "12/07/2569" in
+ * Thai). Typing "27/04/2537" and pressing Enter or leaving the field commits
+ * it — parsed in the field's own day/month/year order, BE years understood
+ * (`parseTypedDate`). Clicking the box or the calendar icon opens a
+ * `CalendarMonth` popover whose header has month and year dropdowns, so a
+ * date decades away is two clicks, not hundreds of ‹ presses.
+ *
+ * The chosen value posts through a hidden input as ISO "YYYY-MM-DD" when
+ * `name` is given (form mode), or is reported via `onChange` when `value` is
+ * controlled. Text that is not a real date (or falls outside min/max) is
+ * refused: the field keeps its previous value and says so, rather than
+ * posting something the server would reject or, worse, accept wrongly.
  */
 
 import { useLocale } from 'next-intl';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { CalendarMonth } from '@/components/ui/calendar-month';
-import { parseISO, shiftMonth0 } from '@/lib/date/be-calendar';
+import {
+  type DateOrder,
+  isDisabled,
+  parseISO,
+  parseTypedDate,
+  shiftMonth0,
+} from '@/lib/date/be-calendar';
 import type { Locale } from '@/lib/i18n/config';
-import { formatShortDate } from '@/lib/i18n/format';
+import { formatShortDate, latnDigits } from '@/lib/i18n/format';
 import { ymd } from '@/lib/leave/team-calendar-shape';
 import { cn } from '@/lib/utils';
 
@@ -41,6 +52,27 @@ type Props = {
   className?: string;
 };
 
+/** The field order formatShortDate uses for this locale, read from Intl so
+ *  what the user types matches what the field shows. */
+function shortDateOrder(locale: Locale): DateOrder {
+  const parts = new Intl.DateTimeFormat(
+    locale === 'th' ? 'th-TH-u-ca-gregory' : latnDigits(locale),
+    { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' },
+  )
+    .formatToParts(new Date(Date.UTC(2024, 0, 15)))
+    .map((p) => p.type)
+    .filter((t) => t === 'day' || t === 'month' || t === 'year');
+  if (parts[0] === 'year') return 'ymd';
+  if (parts[0] === 'month') return 'mdy';
+  return 'dmy';
+}
+
+const TYPING_HINT: Record<DateOrder, string> = {
+  dmy: 'dd/mm/yyyy',
+  mdy: 'mm/dd/yyyy',
+  ymd: 'yyyy/mm/dd',
+};
+
 export function DateField({
   name,
   defaultValue,
@@ -58,11 +90,16 @@ export function DateField({
 }: Props) {
   const locale = useLocale() as Locale;
   const isControlled = controlledValue !== undefined;
+  const order = useMemo(() => shortDateOrder(locale), [locale]);
 
   const [internalValue, setInternalValue] = useState<string | null>(defaultValue ?? null);
   const value = isControlled ? (controlledValue ?? null) : internalValue;
 
   const [open, setOpen] = useState(false);
+  // What the user is typing; null while not editing (the box then shows the
+  // formatted value).
+  const [draft, setDraft] = useState<string | null>(null);
+  const [invalid, setInvalid] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
   const todayIso = ymd(new Date());
@@ -71,6 +108,14 @@ export function DateField({
     year: seed?.year ?? new Date().getUTCFullYear(),
     month0: seed?.month0 ?? new Date().getUTCMonth(),
   });
+
+  // Dropdown span: the bounds when given, else a century back (birth dates)
+  // to a decade ahead (contract ends, future leave).
+  const thisYear = Number(todayIso.slice(0, 4));
+  const yearRange = {
+    from: min ? Number(min.slice(0, 4)) : thisYear - 100,
+    to: max ? Number(max.slice(0, 4)) : thisYear + 10,
+  };
 
   // Close on outside click / Esc — same conventions as month-picker.tsx.
   useEffect(() => {
@@ -89,29 +134,73 @@ export function DateField({
     };
   }, [open]);
 
-  function pick(iso: string) {
+  function commit(iso: string | null) {
+    setDraft(null);
+    setInvalid(false);
+    if (iso === value) return;
     if (!isControlled) setInternalValue(iso);
-    setOpen(false);
     onChange?.(iso);
   }
 
-  function clear() {
-    if (!isControlled) setInternalValue(null);
+  function pick(iso: string) {
+    commit(iso);
     setOpen(false);
-    onChange?.(null);
   }
 
-  function openPopover() {
-    if (disabled) return;
+  function clear() {
+    commit(null);
+    setOpen(false);
+  }
+
+  /** Commit what was typed. Blank clears (unless required — then it reverts);
+   *  anything unparseable or out of bounds is refused and flagged. */
+  function commitDraft() {
+    if (draft === null) return;
+    const text = draft.trim();
+    if (text === '') {
+      if (required) {
+        setDraft(null);
+        setInvalid(false);
+      } else {
+        commit(null);
+      }
+      return;
+    }
+    const iso = parseTypedDate(text, order);
+    if (!iso || isDisabled(iso, min, max)) {
+      setDraft(null);
+      setInvalid(true);
+      return;
+    }
+    commit(iso);
+    const p = parseISO(iso);
+    if (p) setView({ year: p.year, month0: p.month0 });
+  }
+
+  function syncViewToValue() {
     const parsed = (value && parseISO(value)) || parseISO(todayIso);
     if (parsed) setView({ year: parsed.year, month0: parsed.month0 });
+  }
+
+  function togglePopover() {
+    if (disabled) return;
+    if (!open) syncViewToValue();
     setOpen((o) => !o);
   }
 
-  const label =
-    value && parseISO(value)
-      ? formatShortDate(new Date(`${value}T12:00:00Z`), locale)
-      : (placeholder ?? '');
+  function onType(text: string) {
+    setDraft(text);
+    setInvalid(false);
+    // Follow a complete, valid date in the open calendar as it is typed.
+    const iso = parseTypedDate(text, order);
+    const p = iso ? parseISO(iso) : null;
+    if (p) setView({ year: p.year, month0: p.month0 });
+  }
+
+  const formatted =
+    value && parseISO(value) ? formatShortDate(new Date(`${value}T12:00:00Z`), locale) : '';
+  const typingHint = locale === 'th' ? 'วว/ดด/ปปปป' : TYPING_HINT[order];
+  const errorId = id ? `${id}-error` : undefined;
 
   return (
     <div ref={rootRef} className={cn('relative', className)}>
@@ -125,37 +214,74 @@ export function DateField({
         />
       )}
 
-      <button
-        type="button"
-        id={id}
-        onClick={openPopover}
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        aria-label={ariaLabel}
-        disabled={disabled}
-        className={cn(
-          'flex w-full items-center justify-between gap-2 rounded-lg border border-line-strong bg-surface px-3 py-2 text-left text-sm text-ink-1 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500',
-          disabled && 'cursor-not-allowed bg-surface-muted text-ink-4',
-          !value && 'text-ink-4',
-        )}
-      >
-        <span>{label}</span>
-        <svg
-          width="15"
-          height="15"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-          className="shrink-0 text-ink-4"
+      <div className="relative">
+        <input
+          type="text"
+          id={id}
+          inputMode="numeric"
+          autoComplete="off"
+          value={draft ?? formatted}
+          placeholder={placeholder ? `${placeholder} (${typingHint})` : typingHint}
+          onChange={(e) => onType(e.target.value)}
+          onClick={() => {
+            if (!open) togglePopover();
+          }}
+          onBlur={commitDraft}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              // Commit, never submit the surrounding form from a date box.
+              e.preventDefault();
+              commitDraft();
+              setOpen(false);
+            } else if (e.key === 'Escape') {
+              setDraft(null);
+              setInvalid(false);
+            }
+          }}
+          aria-label={ariaLabel}
+          aria-invalid={invalid || undefined}
+          aria-describedby={invalid ? errorId : undefined}
+          disabled={disabled}
+          className={cn(
+            'w-full rounded-lg border border-line-strong bg-surface py-2 pl-3 pr-9 text-sm text-ink-1 tabular-nums placeholder:text-ink-4 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500',
+            invalid && 'border-red-500 focus:border-red-500 focus:ring-red-500',
+            disabled && 'cursor-not-allowed bg-surface-muted text-ink-4',
+          )}
+        />
+        <button
+          type="button"
+          onClick={togglePopover}
+          aria-haspopup="dialog"
+          aria-expanded={open}
+          aria-label={locale === 'th' ? 'เปิดปฏิทิน' : 'Open calendar'}
+          disabled={disabled}
+          tabIndex={-1}
+          className="absolute inset-y-0 right-0 grid w-9 place-items-center rounded-r-lg text-ink-4 hover:text-ink-2 disabled:cursor-not-allowed"
         >
-          <rect x="3" y="4" width="18" height="18" rx="2" />
-          <path d="M16 2v4M8 2v4M3 10h18" />
-        </svg>
-      </button>
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <rect x="3" y="4" width="18" height="18" rx="2" />
+            <path d="M16 2v4M8 2v4M3 10h18" />
+          </svg>
+        </button>
+      </div>
+
+      {invalid && (
+        <p id={errorId} role="alert" className="mt-1 text-xs text-red-600">
+          {locale === 'th'
+            ? `วันที่ไม่ถูกต้อง — พิมพ์แบบ ${typingHint} เช่น 27/04/2537`
+            : `Not a valid date — type it as ${typingHint}`}
+        </p>
+      )}
 
       {open && (
         <div role="dialog" aria-label="เลือกวันที่" className="absolute left-0 top-full z-30 mt-1">
@@ -168,6 +294,7 @@ export function DateField({
             today={todayIso}
             onPick={pick}
             onNavMonth={(delta) => setView((v) => shiftMonth0(v.year, v.month0, delta))}
+            yearRange={yearRange}
           />
           {clearable && value && (
             <div className="mt-1 flex justify-end">
