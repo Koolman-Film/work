@@ -11,6 +11,7 @@ import { getLocale, getTranslations } from 'next-intl/server';
 import { requireLiffAdmin } from '@/lib/auth/require-liff-admin';
 import { prisma } from '@/lib/db/prisma';
 import type { Locale } from '@/lib/i18n/config';
+import { formatClock } from '@/lib/i18n/format';
 import { resolveStoredImageUrl } from '@/lib/storage/signed-urls';
 import { DisputeReviewActions } from './dispute-review-actions';
 
@@ -18,7 +19,7 @@ type Params = Promise<{ id: string }>;
 
 const fmtTime = (d: Date | null, locale: Locale) =>
   d
-    ? d.toLocaleString(locale, {
+    ? formatClock(d, locale, {
         timeZone: 'Asia/Bangkok',
         day: 'numeric',
         month: 'short',

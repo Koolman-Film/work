@@ -18,10 +18,11 @@ import { getLocale, getTranslations } from 'next-intl/server';
 import { getPermittedBranches } from '@/lib/auth/branch-scope';
 import { requireLiffAdmin } from '@/lib/auth/require-liff-admin';
 import type { Locale } from '@/lib/i18n/config';
+import { formatClock } from '@/lib/i18n/format';
 import { awaitingSlipRowState, loadAwaitingSlipRows } from './_load';
 
 function formatBkk(d: Date, locale: Locale): string {
-  return d.toLocaleString(locale, {
+  return formatClock(d, locale, {
     timeZone: 'Asia/Bangkok',
     day: 'numeric',
     month: 'short',

@@ -1,6 +1,7 @@
 import QRCode from 'qrcode';
 import { Button } from '@/components/ui/button';
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
+import { formatClock } from '@/lib/i18n/format';
 import { unlinkLineFromEmployee } from './actions';
 import { CopyButton } from './copy-button';
 import { generatePairingLink, revokePairingLink } from './pairing-actions';
@@ -87,10 +88,11 @@ export async function PairingCard({
   });
 
   const expiresLabel = inviteExpiresAt
-    ? new Intl.DateTimeFormat('th-TH', {
+    ? formatClock(inviteExpiresAt, 'th-TH', {
         dateStyle: 'medium',
         timeStyle: 'short',
-      }).format(inviteExpiresAt)
+        timeZone: 'Asia/Bangkok',
+      })
     : '—';
 
   return (

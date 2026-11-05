@@ -31,6 +31,32 @@ export function latnDigits(locale: string): string {
   return locale.includes('-u-') ? `${locale}-nu-latn` : `${locale}-u-nu-latn`;
 }
 
+/**
+ * Intl date/time formatting with ICU's Thai clock suffix removed.
+ *
+ * Newer ICU (79, shipped with Node 26) appends " น." to every Thai time:
+ * "14:30" became "14:30 น.". Vercel moved production to Node 26 on its own
+ * (package.json allows any Node ≥24), so on 2026-11-05 every Thai time in the
+ * app changed shape overnight with no code change — and the screens that
+ * already wrote their own "น." after the time started showing "14:30 น. น.".
+ *
+ * Dropping the suffix part makes the output the same on every ICU version.
+ * Use this, never `toLocaleString` / `toLocaleTimeString` /
+ * `Intl.DateTimeFormat#format`, whenever the options include a time.
+ */
+export function formatClock(
+  date: Date,
+  locale: string,
+  options: Intl.DateTimeFormatOptions,
+): string {
+  return new Intl.DateTimeFormat(locale, options)
+    .formatToParts(date)
+    .filter((p) => !(p.type === 'literal' && p.value.trim() === 'น.'))
+    .map((p) => p.value)
+    .join('')
+    .trim();
+}
+
 // ─── Dates ────────────────────────────────────────────────────────────────
 
 /**
@@ -124,12 +150,12 @@ export function formatMonthYear(month: string, locale: Locale): string {
 
 /** Time of day like "14:30" (24-hour, all locales). */
 export function formatTime(date: Date, locale: Locale): string {
-  return new Intl.DateTimeFormat(latnDigits(locale), {
+  return formatClock(date, latnDigits(locale), {
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
     timeZone: 'Asia/Bangkok',
-  }).format(date);
+  });
 }
 
 // ─── Money ────────────────────────────────────────────────────────────────

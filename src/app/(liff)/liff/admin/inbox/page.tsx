@@ -18,10 +18,11 @@ import { getUserAssignments } from '@/lib/auth/check-permission';
 import { requireLiffAdmin } from '@/lib/auth/require-liff-admin';
 import { prisma } from '@/lib/db/prisma';
 import type { Locale } from '@/lib/i18n/config';
+import { formatClock } from '@/lib/i18n/format';
 import { partialUnitSuffix } from '@/lib/leave/units';
 
 function formatBkk(d: Date, locale: Locale): string {
-  return d.toLocaleString(locale, {
+  return formatClock(d, locale, {
     timeZone: 'Asia/Bangkok',
     day: 'numeric',
     month: 'short',

@@ -18,6 +18,7 @@ import { isOverCap } from '@/lib/advance/balance';
 import { getPermittedBranches } from '@/lib/auth/branch-scope';
 import { requireLiffAdmin } from '@/lib/auth/require-liff-admin';
 import type { Locale } from '@/lib/i18n/config';
+import { formatClock } from '@/lib/i18n/format';
 import { resolveStoredImageUrl } from '@/lib/storage/signed-urls';
 import { loadLiffAdvanceDetail } from './_load';
 import { AdvanceReviewActions, MarkPaidButton, SlipUploadBlock } from './advance-review-actions';
@@ -33,7 +34,7 @@ const STATUS_INFO: Record<string, { labelKey: string; cls: string }> = {
 };
 
 function formatBkk(d: Date, locale: Locale): string {
-  return d.toLocaleString(locale, {
+  return formatClock(d, locale, {
     timeZone: 'Asia/Bangkok',
     day: 'numeric',
     month: 'short',

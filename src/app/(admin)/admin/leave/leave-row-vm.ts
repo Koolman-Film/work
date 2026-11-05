@@ -1,3 +1,4 @@
+import { formatClock } from '@/lib/i18n/format';
 import 'server-only';
 
 import type { StatusKey } from '@/components/ui/status-badge';
@@ -74,7 +75,7 @@ export function formatLeaveRange(start: Date, end: Date): string {
 }
 
 export function formatLeaveDateTime(d: Date): string {
-  return d.toLocaleString('th-TH', {
+  return formatClock(d, 'th-TH', {
     timeZone: 'Asia/Bangkok',
     day: 'numeric',
     month: 'short',

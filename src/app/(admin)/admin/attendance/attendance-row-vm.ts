@@ -1,3 +1,4 @@
+import { formatClock } from '@/lib/i18n/format';
 import 'server-only';
 
 import type { Prisma } from '@prisma/client';
@@ -105,7 +106,7 @@ function formatDate(d: Date): string {
 
 function formatTime(d: Date | null): string {
   if (!d) return '—';
-  return d.toLocaleTimeString('th-TH', {
+  return formatClock(d, 'th-TH', {
     timeZone: 'Asia/Bangkok',
     hour: '2-digit',
     minute: '2-digit',
@@ -113,7 +114,7 @@ function formatTime(d: Date | null): string {
 }
 
 function formatBkkDateTime(d: Date): string {
-  return d.toLocaleString('th-TH', {
+  return formatClock(d, 'th-TH', {
     timeZone: 'Asia/Bangkok',
     day: 'numeric',
     month: 'short',

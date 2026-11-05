@@ -20,6 +20,7 @@ import { Pill } from '@/components/ui/pill';
 import { StatCard } from '@/components/ui/stat-card';
 import { actionLabel } from '@/lib/audit/labels';
 import { prisma } from '@/lib/db/prisma';
+import { formatClock } from '@/lib/i18n/format';
 
 function bangkokDateUtcMidnight(d: Date): Date {
   const ymd = d.toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
@@ -57,7 +58,7 @@ function formatMoney(v: unknown): string {
 }
 
 function formatDateTime(d: Date): string {
-  return d.toLocaleString('th-TH', {
+  return formatClock(d, 'th-TH', {
     timeZone: 'Asia/Bangkok',
     day: 'numeric',
     month: 'short',

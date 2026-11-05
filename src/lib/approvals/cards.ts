@@ -1,5 +1,6 @@
 import { formatTHB2, formatThaiDate } from '@/lib/format';
 import { haversineMeters } from '@/lib/geo/distance';
+import { formatClock } from '@/lib/i18n/format';
 
 type EmployeeShape = {
   firstName: string;
@@ -111,7 +112,7 @@ export function mapDisputedCard(r: DisputedCardInput): ApprovalCard {
           num(r.checkInBranch.longitude),
         )
       : null;
-  const clockInLabel = r.clockInAt.toLocaleTimeString('th-TH', {
+  const clockInLabel = formatClock(r.clockInAt, 'th-TH', {
     timeZone: 'Asia/Bangkok',
     hour: '2-digit',
     minute: '2-digit',

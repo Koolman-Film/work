@@ -25,6 +25,7 @@ import type {
   OnLeaveEmployee,
   RosterEmployee,
 } from '@/lib/attendance/live-shape';
+import { formatClock } from '@/lib/i18n/format';
 import { createClient } from '@/lib/supabase/browser';
 import { type AttendanceFilter, isLate, selectView } from './filter';
 
@@ -125,7 +126,12 @@ export function LiveBoardClient({
           <span>
             ซิงค์ล่าสุด{' '}
             {lastUpdated
-              ? lastUpdated.toLocaleTimeString('th-TH', { timeZone: 'Asia/Bangkok' })
+              ? formatClock(lastUpdated, 'th-TH', {
+                  timeZone: 'Asia/Bangkok',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  second: '2-digit',
+                })
               : '—'}
           </span>
         </div>
@@ -380,7 +386,7 @@ function groupByBranch<T extends { branchName: string }>(
 }
 
 function fmtTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString('th-TH', {
+  return formatClock(new Date(iso), 'th-TH', {
     hour: '2-digit',
     minute: '2-digit',
     timeZone: 'Asia/Bangkok',

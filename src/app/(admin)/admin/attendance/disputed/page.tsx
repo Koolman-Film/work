@@ -11,13 +11,14 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { PageHeader } from '@/components/ui/page-header';
 import { getPermittedBranches } from '@/lib/auth/branch-scope';
 import { requirePermission } from '@/lib/auth/check-permission';
+import { formatClock } from '@/lib/i18n/format';
 import { signAttendancePhotoUrls } from '@/lib/storage/signed-urls';
 import { AttendanceTabs } from '../attendance-tabs';
 import { loadDisputedCheckIns } from './_load-inbox';
 import { DisputedClient, type DisputedVM } from './disputed-client';
 
 function formatBkk(d: Date): string {
-  return d.toLocaleString('th-TH', {
+  return formatClock(d, 'th-TH', {
     timeZone: 'Asia/Bangkok',
     hour: '2-digit',
     minute: '2-digit',

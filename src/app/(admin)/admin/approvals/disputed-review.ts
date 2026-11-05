@@ -12,6 +12,7 @@ import { getPermittedBranches, viaEmployeeBranchScope } from '@/lib/auth/branch-
 import { requirePermission } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { haversineMeters } from '@/lib/geo/distance';
+import { formatClock } from '@/lib/i18n/format';
 import { resolveStoredImageUrl } from '@/lib/storage/signed-urls';
 
 export type DisputedReviewVM = {
@@ -64,7 +65,7 @@ export async function getDisputedReviewRow(attendanceId: string): Promise<Disput
     nickname: r.employee.nickname,
     branch: r.employee.branch.name,
     clockInLabel: r.clockInAt
-      ? r.clockInAt.toLocaleString('th-TH', {
+      ? formatClock(r.clockInAt, 'th-TH', {
           timeZone: 'Asia/Bangkok',
           hour: '2-digit',
           minute: '2-digit',

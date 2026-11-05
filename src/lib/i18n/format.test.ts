@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { LOCALES } from './config';
 import {
+  formatClock,
   formatDate,
   formatMoney,
   formatMonthYear,
@@ -99,5 +100,29 @@ describe('formatNumber', () => {
     for (const locale of LOCALES) {
       expect(formatNumber(2569, locale)).toMatch(/2.?569/);
     }
+  });
+});
+
+describe('formatClock', () => {
+  // 07:30 UTC = 14:30 Asia/Bangkok.
+  const at = new Date(Date.UTC(2026, 4, 30, 7, 30));
+  const bkk = { timeZone: 'Asia/Bangkok' } as const;
+
+  it('never carries the " น." suffix newer ICU adds to Thai times', () => {
+    expect(formatClock(at, 'th-TH', { ...bkk, hour: '2-digit', minute: '2-digit' })).toBe('14:30');
+    expect(
+      formatClock(at, 'th-TH', {
+        ...bkk,
+        day: 'numeric',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
+    ).toBe('30 พ.ค. 14:30');
+  });
+
+  it('leaves other locales and date-only output untouched', () => {
+    expect(formatClock(at, 'en-GB', { ...bkk, hour: '2-digit', minute: '2-digit' })).toBe('14:30');
+    expect(formatClock(at, 'th-TH', { ...bkk, day: 'numeric', month: 'short' })).toBe('30 พ.ค.');
   });
 });

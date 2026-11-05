@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { createMyLinePairingLink, unpairMyLine } from '@/lib/auth/admin-line-pairing-actions';
+import { formatClock } from '@/lib/i18n/format';
 
 export function LinePairingCard({ paired }: { paired: boolean }) {
   const router = useRouter();
@@ -123,7 +124,7 @@ export function LinePairingCard({ paired }: { paired: boolean }) {
                 </div>
                 <p className="text-xs text-ink-4">
                   เปิดลิงก์นี้บนมือถือในแอป LINE (ส่งลิงก์เข้าแชทตัวเองได้) — ลิงก์ใช้ได้ครั้งเดียว หมดอายุ{' '}
-                  {new Date(link.expiresAt).toLocaleTimeString('th-TH', {
+                  {formatClock(new Date(link.expiresAt), 'th-TH', {
                     hour: '2-digit',
                     minute: '2-digit',
                   })}{' '}

@@ -2,7 +2,9 @@
  * Shared export model — every report maps its query rows to ExportTable
  * once; the csv/xlsx/pdf writers all consume this shape. Pure (no DB).
  */
+
 import { formatTHB2 } from '@/lib/format';
+import { formatClock } from '@/lib/i18n/format';
 import type { ReportPeriod } from '@/lib/reports/period';
 
 export type CellFormat = 'text' | 'int' | 'thb';
@@ -52,14 +54,14 @@ export function thaiPeriodLabel(period: ReportPeriod): string {
 
 /** Bangkok-tz "11 มิ.ย. 2569 14:30" stamp for the generated-at line. */
 export function generatedAtLabel(now: Date = new Date()): string {
-  return new Intl.DateTimeFormat('th-TH', {
+  return formatClock(now, 'th-TH', {
     timeZone: 'Asia/Bangkok',
     day: 'numeric',
     month: 'short',
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-  }).format(now);
+  });
 }
 
 export function exportFilename(

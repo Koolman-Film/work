@@ -31,6 +31,7 @@ import { permittedBranchesFromAssignments } from '@/lib/auth/branch-scope';
 import { canDo, getUserAssignments } from '@/lib/auth/check-permission';
 import { prisma } from '@/lib/db/prisma';
 import { employeesWithoutSchedule } from '@/lib/employee/no-schedule';
+import { formatClock } from '@/lib/i18n/format';
 import { holidayAppliesToBranch, isCompanyHoliday } from '@/lib/leave/holiday-scope';
 import { getOrgCalendarData } from '@/lib/leave/team-calendar';
 import { currentMonthYM, parseMonth } from '@/lib/leave/team-calendar-shape';
@@ -82,7 +83,7 @@ function formatMoney(v: unknown): string {
 }
 
 function formatDateTimeShort(d: Date): string {
-  return d.toLocaleString('th-TH', {
+  return formatClock(d, 'th-TH', {
     timeZone: 'Asia/Bangkok',
     day: 'numeric',
     month: 'short',
