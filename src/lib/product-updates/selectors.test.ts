@@ -106,3 +106,25 @@ describe('tourById', () => {
     expect(tourById(tours, 'nope')).toBeNull();
   });
 });
+
+describe('history (backfilled) releases', () => {
+  const withHistory: UpdateItem[] = [
+    ...items,
+    {
+      id: 'h',
+      version: '2026.04.1',
+      date: '2026-04-01',
+      title: { th: 'H' },
+      summary: { th: 'h' },
+      history: true,
+    },
+  ];
+
+  it('are never unseen, counted or announced — record, not news', () => {
+    const none = new Set<string>();
+    expect(unseenItems(withHistory, none).map((i) => i.id)).not.toContain('h');
+    expect(unseenCount(withHistory, none)).toBe(3);
+    expect(unseenCount(withHistory, new Set(['a', 'b', 'c']))).toBe(0);
+    expect(nextAnnounce(withHistory, new Set(['a', 'b', 'c']))).toBeNull();
+  });
+});

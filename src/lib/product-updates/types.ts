@@ -104,6 +104,14 @@ export type UpdateItem = {
   announce?: boolean;
   /** Optional tour id — shows a "Take the tour" button on the item. */
   tour?: string;
+  /**
+   * Written after the fact, from git history (2026-11-05 backfill). It is
+   * part of the record on /admin/whats-new, but it is never unread: it adds
+   * no sidebar dot, no "Unread" mark and never joins the pop-up — announcing
+   * five months of past releases to someone who lived through them is noise.
+   * Never combine with `announce`.
+   */
+  history?: true;
 };
 
 export type TourStep = {

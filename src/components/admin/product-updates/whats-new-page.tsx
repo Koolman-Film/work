@@ -9,6 +9,7 @@ import { UPDATES } from '@/lib/product-updates/registry';
 import { sortReleasesDesc, versionAnchor } from '@/lib/product-updates/release';
 import { pickText, unseenItems } from '@/lib/product-updates/selectors';
 import { useProductUpdates } from '@/lib/product-updates/store';
+import type { UpdateItem } from '@/lib/product-updates/types';
 import { UI } from '@/lib/product-updates/ui-text';
 import { cn } from '@/lib/utils';
 import { ReleaseCard } from './release-card';
@@ -19,13 +20,15 @@ import { ReleaseCard } from './release-card';
  * the "Unread" marks are snapshotted first so the reader can still see which
  * releases are new to them on this visit. Tours stay replayable regardless.
  */
-export function WhatsNewPage() {
+export function WhatsNewPage({ history }: { history: UpdateItem[] }) {
   const locale = useLocale() as Locale;
   const hydrated = useProductUpdates((s) => s.hydrated);
   const seen = useProductUpdates((s) => s.seen);
   const markManySeen = useProductUpdates((s) => s.markManySeen);
   const startTour = useProductUpdates((s) => s.startTour);
-  const releases = sortReleasesDesc(UPDATES);
+  // Backfilled `history` releases are never unread (selectors.ts), so the
+  // unread snapshot below can stay on UPDATES alone.
+  const releases = sortReleasesDesc([...UPDATES, ...history]);
 
   const [unread, setUnread] = useState<ReadonlySet<string> | null>(null);
   // biome-ignore lint/correctness/useExhaustiveDependencies: hydrate edge only; `seen` is read once
@@ -45,7 +48,7 @@ export function WhatsNewPage() {
       <div className="grid grid-cols-1 gap-7 lg:grid-cols-[13rem_minmax(0,1fr)]">
         <nav
           aria-label={pickText(UI.versionList, locale)}
-          className="flex gap-1.5 overflow-x-auto lg:sticky lg:top-24 lg:flex-col lg:self-start"
+          className="flex gap-1.5 overflow-x-auto lg:sticky lg:top-24 lg:max-h-[calc(100dvh-7rem)] lg:flex-col lg:self-start lg:overflow-y-auto lg:overflow-x-visible"
         >
           {releases.map((r) => (
             <a

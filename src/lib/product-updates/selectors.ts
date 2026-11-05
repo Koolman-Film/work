@@ -13,13 +13,14 @@ export function sortByDateDesc(items: UpdateItem[]): UpdateItem[] {
   return [...items].sort((a, b) => b.date.localeCompare(a.date));
 }
 
-/** Items whose id is not in `seen`, newest-first. */
+/** Items whose id is not in `seen`, newest-first. Backfilled `history`
+ *  releases are never unseen — they are record, not news. */
 export function unseenItems(items: UpdateItem[], seen: ReadonlySet<string>): UpdateItem[] {
-  return sortByDateDesc(items).filter((i) => !seen.has(i.id));
+  return sortByDateDesc(items).filter((i) => !i.history && !seen.has(i.id));
 }
 
 export function unseenCount(items: UpdateItem[], seen: ReadonlySet<string>): number {
-  return items.reduce((n, i) => (seen.has(i.id) ? n : n + 1), 0);
+  return items.reduce((n, i) => (i.history || seen.has(i.id) ? n : n + 1), 0);
 }
 
 /** Newest unseen item flagged `announce`, or null. */

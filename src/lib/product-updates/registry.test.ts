@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { ALL_RELEASES, HISTORY } from './history';
 import { UPDATES } from './registry';
 import { latestRelease, sortReleasesDesc, versionProblems } from './release';
 import { parseBody } from './rich-text';
@@ -21,22 +22,22 @@ const FIRST_RUN_KEY = 'first-run.welcome';
 
 describe('the shipped registry', () => {
   it('has unique ids', () => {
-    const ids = UPDATES.map((i) => i.id);
+    const ids = ALL_RELEASES.map((i) => i.id);
     expect(new Set(ids).size).toBe(ids.length);
   });
 
   it('dates are ISO yyyy-mm-dd (string compare is the sort)', () => {
-    for (const item of UPDATES) {
+    for (const item of ALL_RELEASES) {
       expect(item.date, `${item.id} date`).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     }
   });
 
   it('keeps the YYYY.MM.N version rules (release.ts versionProblems)', () => {
-    expect(versionProblems(UPDATES)).toEqual([]);
+    expect(versionProblems(ALL_RELEASES)).toEqual([]);
   });
 
   it('no release carries more than three figures (lead + action + items)', () => {
-    for (const item of UPDATES) {
+    for (const item of ALL_RELEASES) {
       const figures =
         (item.figure ? 1 : 0) +
         (item.action?.figure ? 1 : 0) +
@@ -46,13 +47,51 @@ describe('the shipped registry', () => {
   });
 
   it('every link is an in-app path', () => {
-    for (const item of UPDATES) {
+    for (const item of ALL_RELEASES) {
       for (const l of item.links ?? []) expect(l.href, item.id).toMatch(/^\/admin\//);
     }
   });
 
+  it('backfilled releases live in history/ (server-only), live ones in the registry', () => {
+    // The registry ships to every admin page; history is never unread, so a
+    // history entry there is only weight, and a live entry in history/ would
+    // never reach the sidebar or the pop-up.
+    expect(UPDATES.filter((i) => i.history).map((i) => i.id)).toEqual([]);
+    expect(HISTORY.filter((i) => !i.history).map((i) => i.id)).toEqual([]);
+  });
+
+  it('a backfilled history release never announces or carries a tour', () => {
+    for (const item of ALL_RELEASES.filter((i) => i.history)) {
+      expect(item.announce, item.id).toBeUndefined();
+      expect(item.tour, item.id).toBeUndefined();
+      expect(item.action, item.id).toBeUndefined();
+    }
+  });
+
+  it('every link points at a page that exists', () => {
+    // href → app-router page, ignoring (group) folders: /admin/x → src/app/(admin)/admin/x/page.tsx
+    const APP = join(__dirname, '..', '..', 'app');
+    const pages = new Set<string>();
+    const walk = (dir: string, route: string) => {
+      for (const name of readdirSync(dir)) {
+        const p = join(dir, name);
+        if (statSync(p).isDirectory()) {
+          walk(p, /^\(.*\)$/.test(name) ? route : `${route}/${name}`);
+        } else if (name === 'page.tsx') {
+          pages.add(route || '/');
+        }
+      }
+    };
+    walk(APP, '');
+    for (const item of ALL_RELEASES) {
+      for (const l of item.links ?? []) {
+        expect(pages.has(l.href.split(/[?#]/)[0] ?? ''), `${item.id} -> ${l.href}`).toBe(true);
+      }
+    }
+  });
+
   it('every referenced tour exists', () => {
-    for (const item of UPDATES) {
+    for (const item of ALL_RELEASES) {
       if (!item.tour) continue;
       expect(tourById(TOURS, item.tour), `${item.id} -> tour "${item.tour}"`).not.toBeNull();
     }
@@ -129,12 +168,12 @@ describe('no announce entry can be stranded', () => {
 
 describe('page ordering', () => {
   it('lists newest first, and version order agrees with date order', () => {
-    const byVersion = sortReleasesDesc(UPDATES).map((i) => i.id);
-    expect(byVersion).toEqual(sortByDateDesc(UPDATES).map((i) => i.id));
+    const byVersion = sortReleasesDesc(ALL_RELEASES).map((i) => i.id);
+    expect(byVersion).toEqual(sortByDateDesc(ALL_RELEASES).map((i) => i.id));
   });
 
   it('the sidebar footer shows the newest release', () => {
-    expect(latestRelease(UPDATES)?.version).toBe('2026.11.1');
+    expect(latestRelease(ALL_RELEASES)?.version).toBe('2026.11.1');
   });
 });
 
@@ -167,7 +206,7 @@ describe('every tour anchor exists in the source', () => {
 });
 
 describe('summary markup in every shipped locale', () => {
-  const bodies = UPDATES.flatMap((item) =>
+  const bodies = ALL_RELEASES.flatMap((item) =>
     Object.entries(item.summary as Record<string, string>).map(
       ([locale, text]) => [`${item.id}/${locale}`, text] as const,
     ),
@@ -197,5 +236,19 @@ describe('summary markup in every shipped locale', () => {
 
   it.each(bodies)('%s produces at least one block', (_label, text) => {
     expect(parseBody(text).length).toBeGreaterThan(0);
+  });
+});
+
+describe('historyFor', () => {
+  it('keeps one language (plus the th fallback) and nothing else changes', async () => {
+    const { historyFor, HISTORY } = await import('./history');
+    const th = historyFor('th');
+    expect(th).toHaveLength(HISTORY.length);
+    expect(th[0]?.title).toEqual({ th: HISTORY[0]?.title.th });
+    expect(th[0]?.version).toBe(HISTORY[0]?.version);
+    expect(JSON.stringify(th)).not.toContain('"en":');
+    const en = historyFor('en');
+    expect(en[0]?.title).toEqual({ th: HISTORY[0]?.title.th, en: HISTORY[0]?.title.en });
+    expect(JSON.stringify(th).length).toBeLessThan(JSON.stringify(HISTORY).length / 3);
   });
 });

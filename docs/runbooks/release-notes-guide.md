@@ -153,6 +153,7 @@ native-speaker proofread — say so in the commit).
 ```
 src/lib/product-updates/
   registry.ts        <- THE RELEASES. The only file you normally edit.
+  history/           <- May–Oct 2026, reconstructed from git on 2026-11-05
   types.ts           <- UpdateItem, figures, items, links
   release.ts         <- version rules, sorting, timeline geometry
   ui-text.ts         <- chrome labels (six locales)
@@ -169,6 +170,21 @@ src/app/(admin)/admin/whats-new/page.tsx  <- route, gated by requireAdminArea()
 
 The sidebar's "มีอะไรใหม่" links to the page; it keeps
 `data-tour="whats-new-button"` for the tours.
+
+### Backfilled history (`history: true`)
+
+The page started keeping a real record on 2026-11-04. Everything shipped
+before that, from go-live on 28 May 2026 onwards, was reconstructed from the
+git log on 2026-11-05 and lives in `history/`, one file per month, under the
+same version rules. Those entries carry `history: true`: they are on the page
+and in the version rail, but they are never unread — no sidebar dot, no
+"Unread" mark, never in the pop-up. Announcing five months of past releases to
+people who lived through them is noise. The three releases that WERE
+announced at the time (welcome, auto-absence, ui-refresh) keep their ids,
+`announce` and tours, and no `history` flag.
+
+New releases never get `history: true`. It exists for a backfill, not for
+"announce quietly" — for that, leave out `announce`.
 
 ---
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { LOCALES } from '@/lib/i18n/config';
-import { UPDATES } from './registry';
+import { ALL_RELEASES } from './history';
 import { TOURS } from './tours';
 import type { LocalizedText, UpdateItem } from './types';
 import { UI } from './ui-text';
@@ -20,7 +20,7 @@ function allStrings(): Array<[string, LocalizedText]> {
       out.push([`tour ${tour.id}/${step.anchor} body`, step.body]);
     }
   }
-  for (const item of UPDATES) collectLocalized(item, `update ${item.id}`, out);
+  for (const item of ALL_RELEASES) collectLocalized(item, `update ${item.id}`, out);
   for (const [key, value] of Object.entries(UI)) {
     out.push([`ui ${key}`, value]);
   }
