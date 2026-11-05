@@ -82,6 +82,7 @@ export async function createEmployee(formData: FormData) {
       const e = await tx.employee.create({
         data: {
           userId: u.id,
+          titlePrefix: data.titlePrefix,
           firstName: data.firstName,
           lastName: data.lastName,
           nickname: data.nickname,
@@ -142,6 +143,7 @@ export async function createEmployee(formData: FormData) {
       entityType: 'Employee',
       entityId: result.employee.id,
       after: {
+        titlePrefix: data.titlePrefix,
         firstName: data.firstName,
         lastName: data.lastName,
         nickname: data.nickname,
@@ -223,6 +225,7 @@ export async function updateEmployee(id: string, formData: FormData) {
     await prisma.employee.update({
       where: { id },
       data: {
+        titlePrefix: data.titlePrefix,
         firstName: data.firstName,
         lastName: data.lastName,
         nickname: data.nickname,
@@ -260,6 +263,7 @@ export async function updateEmployee(id: string, formData: FormData) {
       entityId: id,
       before: serializableEmployee(before),
       after: {
+        titlePrefix: data.titlePrefix,
         firstName: data.firstName,
         lastName: data.lastName,
         nickname: data.nickname,
@@ -637,6 +641,7 @@ async function bestEffortRemovePhoto(key: string | null): Promise<void> {
 }
 
 function serializableEmployee(e: {
+  titlePrefix: string | null;
   firstName: string;
   lastName: string;
   nickname: string | null;
@@ -661,6 +666,7 @@ function serializableEmployee(e: {
   nationalId: string | null;
 }) {
   return {
+    titlePrefix: e.titlePrefix,
     firstName: e.firstName,
     lastName: e.lastName,
     nickname: e.nickname,

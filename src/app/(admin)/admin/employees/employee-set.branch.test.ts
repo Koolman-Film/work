@@ -407,3 +407,71 @@ describe('updateEmployee — branch reassignment is global-only', () => {
     );
   });
 });
+
+// ── titlePrefix is persisted (regression: the form posted it, the actions
+// dropped it — every prod employee had a null prefix, so สปส.1-10 / ภ.ง.ด.1
+// downloads stayed blocked however many times an admin picked "นาย") ──────────
+
+describe('titlePrefix — create and update both persist it', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    requirePermission.mockResolvedValue({ user: { id: 'actor' } });
+    getUserAssignments.mockResolvedValue([
+      {
+        branchId: null,
+        role: {
+          permissions: ['employee.create', 'employee.update'],
+          isSuperadmin: false,
+          archivedAt: null,
+        },
+      },
+    ]);
+    transactionFn.mockImplementation(async (fn: (tx: unknown) => unknown) => fn(makeTxStub()));
+    userCreate.mockResolvedValue({ id: 'new-user' });
+    employeeCreate.mockResolvedValue({ id: 'new-emp' });
+    roleDefFindUnique.mockResolvedValue({ id: 'role-staff' });
+    userRoleAssignmentCreateMany.mockResolvedValue({});
+    employeeUpdate.mockResolvedValue({});
+  });
+
+  it('createEmployee writes the chosen prefix', async () => {
+    const fd = createFd(BRANCH_A, [BRANCH_A]);
+    fd.set('titlePrefix', 'Miss');
+    await createEmployee(fd).catch(() => {
+      // expected REDIRECT after success
+    });
+    expect(employeeCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ titlePrefix: 'Miss' }) }),
+    );
+  });
+
+  it('updateEmployee writes the chosen prefix', async () => {
+    employeeFindUnique.mockResolvedValue({
+      ...makeBeforeRecord(BRANCH_A, [BRANCH_A]),
+      titlePrefix: null,
+    });
+    const fd = editFd(BRANCH_A, [BRANCH_A]);
+    fd.set('titlePrefix', 'Mr');
+    await updateEmployee('e1', fd).catch(() => {
+      // expected REDIRECT after success
+    });
+    expect(employeeUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ titlePrefix: 'Mr' }) }),
+    );
+  });
+
+  it('updateEmployee clears the prefix when "ยังไม่ระบุ" is chosen', async () => {
+    employeeFindUnique.mockResolvedValue({
+      ...makeBeforeRecord(BRANCH_A, [BRANCH_A]),
+      titlePrefix: 'Mr',
+    });
+    const fd = editFd(BRANCH_A, [BRANCH_A]);
+    fd.set('titlePrefix', '');
+    await updateEmployee('e1', fd).catch(() => {
+      // expected REDIRECT after success
+    });
+    expect(employeeUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ titlePrefix: null }) }),
+    );
+  });
+});
